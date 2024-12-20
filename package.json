@@ -10,11 +10,15 @@
   "scripts": {
     "test": "jest",
     "build": "tsc",
-    "lint": "eslint src/**/*.ts",
-    "format": "prettier --write \"src/**/*.ts\"",
+    "lint": "eslint src/**/*.{js,ts}",
+    "format": "prettier --write \"src/**/*.{js,ts}\"",
     "start": "node bin/hamlet.js",
     "prepare": "husky",
-    "lint-staged": "lint-staged"
+    "lint-staged": "lint-staged",
+    "validate": "node src/scripts/validate.js",
+    "visual-compare": "node src/scripts/visual-compare.js",
+    "generate-types": "node src/scripts/generate-types.js",
+    "generate-report": "node src/scripts/generate-report.js"
   },
   "keywords": [
     "playwright",
@@ -22,7 +26,9 @@
     "testing",
     "automation",
     "migration",
-    "test-management"
+    "test-management",
+    "visual-testing",
+    "typescript"
   ],
   "author": "pmcISF",
   "license": "MIT",
@@ -32,22 +38,42 @@
     "axe-playwright": "^1.2.3",
     "chalk": "^5.3.0",
     "commander": "^11.0.0",
-    "glob": "^10.3.3"
+    "fast-glob": "^3.3.0",
+    "glob": "^10.3.3",
+    "lodash": "^4.17.21",
+    "papaparse": "^5.4.1",
+    "pixelmatch": "^5.3.0",
+    "pngjs": "^7.0.0",
+    "typescript": "^5.0.0"
   },
   "devDependencies": {
     "@commitlint/cli": "^19.6.1",
     "@commitlint/config-conventional": "^19.6.0",
     "@types/jest": "^29.5.3",
+    "@types/lodash": "^4.14.195",
     "@types/node": "^20.4.5",
+    "@types/papaparse": "^5.3.7",
+    "@types/pixelmatch": "^5.2.4",
+    "@types/pngjs": "^6.0.1",
+    "@typescript-eslint/eslint-plugin": "^5.62.0",
+    "@typescript-eslint/parser": "^5.62.0",
+    "eslint": "^8.57.1",
+    "eslint-config-prettier": "^8.8.0",
+    "eslint-plugin-jest": "^27.2.3",
     "husky": "^9.1.7",
     "jest": "^29.6.2",
     "lint-staged": "^15.2.11",
+    "prettier": "^3.0.0",
+    "ts-jest": "^29.1.1",
     "typescript": "^5.0.0"
   },
   "lint-staged": {
-    "*.ts": [
-      "eslint --fix",
-      "prettier --write"
+    "*.{js,ts}": [
+      "prettier --write",
+      "eslint --fix --max-warnings=0"
     ]
+  },
+  "engines": {
+    "node": ">=16.0.0"
   }
 }
