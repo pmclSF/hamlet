@@ -1,0 +1,30 @@
+{
+    "testManagement": {
+      "type": "testrail",
+      "config": {
+        "url": "",
+        "username": "",
+        "apiKey": "",
+        "project": "",
+        "suite": ""
+      }
+    },
+    "conversion": {
+      "patterns": "./patterns.json",
+      "output": "./playwright-tests",
+      "recursive": true,
+      "createMissing": true,
+      "cleanOutput": true
+    },
+    "reporting": {
+      "format": ["json", "html", "markdown"],
+      "outputDir": "./reports",
+      "includeStats": true,
+      "includeScreenshots": false
+    },
+    "security": {
+      "encryptCredentials": true,
+      "auditLog": true,
+      "logLevel": "info"
+    }
+  }
