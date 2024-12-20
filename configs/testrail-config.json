@@ -1,0 +1,17 @@
+{
+    "testManagement": {
+      "type": "testrail",
+      "config": {
+        "url": "https://your-instance.testrail.com",
+        "username": "${TESTRAIL_USERNAME}",
+        "apiKey": "${TESTRAIL_API_KEY}",
+        "project": "Your Project",
+        "suite": "Automated Tests",
+        "mapping": {
+          "smoke": "1",
+          "regression": "2",
+          "api": "3"
+        }
+      }
+    }
+  }

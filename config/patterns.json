@@ -1,0 +1,35 @@
+{
+    "commands": {
+      "custom": {
+        "cy.myCustomCommand": {
+          "playwright": "await page.customAction",
+          "imports": ["import { customAction } from '../utils/custom-actions'"],
+          "description": "Convert custom Cypress command to Playwright action"
+        }
+      },
+      "assertions": {
+        "should('have.custom')": {
+          "playwright": "toHaveCustom",
+          "imports": ["import { customExpect } from '../utils/custom-expects'"],
+          "description": "Convert custom assertion"
+        }
+      }
+    },
+    "testTypes": {
+      "api": {
+        "patterns": ["cy.request", "cy.api", "intercept"],
+        "imports": ["import { request } from '@playwright/test'"],
+        "setup": "const api = request.newContext()"
+      },
+      "component": {
+        "patterns": ["mount(", "cy.mount"],
+        "imports": ["import { test } from '@playwright/experimental-ct-react'"],
+        "setup": "// Component test setup"
+      },
+      "accessibility": {
+        "patterns": ["cy.injectAxe", "cy.checkA11y"],
+        "imports": ["import { injectAxe, checkA11y } from 'axe-playwright'"],
+        "setup": "await injectAxe(page)"
+      }
+    }
+  }

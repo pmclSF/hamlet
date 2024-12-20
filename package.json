@@ -1,15 +1,53 @@
 {
   "name": "hamlet",
   "version": "1.0.0",
-  "main": "index.js",
-  "directories": {
-    "test": "test"
+  "description": "To be or not to be... in Playwright. A test converter from Cypress to Playwright.",
+  "main": "src/index.js",
+  "type": "module",
+  "bin": {
+    "hamlet": "./bin/hamlet.js"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "jest",
+    "build": "tsc",
+    "lint": "eslint src/**/*.ts",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "start": "node bin/hamlet.js",
+    "prepare": "husky",
+    "lint-staged": "lint-staged"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": ""
+  "keywords": [
+    "playwright",
+    "cypress",
+    "testing",
+    "automation",
+    "migration",
+    "test-management"
+  ],
+  "author": "pmcISF",
+  "license": "MIT",
+  "dependencies": {
+    "@playwright/experimental-ct-react": "^1.40.0",
+    "@playwright/test": "^1.40.0",
+    "axe-playwright": "^1.2.3",
+    "chalk": "^5.3.0",
+    "commander": "^11.0.0",
+    "glob": "^10.3.3"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^19.6.1",
+    "@commitlint/config-conventional": "^19.6.0",
+    "@types/jest": "^29.5.3",
+    "@types/node": "^20.4.5",
+    "husky": "^9.1.7",
+    "jest": "^29.6.2",
+    "lint-staged": "^15.2.11",
+    "typescript": "^5.0.0"
+  },
+  "lint-staged": {
+    "*.ts": [
+      "eslint --fix",
+      "prettier --write"
+    ]
+  }
 }
