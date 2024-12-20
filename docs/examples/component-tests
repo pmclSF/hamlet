@@ -1,0 +1,65 @@
+# Component Test Examples
+
+## Basic Component Test
+
+```javascript
+// Cypress
+describe('Button Component', () => {
+  it('should handle click events', () => {
+    cy.mount(Button, { props: { label: 'Click me' } });
+    cy.get('button').click();
+    cy.get('button').should('have.text', 'Clicked');
+  });
+});
+
+// Converted Playwright
+test.describe('Button Component', () => {
+  test('should handle click events', async ({ mount }) => {
+    const component = await mount(Button, {
+      props: { label: 'Click me' }
+    });
+    await component.locator('button').click();
+    await expect(component.locator('button')).toHaveText('Clicked');
+  });
+});
+```
+
+## Component with Props
+
+```javascript
+// Cypress
+cy.mount(UserCard, {
+  props: {
+    name: 'John Doe',
+    email: 'john@example.com'
+  }
+});
+
+// Converted Playwright
+await mount(UserCard, {
+  props: {
+    name: 'John Doe',
+    email: 'john@example.com'
+  }
+});
+```
+
+## Component Events
+
+```javascript
+// Cypress
+cy.mount(Form, {
+  props: {
+    onSubmit: cy.stub().as('onSubmit')
+  }
+});
+cy.get('form').submit();
+cy.get('@onSubmit').should('have.been.called');
+
+// Converted Playwright
+const onSubmit = sinon.spy();
+await mount(Form, {
+  props: { onSubmit }
+});
+await page.locator('form').evaluate(form => form.submit());
+expect(onSubmit.called).toBe(true);
