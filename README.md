@@ -152,3 +152,4 @@ Support
 🐛 Issue Tracker
 💬 Discussions# test
 # another test
+# test hook
