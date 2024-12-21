@@ -345,12 +345,12 @@ export class TestMetadataCollector {
     };
   }
 
-  /**
-   * Calculate average
-   * @param {number[]} numbers - Array of numbers
-   * @returns {number} - Average value
-   */
-  private average(numbers) {
+/**
+ * Calculate average
+ * @param {number[]} numbers - Array of numbers
+ * @returns {number} - Average value
+ */
+average(numbers) {
     return numbers.length ? 
       numbers.reduce((a, b) => a + b, 0) / numbers.length : 
       0;

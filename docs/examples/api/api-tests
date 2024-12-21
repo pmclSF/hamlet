@@ -1,68 +1,133 @@
-# API Test Examples
+// Cypress API Test Examples
 
-## Basic API Test
-
-```javascript
-// Cypress
-describe('API Tests', () => {
+/**
+ * Basic API Request Test
+ * Demonstrates a simple GET request and response validation
+ */
+describe('API Request Tests', () => {
   it('should make a successful GET request', () => {
+    // Send a GET request to the users endpoint
     cy.request('/api/users').then((response) => {
+      // Validate response status
       expect(response.status).to.eq(200);
+      
+      // Verify response body contains data
       expect(response.body).to.have.length.greaterThan(0);
+    });
+  });
+
+  /**
+   * Request Interception Example
+   * Shows how to mock API responses using fixtures
+   */
+  it('should intercept and mock API response', () => {
+    // Intercept GET request and replace with fixture data
+    cy.intercept('GET', '/api/users', { 
+      fixture: 'users.json' 
+    }).as('getUsersStub');
+
+    // Trigger the request
+    cy.visit('/users');
+
+    // Wait for and verify the intercepted request
+    cy.wait('@getUsersStub').its('response.statusCode').should('eq', 200);
+  });
+
+  /**
+   * Authentication and Protected Route Test
+   * Demonstrates login flow and accessing a protected endpoint
+   */
+  it('should access protected endpoint after authentication', () => {
+    // Perform login request
+    cy.request('POST', '/api/login', { 
+      username: 'testuser', 
+      password: 'password123' 
+    }).then((loginResponse) => {
+      // Validate login response
+      expect(loginResponse.status).to.eq(200);
+      
+      // Extract authentication token
+      const token = loginResponse.body.token;
+
+      // Make request to protected endpoint with token
+      cy.request({
+        method: 'GET',
+        url: '/api/protected-resource',
+        headers: { 
+          'Authorization': `Bearer ${token}` 
+        }
+      }).then((protectedResponse) => {
+        // Validate protected endpoint access
+        expect(protectedResponse.status).to.eq(200);
+      });
     });
   });
 });
 
-// Converted Playwright
-test.describe('API Tests', () => {
+// Playwright API Test Examples
+
+/**
+ * Basic API Request Test
+ * Demonstrates async API testing in Playwright
+ */
+test.describe('API Request Tests', () => {
   test('should make a successful GET request', async ({ request }) => {
+    // Send GET request to users endpoint
     const response = await request.get('/api/users');
+    
+    // Validate response status
     expect(response.status()).toBe(200);
+    
+    // Parse and verify response body
     const body = await response.json();
     expect(body.length).toBeGreaterThan(0);
   });
-});
-```
 
-## Request Interception
+  /**
+   * Request Interception Example
+   * Shows how to mock API responses in Playwright
+   */
+  test('should intercept and mock API response', async ({ page }) => {
+    // Mock API response before page load
+    await page.route('/api/users', async route => {
+      // Fulfill route with fixture data
+      await route.fulfill({
+        path: './fixtures/users.json'
+      });
+    });
 
-```javascript
-// Cypress
-cy.intercept('GET', '/api/users', { fixture: 'users.json' });
-
-// Converted Playwright
-await page.route('/api/users', async route => {
-  await route.fulfill({
-    path: './fixtures/users.json'
+    // Navigate to page that makes the API call
+    await page.goto('/users');
   });
-});
-```
 
-## Complex API Scenarios
+  /**
+   * Authentication and Protected Route Test
+   * Demonstrates login flow and accessing protected endpoint
+   */
+  test('should access protected endpoint after authentication', async ({ request }) => {
+    // Perform login request
+    const loginResponse = await request.post('/api/login', {
+      data: { 
+        username: 'testuser', 
+        password: 'password123' 
+      }
+    });
 
-```javascript
-// Cypress
-cy.request('POST', '/api/login', { 
-  username: 'user', 
-  password: 'pass' 
-}).then((response) => {
-  const token = response.body.token;
-  cy.request({
-    url: '/api/protected',
-    headers: { Authorization: `Bearer ${token}` }
+    // Validate login response
+    expect(loginResponse.status()).toBe(200);
+    
+    // Extract authentication token
+    const loginBody = await loginResponse.json();
+    const token = loginBody.token;
+
+    // Access protected endpoint with token
+    const protectedResponse = await request.get('/api/protected-resource', {
+      headers: { 
+        'Authorization': `Bearer ${token}` 
+      }
+    });
+
+    // Validate protected endpoint access
+    expect(protectedResponse.status()).toBe(200);
   });
-});
-
-// Converted Playwright
-const loginResponse = await request.post('/api/login', {
-  data: { 
-    username: 'user', 
-    password: 'pass' 
-  }
-});
-const body = await loginResponse.json();
-const token = body.token;
-
-await request.get('/api/protected', {
-  headers: { Authorization: `Bearer ${token}` }
 });
