@@ -389,9 +389,12 @@ export async function convertConfig(configPath, options = {}) {
       await fs.writeFile(outputPath, converted);
   
       // Validate if requested
+      let validator = null;
+      let validationResults = null;
+      
       if (options.validate) {
-        const validator = new TestValidator();
-        const validationResults = await validator.validateTest(outputPath);
+        validator = new TestValidator();
+        validationResults = await validator.validateTest(outputPath);
         reporter.addValidationResults(validationResults);
       }
   
@@ -414,7 +417,7 @@ export async function convertConfig(configPath, options = {}) {
         metadata, 
         dependencies,
         outputPath,
-        validationResults: options.validate ? validator.getResults() : null,
+        validationResults: validationResults,
         visualResults: options.compareVisuals ? comparisonResults : null
       };
   
@@ -702,7 +705,6 @@ export {
   // Utility exports
   export {
     fileUtils,
-    stringUtils,
     codeUtils,
     testUtils,
     reportUtils,
@@ -715,15 +717,40 @@ export {
   };
   
   // Type definitions
-  export type {
-    ConversionOptions,
-    ConversionResult,
-    TestMetadata,
-    DependencyInfo,
-    ValidationResult,
-    VisualComparisonResult,
-    ReportFormat
-  } from './types';
+  export {
+    convertCypressToPlaywright,
+    convertConfig,
+    convertFile,
+    convertRepository,
+    processTestFiles
+  };
+  
+  // Converter classes
+  export {
+    RepositoryConverter,
+    BatchProcessor,
+    DependencyAnalyzer,
+    TestMetadataCollector,
+    TestValidator,
+    TypeScriptConverter,
+    PluginConverter,
+    VisualComparison,
+    TestMapper
+  };
+  
+  // Utility exports
+  export {
+    fileUtils,
+    codeUtils,
+    testUtils,
+    reportUtils,
+    logUtils
+  };
+  
+  // Reporter
+  export {
+    ConversionReporter
+  };
   
   // Constants
   export const VERSION = '1.0.0';
