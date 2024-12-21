@@ -1,65 +1,198 @@
-# Component Test Examples
+// Cypress Component Test Examples
 
-## Basic Component Test
-
-```javascript
-// Cypress
+/**
+ * Basic Button Component Test
+ * Demonstrates mounting a component and testing its interactions
+ */
 describe('Button Component', () => {
-  it('should handle click events', () => {
-    cy.mount(Button, { props: { label: 'Click me' } });
-    cy.get('button').click();
-    cy.get('button').should('have.text', 'Clicked');
-  });
-});
-
-// Converted Playwright
-test.describe('Button Component', () => {
-  test('should handle click events', async ({ mount }) => {
-    const component = await mount(Button, {
-      props: { label: 'Click me' }
+    it('should render with correct initial label', () => {
+      // Mount the Button component with initial props
+      cy.mount(Button, { 
+        props: { 
+          label: 'Click me' 
+        } 
+      });
+  
+      // Verify initial rendering
+      cy.get('button').should('be.visible');
+      cy.get('button').should('have.text', 'Click me');
     });
-    await component.locator('button').click();
-    await expect(component.locator('button')).toHaveText('Clicked');
+  
+    it('should handle click events', () => {
+      // Create a spy to track click events
+      const onClickSpy = cy.spy().as('clickHandler');
+  
+      // Mount the Button component with a click handler
+      cy.mount(Button, { 
+        props: { 
+          label: 'Click me',
+          onClick: onClickSpy 
+        } 
+      });
+  
+      // Simulate button click
+      cy.get('button').click();
+  
+      // Verify click handler was called
+      cy.get('@clickHandler').should('have.been.calledOnce');
+    });
   });
-});
-```
-
-## Component with Props
-
-```javascript
-// Cypress
-cy.mount(UserCard, {
-  props: {
-    name: 'John Doe',
-    email: 'john@example.com'
-  }
-});
-
-// Converted Playwright
-await mount(UserCard, {
-  props: {
-    name: 'John Doe',
-    email: 'john@example.com'
-  }
-});
-```
-
-## Component Events
-
-```javascript
-// Cypress
-cy.mount(Form, {
-  props: {
-    onSubmit: cy.stub().as('onSubmit')
-  }
-});
-cy.get('form').submit();
-cy.get('@onSubmit').should('have.been.called');
-
-// Converted Playwright
-const onSubmit = sinon.spy();
-await mount(Form, {
-  props: { onSubmit }
-});
-await page.locator('form').evaluate(form => form.submit());
-expect(onSubmit.called).toBe(true);
+  
+  /**
+   * User Card Component Test
+   * Shows testing a component with multiple props
+   */
+  describe('UserCard Component', () => {
+    it('should render user information correctly', () => {
+      // Mount UserCard with specific user details
+      cy.mount(UserCard, {
+        props: {
+          name: 'John Doe',
+          email: 'john@example.com',
+          avatarUrl: '/path/to/avatar.jpg'
+        }
+      });
+  
+      // Verify component renders user details
+      cy.get('[data-testid="user-name"]').should('have.text', 'John Doe');
+      cy.get('[data-testid="user-email"]').should('have.text', 'john@example.com');
+      cy.get('[data-testid="user-avatar"]').should('be.visible');
+    });
+  });
+  
+  /**
+   * Form Component Test
+   * Demonstrates testing component events and form submission
+   */
+  describe('Form Component', () => {
+    it('should emit submit event with form data', () => {
+      // Create a spy for the submit event
+      const onSubmitSpy = cy.spy().as('submitHandler');
+  
+      // Mount Form component with submit event handler
+      cy.mount(Form, {
+        props: {
+          onSubmit: onSubmitSpy
+        }
+      });
+  
+      // Fill out form fields
+      cy.get('input[name="username"]').type('testuser');
+      cy.get('input[name="password"]').type('password123');
+  
+      // Submit the form
+      cy.get('form').submit();
+  
+      // Verify submit handler was called with correct data
+      cy.get('@submitHandler').should('have.been.calledOnce');
+      cy.get('@submitHandler').its('firstCall.args[0]').should('deep.include', {
+        username: 'testuser',
+        password: 'password123'
+      });
+    });
+  });
+  
+  // Playwright Component Test Examples
+  
+  /**
+   * Basic Button Component Test
+   * Demonstrates mounting a component and testing its interactions
+   */
+  test.describe('Button Component', () => {
+    test('should render with correct initial label', async ({ mount }) => {
+      // Mount the Button component
+      const component = await mount(Button, { 
+        props: { 
+          label: 'Click me' 
+        } 
+      });
+  
+      // Verify initial rendering
+      const button = component.locator('button');
+      await expect(button).toBeVisible();
+      await expect(button).toHaveText('Click me');
+    });
+  
+    test('should handle click events', async ({ mount }) => {
+      // Track click events
+      let clickCount = 0;
+      const onClickHandler = () => { clickCount++; };
+  
+      // Mount the Button component with click handler
+      const component = await mount(Button, { 
+        props: { 
+          label: 'Click me',
+          onClick: onClickHandler 
+        } 
+      });
+  
+      // Simulate button click
+      const button = component.locator('button');
+      await button.click();
+  
+      // Verify click handler was called
+      expect(clickCount).toBe(1);
+    });
+  });
+  
+  /**
+   * User Card Component Test
+   * Shows testing a component with multiple props
+   */
+  test.describe('UserCard Component', () => {
+    test('should render user information correctly', async ({ mount }) => {
+      // Mount UserCard with specific user details
+      const component = await mount(UserCard, {
+        props: {
+          name: 'John Doe',
+          email: 'john@example.com',
+          avatarUrl: '/path/to/avatar.jpg'
+        }
+      });
+  
+      // Verify component renders user details
+      await expect(component.locator('[data-testid="user-name"]'))
+        .toHaveText('John Doe');
+      await expect(component.locator('[data-testid="user-email"]'))
+        .toHaveText('john@example.com');
+      await expect(component.locator('[data-testid="user-avatar"]'))
+        .toBeVisible();
+    });
+  });
+  
+  /**
+   * Form Component Test
+   * Demonstrates testing component events and form submission
+   */
+  test.describe('Form Component', () => {
+    test('should emit submit event with form data', async ({ mount }) => {
+      // Track submit events
+      let submittedData = null;
+      const onSubmitHandler = (data) => { submittedData = data; };
+  
+      // Mount Form component with submit event handler
+      const component = await mount(Form, {
+        props: {
+          onSubmit: onSubmitHandler
+        }
+      });
+  
+      // Locate form elements
+      const usernameInput = component.locator('input[name="username"]');
+      const passwordInput = component.locator('input[name="password"]');
+      const form = component.locator('form');
+  
+      // Fill out form fields
+      await usernameInput.type('testuser');
+      await passwordInput.type('password123');
+  
+      // Submit the form
+      await form.evaluate(f => f.submit());
+  
+      // Verify submit handler was called with correct data
+      expect(submittedData).toEqual({
+        username: 'testuser',
+        password: 'password123'
+      });
+    });
+  });

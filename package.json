@@ -3,7 +3,6 @@
   "version": "1.0.0",
   "description": "To be or not to be... in Playwright. A test converter from Cypress to Playwright.",
   "main": "src/index.js",
-  "type": "module",
   "bin": {
     "hamlet": "./bin/hamlet.js"
   },
