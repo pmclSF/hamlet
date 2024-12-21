@@ -1,0 +1,68 @@
+# API Test Examples
+
+## Basic API Test
+
+```javascript
+// Cypress
+describe('API Tests', () => {
+  it('should make a successful GET request', () => {
+    cy.request('/api/users').then((response) => {
+      expect(response.status).to.eq(200);
+      expect(response.body).to.have.length.greaterThan(0);
+    });
+  });
+});
+
+// Converted Playwright
+test.describe('API Tests', () => {
+  test('should make a successful GET request', async ({ request }) => {
+    const response = await request.get('/api/users');
+    expect(response.status()).toBe(200);
+    const body = await response.json();
+    expect(body.length).toBeGreaterThan(0);
+  });
+});
+```
+
+## Request Interception
+
+```javascript
+// Cypress
+cy.intercept('GET', '/api/users', { fixture: 'users.json' });
+
+// Converted Playwright
+await page.route('/api/users', async route => {
+  await route.fulfill({
+    path: './fixtures/users.json'
+  });
+});
+```
+
+## Complex API Scenarios
+
+```javascript
+// Cypress
+cy.request('POST', '/api/login', { 
+  username: 'user', 
+  password: 'pass' 
+}).then((response) => {
+  const token = response.body.token;
+  cy.request({
+    url: '/api/protected',
+    headers: { Authorization: `Bearer ${token}` }
+  });
+});
+
+// Converted Playwright
+const loginResponse = await request.post('/api/login', {
+  data: { 
+    username: 'user', 
+    password: 'pass' 
+  }
+});
+const body = await loginResponse.json();
+const token = body.token;
+
+await request.get('/api/protected', {
+  headers: { Authorization: `Bearer ${token}` }
+});
