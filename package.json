@@ -1,13 +1,41 @@
 {
-  "name": "hamlet",
+  "name": "hamlet-converter",
   "version": "1.0.0",
-  "description": "To be or not to be... in Playwright. A test converter from Cypress to Playwright.",
+  "description": "Hamlet: Bidirectional multi-framework test converter for Cypress, Playwright, and Selenium.",
+  "type": "module",
   "main": "src/index.js",
+  "types": "src/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./src/types/index.d.ts",
+      "import": "./src/index.js"
+    },
+    "./converters": {
+      "import": "./src/converters/index.js"
+    },
+    "./core": {
+      "import": "./src/core/index.js"
+    }
+  },
   "bin": {
     "hamlet": "./bin/hamlet.js"
   },
+  "files": [
+    "bin",
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pmclSF/hamlet.git"
+  },
+  "homepage": "https://github.com/pmclSF/hamlet#readme",
+  "bugs": {
+    "url": "https://github.com/pmclSF/hamlet/issues"
+  },
   "scripts": {
-    "test": "jest --setupFile ./test/setup.js",
+    "test": "NODE_OPTIONS='--experimental-vm-modules' jest",
     "lint": "eslint src/**/*.js",
     "format": "prettier --write \"src/**/*.js\"",
     "start": "node bin/hamlet.js",
@@ -21,11 +49,13 @@
   "keywords": [
     "playwright",
     "cypress",
+    "selenium",
     "testing",
     "automation",
     "migration",
     "test-management",
-    "visual-testing"
+    "visual-testing",
+    "test-converter"
   ],
   "author": "pmcISF",
   "license": "MIT",
@@ -40,7 +70,8 @@
     "lodash": "^4.17.21",
     "papaparse": "^5.4.1",
     "pixelmatch": "^5.3.0",
-    "pngjs": "^7.0.0"
+    "pngjs": "^7.0.0",
+    "selenium-webdriver": "^4.16.0"
   },
   "devDependencies": {
     "@commitlint/cli": "^19.6.1",

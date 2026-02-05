@@ -56,14 +56,14 @@ export class TestMapper {
    * @param {string} cypressTest - Path to Cypress test
    * @param {string} playwrightTest - Path to Playwright test
    */
-  addMapping(cypressTest, playwrightTest) {
+  async addMapping(cypressTest, playwrightTest) {
     this.mappings.set(cypressTest, {
       playwrightPath: playwrightTest,
       timestamp: Date.now(),
       status: 'active',
       syncStatus: 'synced',
       lastSync: new Date().toISOString(),
-      checksum: this.calculateChecksum(cypressTest),
+      checksum: await this.calculateChecksum(cypressTest),
     });
   }
 

@@ -217,7 +217,7 @@ export class TestValidator {
    * @param {string} content - Test file content
    * @returns {Object} - Validation result
    */
-  async checkSelectors(content) {
+  async validateSelectors(content) {
     const selectorPattern = /locator\s*\(\s*['"`](.*?)['"`]\s*\)/g;
     const selectors = Array.from(
       content.matchAll(selectorPattern),

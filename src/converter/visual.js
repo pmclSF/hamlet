@@ -194,10 +194,11 @@ export class VisualComparison {
           resizedCypress,
           resizedPlaywright,
           cypressShot,
+          playwrightShot,
         );
       }
 
-      return this.performComparison(cypress, playwright, cypressShot);
+      return this.performComparison(cypress, playwright, cypressShot, playwrightShot);
     } catch (error) {
       this.results.errors.push({
         type: 'comparison',
@@ -250,9 +251,10 @@ export class VisualComparison {
    * Perform pixel-by-pixel comparison
    * @param {PNG} img1 - First image
    * @param {PNG} img2 - Second image
-   * @param {string} shotPath - Original screenshot path
+   * @param {string} cypressShotPath - Cypress screenshot path
+   * @param {string} playwrightShotPath - Playwright screenshot path
    */
-  async performComparison(img1, img2, shotPath) {
+  async performComparison(img1, img2, cypressShotPath, playwrightShotPath) {
     const { width, height } = img1;
     const diff = new PNG({ width, height });
 
@@ -271,7 +273,7 @@ export class VisualComparison {
     const diffRatio = mismatchedPixels / (width * height);
     const diffPath = path.join(
       this.options.snapshotDir,
-      `diff_${path.basename(shotPath)}`,
+      `diff_${path.basename(cypressShotPath)}`,
     );
 
     // Save diff image if there are differences
@@ -287,7 +289,8 @@ export class VisualComparison {
     }
 
     this.results.comparisons.push({
-      cypressShot: shotPath,
+      cypressShot: cypressShotPath,
+      playwrightShot: playwrightShotPath,
       diffRatio,
       diffPath: diffRatio > 0 ? diffPath : null,
       passed: diffRatio <= this.options.threshold,

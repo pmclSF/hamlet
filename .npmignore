@@ -1,0 +1,34 @@
+# Test files
+test/
+*.test.js
+*.spec.js
+jest.config.js
+coverage/
+
+# Development files
+.github/
+.eslintrc*
+.prettierrc*
+.editorconfig
+.husky/
+commitlint.config.js
+tsconfig.json
+
+# IDE/Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Temporary files
+tmp/
+temp/
+*.tmp
