@@ -40,10 +40,6 @@
     "format": "prettier --write \"src/**/*.js\"",
     "start": "node bin/hamlet.js",
     "lint-staged": "lint-staged",
-    "validate": "node src/scripts/validate.js",
-    "visual-compare": "node src/scripts/visual-compare.js",
-    "generate-types": "node src/scripts/generate-types.js",
-    "generate-report": "node src/scripts/generate-report.js",
     "test:staged": "jest --findRelatedTests"
   },
   "keywords": [
