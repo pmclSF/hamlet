@@ -99,7 +99,7 @@ export class CypressToPlaywright extends BaseConverter {
       '\\.should\\([\'"]have\\.text[\'"],\\s*([^)]+)\\)': '); await expect(element).toHaveText($1)',
       '\\.should\\([\'"]contain[\'"],\\s*([^)]+)\\)': '); await expect(element).toContainText($1)',
       '\\.should\\([\'"]have\\.value[\'"],\\s*([^)]+)\\)': '); await expect(element).toHaveValue($1)',
-      '\\.should\\([\'"]have\\.attr[\'"],\\s*([^,]+),?\\s*([^)]*)\\)': '); await expect(element).toHaveAttribute($1, $2)',
+      '\\.should\\([\'"]have\\.attr[\'"],\\s*([^,\n]+),?\\s*([^)]*)\\)': '); await expect(element).toHaveAttribute($1, $2)',
       '\\.should\\([\'"]have\\.class[\'"],\\s*([^)]+)\\)': '); await expect(element).toHaveClass($1)',
       '\\.should\\([\'"]be\\.checked[\'"]\\)': '); await expect(element).toBeChecked()',
       '\\.should\\([\'"]be\\.disabled[\'"]\\)': '); await expect(element).toBeDisabled()',
@@ -170,51 +170,52 @@ export class CypressToPlaywright extends BaseConverter {
     let result = content;
 
     // Convert cy.get().should() chains - assertions on elements
+    // Note: Using [^()\n]+ to prevent ReDoS attacks from nested parens
     // Handle .should('be.visible')
     result = result.replace(
-      /cy\.get\(([^)]+)\)\.should\(['"]be\.visible['"]\)/g,
+      /cy\.get\(([^()\n]+)\)\.should\(['"]be\.visible['"]\)/g,
       'await expect(page.locator($1)).toBeVisible()'
     );
 
     // Handle .should('not.be.visible')
     result = result.replace(
-      /cy\.get\(([^)]+)\)\.should\(['"]not\.be\.visible['"]\)/g,
+      /cy\.get\(([^()\n]+)\)\.should\(['"]not\.be\.visible['"]\)/g,
       'await expect(page.locator($1)).toBeHidden()'
     );
 
     // Handle .should('exist')
     result = result.replace(
-      /cy\.get\(([^)]+)\)\.should\(['"]exist['"]\)/g,
+      /cy\.get\(([^()\n]+)\)\.should\(['"]exist['"]\)/g,
       'await expect(page.locator($1)).toBeAttached()'
     );
 
     // Handle .should('not.exist')
     result = result.replace(
-      /cy\.get\(([^)]+)\)\.should\(['"]not\.exist['"]\)/g,
+      /cy\.get\(([^()\n]+)\)\.should\(['"]not\.exist['"]\)/g,
       'await expect(page.locator($1)).not.toBeAttached()'
     );
 
     // Handle .should('have.text', value)
     result = result.replace(
-      /cy\.get\(([^)]+)\)\.should\(['"]have\.text['"],\s*([^)]+)\)/g,
+      /cy\.get\(([^()\n]+)\)\.should\(['"]have\.text['"],\s*([^()\n]+)\)/g,
       'await expect(page.locator($1)).toHaveText($2)'
     );
 
     // Handle .should('contain', value)
     result = result.replace(
-      /cy\.get\(([^)]+)\)\.should\(['"]contain['"],\s*([^)]+)\)/g,
+      /cy\.get\(([^()\n]+)\)\.should\(['"]contain['"],\s*([^()\n]+)\)/g,
       'await expect(page.locator($1)).toContainText($2)'
     );
 
     // Handle .should('have.value', value)
     result = result.replace(
-      /cy\.get\(([^)]+)\)\.should\(['"]have\.value['"],\s*([^)]+)\)/g,
+      /cy\.get\(([^()\n]+)\)\.should\(['"]have\.value['"],\s*([^()\n]+)\)/g,
       'await expect(page.locator($1)).toHaveValue($2)'
     );
 
     // Handle .should('have.class', value)
     result = result.replace(
-      /cy\.get\(([^)]+)\)\.should\(['"]have\.class['"],\s*([^)]+)\)/g,
+      /cy\.get\(([^()\n]+)\)\.should\(['"]have\.class['"],\s*([^()\n]+)\)/g,
       'await expect(page.locator($1)).toHaveClass($2)'
     );
 
@@ -244,7 +245,7 @@ export class CypressToPlaywright extends BaseConverter {
 
     // Handle .should('have.attr', name, value)
     result = result.replace(
-      /cy\.get\(([^)]+)\)\.should\(['"]have\.attr['"],\s*([^,]+),\s*([^)]+)\)/g,
+      /cy\.get\(([^)]+)\)\.should\(['"]have\.attr['"],\s*([^,\n]+),\s*([^)]+)\)/g,
       'await expect(page.locator($1)).toHaveAttribute($2, $3)'
     );
 
@@ -388,13 +389,13 @@ export class CypressToPlaywright extends BaseConverter {
 
     // Convert cy.intercept()
     result = result.replace(
-      /cy\.intercept\(([^,]+),\s*([^)]+)\)\.as\(['"]([^'"]+)['"]\)/g,
+      /cy\.intercept\(([^,\n]+),\s*([^)]+)\)\.as\(['"]([^'"]+)['"]\)/g,
       'await page.route($1, route => route.fulfill($2))'
     );
 
     // Convert cy.get().check() with options (e.g., { force: true })
     result = result.replace(
-      /cy\.get\(([^)]+)\)\.check\(\{[^}]*\}\)/g,
+      /cy\.get\(([^)]+)\)\.check\(\{[^{}\n]*\}\)/g,
       'await page.locator($1).check()'
     );
 
@@ -490,14 +491,15 @@ export class CypressToPlaywright extends BaseConverter {
     const params = testTypes.includes('api') ? '{ page, request }' : '{ page }';
 
     // Transform test callbacks
+    // Note: Using [^,()\n]+ to prevent ReDoS by excluding nested parens and commas
     content = content.replace(
-      /test\(([^,]+),\s*(?:async\s*)?\(\s*\)\s*=>\s*\{/g,
+      /test\(([^,()\n]+),\s*(?:async\s*)?\(\s*\)\s*=>\s*\{/g,
       `test($1, async (${params}) => {`
     );
 
     // Transform describe callbacks
     content = content.replace(
-      /test\.describe\(([^,]+),\s*(?:async\s*)?\(\s*\)\s*=>\s*\{/g,
+      /test\.describe\(([^,()\n]+),\s*(?:async\s*)?\(\s*\)\s*=>\s*\{/g,
       'test.describe($1, () => {'
     );
 

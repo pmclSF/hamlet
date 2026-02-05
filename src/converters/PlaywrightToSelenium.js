@@ -39,7 +39,7 @@ export class PlaywrightToSelenium extends BaseConverter {
       'page\\.locator\\(([^)]+)\\)': 'await driver.findElement(By.css($1))',
       'page\\.getByText\\(([^)]+)\\)': 'await driver.findElement(By.xpath(`//*[contains(text(),$1)]`))',
       'page\\.getByTestId\\(([^)]+)\\)': 'await driver.findElement(By.css(`[data-testid=$1]`))',
-      'page\\.getByRole\\(([^,]+),?\\s*\\{?\\s*name:\\s*([^}]+)\\}?\\)': 'await driver.findElement(By.css(`[$1][name=$2]`))',
+      'page\\.getByRole\\(([^,\n]+),?\\s*\\{?\\s*name:\\s*([^}]+)\\}?\\)': 'await driver.findElement(By.css(`[$1][name=$2]`))',
       '\\.locator\\(([^)]+)\\)': '.findElement(By.css($1))',
       '\\.first\\(\\)': '[0]',
       '\\.last\\(\\)': '.slice(-1)[0]',
@@ -79,7 +79,7 @@ export class PlaywrightToSelenium extends BaseConverter {
     let result = content;
 
     // Remove Playwright imports
-    result = result.replace(/import\s*\{[^}]*\}\s*from\s*['"]@playwright\/test['"];?\n?/g, '');
+    result = result.replace(/import\s*\{[^{}\n]*\}\s*from\s*['"]@playwright\/test['"];?\n?/g, '');
 
     // Convert Playwright commands to Selenium
     result = this.convertPlaywrightCommands(result);
@@ -110,69 +110,70 @@ export class PlaywrightToSelenium extends BaseConverter {
     let result = content;
 
     // Convert assertions first
+    // Note: Using [^()\n]+ to prevent ReDoS by excluding nested parens
     result = result.replace(
-      /await expect\(page\.locator\(([^)]+)\)\)\.toBeVisible\(\)/g,
+      /await expect\(page\.locator\(([^()\n]+)\)\)\.toBeVisible\(\)/g,
       'expect(await (await driver.findElement(By.css($1))).isDisplayed()).toBe(true)'
     );
 
     result = result.replace(
-      /await expect\(page\.locator\(([^)]+)\)\)\.toBeHidden\(\)/g,
+      /await expect\(page\.locator\(([^()\n]+)\)\)\.toBeHidden\(\)/g,
       'expect(await (await driver.findElement(By.css($1))).isDisplayed()).toBe(false)'
     );
 
     result = result.replace(
-      /await expect\(page\.locator\(([^)]+)\)\)\.toBeAttached\(\)/g,
+      /await expect\(page\.locator\(([^()\n]+)\)\)\.toBeAttached\(\)/g,
       'expect((await driver.findElements(By.css($1))).length).toBeGreaterThan(0)'
     );
 
     result = result.replace(
-      /await expect\(page\.locator\(([^)]+)\)\)\.not\.toBeAttached\(\)/g,
+      /await expect\(page\.locator\(([^()\n]+)\)\)\.not\.toBeAttached\(\)/g,
       'expect((await driver.findElements(By.css($1))).length).toBe(0)'
     );
 
     result = result.replace(
-      /await expect\(page\.locator\(([^)]+)\)\)\.toHaveText\(([^)]+)\)/g,
+      /await expect\(page\.locator\(([^()\n]+)\)\)\.toHaveText\(([^()\n]+)\)/g,
       'expect(await (await driver.findElement(By.css($1))).getText()).toBe($2)'
     );
 
     result = result.replace(
-      /await expect\(page\.locator\(([^)]+)\)\)\.toContainText\(([^)]+)\)/g,
+      /await expect\(page\.locator\(([^()\n]+)\)\)\.toContainText\(([^()\n]+)\)/g,
       'expect(await (await driver.findElement(By.css($1))).getText()).toContain($2)'
     );
 
     result = result.replace(
-      /await expect\(page\.locator\(([^)]+)\)\)\.toHaveValue\(([^)]+)\)/g,
+      /await expect\(page\.locator\(([^()\n]+)\)\)\.toHaveValue\(([^()\n]+)\)/g,
       'expect(await (await driver.findElement(By.css($1))).getAttribute("value")).toBe($2)'
     );
 
     result = result.replace(
-      /await expect\(page\.locator\(([^)]+)\)\)\.toHaveClass\(([^)]+)\)/g,
+      /await expect\(page\.locator\(([^()\n]+)\)\)\.toHaveClass\(([^()\n]+)\)/g,
       'expect(await (await driver.findElement(By.css($1))).getAttribute("class")).toContain($2)'
     );
 
     result = result.replace(
-      /await expect\(page\.locator\(([^)]+)\)\)\.toBeChecked\(\)/g,
+      /await expect\(page\.locator\(([^()\n]+)\)\)\.toBeChecked\(\)/g,
       'expect(await (await driver.findElement(By.css($1))).isSelected()).toBe(true)'
     );
 
     result = result.replace(
-      /await expect\(page\.locator\(([^)]+)\)\)\.toBeDisabled\(\)/g,
+      /await expect\(page\.locator\(([^()\n]+)\)\)\.toBeDisabled\(\)/g,
       'expect(await (await driver.findElement(By.css($1))).isEnabled()).toBe(false)'
     );
 
     result = result.replace(
-      /await expect\(page\.locator\(([^)]+)\)\)\.toBeEnabled\(\)/g,
+      /await expect\(page\.locator\(([^()\n]+)\)\)\.toBeEnabled\(\)/g,
       'expect(await (await driver.findElement(By.css($1))).isEnabled()).toBe(true)'
     );
 
     result = result.replace(
-      /await expect\(page\.locator\(([^)]+)\)\)\.toHaveCount\((\d+)\)/g,
+      /await expect\(page\.locator\(([^()\n]+)\)\)\.toHaveCount\((\d+)\)/g,
       'expect((await driver.findElements(By.css($1))).length).toBe($2)'
     );
 
     // Convert page URL/title assertions
     result = result.replace(
-      /await expect\(page\)\.toHaveURL\(([^)]+)\)/g,
+      /await expect\(page\)\.toHaveURL\(([^()\n]+)\)/g,
       'expect(await driver.getCurrentUrl()).toContain($1)'
     );
 
@@ -287,19 +288,20 @@ export class PlaywrightToSelenium extends BaseConverter {
    */
   transformTestCallbacks(content) {
     // Remove page/request destructuring from test callbacks
+    // Note: Using [^,()\n]+ and [^{}\n]+ to prevent ReDoS
     content = content.replace(
-      /it\(([^,]+),\s*async\s*\(\s*\{[^}]+\}\s*\)\s*=>\s*\{/g,
+      /it\(([^,()\n]+),\s*async\s*\(\s*\{[^{}\n]+\}\s*\)\s*=>\s*\{/g,
       'it($1, async () => {'
     );
 
     // Remove page/request destructuring from hooks
     content = content.replace(
-      /beforeEach\s*\(\s*async\s*\(\s*\{[^}]+\}\s*\)\s*=>\s*\{/g,
+      /beforeEach\s*\(\s*async\s*\(\s*\{[^{}\n]+\}\s*\)\s*=>\s*\{/g,
       'beforeEach(async () => {'
     );
 
     content = content.replace(
-      /afterEach\s*\(\s*async\s*\(\s*\{[^}]+\}\s*\)\s*=>\s*\{/g,
+      /afterEach\s*\(\s*async\s*\(\s*\{[^{}\n]+\}\s*\)\s*=>\s*\{/g,
       'afterEach(async () => {'
     );
 
@@ -315,7 +317,7 @@ export class PlaywrightToSelenium extends BaseConverter {
 
     // Remove async callbacks for describe
     content = content.replace(
-      /describe\(([^,]+),\s*\(\)\s*=>\s*\{/g,
+      /describe\(([^,\n]+),\s*\(\)\s*=>\s*\{/g,
       'describe($1, () => {'
     );
 

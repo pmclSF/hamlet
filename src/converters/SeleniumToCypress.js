@@ -72,11 +72,11 @@ export class SeleniumToCypress extends BaseConverter {
 
     // Remove Selenium imports and setup
     this.engine.registerPatterns('cleanup', {
-      "const\\s*\\{[^}]*Builder[^}]*\\}\\s*=\\s*require\\(['\"]selenium-webdriver['\"]\\);?": '',
-      "const\\s*\\{[^}]*expect[^}]*\\}\\s*=\\s*require\\(['\"]@jest/globals['\"]\\);?": '',
+      "const\\s*\\{[^{}\n]*Builder[^{}\n]*\\}\\s*=\\s*require\\(['\"]selenium-webdriver['\"]\\);?": '',
+      "const\\s*\\{[^{}\n]*expect[^{}\n]*\\}\\s*=\\s*require\\(['\"]@jest/globals['\"]\\);?": '',
       'let\\s+driver;?': '',
-      'beforeAll\\s*\\([^)]*\\)\\s*\\{[^}]*new\\s+Builder[^}]*\\};?': '',
-      'afterAll\\s*\\([^)]*\\)\\s*\\{[^}]*driver\\.quit[^}]*\\};?': ''
+      'beforeAll\\s*\\([^)]*\\)\\s*\\{[^{}\n]*new\\s+Builder[^{}\n]*\\};?': '',
+      'afterAll\\s*\\([^)]*\\)\\s*\\{[^{}\n]*driver\\.quit[^{}\n]*\\};?': ''
     });
   }
 
@@ -114,18 +114,19 @@ export class SeleniumToCypress extends BaseConverter {
     let result = content;
 
     // Remove Selenium imports
-    result = result.replace(/const\s*\{[^}]*Builder[^}]*\}\s*=\s*require\(['"]selenium-webdriver['"]\);?\n?/g, '');
-    result = result.replace(/const\s*\{[^}]*expect[^}]*\}\s*=\s*require\(['"]@jest\/globals['"]\);?\n?/g, '');
-    result = result.replace(/import\s*\{[^}]*Builder[^}]*\}\s*from\s*['"]selenium-webdriver['"];?\n?/g, '');
+    // Note: Using [^{}\n]* to prevent ReDoS (already safe, just documenting)
+    result = result.replace(/const\s*\{\s*Builder[^{}\n]*\}\s*=\s*require\(['"]selenium-webdriver['"]\);?\n?/g, '');
+    result = result.replace(/const\s*\{\s*expect[^{}\n]*\}\s*=\s*require\(['"]@jest\/globals['"]\);?\n?/g, '');
+    result = result.replace(/import\s*\{\s*Builder[^{}\n]*\}\s*from\s*['"]selenium-webdriver['"];?\n?/g, '');
 
     // Remove driver variable declaration
     result = result.replace(/let\s+driver;?\n?/g, '');
 
     // Remove beforeAll with driver setup
-    result = result.replace(/beforeAll\s*\(\s*async\s*\(\)\s*=>\s*\{[^}]*new\s+Builder[^}]*\}\s*\);?\n?/g, '');
+    result = result.replace(/beforeAll\s*\(\s*async\s*\(\)\s*=>\s*\{[^{}\n]*new\s+Builder[^{}\n]*\}\s*\);?\n?/g, '');
 
     // Remove afterAll with driver quit
-    result = result.replace(/afterAll\s*\(\s*async\s*\(\)\s*=>\s*\{[^}]*driver\.quit[^}]*\}\s*\);?\n?/g, '');
+    result = result.replace(/afterAll\s*\(\s*async\s*\(\)\s*=>\s*\{[^{}\n]*driver\.quit[^{}\n]*\}\s*\);?\n?/g, '');
 
     return result;
   }
@@ -289,8 +290,9 @@ export class SeleniumToCypress extends BaseConverter {
 
   transformTestStructure(content) {
     // Transform test callbacks
+    // Note: Using [^,()\n]+ to prevent ReDoS
     content = content.replace(
-      /it\(([^,]+),\s*function\(\)\s*\{/g,
+      /it\(([^,()\n]+),\s*function\(\)\s*\{/g,
       'it($1, () => {'
     );
 

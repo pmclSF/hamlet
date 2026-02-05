@@ -16,8 +16,8 @@ export class CypressToSelenium extends BaseConverter {
   initializePatterns() {
     // Test structure patterns
     this.engine.registerPatterns('structure', {
-      'describe\\(([^,]+),': 'describe($1,',
-      'it\\(([^,]+),\\s*(?:async\\s*)?\\(\\)\\s*=>': 'it($1, async function()',
+      'describe\\(([^,\n]+),': 'describe($1,',
+      'it\\(([^,\n]+),\\s*(?:async\\s*)?\\(\\)\\s*=>': 'it($1, async function()',
       'before\\(': 'beforeAll(',
       'after\\(': 'afterAll(',
       'beforeEach\\(': 'beforeEach(',
@@ -106,18 +106,19 @@ export class CypressToSelenium extends BaseConverter {
     let result = content;
 
     // Convert assertions with elements - use inline expressions to avoid duplicate variable names
+    // Note: Using [^()\n]+ to prevent ReDoS by excluding nested parens
     result = result.replace(
-      /cy\.get\(([^)]+)\)\.should\(['"]be\.visible['"]\)/g,
+      /cy\.get\(([^()\n]+)\)\.should\(['"]be\.visible['"]\)/g,
       'expect(await (await driver.findElement(By.css($1))).isDisplayed()).toBe(true)'
     );
 
     result = result.replace(
-      /cy\.get\(([^)]+)\)\.should\(['"]not\.be\.visible['"]\)/g,
+      /cy\.get\(([^()\n]+)\)\.should\(['"]not\.be\.visible['"]\)/g,
       'expect(await (await driver.findElement(By.css($1))).isDisplayed()).toBe(false)'
     );
 
     result = result.replace(
-      /cy\.get\(([^)]+)\)\.should\(['"]exist['"]\)/g,
+      /cy\.get\(([^()\n]+)\)\.should\(['"]exist['"]\)/g,
       'expect((await driver.findElements(By.css($1))).length).toBeGreaterThan(0)'
     );
 
@@ -285,22 +286,18 @@ export class CypressToSelenium extends BaseConverter {
   convertTestStructure(content) {
     let result = content;
 
-    // Convert describe blocks (keep as-is for Jest/Mocha)
-    result = result.replace(/describe\.only\(/g, 'describe.only(');
-    result = result.replace(/describe\.skip\(/g, 'describe.skip(');
-
-    // Convert it blocks
-    result = result.replace(/it\.only\(/g, 'it.only(');
-    result = result.replace(/it\.skip\(/g, 'it.skip(');
+    // Note: describe.only/skip and it.only/skip are already correct for Jest/Mocha
+    // No replacement needed - these are already in the target format
 
     // Make test callbacks async
+    // Note: Using [^,()\n]+ to prevent ReDoS by excluding nested parens
     result = result.replace(
-      /it\(([^,]+),\s*\(\)\s*=>\s*\{/g,
+      /it\(([^,()\n]+),\s*\(\)\s*=>\s*\{/g,
       'it($1, async () => {'
     );
 
     result = result.replace(
-      /it\(([^,]+),\s*function\s*\(\)\s*\{/g,
+      /it\(([^,()\n]+),\s*function\s*\(\)\s*\{/g,
       'it($1, async function() {'
     );
 
@@ -343,8 +340,9 @@ export class CypressToSelenium extends BaseConverter {
 
   transformTestStructure(content) {
     // Add driver variable reference in tests
+    // Note: Using [^,()\n]+ to prevent ReDoS by excluding nested parens
     content = content.replace(
-      /it\(([^,]+),\s*async\s*function\(\)\s*\{/g,
+      /it\(([^,()\n]+),\s*async\s*function\(\)\s*\{/g,
       'it($1, async function() {\n    const driver = this.driver;'
     );
     return content;

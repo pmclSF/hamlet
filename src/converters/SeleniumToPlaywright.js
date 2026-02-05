@@ -77,8 +77,8 @@ export class SeleniumToPlaywright extends BaseConverter {
 
     // Remove Selenium imports and setup
     this.engine.registerPatterns('cleanup', {
-      "const\\s*\\{[^}]*Builder[^}]*\\}\\s*=\\s*require\\(['\"]selenium-webdriver['\"]\\);?\\n?": '',
-      "const\\s*\\{[^}]*expect[^}]*\\}\\s*=\\s*require\\(['\"]@jest/globals['\"]\\);?\\n?": '',
+      "const\\s*\\{[^{}\n]*Builder[^{}\n]*\\}\\s*=\\s*require\\(['\"]selenium-webdriver['\"]\\);?\\n?": '',
+      "const\\s*\\{[^{}\n]*expect[^{}\n]*\\}\\s*=\\s*require\\(['\"]@jest/globals['\"]\\);?\\n?": '',
       'let\\s+driver;?\\n?': '',
       'beforeAll\\s*\\([^)]*\\)\\s*\\{[\\s\\S]*?new\\s+Builder[\\s\\S]*?\\};?\\n?': '',
       'afterAll\\s*\\([^)]*\\)\\s*\\{[\\s\\S]*?driver\\.quit[\\s\\S]*?\\};?\\n?': ''
@@ -120,17 +120,18 @@ export class SeleniumToPlaywright extends BaseConverter {
     let result = content;
 
     // Remove Selenium imports
-    result = result.replace(/const\s*\{[^}]*Builder[^}]*\}\s*=\s*require\(['"]selenium-webdriver['"]\);?\n?/g, '');
-    result = result.replace(/const\s*\{[^}]*expect[^}]*\}\s*=\s*require\(['"]@jest\/globals['"]\);?\n?/g, '');
+    // Note: Using [^{}\n]* to prevent ReDoS (already safe, just documenting)
+    result = result.replace(/const\s*\{\s*Builder[^{}\n]*\}\s*=\s*require\(['"]selenium-webdriver['"]\);?\n?/g, '');
+    result = result.replace(/const\s*\{\s*expect[^{}\n]*\}\s*=\s*require\(['"]@jest\/globals['"]\);?\n?/g, '');
 
     // Remove driver variable declaration
     result = result.replace(/let\s+driver;?\n?/g, '');
 
     // Remove beforeAll with driver setup
-    result = result.replace(/beforeAll\s*\(\s*async\s*\(\)\s*=>\s*\{[^}]*new\s+Builder[^}]*\}\s*\);?\n?/g, '');
+    result = result.replace(/beforeAll\s*\(\s*async\s*\(\)\s*=>\s*\{[^{}\n]*new\s+Builder[^{}\n]*\}\s*\);?\n?/g, '');
 
     // Remove afterAll with driver quit
-    result = result.replace(/afterAll\s*\(\s*async\s*\(\)\s*=>\s*\{[^}]*driver\.quit[^}]*\}\s*\);?\n?/g, '');
+    result = result.replace(/afterAll\s*\(\s*async\s*\(\)\s*=>\s*\{[^{}\n]*driver\.quit[^{}\n]*\}\s*\);?\n?/g, '');
 
     return result;
   }
@@ -322,24 +323,25 @@ export class SeleniumToPlaywright extends BaseConverter {
 
   transformTestCallbacks(content) {
     // Transform test callbacks to include page
+    // Note: Using [^,()\n]+ to prevent ReDoS
     content = content.replace(
-      /test\(([^,]+),\s*(?:async\s*)?function\(\)\s*\{/g,
+      /test\(([^,()\n]+),\s*(?:async\s*)?function\(\)\s*\{/g,
       'test($1, async ({ page }) => {'
     );
 
     content = content.replace(
-      /test\(([^,]+),\s*(?:async\s*)?\(\)\s*=>\s*\{/g,
+      /test\(([^,()\n]+),\s*(?:async\s*)?\(\)\s*=>\s*\{/g,
       'test($1, async ({ page }) => {'
     );
 
     // Fix describe callbacks (should NOT have page parameter)
     content = content.replace(
-      /test\.describe\(([^,]+),\s*(?:async\s*)?\(\s*\{[^}]*\}\s*\)\s*=>\s*\{/g,
+      /test\.describe\(([^,()\n]+),\s*(?:async\s*)?\(\s*\{[^{}\n]*\}\s*\)\s*=>\s*\{/g,
       'test.describe($1, () => {'
     );
 
     content = content.replace(
-      /test\.describe\(([^,]+),\s*(?:async\s*)?\(\)\s*=>\s*\{/g,
+      /test\.describe\(([^,\n]+),\s*(?:async\s*)?\(\)\s*=>\s*\{/g,
       'test.describe($1, () => {'
     );
 
