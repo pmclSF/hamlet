@@ -1,12 +1,4 @@
-// setup.js
-import { TestManagementSystem } from '../src/index';
-
-// Mock test management system API calls
-jest.mock('../src/tms/api', () => ({
-  TestRailAPI: jest.fn(),
-  AzureAPI: jest.fn(),
-  XrayAPI: jest.fn()
-}));
+// setup.js - Jest test setup for Hamlet
 
 // Global test setup
 beforeAll(() => {

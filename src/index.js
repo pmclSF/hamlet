@@ -17,7 +17,7 @@ import { TestMapper } from './converter/mapper.js';
 
 // Import reporters and utilities
 import { ConversionReporter } from './utils/reporter.js';
-import { fileUtils, logUtils } from './utils/helpers.js';
+import { fileUtils, stringUtils, codeUtils, testUtils, reportUtils, logUtils } from './utils/helpers.js';
 
 const logger = logUtils.createLogger('Converter');
 
@@ -680,78 +680,55 @@ export async function convertRepository(repoPath, outputPath, options = {}) {
     };
   }
 
-  // Core functionality exports
+/**
+ * Validate converted tests
+ * @param {string} testDir - Directory containing converted tests
+ * @param {Object} options - Validation options
+ * @returns {Promise<Object>} - Validation results
+ */
+export async function validateTests(testDir, options = {}) {
+  const validator = new TestValidator();
+  return validator.validateConvertedTests(testDir);
+}
+
+/**
+ * Generate conversion report
+ * @param {string} outputPath - Output path for report
+ * @param {string} format - Report format (html, json, markdown)
+ * @param {Object} data - Report data
+ * @returns {Promise<void>}
+ */
+export async function generateReport(outputPath, format = 'json', data = {}) {
+  const reporter = new ConversionReporter({ format });
+  return reporter.generateReport(data, outputPath);
+}
+
+// Re-export imported classes
 export {
-    convertCypressToPlaywright,
-    convertConfig,
-    convertFile,
-    convertRepository,
-    processTestFiles
-  };
-  
-  // Converter classes
-  export {
-    RepositoryConverter,
-    BatchProcessor,
-    DependencyAnalyzer,
-    TestMetadataCollector,
-    TestValidator,
-    TypeScriptConverter,
-    PluginConverter,
-    VisualComparison,
-    TestMapper
-  };
-  
-  // Utility exports
-  export {
-    fileUtils,
-    codeUtils,
-    testUtils,
-    reportUtils,
-    logUtils
-  };
-  
-  // Reporter
-  export {
-    ConversionReporter
-  };
-  
-  // Type definitions
-  export {
-    convertCypressToPlaywright,
-    convertConfig,
-    convertFile,
-    convertRepository,
-    processTestFiles
-  };
-  
-  // Converter classes
-  export {
-    RepositoryConverter,
-    BatchProcessor,
-    DependencyAnalyzer,
-    TestMetadataCollector,
-    TestValidator,
-    TypeScriptConverter,
-    PluginConverter,
-    VisualComparison,
-    TestMapper
-  };
-  
-  // Utility exports
-  export {
-    fileUtils,
-    codeUtils,
-    testUtils,
-    reportUtils,
-    logUtils
-  };
-  
-  // Reporter
-  export {
-    ConversionReporter
-  };
-  
+  RepositoryConverter,
+  BatchProcessor,
+  DependencyAnalyzer,
+  TestMetadataCollector,
+  TestValidator,
+  TypeScriptConverter,
+  PluginConverter,
+  VisualComparison,
+  TestMapper
+};
+
+// Re-export utilities
+export {
+  fileUtils,
+  stringUtils,
+  codeUtils,
+  testUtils,
+  reportUtils,
+  logUtils
+};
+
+// Re-export reporter
+export { ConversionReporter };
+
   // Constants
   export const VERSION = '1.0.0';
   export const SUPPORTED_TEST_TYPES = [

@@ -1,6 +1,6 @@
 import fs from 'fs/promises';
 import path from 'path';
-import { logUtils, reportUtils } from './helpers';
+import { logUtils, reportUtils } from './helpers.js';
 
 /**
  * Handles report generation for the conversion process

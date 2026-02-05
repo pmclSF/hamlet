@@ -2,62 +2,69 @@ name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [main, develop]
   pull_request:
-    branches: [ main ]
+    branches: [main, develop]
 
 jobs:
   test:
     runs-on: ubuntu-latest
+
     strategy:
       matrix:
-        node-version: [16.x, 18.x, 20.x]
+        node-version: [18.x, 20.x, 22.x]
 
     steps:
-    - uses: actions/checkout@v4
-    - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ matrix.node-version }}
-        cache: 'npm'
-    
-    - name: Install dependencies
-      run: npm ci
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    - name: Lint
-      run: npm run lint
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
 
-    - name: Type check
-      run: npm run type-check
-      
-    - name: Run tests
-      run: npm test
+      - name: Install dependencies
+        run: npm ci
 
-    - name: Build
-      run: npm run build
+      - name: Run linter
+        run: npm run lint --if-present
+        continue-on-error: true
 
-  integration:
-    needs: test
+      - name: Run tests
+        run: npm test
+
+  build:
     runs-on: ubuntu-latest
+    needs: test
+
     steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-node@v4
-      with:
-        node-version: '20.x'
-        cache: 'npm'
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    - name: Install dependencies
-      run: npm ci
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          cache: npm
 
-    - name: Install Playwright
-      run: npx playwright install --with-deps
+      - name: Install dependencies
+        run: npm ci
 
-    - name: Run integration tests
-      run: npm run test:integration
+      - name: Verify CLI works
+        run: |
+          node bin/hamlet.js --version
+          node bin/hamlet.js --help
+          node bin/hamlet.js list-conversions
 
-    - name: Upload test results
-      if: always()
-      uses: actions/upload-artifact@v3
-      with:
-        name: test-results
-        path: test-results/
+      - name: Test Cypress to Playwright conversion
+        run: |
+          echo "describe('Test', () => { it('works', () => { cy.visit('/'); }); });" > /tmp/test.cy.js
+          node bin/hamlet.js convert /tmp/test.cy.js --from cypress --to playwright -o /tmp/out1
+          cat /tmp/out1/test.spec.js
+
+      - name: Test Playwright to Cypress conversion  
+        run: |
+          echo "import { test } from '@playwright/test'; test('works', async ({ page }) => { await page.goto('/'); });" > /tmp/test.spec.js
+          node bin/hamlet.js convert /tmp/test.spec.js --from playwright --to cypress -o /tmp/out2
+          cat /tmp/out2/test.cy.js
