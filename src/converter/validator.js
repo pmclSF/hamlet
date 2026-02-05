@@ -217,8 +217,9 @@ export class TestValidator {
    * @param {string} content - Test file content
    * @returns {Object} - Validation result
    */
-  async checkSelectors(content) {
-    const selectorPattern = /locator\s*\(\s*['"`](.*?)['"`]\s*\)/g;
+  async validateSelectors(content) {
+    // Use non-greedy matching with explicit character exclusion to prevent ReDoS
+    const selectorPattern = /locator\s*\(\s*['"`]([^'"`\n]*)['"`]\s*\)/g;
     const selectors = Array.from(
       content.matchAll(selectorPattern),
       (m) => m[1],

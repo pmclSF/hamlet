@@ -7,6 +7,20 @@ import chalk from 'chalk';
  */
 export const fileUtils = {
   /**
+   * Check if file exists
+   * @param {string} filePath - Path to file
+   * @returns {Promise<boolean>} - True if file exists
+   */
+  async fileExists(filePath) {
+    try {
+      await fs.access(filePath);
+      return true;
+    } catch {
+      return false;
+    }
+  },
+
+  /**
    * Ensure directory exists
    * @param {string} dir - Directory path
    */
