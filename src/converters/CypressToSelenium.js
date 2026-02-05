@@ -16,8 +16,8 @@ export class CypressToSelenium extends BaseConverter {
   initializePatterns() {
     // Test structure patterns
     this.engine.registerPatterns('structure', {
-      'describe\\(([^,]+),': 'describe($1,',
-      'it\\(([^,]+),\\s*(?:async\\s*)?\\(\\)\\s*=>': 'it($1, async function()',
+      'describe\\(([^,\n]+),': 'describe($1,',
+      'it\\(([^,\n]+),\\s*(?:async\\s*)?\\(\\)\\s*=>': 'it($1, async function()',
       'before\\(': 'beforeAll(',
       'after\\(': 'afterAll(',
       'beforeEach\\(': 'beforeEach(',
@@ -295,12 +295,12 @@ export class CypressToSelenium extends BaseConverter {
 
     // Make test callbacks async
     result = result.replace(
-      /it\(([^,]+),\s*\(\)\s*=>\s*\{/g,
+      /it\(([^,\n]+),\s*\(\)\s*=>\s*\{/g,
       'it($1, async () => {'
     );
 
     result = result.replace(
-      /it\(([^,]+),\s*function\s*\(\)\s*\{/g,
+      /it\(([^,\n]+),\s*function\s*\(\)\s*\{/g,
       'it($1, async function() {'
     );
 
@@ -344,7 +344,7 @@ export class CypressToSelenium extends BaseConverter {
   transformTestStructure(content) {
     // Add driver variable reference in tests
     content = content.replace(
-      /it\(([^,]+),\s*async\s*function\(\)\s*\{/g,
+      /it\(([^,\n]+),\s*async\s*function\(\)\s*\{/g,
       'it($1, async function() {\n    const driver = this.driver;'
     );
     return content;

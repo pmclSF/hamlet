@@ -39,7 +39,7 @@ export class PlaywrightToSelenium extends BaseConverter {
       'page\\.locator\\(([^)]+)\\)': 'await driver.findElement(By.css($1))',
       'page\\.getByText\\(([^)]+)\\)': 'await driver.findElement(By.xpath(`//*[contains(text(),$1)]`))',
       'page\\.getByTestId\\(([^)]+)\\)': 'await driver.findElement(By.css(`[data-testid=$1]`))',
-      'page\\.getByRole\\(([^,]+),?\\s*\\{?\\s*name:\\s*([^}]+)\\}?\\)': 'await driver.findElement(By.css(`[$1][name=$2]`))',
+      'page\\.getByRole\\(([^,\n]+),?\\s*\\{?\\s*name:\\s*([^}]+)\\}?\\)': 'await driver.findElement(By.css(`[$1][name=$2]`))',
       '\\.locator\\(([^)]+)\\)': '.findElement(By.css($1))',
       '\\.first\\(\\)': '[0]',
       '\\.last\\(\\)': '.slice(-1)[0]',
@@ -79,7 +79,7 @@ export class PlaywrightToSelenium extends BaseConverter {
     let result = content;
 
     // Remove Playwright imports
-    result = result.replace(/import\s*\{[^}]*\}\s*from\s*['"]@playwright\/test['"];?\n?/g, '');
+    result = result.replace(/import\s*\{[^{}\n]*\}\s*from\s*['"]@playwright\/test['"];?\n?/g, '');
 
     // Convert Playwright commands to Selenium
     result = this.convertPlaywrightCommands(result);
@@ -288,7 +288,7 @@ export class PlaywrightToSelenium extends BaseConverter {
   transformTestCallbacks(content) {
     // Remove page/request destructuring from test callbacks
     content = content.replace(
-      /it\(([^,]+),\s*async\s*\(\s*\{[^}]+\}\s*\)\s*=>\s*\{/g,
+      /it\(([^,\n]+),\s*async\s*\(\s*\{[^}]+\}\s*\)\s*=>\s*\{/g,
       'it($1, async () => {'
     );
 
@@ -315,7 +315,7 @@ export class PlaywrightToSelenium extends BaseConverter {
 
     // Remove async callbacks for describe
     content = content.replace(
-      /describe\(([^,]+),\s*\(\)\s*=>\s*\{/g,
+      /describe\(([^,\n]+),\s*\(\)\s*=>\s*\{/g,
       'describe($1, () => {'
     );
 

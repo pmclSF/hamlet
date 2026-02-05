@@ -78,7 +78,7 @@ export class PlaywrightToCypress extends BaseConverter {
       'await expect\\(([^)]+)\\)\\.toHaveText\\(([^)]+)\\)': '$1.should("have.text", $2)',
       'await expect\\(([^)]+)\\)\\.toContainText\\(([^)]+)\\)': '$1.should("contain", $2)',
       'await expect\\(([^)]+)\\)\\.toHaveValue\\(([^)]+)\\)': '$1.should("have.value", $2)',
-      'await expect\\(([^)]+)\\)\\.toHaveAttribute\\(([^,]+),\\s*([^)]+)\\)': '$1.should("have.attr", $2, $3)',
+      'await expect\\(([^)]+)\\)\\.toHaveAttribute\\(([^,\n]+),\\s*([^)]+)\\)': '$1.should("have.attr", $2, $3)',
       'await expect\\(([^)]+)\\)\\.toHaveClass\\(([^)]+)\\)': '$1.should("have.class", $2)',
       'await expect\\(([^)]+)\\)\\.toBeChecked\\(\\)': '$1.should("be.checked")',
       'await expect\\(([^)]+)\\)\\.toBeDisabled\\(\\)': '$1.should("be.disabled")',
@@ -98,7 +98,7 @@ export class PlaywrightToCypress extends BaseConverter {
 
     // Network patterns
     this.engine.registerPatterns('network', {
-      'await page\\.route\\(([^,]+),': 'cy.intercept($1,',
+      'await page\\.route\\(([^,\n]+),': 'cy.intercept($1,',
       'await request\\.fetch\\(': 'cy.request('
     });
   }
@@ -107,7 +107,7 @@ export class PlaywrightToCypress extends BaseConverter {
     let result = content;
 
     // Remove Playwright imports
-    result = result.replace(/import\s*\{[^}]*\}\s*from\s*['"]@playwright\/test['"];?\n?/g, '');
+    result = result.replace(/import\s*\{[^{}\n]*\}\s*from\s*['"]@playwright\/test['"];?\n?/g, '');
 
     // Convert commands using explicit patterns (before removing await)
     result = this.convertPlaywrightCommands(result);
@@ -203,7 +203,7 @@ export class PlaywrightToCypress extends BaseConverter {
     );
 
     result = result.replace(
-      /await expect\(page\.locator\(([^)]+)\)\)\.toHaveAttribute\(([^,]+),\s*([^)]+)\)/g,
+      /await expect\(page\.locator\(([^)]+)\)\)\.toHaveAttribute\(([^,\n]+),\s*([^)]+)\)/g,
       "cy.get($1).should('have.attr', $2, $3)"
     );
 
@@ -393,12 +393,12 @@ export class PlaywrightToCypress extends BaseConverter {
   transformTestCallbacks(content) {
     // Remove page/request destructuring from test callbacks
     content = content.replace(
-      /it\(([^,]+),\s*\(\s*\{[^}]+\}\s*\)\s*=>\s*\{/g,
+      /it\(([^,\n]+),\s*\(\s*\{[^}]+\}\s*\)\s*=>\s*\{/g,
       'it($1, () => {'
     );
 
     content = content.replace(
-      /it\(([^,]+),\s*\(\s*\)\s*=>\s*\{/g,
+      /it\(([^,\n]+),\s*\(\s*\)\s*=>\s*\{/g,
       'it($1, () => {'
     );
 
