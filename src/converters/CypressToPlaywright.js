@@ -491,14 +491,15 @@ export class CypressToPlaywright extends BaseConverter {
     const params = testTypes.includes('api') ? '{ page, request }' : '{ page }';
 
     // Transform test callbacks
+    // Note: Using [^,()\n]+ to prevent ReDoS by excluding nested parens and commas
     content = content.replace(
-      /test\(([^,\n]+),\s*(?:async\s*)?\(\s*\)\s*=>\s*\{/g,
+      /test\(([^,()\n]+),\s*(?:async\s*)?\(\s*\)\s*=>\s*\{/g,
       `test($1, async (${params}) => {`
     );
 
     // Transform describe callbacks
     content = content.replace(
-      /test\.describe\(([^,\n]+),\s*(?:async\s*)?\(\s*\)\s*=>\s*\{/g,
+      /test\.describe\(([^,()\n]+),\s*(?:async\s*)?\(\s*\)\s*=>\s*\{/g,
       'test.describe($1, () => {'
     );
 

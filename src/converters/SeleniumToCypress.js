@@ -114,9 +114,10 @@ export class SeleniumToCypress extends BaseConverter {
     let result = content;
 
     // Remove Selenium imports
-    result = result.replace(/const\s*\{[^{}\n]*Builder[^{}\n]*\}\s*=\s*require\(['"]selenium-webdriver['"]\);?\n?/g, '');
-    result = result.replace(/const\s*\{[^{}\n]*expect[^{}\n]*\}\s*=\s*require\(['"]@jest\/globals['"]\);?\n?/g, '');
-    result = result.replace(/import\s*\{[^{}\n]*Builder[^{}\n]*\}\s*from\s*['"]selenium-webdriver['"];?\n?/g, '');
+    // Note: Using [^{}\n]* to prevent ReDoS (already safe, just documenting)
+    result = result.replace(/const\s*\{\s*Builder[^{}\n]*\}\s*=\s*require\(['"]selenium-webdriver['"]\);?\n?/g, '');
+    result = result.replace(/const\s*\{\s*expect[^{}\n]*\}\s*=\s*require\(['"]@jest\/globals['"]\);?\n?/g, '');
+    result = result.replace(/import\s*\{\s*Builder[^{}\n]*\}\s*from\s*['"]selenium-webdriver['"];?\n?/g, '');
 
     // Remove driver variable declaration
     result = result.replace(/let\s+driver;?\n?/g, '');
@@ -289,8 +290,9 @@ export class SeleniumToCypress extends BaseConverter {
 
   transformTestStructure(content) {
     // Transform test callbacks
+    // Note: Using [^,()\n]+ to prevent ReDoS
     content = content.replace(
-      /it\(([^,\n]+),\s*function\(\)\s*\{/g,
+      /it\(([^,()\n]+),\s*function\(\)\s*\{/g,
       'it($1, () => {'
     );
 

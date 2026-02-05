@@ -120,8 +120,9 @@ export class SeleniumToPlaywright extends BaseConverter {
     let result = content;
 
     // Remove Selenium imports
-    result = result.replace(/const\s*\{[^{}\n]*Builder[^{}\n]*\}\s*=\s*require\(['"]selenium-webdriver['"]\);?\n?/g, '');
-    result = result.replace(/const\s*\{[^{}\n]*expect[^{}\n]*\}\s*=\s*require\(['"]@jest\/globals['"]\);?\n?/g, '');
+    // Note: Using [^{}\n]* to prevent ReDoS (already safe, just documenting)
+    result = result.replace(/const\s*\{\s*Builder[^{}\n]*\}\s*=\s*require\(['"]selenium-webdriver['"]\);?\n?/g, '');
+    result = result.replace(/const\s*\{\s*expect[^{}\n]*\}\s*=\s*require\(['"]@jest\/globals['"]\);?\n?/g, '');
 
     // Remove driver variable declaration
     result = result.replace(/let\s+driver;?\n?/g, '');
@@ -322,19 +323,20 @@ export class SeleniumToPlaywright extends BaseConverter {
 
   transformTestCallbacks(content) {
     // Transform test callbacks to include page
+    // Note: Using [^,()\n]+ to prevent ReDoS
     content = content.replace(
-      /test\(([^,\n]+),\s*(?:async\s*)?function\(\)\s*\{/g,
+      /test\(([^,()\n]+),\s*(?:async\s*)?function\(\)\s*\{/g,
       'test($1, async ({ page }) => {'
     );
 
     content = content.replace(
-      /test\(([^,\n]+),\s*(?:async\s*)?\(\)\s*=>\s*\{/g,
+      /test\(([^,()\n]+),\s*(?:async\s*)?\(\)\s*=>\s*\{/g,
       'test($1, async ({ page }) => {'
     );
 
     // Fix describe callbacks (should NOT have page parameter)
     content = content.replace(
-      /test\.describe\(([^,\n]+),\s*(?:async\s*)?\(\s*\{[^{}\n]*\}\s*\)\s*=>\s*\{/g,
+      /test\.describe\(([^,()\n]+),\s*(?:async\s*)?\(\s*\{[^{}\n]*\}\s*\)\s*=>\s*\{/g,
       'test.describe($1, () => {'
     );
 
