@@ -1,6 +1,6 @@
-import fs from "fs/promises";
-import path from "path";
-import chalk from "chalk";
+import fs from 'fs/promises';
+import path from 'path';
+import chalk from 'chalk';
 
 /**
  * File system helpers
@@ -28,7 +28,7 @@ export const fileUtils = {
     try {
       await fs.mkdir(dir, { recursive: true });
     } catch (error) {
-      console.error(chalk.red("Error creating directory:"), error);
+      console.error(chalk.red('Error creating directory:'), error);
       throw error;
     }
   },
@@ -104,7 +104,7 @@ export const fileUtils = {
         }
       }
     } catch (error) {
-      if (error.code !== "ENOENT") {
+      if (error.code !== 'ENOENT') {
         throw error;
       }
     }
@@ -121,7 +121,7 @@ export const stringUtils = {
    * @returns {string} - Converted string
    */
   camelToKebab(str) {
-    return str.replace(/([a-z0-9])([A-Z])/g, "$1-$2").toLowerCase();
+    return str.replace(/([a-z0-9])([A-Z])/g, '$1-$2').toLowerCase();
   },
 
   /**
@@ -220,17 +220,17 @@ export const codeUtils = {
     return (
       content
         // Add spaces around operators
-        .replace(/([+\-*/%=<>!&|])?=(?!=)/g, " $1= ")
+        .replace(/([+\-*/%=<>!&|])?=(?!=)/g, ' $1= ')
         // Add spaces after commas
-        .replace(/,([^\s])/g, ", $1")
+        .replace(/,([^\s])/g, ', $1')
         // Add spaces after keywords
-        .replace(/(if|for|while|switch|catch)\(/g, "$1 (")
+        .replace(/(if|for|while|switch|catch)\(/g, '$1 (')
         // Add newline after semicolons
-        .replace(/;(?!\s*$)/g, ";\n")
+        .replace(/;(?!\s*$)/g, ';\n')
         // Trim trailing whitespace
-        .replace(/\s+$/gm, "")
+        .replace(/\s+$/gm, '')
         // Ensure single newline at end
-        .trim() + "\n"
+        .trim() + '\n'
     );
   },
 };
@@ -301,12 +301,12 @@ export const reportUtils = {
         current = value;
         const percentage = Math.round((current / total) * 100);
         const filled = Math.round((width * current) / total);
-        const bar = "█".repeat(filled) + "-".repeat(width - filled);
+        const bar = '█'.repeat(filled) + '-'.repeat(width - filled);
         process.stdout.write(`\r[${bar}] ${percentage}%`);
       },
       complete() {
         this.update(total);
-        process.stdout.write("\n");
+        process.stdout.write('\n');
       },
     };
   },
@@ -344,7 +344,7 @@ export const logUtils = {
     console.error(chalk.red(`Error in ${context}:`));
     console.error(chalk.red(error.message));
     if (error.stack) {
-      console.error(chalk.gray(error.stack.split("\n").slice(1).join("\n")));
+      console.error(chalk.gray(error.stack.split('\n').slice(1).join('\n')));
     }
   },
 
@@ -354,7 +354,7 @@ export const logUtils = {
    * @param {Object} details - Warning details
    */
   logWarning(message, details = {}) {
-    console.warn(chalk.yellow("Warning:"), message);
+    console.warn(chalk.yellow('Warning:'), message);
     if (Object.keys(details).length > 0) {
       console.warn(chalk.gray(JSON.stringify(details, null, 2)));
     }

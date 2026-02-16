@@ -6,17 +6,17 @@
  */
 
 const COMMENT_STYLES = {
-  javascript: { prefix: "//", blockStart: "/*", blockEnd: "*/" },
-  python: { prefix: "#", blockStart: '"""', blockEnd: '"""' },
-  ruby: { prefix: "#", blockStart: "=begin", blockEnd: "=end" },
-  java: { prefix: "//", blockStart: "/*", blockEnd: "*/" },
+  javascript: { prefix: '//', blockStart: '/*', blockEnd: '*/' },
+  python: { prefix: '#', blockStart: '"""', blockEnd: '"""' },
+  ruby: { prefix: '#', blockStart: '=begin', blockEnd: '=end' },
+  java: { prefix: '//', blockStart: '/*', blockEnd: '*/' },
 };
 
 export class TodoFormatter {
   /**
    * @param {string} language - Target language for comment syntax
    */
-  constructor(language = "javascript") {
+  constructor(language = 'javascript') {
     this.language = language;
     this.style = COMMENT_STYLES[language] || COMMENT_STYLES.javascript;
   }
@@ -37,7 +37,7 @@ export class TodoFormatter {
 
     lines.push(`${p} HAMLET-TODO [${id}]: ${description}`);
 
-    const originalLines = original.split("\n");
+    const originalLines = original.split('\n');
     if (originalLines.length === 1) {
       lines.push(`${p} Original: ${original}`);
     } else {
@@ -49,7 +49,7 @@ export class TodoFormatter {
 
     lines.push(`${p} Manual action required: ${action}`);
 
-    return lines.join("\n");
+    return lines.join('\n');
   }
 
   /**
@@ -69,6 +69,6 @@ export class TodoFormatter {
       lines.push(`${p} Original: ${original}`);
     }
 
-    return lines.join("\n");
+    return lines.join('\n');
   }
 }

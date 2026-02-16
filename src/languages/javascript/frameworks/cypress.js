@@ -16,7 +16,7 @@ import {
   RawCode,
   Comment,
   Modifier,
-} from "../../../core/ir.js";
+} from '../../../core/ir.js';
 
 function detect(source) {
   if (!source || !source.trim()) return 0;
@@ -42,7 +42,7 @@ function detect(source) {
 }
 
 function parse(source) {
-  const lines = source.split("\n");
+  const lines = source.split('\n');
   const imports = [];
   const body = [];
 
@@ -53,124 +53,60 @@ function parse(source) {
 
     if (!trimmed) continue;
 
-    if (
-      trimmed.startsWith("//") ||
-      trimmed.startsWith("/*") ||
-      trimmed.startsWith("*")
-    ) {
-      body.push(
-        new Comment({ text: line, sourceLocation: loc, originalSource: line }),
-      );
+    if (trimmed.startsWith('//') || trimmed.startsWith('/*') || trimmed.startsWith('*')) {
+      body.push(new Comment({ text: line, sourceLocation: loc, originalSource: line }));
       continue;
     }
 
     if (/^import\s/.test(trimmed) || /^const\s.*=\s*require\(/.test(trimmed)) {
-      imports.push(
-        new ImportStatement({
-          source: trimmed,
-          sourceLocation: loc,
-          originalSource: line,
-          confidence: "converted",
-        }),
-      );
+      imports.push(new ImportStatement({ source: trimmed, sourceLocation: loc, originalSource: line, confidence: 'converted' }));
       continue;
     }
 
     if (/\bdescribe\s*\(/.test(trimmed)) {
-      body.push(
-        new TestSuite({
-          name: "",
-          sourceLocation: loc,
-          originalSource: line,
-          confidence: "converted",
-        }),
-      );
+      body.push(new TestSuite({ name: '', sourceLocation: loc, originalSource: line, confidence: 'converted' }));
       continue;
     }
 
     if (/\b(?:it|test)\s*\(/.test(trimmed)) {
-      body.push(
-        new TestCase({
-          name: "",
-          sourceLocation: loc,
-          originalSource: line,
-          confidence: "converted",
-        }),
-      );
+      body.push(new TestCase({ name: '', sourceLocation: loc, originalSource: line, confidence: 'converted' }));
       continue;
     }
 
-    if (
-      /\b(?:beforeEach|afterEach|beforeAll|afterAll|before|after)\s*\(/.test(
-        trimmed,
-      )
-    ) {
-      body.push(
-        new Hook({
-          sourceLocation: loc,
-          originalSource: line,
-          confidence: "converted",
-        }),
-      );
+    if (/\b(?:beforeEach|afterEach|beforeAll|afterAll|before|after)\s*\(/.test(trimmed)) {
+      body.push(new Hook({ sourceLocation: loc, originalSource: line, confidence: 'converted' }));
       continue;
     }
 
     if (/\.should\s*\(/.test(trimmed) || /\bexpect\s*\(/.test(trimmed)) {
-      body.push(
-        new Assertion({
-          sourceLocation: loc,
-          originalSource: line,
-          confidence: "converted",
-        }),
-      );
+      body.push(new Assertion({ sourceLocation: loc, originalSource: line, confidence: 'converted' }));
       continue;
     }
 
     if (/\bcy\./.test(trimmed)) {
-      body.push(
-        new RawCode({
-          code: line,
-          sourceLocation: loc,
-          originalSource: line,
-          confidence: "converted",
-        }),
-      );
+      body.push(new RawCode({ code: line, sourceLocation: loc, originalSource: line, confidence: 'converted' }));
       continue;
     }
 
-    body.push(
-      new RawCode({ code: line, sourceLocation: loc, originalSource: line }),
-    );
+    body.push(new RawCode({ code: line, sourceLocation: loc, originalSource: line }));
   }
 
-  return new TestFile({ language: "javascript", imports, body });
+  return new TestFile({ language: 'javascript', imports, body });
 }
 
 function emit(_ir, _source) {
-  throw new Error("Cypress emit not yet implemented (X→Cypress direction)");
+  throw new Error('Cypress emit not yet implemented (X→Cypress direction)');
 }
 
 export default {
-  name: "cypress",
-  language: "javascript",
-  paradigm: "bdd-e2e",
+  name: 'cypress',
+  language: 'javascript',
+  paradigm: 'bdd-e2e',
   detect,
   parse,
   emit,
   imports: {
-    globals: [
-      "describe",
-      "it",
-      "context",
-      "specify",
-      "before",
-      "after",
-      "beforeEach",
-      "afterEach",
-      "cy",
-      "Cypress",
-      "expect",
-    ],
-    mockNamespace: "cy",
+    globals: ['describe', 'it', 'context', 'specify', 'before', 'after', 'beforeEach', 'afterEach', 'cy', 'Cypress', 'expect'],
+    mockNamespace: 'cy',
   },
 };

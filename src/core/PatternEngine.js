@@ -9,7 +9,7 @@ export class PatternEngine {
     this.stats = {
       patternsApplied: 0,
       transformersApplied: 0,
-      replacements: 0,
+      replacements: 0
     };
   }
 
@@ -25,16 +25,15 @@ export class PatternEngine {
       this.patterns.set(category, []);
     }
 
-    const pattern =
-      sourcePattern instanceof RegExp
-        ? sourcePattern
-        : new RegExp(sourcePattern, options.flags || "g");
+    const pattern = sourcePattern instanceof RegExp
+      ? sourcePattern
+      : new RegExp(sourcePattern, options.flags || 'g');
 
     this.patterns.get(category).push({
       pattern,
       replacement: targetReplacement,
       priority: options.priority || 0,
-      description: options.description || "",
+      description: options.description || ''
     });
 
     // Sort patterns by priority (higher first)
@@ -72,7 +71,7 @@ export class PatternEngine {
           this.stats.replacements += matches.length;
         }
 
-        if (typeof replacement === "function") {
+        if (typeof replacement === 'function') {
           result = result.replace(pattern, replacement);
         } else {
           result = result.replace(pattern, replacement);
@@ -101,7 +100,7 @@ export class PatternEngine {
       for (const { pattern, replacement, description } of patterns) {
         const beforeChange = result;
 
-        if (typeof replacement === "function") {
+        if (typeof replacement === 'function') {
           result = result.replace(pattern, replacement);
         } else {
           result = result.replace(pattern, replacement);
@@ -112,7 +111,7 @@ export class PatternEngine {
             category,
             pattern: pattern.toString(),
             description,
-            matches: (beforeChange.match(pattern) || []).length,
+            matches: (beforeChange.match(pattern) || []).length
           });
         }
       }
@@ -131,7 +130,7 @@ export class PatternEngine {
     this.transformers.set(name, {
       fn: transformer,
       priority: options.priority || 0,
-      description: options.description || "",
+      description: options.description || ''
     });
   }
 
@@ -160,13 +159,11 @@ export class PatternEngine {
     let result = content;
 
     const transformersToApply = names
-      ? names.map((n) => [n, this.transformers.get(n)]).filter(([, t]) => t)
+      ? names.map(n => [n, this.transformers.get(n)]).filter(([, t]) => t)
       : Array.from(this.transformers.entries());
 
     // Sort by priority
-    transformersToApply.sort(
-      (a, b) => (b[1]?.priority || 0) - (a[1]?.priority || 0),
-    );
+    transformersToApply.sort((a, b) => (b[1]?.priority || 0) - (a[1]?.priority || 0));
 
     for (const [_name, transformer] of transformersToApply) {
       if (transformer) {
@@ -235,7 +232,7 @@ export class PatternEngine {
     this.stats = {
       patternsApplied: 0,
       transformersApplied: 0,
-      replacements: 0,
+      replacements: 0
     };
   }
 

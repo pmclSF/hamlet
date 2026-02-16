@@ -17,10 +17,10 @@ import {
   RawCode,
   Comment,
   Modifier,
-} from "../../../core/ir.js";
-import { TodoFormatter } from "../../../core/TodoFormatter.js";
+} from '../../../core/ir.js';
+import { TodoFormatter } from '../../../core/TodoFormatter.js';
 
-const formatter = new TodoFormatter("javascript");
+const formatter = new TodoFormatter('javascript');
 
 /**
  * Detect whether source code is Jasmine.
@@ -84,7 +84,7 @@ function detect(source) {
  * and creates IR nodes for scoring and conversion tracking.
  */
 function parse(source) {
-  const lines = source.split("\n");
+  const lines = source.split('\n');
   const imports = [];
   const allNodes = [];
 
@@ -96,45 +96,30 @@ function parse(source) {
     if (!trimmed) continue;
 
     // Comments
-    if (
-      trimmed.startsWith("//") ||
-      trimmed.startsWith("/*") ||
-      trimmed.startsWith("*")
-    ) {
-      const isDirective =
-        /eslint-disable|noinspection|@ts-|type:\s*ignore/.test(trimmed);
-      const isLicense =
-        /license|copyright|MIT|Apache|BSD/i.test(trimmed) && i < 5;
-      allNodes.push(
-        new Comment({
-          text: line,
-          commentKind: isLicense
-            ? "license"
-            : isDirective
-              ? "directive"
-              : "inline",
-          preserveExact: isDirective || isLicense,
-          sourceLocation: loc,
-          originalSource: line,
-        }),
-      );
+    if (trimmed.startsWith('//') || trimmed.startsWith('/*') || trimmed.startsWith('*')) {
+      const isDirective = /eslint-disable|noinspection|@ts-|type:\s*ignore/.test(trimmed);
+      const isLicense = /license|copyright|MIT|Apache|BSD/i.test(trimmed) && i < 5;
+      allNodes.push(new Comment({
+        text: line,
+        commentKind: isLicense ? 'license' : isDirective ? 'directive' : 'inline',
+        preserveExact: isDirective || isLicense,
+        sourceLocation: loc,
+        originalSource: line,
+      }));
       continue;
     }
 
     // Import/require statements
     if (/^import\s/.test(trimmed) || /^const\s.*=\s*require\(/.test(trimmed)) {
-      const sourceMatch =
-        trimmed.match(/from\s+['"]([^'"]+)['"]/) ||
-        trimmed.match(/require\s*\(\s*['"]([^'"]+)['"]\s*\)/);
-      allNodes.push(
-        new ImportStatement({
-          kind: "library",
-          source: sourceMatch ? sourceMatch[1] : "",
-          sourceLocation: loc,
-          originalSource: line,
-          confidence: "converted",
-        }),
-      );
+      const sourceMatch = trimmed.match(/from\s+['"]([^'"]+)['"]/) ||
+                          trimmed.match(/require\s*\(\s*['"]([^'"]+)['"]\s*\)/);
+      allNodes.push(new ImportStatement({
+        kind: 'library',
+        source: sourceMatch ? sourceMatch[1] : '',
+        sourceLocation: loc,
+        originalSource: line,
+        confidence: 'converted',
+      }));
       imports.push(allNodes[allNodes.length - 1]);
       continue;
     }
@@ -144,42 +129,27 @@ function parse(source) {
       const isFocused = /\bfdescribe/.test(trimmed);
       const isSkipped = /\bxdescribe/.test(trimmed);
       const modifiers = [];
-      if (isFocused)
-        modifiers.push(
-          new Modifier({ modifierType: "only", sourceLocation: loc }),
-        );
-      if (isSkipped)
-        modifiers.push(
-          new Modifier({ modifierType: "skip", sourceLocation: loc }),
-        );
-      allNodes.push(
-        new TestSuite({
-          name:
-            (trimmed.match(
-              /(?:fdescribe|xdescribe)\s*\(\s*['"`]([^'"`]*)['"`]/,
-            ) || [])[1] || "",
-          modifiers,
-          sourceLocation: loc,
-          originalSource: line,
-          confidence: "converted",
-        }),
-      );
+      if (isFocused) modifiers.push(new Modifier({ modifierType: 'only', sourceLocation: loc }));
+      if (isSkipped) modifiers.push(new Modifier({ modifierType: 'skip', sourceLocation: loc }));
+      allNodes.push(new TestSuite({
+        name: (trimmed.match(/(?:fdescribe|xdescribe)\s*\(\s*['"`]([^'"`]*)['"`]/) || [])[1] || '',
+        modifiers,
+        sourceLocation: loc,
+        originalSource: line,
+        confidence: 'converted',
+      }));
       continue;
     }
 
     // describe blocks
     if (/\bdescribe\s*\(/.test(trimmed)) {
-      allNodes.push(
-        new TestSuite({
-          name:
-            (trimmed.match(/describe\s*\(\s*['"`]([^'"`]*)['"`]/) || [])[1] ||
-            "",
-          modifiers: [],
-          sourceLocation: loc,
-          originalSource: line,
-          confidence: "converted",
-        }),
-      );
+      allNodes.push(new TestSuite({
+        name: (trimmed.match(/describe\s*\(\s*['"`]([^'"`]*)['"`]/) || [])[1] || '',
+        modifiers: [],
+        sourceLocation: loc,
+        originalSource: line,
+        confidence: 'converted',
+      }));
       continue;
     }
 
@@ -188,217 +158,165 @@ function parse(source) {
       const isFocused = /\bfit\s*\(/.test(trimmed);
       const isSkipped = /\bxit\s*\(/.test(trimmed);
       const modifiers = [];
-      if (isFocused)
-        modifiers.push(
-          new Modifier({ modifierType: "only", sourceLocation: loc }),
-        );
-      if (isSkipped)
-        modifiers.push(
-          new Modifier({ modifierType: "skip", sourceLocation: loc }),
-        );
-      allNodes.push(
-        new TestCase({
-          name:
-            (trimmed.match(/(?:fit|xit)\s*\(\s*['"`]([^'"`]*)['"`]/) ||
-              [])[1] || "",
-          isAsync: /async/.test(trimmed),
-          modifiers,
-          sourceLocation: loc,
-          originalSource: line,
-          confidence: "converted",
-        }),
-      );
+      if (isFocused) modifiers.push(new Modifier({ modifierType: 'only', sourceLocation: loc }));
+      if (isSkipped) modifiers.push(new Modifier({ modifierType: 'skip', sourceLocation: loc }));
+      allNodes.push(new TestCase({
+        name: (trimmed.match(/(?:fit|xit)\s*\(\s*['"`]([^'"`]*)['"`]/) || [])[1] || '',
+        isAsync: /async/.test(trimmed),
+        modifiers,
+        sourceLocation: loc,
+        originalSource: line,
+        confidence: 'converted',
+      }));
       continue;
     }
 
     // it / test
     if (/\b(?:it|test)\s*\(/.test(trimmed)) {
       const isAsync = /async/.test(trimmed);
-      const hasDone =
-        /function\s*\(\s*done\s*\)/.test(trimmed) ||
-        /\(\s*done\s*\)\s*=>/.test(trimmed);
-      allNodes.push(
-        new TestCase({
-          name:
-            (trimmed.match(/(?:it|test)\s*\(\s*['"`]([^'"`]*)['"`]/) ||
-              [])[1] || "",
-          isAsync: isAsync || hasDone,
-          modifiers: [],
-          sourceLocation: loc,
-          originalSource: line,
-          confidence: "converted",
-        }),
-      );
+      const hasDone = /function\s*\(\s*done\s*\)/.test(trimmed) || /\(\s*done\s*\)\s*=>/.test(trimmed);
+      allNodes.push(new TestCase({
+        name: (trimmed.match(/(?:it|test)\s*\(\s*['"`]([^'"`]*)['"`]/) || [])[1] || '',
+        isAsync: isAsync || hasDone,
+        modifiers: [],
+        sourceLocation: loc,
+        originalSource: line,
+        confidence: 'converted',
+      }));
       continue;
     }
 
     // Hooks: beforeEach, afterEach, beforeAll, afterAll
     if (/\b(?:beforeEach|afterEach|beforeAll|afterAll)\s*\(/.test(trimmed)) {
-      const hookType = (trimmed.match(
-        /\b(beforeEach|afterEach|beforeAll|afterAll)/,
-      ) || [])[1];
-      allNodes.push(
-        new Hook({
-          hookType,
-          isAsync: /async/.test(trimmed),
-          sourceLocation: loc,
-          originalSource: line,
-          confidence: "converted",
-        }),
-      );
+      const hookType = (trimmed.match(/\b(beforeEach|afterEach|beforeAll|afterAll)/) || [])[1];
+      allNodes.push(new Hook({
+        hookType,
+        isAsync: /async/.test(trimmed),
+        sourceLocation: loc,
+        originalSource: line,
+        confidence: 'converted',
+      }));
       continue;
     }
 
     // pending()
     if (/\bpending\s*\(/.test(trimmed)) {
-      allNodes.push(
-        new RawCode({
-          code: line,
-          sourceLocation: loc,
-          originalSource: line,
-          confidence: "warning",
-        }),
-      );
+      allNodes.push(new RawCode({
+        code: line,
+        sourceLocation: loc,
+        originalSource: line,
+        confidence: 'warning',
+      }));
       continue;
     }
 
     // jasmine.createSpy / jasmine.createSpyObj
-    if (
-      /jasmine\.createSpy/.test(trimmed) ||
-      /jasmine\.createSpyObj/.test(trimmed)
-    ) {
-      allNodes.push(
-        new MockCall({
-          kind: "createMock",
-          sourceLocation: loc,
-          originalSource: line,
-          confidence: "converted",
-        }),
-      );
+    if (/jasmine\.createSpy/.test(trimmed) || /jasmine\.createSpyObj/.test(trimmed)) {
+      allNodes.push(new MockCall({
+        kind: 'createMock',
+        sourceLocation: loc,
+        originalSource: line,
+        confidence: 'converted',
+      }));
       continue;
     }
 
     // spyOn
     if (/\bspyOn\s*\(/.test(trimmed)) {
-      allNodes.push(
-        new MockCall({
-          kind: "spyOnMethod",
-          sourceLocation: loc,
-          originalSource: line,
-          confidence: "converted",
-        }),
-      );
+      allNodes.push(new MockCall({
+        kind: 'spyOnMethod',
+        sourceLocation: loc,
+        originalSource: line,
+        confidence: 'converted',
+      }));
       continue;
     }
 
     // jasmine.clock()
     if (/jasmine\.clock\s*\(\)/.test(trimmed)) {
-      allNodes.push(
-        new MockCall({
-          kind: "fakeTimers",
-          sourceLocation: loc,
-          originalSource: line,
-          confidence: "converted",
-        }),
-      );
+      allNodes.push(new MockCall({
+        kind: 'fakeTimers',
+        sourceLocation: loc,
+        originalSource: line,
+        confidence: 'converted',
+      }));
       continue;
     }
 
     // jasmine.any / jasmine.objectContaining / etc.
-    if (
-      /jasmine\.(?:any|objectContaining|arrayContaining|stringMatching|anything)\s*\(/.test(
-        trimmed,
-      )
-    ) {
-      allNodes.push(
-        new Assertion({
-          kind: "equal",
-          sourceLocation: loc,
-          originalSource: line,
-          confidence: "converted",
-        }),
-      );
+    if (/jasmine\.(?:any|objectContaining|arrayContaining|stringMatching|anything)\s*\(/.test(trimmed)) {
+      allNodes.push(new Assertion({
+        kind: 'equal',
+        sourceLocation: loc,
+        originalSource: line,
+        confidence: 'converted',
+      }));
       continue;
     }
 
     // jasmine.addMatchers
     if (/jasmine\.addMatchers\s*\(/.test(trimmed)) {
-      allNodes.push(
-        new RawCode({
-          code: line,
-          sourceLocation: loc,
-          originalSource: line,
-          confidence: "unconvertible",
-        }),
-      );
+      allNodes.push(new RawCode({
+        code: line,
+        sourceLocation: loc,
+        originalSource: line,
+        confidence: 'unconvertible',
+      }));
       continue;
     }
 
     // Assertions: expect(...)
     if (/\bexpect\s*\(/.test(trimmed)) {
       const isNegated = /\.not\./.test(trimmed);
-      let kind = "equal";
-      if (/\.toBe\(/.test(trimmed)) kind = "strictEqual";
-      else if (/\.toEqual\(/.test(trimmed)) kind = "deepEqual";
-      else if (/\.toBeTruthy\(/.test(trimmed)) kind = "truthy";
-      else if (/\.toBeFalsy\(/.test(trimmed)) kind = "falsy";
-      else if (/\.toBeNull\(/.test(trimmed)) kind = "isNull";
-      else if (/\.toBeUndefined\(/.test(trimmed)) kind = "isUndefined";
-      else if (/\.toBeDefined\(/.test(trimmed)) kind = "isDefined";
-      else if (/\.toContain\(/.test(trimmed)) kind = "contains";
-      else if (/\.toHaveBeenCalled\b/.test(trimmed)) kind = "called";
-      else if (/\.toHaveBeenCalledWith\(/.test(trimmed)) kind = "calledWith";
-      else if (/\.toHaveBeenCalledTimes\(/.test(trimmed)) kind = "calledTimes";
-      else if (/\.toThrow\(/.test(trimmed) || /\.toThrowError\(/.test(trimmed))
-        kind = "throws";
-      else if (/\.toMatch\(/.test(trimmed)) kind = "matches";
+      let kind = 'equal';
+      if (/\.toBe\(/.test(trimmed)) kind = 'strictEqual';
+      else if (/\.toEqual\(/.test(trimmed)) kind = 'deepEqual';
+      else if (/\.toBeTruthy\(/.test(trimmed)) kind = 'truthy';
+      else if (/\.toBeFalsy\(/.test(trimmed)) kind = 'falsy';
+      else if (/\.toBeNull\(/.test(trimmed)) kind = 'isNull';
+      else if (/\.toBeUndefined\(/.test(trimmed)) kind = 'isUndefined';
+      else if (/\.toBeDefined\(/.test(trimmed)) kind = 'isDefined';
+      else if (/\.toContain\(/.test(trimmed)) kind = 'contains';
+      else if (/\.toHaveBeenCalled\b/.test(trimmed)) kind = 'called';
+      else if (/\.toHaveBeenCalledWith\(/.test(trimmed)) kind = 'calledWith';
+      else if (/\.toHaveBeenCalledTimes\(/.test(trimmed)) kind = 'calledTimes';
+      else if (/\.toThrow\(/.test(trimmed) || /\.toThrowError\(/.test(trimmed)) kind = 'throws';
+      else if (/\.toMatch\(/.test(trimmed)) kind = 'matches';
 
-      allNodes.push(
-        new Assertion({
-          kind,
-          isNegated,
-          sourceLocation: loc,
-          originalSource: line,
-          confidence: "converted",
-        }),
-      );
+      allNodes.push(new Assertion({
+        kind,
+        isNegated,
+        sourceLocation: loc,
+        originalSource: line,
+        confidence: 'converted',
+      }));
       continue;
     }
 
     // spy chains (.and.returnValue, .calls.count, etc.)
-    if (
-      /\.and\.(?:returnValue|callFake|throwError|callThrough|stub)\s*\(/.test(
-        trimmed,
-      ) ||
-      /\.calls\.(?:count|argsFor|mostRecent|reset|allArgs|first)\s*\(\)/.test(
-        trimmed,
-      )
-    ) {
-      allNodes.push(
-        new MockCall({
-          kind: "spyOnMethod",
-          sourceLocation: loc,
-          originalSource: line,
-          confidence: "converted",
-        }),
-      );
+    if (/\.and\.(?:returnValue|callFake|throwError|callThrough|stub)\s*\(/.test(trimmed) ||
+        /\.calls\.(?:count|argsFor|mostRecent|reset|allArgs|first)\s*\(\)/.test(trimmed)) {
+      allNodes.push(new MockCall({
+        kind: 'spyOnMethod',
+        sourceLocation: loc,
+        originalSource: line,
+        confidence: 'converted',
+      }));
       continue;
     }
 
     // Everything else
-    allNodes.push(
-      new RawCode({
-        code: line,
-        sourceLocation: loc,
-        originalSource: line,
-      }),
-    );
+    allNodes.push(new RawCode({
+      code: line,
+      sourceLocation: loc,
+      originalSource: line,
+    }));
   }
 
   return new TestFile({
-    language: "javascript",
+    language: 'javascript',
     imports,
-    body: allNodes.filter((n) => !imports.includes(n)),
+    body: allNodes.filter(n => !imports.includes(n)),
   });
 }
 
@@ -418,259 +336,206 @@ function emit(_ir, source) {
   // --- Phase 1: Convert Jest mock API → Jasmine spies ---
 
   // jest.fn() → jasmine.createSpy()
-  result = result.replace(/\bjest\.fn\(\)/g, "jasmine.createSpy()");
+  result = result.replace(/\bjest\.fn\(\)/g, 'jasmine.createSpy()');
 
   // jest.fn(impl) → jasmine.createSpy().and.callFake(impl)
   result = result.replace(
     /\bjest\.fn\(([^)]+)\)/g,
-    "jasmine.createSpy().and.callFake($1)",
+    'jasmine.createSpy().and.callFake($1)'
   );
 
   // jest.spyOn(obj, 'method') → spyOn(obj, 'method')
   result = result.replace(
     /\bjest\.spyOn\(([^,]+),\s*([^)]+)\)/g,
-    "spyOn($1, $2)",
+    'spyOn($1, $2)'
   );
 
   // .mockReturnValue(val) → .and.returnValue(val)
-  result = result.replace(
-    /\.mockReturnValue\(([^)]+)\)/g,
-    ".and.returnValue($1)",
-  );
+  result = result.replace(/\.mockReturnValue\(([^)]+)\)/g, '.and.returnValue($1)');
 
   // .mockReturnValueOnce(val) → .and.returnValue(val) (simplified — Jasmine doesn't have once)
-  result = result.replace(
-    /\.mockReturnValueOnce\(([^)]+)\)/g,
-    ".and.returnValue($1)",
-  );
+  result = result.replace(/\.mockReturnValueOnce\(([^)]+)\)/g, '.and.returnValue($1)');
 
   // .mockImplementation(fn) → .and.callFake(fn)
-  result = result.replace(
-    /\.mockImplementation\(([^)]*)\)/g,
-    ".and.callFake($1)",
-  );
+  result = result.replace(/\.mockImplementation\(([^)]*)\)/g, '.and.callFake($1)');
 
   // .mockResolvedValue(val) → .and.returnValue(Promise.resolve(val))
   result = result.replace(
     /\.mockResolvedValue\(([^)]+)\)/g,
-    ".and.returnValue(Promise.resolve($1))",
+    '.and.returnValue(Promise.resolve($1))'
   );
 
   // .mockRejectedValue(err) → .and.returnValue(Promise.reject(err))
   result = result.replace(
     /\.mockRejectedValue\(([^)]+)\)/g,
-    ".and.returnValue(Promise.reject($1))",
+    '.and.returnValue(Promise.reject($1))'
   );
 
   // .mockClear() → .calls.reset()
-  result = result.replace(/\.mockClear\(\)/g, ".calls.reset()");
+  result = result.replace(/\.mockClear\(\)/g, '.calls.reset()');
 
   // .mockReset() → .calls.reset() and .and.stub()
-  result = result.replace(/\.mockReset\(\)/g, ".calls.reset()");
+  result = result.replace(/\.mockReset\(\)/g, '.calls.reset()');
 
   // .mock.calls.length → .calls.count()
-  result = result.replace(/\.mock\.calls\.length/g, ".calls.count()");
+  result = result.replace(/\.mock\.calls\.length/g, '.calls.count()');
 
   // .mock.calls[n] → .calls.argsFor(n)
-  result = result.replace(/\.mock\.calls\[(\d+)\]/g, ".calls.argsFor($1)");
+  result = result.replace(/\.mock\.calls\[(\d+)\]/g, '.calls.argsFor($1)');
 
   // .mock.lastCall → .calls.mostRecent().args
-  result = result.replace(/\.mock\.lastCall/g, ".calls.mostRecent().args");
+  result = result.replace(/\.mock\.lastCall/g, '.calls.mostRecent().args');
 
   // --- Phase 2: Convert asymmetric matchers ---
 
   // expect.any(X) → jasmine.any(X)
-  result = result.replace(/\bexpect\.any\(([^)]+)\)/g, "jasmine.any($1)");
+  result = result.replace(/\bexpect\.any\(([^)]+)\)/g, 'jasmine.any($1)');
 
   // expect.anything() → jasmine.anything()
-  result = result.replace(/\bexpect\.anything\(\)/g, "jasmine.anything()");
+  result = result.replace(/\bexpect\.anything\(\)/g, 'jasmine.anything()');
 
   // expect.objectContaining → jasmine.objectContaining
-  result = result.replace(
-    /\bexpect\.objectContaining\(/g,
-    "jasmine.objectContaining(",
-  );
+  result = result.replace(/\bexpect\.objectContaining\(/g, 'jasmine.objectContaining(');
 
   // expect.arrayContaining → jasmine.arrayContaining
-  result = result.replace(
-    /\bexpect\.arrayContaining\(/g,
-    "jasmine.arrayContaining(",
-  );
+  result = result.replace(/\bexpect\.arrayContaining\(/g, 'jasmine.arrayContaining(');
 
   // expect.stringContaining → jasmine.stringMatching
-  result = result.replace(
-    /\bexpect\.stringContaining\(/g,
-    "jasmine.stringMatching(",
-  );
+  result = result.replace(/\bexpect\.stringContaining\(/g, 'jasmine.stringMatching(');
 
   // expect.stringMatching → jasmine.stringMatching
-  result = result.replace(
-    /\bexpect\.stringMatching\(/g,
-    "jasmine.stringMatching(",
-  );
+  result = result.replace(/\bexpect\.stringMatching\(/g, 'jasmine.stringMatching(');
 
   // --- Phase 3: Convert modifiers ---
 
   // describe.only → fdescribe
-  result = result.replace(/\bdescribe\.only\s*\(/g, "fdescribe(");
+  result = result.replace(/\bdescribe\.only\s*\(/g, 'fdescribe(');
 
   // describe.skip → xdescribe
-  result = result.replace(/\bdescribe\.skip\s*\(/g, "xdescribe(");
+  result = result.replace(/\bdescribe\.skip\s*\(/g, 'xdescribe(');
 
   // it.only → fit
-  result = result.replace(/\bit\.only\s*\(/g, "fit(");
+  result = result.replace(/\bit\.only\s*\(/g, 'fit(');
 
   // it.skip → xit
-  result = result.replace(/\bit\.skip\s*\(/g, "xit(");
+  result = result.replace(/\bit\.skip\s*\(/g, 'xit(');
 
   // test.only → fit
-  result = result.replace(/\btest\.only\s*\(/g, "fit(");
+  result = result.replace(/\btest\.only\s*\(/g, 'fit(');
 
   // test.skip → xit
-  result = result.replace(/\btest\.skip\s*\(/g, "xit(");
+  result = result.replace(/\btest\.skip\s*\(/g, 'xit(');
 
   // it.todo('name') → xit('name', () => { pending(); })
   result = result.replace(
     /\bit\.todo\s*\(\s*(['"`][^'"`]*['"`])\s*\)/g,
-    "xit($1, () => { pending(); })",
+    'xit($1, () => { pending(); })'
   );
 
   // test → it (Jasmine uses it, not test)
-  result = result.replace(/\btest\s*\(\s*(['"`])/g, "it($1");
+  result = result.replace(/\btest\s*\(\s*(['"`])/g, 'it($1');
 
   // --- Phase 4: Convert timers ---
 
   // jest.useFakeTimers() → jasmine.clock().install()
-  result = result.replace(
-    /\bjest\.useFakeTimers\(\)/g,
-    "jasmine.clock().install()",
-  );
+  result = result.replace(/\bjest\.useFakeTimers\(\)/g, 'jasmine.clock().install()');
 
   // jest.useRealTimers() → jasmine.clock().uninstall()
-  result = result.replace(
-    /\bjest\.useRealTimers\(\)/g,
-    "jasmine.clock().uninstall()",
-  );
+  result = result.replace(/\bjest\.useRealTimers\(\)/g, 'jasmine.clock().uninstall()');
 
   // jest.advanceTimersByTime(ms) → jasmine.clock().tick(ms)
   result = result.replace(
     /\bjest\.advanceTimersByTime\(([^)]+)\)/g,
-    "jasmine.clock().tick($1)",
+    'jasmine.clock().tick($1)'
   );
 
   // jest.setSystemTime(date) → jasmine.clock().mockDate(date)
   result = result.replace(
     /\bjest\.setSystemTime\(([^)]+)\)/g,
-    "jasmine.clock().mockDate($1)",
+    'jasmine.clock().mockDate($1)'
   );
 
   // jest.clearAllMocks() → (no direct equivalent, remove or comment)
   result = result.replace(
     /\bjest\.clearAllMocks\(\)\s*;?/g,
-    "// Jasmine spies are auto-cleaned between specs",
+    '// Jasmine spies are auto-cleaned between specs'
   );
 
   // jest.resetAllMocks()
   result = result.replace(
     /\bjest\.resetAllMocks\(\)\s*;?/g,
-    "// Jasmine spies are auto-cleaned between specs",
+    '// Jasmine spies are auto-cleaned between specs'
   );
 
   // jest.restoreAllMocks()
   result = result.replace(
     /\bjest\.restoreAllMocks\(\)\s*;?/g,
-    "// Jasmine spies are auto-cleaned between specs",
+    '// Jasmine spies are auto-cleaned between specs'
   );
 
   // --- Phase 5: Unconvertible patterns ---
 
   // jest.mock(module) → HAMLET-TODO
-  result = result.replace(/\bjest\.mock\s*\(([^)]+)\)\s*;?/g, (match) => {
-    return (
-      formatter.formatTodo({
-        id: "UNCONVERTIBLE-MODULE-MOCK",
-        description:
-          "Jasmine does not have a built-in module mocking system like jest.mock()",
+  result = result.replace(
+    /\bjest\.mock\s*\(([^)]+)\)\s*;?/g,
+    (match) => {
+      return formatter.formatTodo({
+        id: 'UNCONVERTIBLE-MODULE-MOCK',
+        description: 'Jasmine does not have a built-in module mocking system like jest.mock()',
         original: match.trim(),
-        action: "Use manual dependency injection or a module mocking library",
-      }) +
-      "\n// " +
-      match.trim()
-    );
-  });
+        action: 'Use manual dependency injection or a module mocking library',
+      }) + '\n// ' + match.trim();
+    }
+  );
 
   // toMatchSnapshot → HAMLET-TODO
   result = result.replace(
     /expect\([^)]+\)\.toMatchSnapshot\(\)\s*;?/g,
     (match) => {
-      return (
-        formatter.formatTodo({
-          id: "UNCONVERTIBLE-SNAPSHOT",
-          description: "Jasmine does not have built-in snapshot testing",
-          original: match.trim(),
-          action: "Use jasmine-snapshot or convert to explicit assertion",
-        }) +
-        "\n// " +
-        match.trim()
-      );
-    },
+      return formatter.formatTodo({
+        id: 'UNCONVERTIBLE-SNAPSHOT',
+        description: 'Jasmine does not have built-in snapshot testing',
+        original: match.trim(),
+        action: 'Use jasmine-snapshot or convert to explicit assertion',
+      }) + '\n// ' + match.trim();
+    }
   );
 
   // toMatchInlineSnapshot → HAMLET-TODO
   result = result.replace(
     /expect\([^)]+\)\.toMatchInlineSnapshot\([^)]*\)\s*;?/g,
     (match) => {
-      return (
-        formatter.formatTodo({
-          id: "UNCONVERTIBLE-INLINE-SNAPSHOT",
-          description: "Jasmine does not support inline snapshots",
-          original: match.trim(),
-          action: "Convert to explicit assertion",
-        }) +
-        "\n// " +
-        match.trim()
-      );
-    },
+      return formatter.formatTodo({
+        id: 'UNCONVERTIBLE-INLINE-SNAPSHOT',
+        description: 'Jasmine does not support inline snapshots',
+        original: match.trim(),
+        action: 'Convert to explicit assertion',
+      }) + '\n// ' + match.trim();
+    }
   );
 
   // Remove any existing jest-related imports
-  result = result.replace(
-    /import\s+\{[^}]*\}\s+from\s+['"]@jest\/globals['"];?\n?/g,
-    "",
-  );
+  result = result.replace(/import\s+\{[^}]*\}\s+from\s+['"]@jest\/globals['"];?\n?/g, '');
 
   // Clean up multiple blank lines
-  result = result.replace(/\n{3,}/g, "\n\n");
+  result = result.replace(/\n{3,}/g, '\n\n');
 
   // Ensure trailing newline
-  if (!result.endsWith("\n")) result += "\n";
+  if (!result.endsWith('\n')) result += '\n';
 
   return result;
 }
 
 export default {
-  name: "jasmine",
-  language: "javascript",
-  paradigm: "bdd",
+  name: 'jasmine',
+  language: 'javascript',
+  paradigm: 'bdd',
   detect,
   parse,
   emit,
   imports: {
-    globals: [
-      "describe",
-      "it",
-      "expect",
-      "beforeEach",
-      "afterEach",
-      "beforeAll",
-      "afterAll",
-      "fdescribe",
-      "xdescribe",
-      "fit",
-      "xit",
-      "spyOn",
-      "pending",
-    ],
-    mockNamespace: "jasmine",
+    globals: ['describe', 'it', 'expect', 'beforeEach', 'afterEach', 'beforeAll', 'afterAll',
+              'fdescribe', 'xdescribe', 'fit', 'xit', 'spyOn', 'pending'],
+    mockNamespace: 'jasmine',
   },
 };

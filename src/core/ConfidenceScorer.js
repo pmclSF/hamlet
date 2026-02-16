@@ -5,7 +5,7 @@
  * applying weights by node type to produce a 0-100 confidence score.
  */
 
-import { walkIR } from "./ir.js";
+import { walkIR } from './ir.js';
 
 const NODE_WEIGHTS = {
   TestSuite: 3,
@@ -43,22 +43,22 @@ export class ConfidenceScorer {
 
       totalWeight += weight;
 
-      if (node.confidence === "converted") {
+      if (node.confidence === 'converted') {
         convertedWeight += weight;
         convertedCount++;
-      } else if (node.confidence === "unconvertible") {
+      } else if (node.confidence === 'unconvertible') {
         unconvertibleCount++;
         details.push({
-          type: "unconvertible",
+          type: 'unconvertible',
           nodeType: node.type,
           line: node.sourceLocation ? node.sourceLocation.line : null,
           source: node.originalSource,
         });
-      } else if (node.confidence === "warning") {
+      } else if (node.confidence === 'warning') {
         convertedWeight += weight;
         warningCount++;
         details.push({
-          type: "warning",
+          type: 'warning',
           nodeType: node.type,
           line: node.sourceLocation ? node.sourceLocation.line : null,
           source: node.originalSource,
@@ -66,8 +66,9 @@ export class ConfidenceScorer {
       }
     });
 
-    const confidence =
-      totalWeight > 0 ? Math.round((convertedWeight / totalWeight) * 100) : 100;
+    const confidence = totalWeight > 0
+      ? Math.round((convertedWeight / totalWeight) * 100)
+      : 100;
 
     return {
       confidence,
@@ -86,8 +87,8 @@ export class ConfidenceScorer {
    * @returns {'high'|'medium'|'low'}
    */
   getLevel(confidence) {
-    if (confidence >= 90) return "high";
-    if (confidence >= 70) return "medium";
-    return "low";
+    if (confidence >= 90) return 'high';
+    if (confidence >= 70) return 'medium';
+    return 'low';
   }
 }

@@ -9,7 +9,7 @@
  * Detects circular dependencies (warn, don't fail).
  */
 
-import path from "path";
+import path from 'path';
 
 /**
  * All import extraction regexes.
@@ -63,7 +63,7 @@ export class DependencyGraphBuilder {
 
       for (const specifier of imports) {
         // Skip node_modules / bare specifiers
-        if (!specifier.startsWith(".") && !specifier.startsWith("/")) continue;
+        if (!specifier.startsWith('.') && !specifier.startsWith('/')) continue;
 
         const resolved = this._resolve(specifier, file.path, knownPaths);
         if (resolved) {
@@ -71,9 +71,7 @@ export class DependencyGraphBuilder {
             resolvedDeps.push(resolved);
           }
         } else {
-          warnings.push(
-            `Unresolved import '${specifier}' in ${file.relativePath}`,
-          );
+          warnings.push(`Unresolved import '${specifier}' in ${file.relativePath}`);
         }
       }
 
@@ -117,9 +115,9 @@ export class DependencyGraphBuilder {
    */
   _stripComments(content) {
     // Remove multi-line comments
-    let result = content.replace(/\/\*[\s\S]*?\*\//g, "");
+    let result = content.replace(/\/\*[\s\S]*?\*\//g, '');
     // Remove single-line comments (but not inside strings)
-    result = result.replace(/\/\/.*$/gm, "");
+    result = result.replace(/\/\/.*$/gm, '');
     return result;
   }
 
@@ -139,7 +137,7 @@ export class DependencyGraphBuilder {
     if (knownPaths.has(resolved)) return resolved;
 
     // Try common extensions
-    const extensions = [".js", ".ts", ".jsx", ".tsx", ".mjs", ".cjs"];
+    const extensions = ['.js', '.ts', '.jsx', '.tsx', '.mjs', '.cjs'];
     for (const ext of extensions) {
       const withExt = resolved + ext;
       if (knownPaths.has(withExt)) return withExt;

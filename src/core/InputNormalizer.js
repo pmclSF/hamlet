@@ -18,31 +18,28 @@ export class InputNormalizer {
 
     // Empty content
     if (!content || content.trim().length === 0) {
-      issues.push({ type: "empty", message: "File is empty" });
-      return { normalized: content || "", issues };
+      issues.push({ type: 'empty', message: 'File is empty' });
+      return { normalized: content || '', issues };
     }
 
     // Binary detection
     if (this._isBinary(content)) {
-      issues.push({ type: "binary", message: "File appears to be binary" });
-      return { normalized: "", issues };
+      issues.push({ type: 'binary', message: 'File appears to be binary' });
+      return { normalized: '', issues };
     }
 
     let normalized = content;
 
     // Fix encoding issues — remove BOM
-    if (normalized.charCodeAt(0) === 0xfeff) {
+    if (normalized.charCodeAt(0) === 0xFEFF) {
       normalized = normalized.slice(1);
-      issues.push({ type: "encoding", message: "Removed BOM character" });
+      issues.push({ type: 'encoding', message: 'Removed BOM character' });
     }
 
     // Normalize line endings to LF
-    if (normalized.includes("\r\n") || normalized.includes("\r")) {
-      normalized = normalized.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
-      issues.push({
-        type: "encoding",
-        message: "Normalized line endings to LF",
-      });
+    if (normalized.includes('\r\n') || normalized.includes('\r')) {
+      normalized = normalized.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+      issues.push({ type: 'encoding', message: 'Normalized line endings to LF' });
     }
 
     // Fix mismatched quotes
@@ -82,7 +79,7 @@ export class InputNormalizer {
    * @returns {string}
    */
   _fixMismatchedQuotes(content, issues) {
-    const lines = content.split("\n");
+    const lines = content.split('\n');
     const fixed = [];
 
     for (let i = 0; i < lines.length; i++) {
@@ -91,25 +88,17 @@ export class InputNormalizer {
 
       let fixedLine = line;
 
-      if (
-        counts.single % 2 !== 0 &&
-        counts.double % 2 === 0 &&
-        counts.backtick % 2 === 0
-      ) {
-        fixedLine = fixedLine + "'";
+      if (counts.single % 2 !== 0 && counts.double % 2 === 0 && counts.backtick % 2 === 0) {
+        fixedLine = fixedLine + '\'';
         issues.push({
-          type: "quote",
+          type: 'quote',
           message: `Mismatched single quote on line ${i + 1}`,
           line: i + 1,
         });
-      } else if (
-        counts.double % 2 !== 0 &&
-        counts.single % 2 === 0 &&
-        counts.backtick % 2 === 0
-      ) {
+      } else if (counts.double % 2 !== 0 && counts.single % 2 === 0 && counts.backtick % 2 === 0) {
         fixedLine = fixedLine + '"';
         issues.push({
-          type: "quote",
+          type: 'quote',
           message: `Mismatched double quote on line ${i + 1}`,
           line: i + 1,
         });
@@ -118,7 +107,7 @@ export class InputNormalizer {
       fixed.push(fixedLine);
     }
 
-    return fixed.join("\n");
+    return fixed.join('\n');
   }
 
   /**
@@ -131,32 +120,22 @@ export class InputNormalizer {
     let double = 0;
     let backtick = 0;
     let inString = false;
-    let stringChar = "";
+    let stringChar = '';
 
     for (let i = 0; i < line.length; i++) {
       const ch = line[i];
-      const escaped = i > 0 && line[i - 1] === "\\";
+      const escaped = i > 0 && line[i - 1] === '\\';
 
       if (escaped) continue;
 
       if (!inString) {
-        if (ch === "'") {
-          single++;
-          inString = true;
-          stringChar = "'";
-        } else if (ch === '"') {
-          double++;
-          inString = true;
-          stringChar = '"';
-        } else if (ch === "`") {
-          backtick++;
-          inString = true;
-          stringChar = "`";
-        }
+        if (ch === '\'') { single++; inString = true; stringChar = '\''; }
+        else if (ch === '"') { double++; inString = true; stringChar = '"'; }
+        else if (ch === '`') { backtick++; inString = true; stringChar = '`'; }
       } else if (ch === stringChar) {
-        if (ch === "'") single++;
+        if (ch === '\'') single++;
         else if (ch === '"') double++;
-        else if (ch === "`") backtick++;
+        else if (ch === '`') backtick++;
         inString = false;
       }
     }
@@ -171,36 +150,32 @@ export class InputNormalizer {
    * @param {Array} issues
    */
   _checkBrackets(content, issues) {
-    const pairs = { "(": ")", "[": "]", "{": "}" };
+    const pairs = { '(': ')', '[': ']', '{': '}' };
     const openers = new Set(Object.keys(pairs));
     const closers = new Map(Object.entries(pairs).map(([k, v]) => [v, k]));
     const stack = [];
     let inString = false;
-    let stringChar = "";
+    let stringChar = '';
 
     for (let i = 0; i < content.length; i++) {
       const ch = content[i];
-      const prev = i > 0 ? content[i - 1] : "";
+      const prev = i > 0 ? content[i - 1] : '';
 
       // Handle string boundaries
-      if (
-        !inString &&
-        (ch === "'" || ch === '"' || ch === "`") &&
-        prev !== "\\"
-      ) {
+      if (!inString && (ch === '\'' || ch === '"' || ch === '`') && prev !== '\\') {
         inString = true;
         stringChar = ch;
         continue;
       }
-      if (inString && ch === stringChar && prev !== "\\") {
+      if (inString && ch === stringChar && prev !== '\\') {
         inString = false;
         continue;
       }
       if (inString) continue;
 
       // Handle single-line comments
-      if (ch === "/" && i + 1 < content.length && content[i + 1] === "/") {
-        const nlIndex = content.indexOf("\n", i);
+      if (ch === '/' && i + 1 < content.length && content[i + 1] === '/') {
+        const nlIndex = content.indexOf('\n', i);
         if (nlIndex !== -1) {
           i = nlIndex;
         } else {
@@ -210,8 +185,8 @@ export class InputNormalizer {
       }
 
       // Handle multi-line comments
-      if (ch === "/" && i + 1 < content.length && content[i + 1] === "*") {
-        const endIndex = content.indexOf("*/", i + 2);
+      if (ch === '/' && i + 1 < content.length && content[i + 1] === '*') {
+        const endIndex = content.indexOf('*/', i + 2);
         if (endIndex !== -1) {
           i = endIndex + 1;
         } else {
@@ -221,12 +196,9 @@ export class InputNormalizer {
       }
 
       if (openers.has(ch)) {
-        stack.push({ char: ch, line: content.slice(0, i).split("\n").length });
+        stack.push({ char: ch, line: content.slice(0, i).split('\n').length });
       } else if (closers.has(ch)) {
-        if (
-          stack.length > 0 &&
-          stack[stack.length - 1].char === closers.get(ch)
-        ) {
+        if (stack.length > 0 && stack[stack.length - 1].char === closers.get(ch)) {
           stack.pop();
         }
       }
@@ -234,7 +206,7 @@ export class InputNormalizer {
 
     for (const unclosed of stack) {
       issues.push({
-        type: "bracket",
+        type: 'bracket',
         message: `Unclosed '${unclosed.char}' at line ${unclosed.line}`,
         line: unclosed.line,
       });

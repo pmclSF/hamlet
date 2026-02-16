@@ -5,15 +5,7 @@
  * Each definition provides detect, parse, and emit methods for conversion.
  */
 
-const REQUIRED_FIELDS = [
-  "name",
-  "language",
-  "detect",
-  "parse",
-  "emit",
-  "imports",
-  "paradigm",
-];
+const REQUIRED_FIELDS = ['name', 'language', 'detect', 'parse', 'emit', 'imports', 'paradigm'];
 
 export class FrameworkRegistry {
   #frameworks = new Map();
@@ -31,10 +23,10 @@ export class FrameworkRegistry {
    * @throws {Error} If required fields are missing
    */
   register(definition) {
-    const missing = REQUIRED_FIELDS.filter((f) => !(f in definition));
+    const missing = REQUIRED_FIELDS.filter(f => !(f in definition));
     if (missing.length > 0) {
       throw new Error(
-        `Framework definition for '${definition.name || "unknown"}' missing required fields: ${missing.join(", ")}`,
+        `Framework definition for '${definition.name || 'unknown'}' missing required fields: ${missing.join(', ')}`
       );
     }
 

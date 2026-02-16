@@ -20,11 +20,11 @@ export class ImportRewriter {
   rewrite(content, renames) {
     if (!renames || renames.size === 0) return content;
 
-    const lines = content.split("\n");
+    const lines = content.split('\n');
     const result = [];
     let inBlockComment = false;
     let inMultilineImport = false;
-    let multilineBuffer = "";
+    let multilineBuffer = '';
 
     for (let i = 0; i < lines.length; i++) {
       let line = lines[i];
@@ -32,7 +32,7 @@ export class ImportRewriter {
       // Track block comments
       if (!inMultilineImport) {
         if (inBlockComment) {
-          const endIdx = line.indexOf("*/");
+          const endIdx = line.indexOf('*/');
           if (endIdx !== -1) {
             inBlockComment = false;
           }
@@ -43,14 +43,14 @@ export class ImportRewriter {
         const trimmed = line.trim();
 
         // Skip single-line comments
-        if (trimmed.startsWith("//")) {
+        if (trimmed.startsWith('//')) {
           result.push(line);
           continue;
         }
 
         // Check for block comment start
-        if (trimmed.startsWith("/*")) {
-          if (!trimmed.includes("*/")) {
+        if (trimmed.startsWith('/*')) {
+          if (!trimmed.includes('*/')) {
             inBlockComment = true;
           }
           result.push(line);
@@ -60,12 +60,12 @@ export class ImportRewriter {
 
       // Handle multiline imports
       if (inMultilineImport) {
-        multilineBuffer += "\n" + line;
+        multilineBuffer += '\n' + line;
         if (this._hasClosingQuote(multilineBuffer)) {
           inMultilineImport = false;
           const rewritten = this._rewriteLine(multilineBuffer, renames);
           result.push(rewritten);
-          multilineBuffer = "";
+          multilineBuffer = '';
         }
         continue;
       }
@@ -89,7 +89,7 @@ export class ImportRewriter {
       result.push(this._rewriteLine(multilineBuffer, renames));
     }
 
-    return result.join("\n");
+    return result.join('\n');
   }
 
   /**
@@ -100,8 +100,8 @@ export class ImportRewriter {
   _isImportLine(line) {
     const trimmed = line.trim();
     return (
-      trimmed.startsWith("import ") ||
-      trimmed.startsWith("import(") ||
+      trimmed.startsWith('import ') ||
+      trimmed.startsWith('import(') ||
       /^\s*(?:const|let|var)\s+.*=\s*require\s*\(/.test(line) ||
       /^\s*(?:const|let|var)\s+.*=\s*await\s+import\s*\(/.test(line) ||
       /^\s*export\s+(?:\{[^}]*\}|\*)\s+from\s/.test(trimmed) ||
@@ -127,11 +127,9 @@ export class ImportRewriter {
    */
   _hasClosingQuote(buffer) {
     // Look for the pattern: from '...' or require('...') at the end
-    return (
-      /from\s+['"][^'"]*['"]\s*;?\s*(?:\/\/.*)?$/.test(buffer) ||
-      /require\s*\(\s*['"][^'"]*['"]\s*\)\s*;?\s*(?:\/\/.*)?$/.test(buffer) ||
-      /import\s*\(\s*['"][^'"]*['"]\s*\)\s*;?\s*(?:\/\/.*)?$/.test(buffer)
-    );
+    return /from\s+['"][^'"]*['"]\s*;?\s*(?:\/\/.*)?$/.test(buffer) ||
+           /require\s*\(\s*['"][^'"]*['"]\s*\)\s*;?\s*(?:\/\/.*)?$/.test(buffer) ||
+           /import\s*\(\s*['"][^'"]*['"]\s*\)\s*;?\s*(?:\/\/.*)?$/.test(buffer);
   }
 
   /**
@@ -158,7 +156,7 @@ export class ImportRewriter {
         const [, prefix, openQuote, specifier, closeQuote] = match;
 
         // Skip node_modules (bare specifiers)
-        if (!specifier.startsWith(".") && !specifier.startsWith("/")) {
+        if (!specifier.startsWith('.') && !specifier.startsWith('/')) {
           return line;
         }
 
@@ -167,7 +165,7 @@ export class ImportRewriter {
         if (newPath) {
           return line.replace(
             `${prefix}${openQuote}${specifier}${closeQuote}`,
-            `${prefix}${openQuote}${newPath}${closeQuote}`,
+            `${prefix}${openQuote}${newPath}${closeQuote}`
           );
         }
 
@@ -179,12 +177,12 @@ export class ImportRewriter {
     const sideEffectMatch = line.match(/(import\s+)(['"])([^'"]+)(['"])/);
     if (sideEffectMatch) {
       const [, prefix, openQuote, specifier, closeQuote] = sideEffectMatch;
-      if (specifier.startsWith(".") || specifier.startsWith("/")) {
+      if (specifier.startsWith('.') || specifier.startsWith('/')) {
         const newPath = this._findRename(specifier, renames);
         if (newPath) {
           return line.replace(
             `${prefix}${openQuote}${specifier}${closeQuote}`,
-            `${prefix}${openQuote}${newPath}${closeQuote}`,
+            `${prefix}${openQuote}${newPath}${closeQuote}`
           );
         }
       }
@@ -208,7 +206,7 @@ export class ImportRewriter {
     }
 
     // Try with/without extensions
-    const extensions = [".js", ".ts", ".jsx", ".tsx", ".mjs", ".cjs"];
+    const extensions = ['.js', '.ts', '.jsx', '.tsx', '.mjs', '.cjs'];
 
     // If specifier has extension, try without
     for (const ext of extensions) {
@@ -223,7 +221,7 @@ export class ImportRewriter {
     }
 
     // If specifier has no extension, try with extensions
-    if (!extensions.some((ext) => specifier.endsWith(ext))) {
+    if (!extensions.some(ext => specifier.endsWith(ext))) {
       for (const ext of extensions) {
         const withExt = specifier + ext;
         if (renames.has(withExt)) {

@@ -1,11 +1,11 @@
-import fs from "fs/promises";
-import path from "path";
-import chalk from "chalk";
-import { TestValidator } from "./validator.js";
-import { PluginConverter } from "./plugins.js";
-import { VisualComparison } from "./visual.js";
-import { TypeScriptConverter } from "./typescript.js";
-import { TestMapper } from "./mapper.js";
+import fs from 'fs/promises';
+import path from 'path';
+import chalk from 'chalk';
+import { TestValidator } from './validator.js';
+import { PluginConverter } from './plugins.js';
+import { VisualComparison } from './visual.js';
+import { TypeScriptConverter } from './typescript.js';
+import { TestMapper } from './mapper.js';
 
 /**
  * Orchestrates the entire Cypress to Playwright conversion process
@@ -48,33 +48,33 @@ export class ConversionOrchestrator {
   async convertProject(cypressPath, outputPath) {
     try {
       this.stats.startTime = new Date();
-      console.log(chalk.blue("\nStarting Cypress to Playwright conversion..."));
+      console.log(chalk.blue('\nStarting Cypress to Playwright conversion...'));
 
       // Create output directory
       await fs.mkdir(outputPath, { recursive: true });
 
       // Phase 1: Project Analysis
-      console.log(chalk.blue("\nPhase 1: Analyzing project structure..."));
+      console.log(chalk.blue('\nPhase 1: Analyzing project structure...'));
       const projectStructure = await this.analyzeProject(cypressPath);
 
       // Phase 2: Convert Configuration
-      console.log(chalk.blue("\nPhase 2: Converting configuration..."));
+      console.log(chalk.blue('\nPhase 2: Converting configuration...'));
       await this.convertConfiguration(cypressPath, outputPath);
 
       // Phase 3: Convert Tests
-      console.log(chalk.blue("\nPhase 3: Converting test files..."));
+      console.log(chalk.blue('\nPhase 3: Converting test files...'));
       await this.convertTests(projectStructure.testFiles, outputPath);
 
       // Phase 4: Convert Support Files
-      console.log(chalk.blue("\nPhase 4: Converting support files..."));
+      console.log(chalk.blue('\nPhase 4: Converting support files...'));
       await this.convertSupportFiles(projectStructure.supportFiles, outputPath);
 
       // Phase 5: Convert Plugins
-      console.log(chalk.blue("\nPhase 5: Converting plugins..."));
+      console.log(chalk.blue('\nPhase 5: Converting plugins...'));
       await this.convertPlugins(projectStructure.plugins, outputPath);
 
       // Phase 6: Post-Processing
-      console.log(chalk.blue("\nPhase 6: Running post-processing..."));
+      console.log(chalk.blue('\nPhase 6: Running post-processing...'));
       await this.runPostProcessing(outputPath);
 
       this.stats.endTime = new Date();
@@ -83,14 +83,14 @@ export class ConversionOrchestrator {
       // Save report
       await this.saveReport(report, outputPath);
 
-      console.log(chalk.green("\n✓ Conversion completed successfully"));
+      console.log(chalk.green('\n✓ Conversion completed successfully'));
       console.log(
         `Converted ${this.stats.convertedFiles} files in ${this.getExecutionTime()}`,
       );
 
       return report;
     } catch (error) {
-      console.error(chalk.red("\n✗ Conversion failed:"), error);
+      console.error(chalk.red('\n✗ Conversion failed:'), error);
       throw error;
     }
   }
@@ -117,7 +117,7 @@ export class ConversionOrchestrator {
 
         if (entry.isDirectory()) {
           // Skip node_modules
-          if (entry.name === "node_modules") continue;
+          if (entry.name === 'node_modules') continue;
           await scanDirectory(fullPath, structure);
         } else {
           // Categorize files
@@ -146,26 +146,26 @@ export class ConversionOrchestrator {
    * @param {string} outputPath - Path for Playwright output
    */
   async convertConfiguration(cypressPath, outputPath) {
-    const configPath = path.join(cypressPath, "cypress.json");
+    const configPath = path.join(cypressPath, 'cypress.json');
 
     try {
       if (this.options.configConverter) {
         const playwrightConfig = await this.options.configConverter(configPath);
         if (playwrightConfig) {
           await fs.writeFile(
-            path.join(outputPath, "playwright.config.js"),
+            path.join(outputPath, 'playwright.config.js'),
             playwrightConfig,
           );
-          console.log(chalk.green("✓ Configuration converted successfully"));
+          console.log(chalk.green('✓ Configuration converted successfully'));
         }
       }
     } catch (error) {
       console.warn(
-        chalk.yellow("Warning: Could not convert configuration:"),
+        chalk.yellow('Warning: Could not convert configuration:'),
         error.message,
       );
       this.stats.errors.push({
-        type: "config",
+        type: 'config',
         message: error.message,
       });
     }
@@ -184,15 +184,15 @@ export class ConversionOrchestrator {
         const relativePath = path.relative(process.cwd(), testFile);
         const outputFile = path.join(
           outputPath,
-          "tests",
-          relativePath.replace(/\.cy\.(js|ts)$/, ".spec.$1"),
+          'tests',
+          relativePath.replace(/\.cy\.(js|ts)$/, '.spec.$1'),
         );
 
         // Ensure output directory exists
         await fs.mkdir(path.dirname(outputFile), { recursive: true });
 
         // Read and convert test content
-        const content = await fs.readFile(testFile, "utf8");
+        const content = await fs.readFile(testFile, 'utf8');
         const converted = await this.options.converter(content);
 
         // Write converted test
@@ -206,7 +206,7 @@ export class ConversionOrchestrator {
       } catch (error) {
         this.stats.skippedFiles++;
         this.stats.errors.push({
-          type: "test",
+          type: 'test',
           file: testFile,
           message: error.message,
         });
@@ -227,13 +227,13 @@ export class ConversionOrchestrator {
     for (const file of supportFiles) {
       try {
         const relativePath = path.relative(process.cwd(), file);
-        const outputFile = path.join(outputPath, "support", relativePath);
+        const outputFile = path.join(outputPath, 'support', relativePath);
 
         // Ensure output directory exists
         await fs.mkdir(path.dirname(outputFile), { recursive: true });
 
         // Read and convert content
-        const content = await fs.readFile(file, "utf8");
+        const content = await fs.readFile(file, 'utf8');
         const converted = await this.options.converter(content);
 
         // Write converted file
@@ -244,7 +244,7 @@ export class ConversionOrchestrator {
         );
       } catch (error) {
         this.stats.errors.push({
-          type: "support",
+          type: 'support',
           file: file,
           message: error.message,
         });
@@ -268,14 +268,14 @@ export class ConversionOrchestrator {
         if (converted) {
           const outputFile = path.join(
             outputPath,
-            "plugins",
+            'plugins',
             path.basename(plugin),
           );
           await fs.writeFile(outputFile, converted);
         }
       } catch (error) {
         this.stats.errors.push({
-          type: "plugin",
+          type: 'plugin',
           file: plugin,
           message: error.message,
         });
@@ -305,7 +305,7 @@ export class ConversionOrchestrator {
 
     // Save test mappings
     await this.testMapper.saveMappings(
-      path.join(outputPath, "test-mappings.json"),
+      path.join(outputPath, 'test-mappings.json'),
     );
   }
 
@@ -335,7 +335,7 @@ export class ConversionOrchestrator {
    * @param {string} outputPath - Output directory path
    */
   async saveReport(report, outputPath) {
-    const reportPath = path.join(outputPath, "conversion-report.json");
+    const reportPath = path.join(outputPath, 'conversion-report.json');
     await fs.writeFile(reportPath, JSON.stringify(report, null, 2));
     console.log(chalk.blue(`\nDetailed report saved to: ${reportPath}`));
   }
@@ -345,7 +345,7 @@ export class ConversionOrchestrator {
    * @returns {string} - Formatted execution time
    */
   getExecutionTime() {
-    if (!this.stats.startTime || !this.stats.endTime) return "N/A";
+    if (!this.stats.startTime || !this.stats.endTime) return 'N/A';
     const duration = this.stats.endTime - this.stats.startTime;
     return `${(duration / 1000).toFixed(2)} seconds`;
   }

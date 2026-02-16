@@ -1,4 +1,4 @@
-import chalk from "chalk";
+import chalk from 'chalk';
 
 /**
  * Handles conversion of Cypress plugins to Playwright equivalents
@@ -9,9 +9,9 @@ export class PluginConverter {
     this.pluginMappings = new Map([
       // File Upload plugins
       [
-        "cypress-file-upload",
+        'cypress-file-upload',
         {
-          playwright: "@playwright/test",
+          playwright: '@playwright/test',
           setup: `
           // File upload is built into Playwright
           await page.setInputFiles('input[type="file"]', 'path/to/file');
@@ -26,9 +26,9 @@ export class PluginConverter {
 
       // Real Events
       [
-        "cypress-real-events",
+        'cypress-real-events',
         {
-          playwright: "@playwright/test",
+          playwright: '@playwright/test',
           setup: `
           // Real events are built into Playwright
           await page.mouse.move(100, 200);
@@ -41,9 +41,9 @@ export class PluginConverter {
 
       // XPath Support
       [
-        "cypress-xpath",
+        'cypress-xpath',
         {
-          playwright: "@playwright/test",
+          playwright: '@playwright/test',
           setup: `
           // XPath is built into Playwright
           await page.locator('xpath=//button');
@@ -54,16 +54,16 @@ export class PluginConverter {
 
       // Visual Testing
       [
-        "cypress-image-snapshot",
+        'cypress-image-snapshot',
         {
-          playwright: "@playwright/test",
+          playwright: '@playwright/test',
           setup: `
           // Use Playwright's built-in snapshot testing
           await expect(page).toHaveScreenshot();
         `,
           config: {
             use: {
-              screenshot: "on",
+              screenshot: 'on',
             },
           },
         },
@@ -71,9 +71,9 @@ export class PluginConverter {
 
       // Accessibility Testing
       [
-        "cypress-axe",
+        'cypress-axe',
         {
-          playwright: "axe-playwright",
+          playwright: 'axe-playwright',
           setup: `
           import { injectAxe, checkA11y } from 'axe-playwright';
           
@@ -91,9 +91,9 @@ export class PluginConverter {
 
       // API Testing
       [
-        "cypress-api",
+        'cypress-api',
         {
-          playwright: "@playwright/test",
+          playwright: '@playwright/test',
           setup: `
           // Use Playwright's APIRequestContext
           const request = await playwright.request.newContext();
@@ -105,9 +105,9 @@ export class PluginConverter {
 
       // Browser Console
       [
-        "cypress-log-to-output",
+        'cypress-log-to-output',
         {
-          playwright: "@playwright/test",
+          playwright: '@playwright/test',
           setup: `
           // Console logging is built into Playwright
           page.on('console', msg => console.log(msg.text()));
@@ -118,9 +118,9 @@ export class PluginConverter {
 
       // Local Storage
       [
-        "cypress-localstorage-commands",
+        'cypress-localstorage-commands',
         {
-          playwright: "@playwright/test",
+          playwright: '@playwright/test',
           setup: `
           // Local storage handling in Playwright
           await page.evaluate(() => window.localStorage.setItem('key', 'value'));
@@ -131,9 +131,9 @@ export class PluginConverter {
 
       // Cookie Handling
       [
-        "cypress-cookie",
+        'cypress-cookie',
         {
-          playwright: "@playwright/test",
+          playwright: '@playwright/test',
           setup: `
           // Cookie handling in Playwright
           await context.addCookies([{ name: 'cookie1', value: 'value1', url: 'https://example.com' }]);
@@ -144,9 +144,9 @@ export class PluginConverter {
 
       // Database Commands
       [
-        "cypress-sql-server",
+        'cypress-sql-server',
         {
-          playwright: "playwright-sql",
+          playwright: 'playwright-sql',
           setup: `
           // Example SQL handling in Playwright
           import { sql } from 'playwright-sql';
@@ -158,9 +158,9 @@ export class PluginConverter {
 
       // Authentication
       [
-        "cypress-auth",
+        'cypress-auth',
         {
-          playwright: "@playwright/test",
+          playwright: '@playwright/test',
           setup: `
           // Authentication handling in Playwright
           async function globalSetup() {
@@ -177,7 +177,7 @@ export class PluginConverter {
         `,
           config: {
             use: {
-              storageState: "auth.json",
+              storageState: 'auth.json',
             },
           },
         },
@@ -186,12 +186,12 @@ export class PluginConverter {
 
     // Plugin categories for better organization
     this.categories = {
-      ui: ["cypress-file-upload", "cypress-real-events", "cypress-xpath"],
-      testing: ["cypress-image-snapshot", "cypress-axe"],
-      api: ["cypress-api"],
-      storage: ["cypress-localstorage-commands", "cypress-cookie"],
-      database: ["cypress-sql-server"],
-      auth: ["cypress-auth"],
+      ui: ['cypress-file-upload', 'cypress-real-events', 'cypress-xpath'],
+      testing: ['cypress-image-snapshot', 'cypress-axe'],
+      api: ['cypress-api'],
+      storage: ['cypress-localstorage-commands', 'cypress-cookie'],
+      database: ['cypress-sql-server'],
+      auth: ['cypress-auth'],
     };
   }
 
@@ -204,9 +204,9 @@ export class PluginConverter {
     try {
       // Extract plugin name from path
       const pluginName = pluginPath
-        .split("/")
+        .split('/')
         .pop()
-        .replace(/\.[jt]s$/, "");
+        .replace(/\.[jt]s$/, '');
       const detectedPlugins = this.detectPlugins(pluginName);
 
       const conversions = [];
@@ -261,12 +261,12 @@ export class PluginConverter {
    */
   hasPluginPatterns(content, plugin) {
     const patterns = {
-      "cypress-file-upload": /cy\.fixture.*upload|attachFile/,
-      "cypress-real-events": /realHover|realClick|realType/,
-      "cypress-xpath": /cy\.xpath/,
-      "cypress-image-snapshot": /matchImageSnapshot/,
-      "cypress-axe": /cy\.checkA11y/,
-      "cypress-api": /cy\.api/,
+      'cypress-file-upload': /cy\.fixture.*upload|attachFile/,
+      'cypress-real-events': /realHover|realClick|realType/,
+      'cypress-xpath': /cy\.xpath/,
+      'cypress-image-snapshot': /matchImageSnapshot/,
+      'cypress-axe': /cy\.checkA11y/,
+      'cypress-api': /cy\.api/,
     };
 
     return patterns[plugin] ? patterns[plugin].test(content) : false;
@@ -282,8 +282,8 @@ export class PluginConverter {
     if (!mapping) {
       return {
         original: plugin,
-        status: "unknown",
-        message: "No direct equivalent found",
+        status: 'unknown',
+        message: 'No direct equivalent found',
       };
     }
 
@@ -292,7 +292,7 @@ export class PluginConverter {
       playwright: mapping.playwright,
       setup: mapping.setup.trim(),
       config: mapping.config,
-      status: "converted",
+      status: 'converted',
     };
   }
 
@@ -304,7 +304,7 @@ export class PluginConverter {
   generatePluginOutput(conversions) {
     // Combine configurations
     const combinedConfig = conversions.reduce((config, conversion) => {
-      if (conversion.status === "converted" && conversion.config) {
+      if (conversion.status === 'converted' && conversion.config) {
         return this.mergeConfigs(config, conversion.config);
       }
       return config;
@@ -312,15 +312,15 @@ export class PluginConverter {
 
     // Generate setup code
     const setupCode = conversions
-      .filter((c) => c.status === "converted")
+      .filter((c) => c.status === 'converted')
       .map((c) => c.setup)
-      .join("\n\n");
+      .join('\n\n');
 
     // Generate imports
     const imports = conversions
-      .filter((c) => c.status === "converted")
+      .filter((c) => c.status === 'converted')
       .map((c) => `import { test, expect } from '${c.playwright}';`)
-      .join("\n");
+      .join('\n');
 
     return {
       imports,
@@ -344,7 +344,7 @@ export class PluginConverter {
     const merged = { ...config1 };
 
     for (const [key, value] of Object.entries(config2)) {
-      if (typeof value === "object" && !Array.isArray(value)) {
+      if (typeof value === 'object' && !Array.isArray(value)) {
         merged[key] = this.mergeConfigs(merged[key] || {}, value);
       } else {
         merged[key] = value;

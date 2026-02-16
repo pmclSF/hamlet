@@ -1,7 +1,7 @@
-import fs from "fs/promises";
-import { logUtils } from "../utils/helpers.js";
+import fs from 'fs/promises';
+import { logUtils } from '../utils/helpers.js';
 
-const logger = logUtils.createLogger("DependencyAnalyzer");
+const logger = logUtils.createLogger('DependencyAnalyzer');
 
 /**
  * Analyzes and manages test dependencies
@@ -20,18 +20,19 @@ export class DependencyAnalyzer {
    */
   async analyzeDependencies(testPath) {
     try {
-      const content = await fs.readFile(testPath, "utf8");
-
+      const content = await fs.readFile(testPath, 'utf8');
+      
       const analysis = {
         imports: this.extractImports(content),
         customCommands: this.extractCustomCommands(content),
         fixtures: this.extractFixtures(content),
         pageObjects: this.extractPageObjects(content),
-        dependencies: this.extractDependencies(content),
+        dependencies: this.extractDependencies(content)
       };
 
       this.dependencies.set(testPath, analysis);
       return analysis;
+
     } catch (error) {
       logger.error(`Failed to analyze ${testPath}:`, error);
       throw error;
@@ -45,15 +46,14 @@ export class DependencyAnalyzer {
    */
   extractImports(content) {
     const imports = [];
-    const importRegex =
-      /import\s+(?:{[^}]+}|\*\s+as\s+\w+|\w+)\s+from\s+['"]([^'"]+)['"]/g;
-
+    const importRegex = /import\s+(?:{[^}]+}|\*\s+as\s+\w+|\w+)\s+from\s+['"]([^'"]+)['"]/g;
+    
     let match;
     while ((match = importRegex.exec(content)) !== null) {
       imports.push({
         statement: match[0],
         source: match[1],
-        specifiers: this.extractImportSpecifiers(match[0]),
+        specifiers: this.extractImportSpecifiers(match[0])
       });
     }
 
@@ -68,11 +68,11 @@ export class DependencyAnalyzer {
   extractImportSpecifiers(importStatement) {
     const specifierRegex = /{([^}]+)}/;
     const match = importStatement.match(specifierRegex);
-
+    
     if (match) {
-      return match[1].split(",").map((s) => s.trim());
+      return match[1].split(',').map(s => s.trim());
     }
-
+    
     return [];
   }
 
@@ -83,15 +83,14 @@ export class DependencyAnalyzer {
    */
   extractCustomCommands(content) {
     const commands = [];
-    const commandRegex =
-      /Cypress\.Commands\.add\(['"](.*?)['"],\s*(?:{\s*prevSubject:\s*(.*?)\s*})?,\s*function/g;
-
+    const commandRegex = /Cypress\.Commands\.add\(['"](.*?)['"],\s*(?:{\s*prevSubject:\s*(.*?)\s*})?,\s*function/g;
+    
     let match;
     while ((match = commandRegex.exec(content)) !== null) {
       commands.push({
         name: match[1],
-        chainable: match[2] === "true",
-        location: match.index,
+        chainable: match[2] === 'true',
+        location: match.index
       });
     }
 
@@ -106,12 +105,12 @@ export class DependencyAnalyzer {
   extractFixtures(content) {
     const fixtures = [];
     const fixtureRegex = /cy\.fixture\(['"](.*?)['"]\)/g;
-
+    
     let match;
     while ((match = fixtureRegex.exec(content)) !== null) {
       fixtures.push({
         name: match[1],
-        location: match.index,
+        location: match.index
       });
     }
 
@@ -126,12 +125,12 @@ export class DependencyAnalyzer {
   extractPageObjects(content) {
     const pageObjects = [];
     const pageObjectRegex = /class\s+(\w+)\s*{[\s\S]*?constructor\s*\([^)]*\)/g;
-
+    
     let match;
     while ((match = pageObjectRegex.exec(content)) !== null) {
       pageObjects.push({
         name: match[1],
-        location: match.index,
+        location: match.index
       });
     }
 
@@ -146,12 +145,12 @@ export class DependencyAnalyzer {
   extractDependencies(content) {
     const dependencies = [];
     const requireRegex = /(?:require|import)\s*\(['"](.*?)['"]\)/g;
-
+    
     let match;
     while ((match = requireRegex.exec(content)) !== null) {
       dependencies.push({
         module: match[1],
-        location: match.index,
+        location: match.index
       });
     }
 
@@ -203,7 +202,7 @@ export class DependencyAnalyzer {
       customCommands: analysis.customCommands,
       fixtures: analysis.fixtures,
       pageObjects: analysis.pageObjects,
-      dependencies: analysis.dependencies,
+      dependencies: analysis.dependencies
     };
   }
 
@@ -215,10 +214,10 @@ export class DependencyAnalyzer {
     const importMap = new Map();
 
     // Cypress to Playwright mappings
-    importMap.set("@cypress/react", "@playwright/experimental-ct-react");
-    importMap.set("cypress-axe", "axe-playwright");
-    importMap.set("cypress-file-upload", "@playwright/test");
-    importMap.set("cypress-real-events", "@playwright/test");
+    importMap.set('@cypress/react', '@playwright/experimental-ct-react');
+    importMap.set('cypress-axe', 'axe-playwright');
+    importMap.set('cypress-file-upload', '@playwright/test');
+    importMap.set('cypress-real-events', '@playwright/test');
 
     return importMap;
   }
@@ -238,19 +237,19 @@ export class DependencyAnalyzer {
         circular.push([...path.slice(path.indexOf(file)), file]);
         return;
       }
-
+      
       if (visited.has(file)) return;
-
+      
       visited.add(file);
       path.push(file);
-
+      
       const analysis = this.dependencies.get(file);
       if (analysis) {
         for (const dep of analysis.dependencies) {
           visit(dep.module);
         }
       }
-
+      
       path.pop();
     };
 

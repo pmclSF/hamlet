@@ -1,6 +1,6 @@
-import fs from "fs/promises";
-import path from "path";
-import chalk from "chalk";
+import fs from 'fs/promises';
+import path from 'path';
+import chalk from 'chalk';
 
 /**
  * Manages bidirectional mapping between Cypress and Playwright tests
@@ -9,7 +9,7 @@ export class TestMapper {
   constructor() {
     this.mappings = new Map();
     this.metaData = {
-      version: "1.0",
+      version: '1.0',
       lastUpdated: new Date().toISOString(),
       statistics: {
         totalMappings: 0,
@@ -46,7 +46,7 @@ export class TestMapper {
 
       console.log(chalk.green(`✓ Created ${this.mappings.size} test mappings`));
     } catch (error) {
-      console.error(chalk.red("Error setting up test mappings:"), error);
+      console.error(chalk.red('Error setting up test mappings:'), error);
       throw error;
     }
   }
@@ -60,8 +60,8 @@ export class TestMapper {
     this.mappings.set(cypressTest, {
       playwrightPath: playwrightTest,
       timestamp: Date.now(),
-      status: "active",
-      syncStatus: "synced",
+      status: 'active',
+      syncStatus: 'synced',
       lastSync: new Date().toISOString(),
       checksum: await this.calculateChecksum(cypressTest),
     });
@@ -75,7 +75,7 @@ export class TestMapper {
    */
   async findMatchingTest(cypressTest, playwrightTests) {
     const cypressName = path.basename(cypressTest, path.extname(cypressTest));
-    const cypressContent = await fs.readFile(cypressTest, "utf8");
+    const cypressContent = await fs.readFile(cypressTest, 'utf8');
 
     let bestMatch = null;
     let highestSimilarity = 0;
@@ -94,7 +94,7 @@ export class TestMapper {
 
       // If names are very similar, check content
       if (nameSimilarity > 0.8) {
-        const playwrightContent = await fs.readFile(playwrightTest, "utf8");
+        const playwrightContent = await fs.readFile(playwrightTest, 'utf8');
         const contentSimilarity = this.calculateContentSimilarity(
           cypressContent,
           playwrightContent,
@@ -119,8 +119,8 @@ export class TestMapper {
    */
   calculateNameSimilarity(name1, name2) {
     // Remove common test file suffixes
-    name1 = name1.replace(/\.(spec|test|cy)/, "");
-    name2 = name2.replace(/\.(spec|test|cy)/, "");
+    name1 = name1.replace(/\.(spec|test|cy)/, '');
+    name2 = name2.replace(/\.(spec|test|cy)/, '');
 
     const distance = this.levenshteinDistance(name1, name2);
     const maxLength = Math.max(name1.length, name2.length);
@@ -225,7 +225,7 @@ export class TestMapper {
    * @returns {string} - Checksum
    */
   async calculateChecksum(filePath) {
-    const content = await fs.readFile(filePath, "utf8");
+    const content = await fs.readFile(filePath, 'utf8');
     let hash = 0;
 
     for (let i = 0; i < content.length; i++) {
@@ -244,10 +244,10 @@ export class TestMapper {
     this.metaData.statistics = {
       totalMappings: this.mappings.size,
       activeMappings: Array.from(this.mappings.values()).filter(
-        (m) => m.status === "active",
+        (m) => m.status === 'active',
       ).length,
       pendingSync: Array.from(this.mappings.values()).filter(
-        (m) => m.syncStatus === "pending",
+        (m) => m.syncStatus === 'pending',
       ).length,
     };
     this.metaData.lastUpdated = new Date().toISOString();
@@ -290,7 +290,7 @@ export class TestMapper {
 
       console.log(chalk.green(`✓ Saved mappings to ${outputPath}`));
     } catch (error) {
-      console.error(chalk.red("Error saving mappings:"), error);
+      console.error(chalk.red('Error saving mappings:'), error);
       throw error;
     }
   }
@@ -301,7 +301,7 @@ export class TestMapper {
    */
   async loadMappings(inputPath) {
     try {
-      const content = await fs.readFile(inputPath, "utf8");
+      const content = await fs.readFile(inputPath, 'utf8');
       const data = JSON.parse(content);
 
       this.metaData = {
@@ -324,7 +324,7 @@ export class TestMapper {
 
       console.log(chalk.green(`✓ Loaded mappings from ${inputPath}`));
     } catch (error) {
-      console.error(chalk.red("Error loading mappings:"), error);
+      console.error(chalk.red('Error loading mappings:'), error);
       throw error;
     }
   }

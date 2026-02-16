@@ -5,9 +5,9 @@
  * with the same .convert(content) API as legacy converters.
  */
 
-import { BaseConverter } from "./BaseConverter.js";
-import { ConversionPipeline } from "./ConversionPipeline.js";
-import { FrameworkRegistry } from "./FrameworkRegistry.js";
+import { BaseConverter } from './BaseConverter.js';
+import { ConversionPipeline } from './ConversionPipeline.js';
+import { FrameworkRegistry } from './FrameworkRegistry.js';
 
 /**
  * Map of legacy converter module paths for config conversion fallback.
@@ -15,7 +15,7 @@ import { FrameworkRegistry } from "./FrameworkRegistry.js";
  * to the legacy converter when convertConfig() is called.
  */
 const LEGACY_CONVERTER_PATHS = {
-  "cypress-playwright": "../converters/CypressToPlaywright.js",
+  'cypress-playwright': '../converters/CypressToPlaywright.js',
 };
 
 export class PipelineConverter extends BaseConverter {
@@ -25,12 +25,7 @@ export class PipelineConverter extends BaseConverter {
    * @param {Object[]} frameworkDefinitions - Array of framework definitions to register
    * @param {Object} [options]
    */
-  constructor(
-    sourceFrameworkName,
-    targetFrameworkName,
-    frameworkDefinitions,
-    options = {},
-  ) {
+  constructor(sourceFrameworkName, targetFrameworkName, frameworkDefinitions, options = {}) {
     super(options);
     this.sourceFramework = sourceFrameworkName;
     this.targetFramework = targetFrameworkName;
@@ -53,7 +48,7 @@ export class PipelineConverter extends BaseConverter {
     const { code, report } = await this.pipeline.convert(
       content,
       this.sourceFramework,
-      this.targetFramework,
+      this.targetFramework
     );
     this.stats.conversions++;
     this._lastReport = report;
@@ -74,7 +69,7 @@ export class PipelineConverter extends BaseConverter {
 
     if (!legacyPath) {
       throw new Error(
-        `Config conversion not yet supported for ${this.sourceFramework}→${this.targetFramework}`,
+        `Config conversion not yet supported for ${this.sourceFramework}→${this.targetFramework}`
       );
     }
 

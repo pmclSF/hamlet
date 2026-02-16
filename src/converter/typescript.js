@@ -1,7 +1,7 @@
-import fs from "fs/promises";
-import path from "path";
-import chalk from "chalk";
-import ts from "typescript";
+import fs from 'fs/promises';
+import path from 'path';
+import chalk from 'chalk';
+import ts from 'typescript';
 
 /**
  * Handles TypeScript conversion and type generation for Cypress to Playwright
@@ -10,30 +10,30 @@ export class TypeScriptConverter {
   constructor() {
     this.typeMap = new Map([
       // Cypress type mappings to Playwright equivalents
-      ["Cypress.Chainable", "Locator"],
-      ["cy.wrap", "Promise"],
-      ["Cypress.Config", "PlaywrightTestConfig"],
-      ["cy.stub", "Mock"],
-      ["cy.spy", "Mock"],
-      ["Cypress.Browser", "BrowserContext"],
-      ["Cypress.ElementHandle", "ElementHandle"],
-      ["Cypress.FileReference", "FilePayload"],
-      ["cy.clock", 'Page["setDefaultTimeout"]'],
-      ["Cypress.Cookie", "Cookie"],
-      ["Cypress.Response", "APIResponse"],
-      ["Cypress.AUTWindow", "Page"],
-      ["Cypress.Keyboard", "Keyboard"],
-      ["Cypress.Mouse", "Mouse"],
-      ["Cypress.ViewportPosition", "Position"],
-      ["Cypress.SelectOptions", "SelectOption"],
+      ['Cypress.Chainable', 'Locator'],
+      ['cy.wrap', 'Promise'],
+      ['Cypress.Config', 'PlaywrightTestConfig'],
+      ['cy.stub', 'Mock'],
+      ['cy.spy', 'Mock'],
+      ['Cypress.Browser', 'BrowserContext'],
+      ['Cypress.ElementHandle', 'ElementHandle'],
+      ['Cypress.FileReference', 'FilePayload'],
+      ['cy.clock', 'Page["setDefaultTimeout"]'],
+      ['Cypress.Cookie', 'Cookie'],
+      ['Cypress.Response', 'APIResponse'],
+      ['Cypress.AUTWindow', 'Page'],
+      ['Cypress.Keyboard', 'Keyboard'],
+      ['Cypress.Mouse', 'Mouse'],
+      ['Cypress.ViewportPosition', 'Position'],
+      ['Cypress.SelectOptions', 'SelectOption'],
     ]);
 
     // Common type interfaces that need conversion
     this.interfaceMap = new Map([
-      ["CypressConfiguration", "PlaywrightTestConfig"],
-      ["CypressPlugin", "PlaywrightPlugin"],
-      ["CypressCommand", "PlaywrightTest"],
-      ["CypressFixture", "TestFixture"],
+      ['CypressConfiguration', 'PlaywrightTestConfig'],
+      ['CypressPlugin', 'PlaywrightPlugin'],
+      ['CypressCommand', 'PlaywrightTest'],
+      ['CypressFixture', 'TestFixture'],
     ]);
   }
 
@@ -60,7 +60,7 @@ export class TypeScriptConverter {
    */
   async convertProject(sourcePath, outputPath) {
     try {
-      console.log(chalk.blue("\nStarting TypeScript conversion..."));
+      console.log(chalk.blue('\nStarting TypeScript conversion...'));
 
       // Create program
       const program = this.createProgram(sourcePath);
@@ -69,7 +69,7 @@ export class TypeScriptConverter {
       // Process all source files
       const sourceFiles = program
         .getSourceFiles()
-        .filter((file) => !file.fileName.includes("node_modules"));
+        .filter((file) => !file.fileName.includes('node_modules'));
 
       for (const sourceFile of sourceFiles) {
         await this.convertSourceFile(sourceFile, typeChecker, outputPath);
@@ -78,9 +78,9 @@ export class TypeScriptConverter {
       // Generate type definitions
       await this.generateTypeDefinitions(program, outputPath);
 
-      console.log(chalk.green("✓ TypeScript conversion completed"));
+      console.log(chalk.green('✓ TypeScript conversion completed'));
     } catch (error) {
-      console.error(chalk.red("Error during TypeScript conversion:"), error);
+      console.error(chalk.red('Error during TypeScript conversion:'), error);
       throw error;
     }
   }
@@ -94,11 +94,11 @@ export class TypeScriptConverter {
     const configPath = ts.findConfigFile(
       sourcePath,
       ts.sys.fileExists,
-      "tsconfig.json",
+      'tsconfig.json',
     );
 
     if (!configPath) {
-      throw new Error("Could not find tsconfig.json");
+      throw new Error('Could not find tsconfig.json');
     }
 
     const { config } = ts.readConfigFile(configPath, ts.sys.readFile);
@@ -253,15 +253,15 @@ export class TypeScriptConverter {
    * @returns {ts.Node} - Transformed node
    */
   transformImport(node) {
-    const importPath = node.moduleSpecifier.getText().replace(/['"]/g, "");
+    const importPath = node.moduleSpecifier.getText().replace(/['"]/g, '');
 
     // Transform Cypress imports to Playwright
-    if (importPath.includes("cypress")) {
+    if (importPath.includes('cypress')) {
       return ts.factory.createImportDeclaration(
         node.decorators,
         node.modifiers,
         node.importClause,
-        ts.factory.createStringLiteral("@playwright/test"),
+        ts.factory.createStringLiteral('@playwright/test'),
       );
     }
 
@@ -275,21 +275,21 @@ export class TypeScriptConverter {
    */
   transformMethodName(methodName) {
     const methodMap = {
-      visit: "goto",
-      get: "locator",
-      find: "locator",
-      click: "click",
-      type: "fill",
-      should: "expect",
-      contains: "getByText",
-      first: "first",
-      last: "last",
-      eq: "nth",
-      parent: "locator('..')",
-      children: "locator('>*')",
-      siblings: "locator('~')",
-      next: "locator('+')",
-      prev: "locator('-')",
+      visit: 'goto',
+      get: 'locator',
+      find: 'locator',
+      click: 'click',
+      type: 'fill',
+      should: 'expect',
+      contains: 'getByText',
+      first: 'first',
+      last: 'last',
+      eq: 'nth',
+      parent: 'locator(\'..\')',
+      children: 'locator(\'>*\')',
+      siblings: 'locator(\'~\')',
+      next: 'locator(\'+\')',
+      prev: 'locator(\'-\')',
     };
 
     return methodMap[methodName] || methodName;
@@ -327,7 +327,7 @@ export class TypeScriptConverter {
 
     // Generate type definition file
     const dtsContent = this.generateDefinitionFileContent(typeDefinitions);
-    const dtsPath = path.join(outputPath, "playwright.d.ts");
+    const dtsPath = path.join(outputPath, 'playwright.d.ts');
 
     await fs.writeFile(dtsPath, dtsContent);
     console.log(chalk.green(`✓ Generated type definitions at ${dtsPath}`));
@@ -339,9 +339,8 @@ export class TypeScriptConverter {
    * @returns {string} - Type definition file content
    */
   generateDefinitionFileContent(typeDefinitions) {
-    let content = "// Generated type definitions for Playwright tests\n\n";
-    content +=
-      "import { test, expect, Page, Locator } from '@playwright/test';\n\n";
+    let content = '// Generated type definitions for Playwright tests\n\n';
+    content += 'import { test, expect, Page, Locator } from \'@playwright/test\';\n\n';
 
     for (const [name, { kind, type }] of typeDefinitions) {
       if (kind === ts.SyntaxKind.InterfaceDeclaration) {

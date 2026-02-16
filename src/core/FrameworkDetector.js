@@ -1,4 +1,4 @@
-import { FRAMEWORKS } from "./ConverterFactory.js";
+import { FRAMEWORKS } from './ConverterFactory.js';
 
 /**
  * Auto-detect the testing framework from test file content
@@ -10,17 +10,24 @@ export class FrameworkDetector {
   static patterns = {
     [FRAMEWORKS.CYPRESS]: {
       // Cypress-specific patterns
-      commands: [/cy\./g, /cypress\./gi, /Cypress\./g],
+      commands: [
+        /cy\./g,
+        /cypress\./gi,
+        /Cypress\./g
+      ],
       imports: [
         /from\s+['"]cypress['"]/,
-        /require\s*\(\s*['"]cypress['"]\s*\)/,
+        /require\s*\(\s*['"]cypress['"]\s*\)/
       ],
-      config: [/cypress\.config\.(js|ts|mjs)/, /cypress\.json/],
+      config: [
+        /cypress\.config\.(js|ts|mjs)/,
+        /cypress\.json/
+      ],
       filePatterns: [
         /\.cy\.(js|ts|jsx|tsx)$/,
         /cypress\/e2e\//,
         /cypress\/integration\//,
-        /cypress\/component\//,
+        /cypress\/component\//
       ],
       keywords: [
         /cy\.visit\(/,
@@ -29,25 +36,31 @@ export class FrameworkDetector {
         /cy\.intercept\(/,
         /cy\.request\(/,
         /\.should\(['"]be\./,
-        /\.should\(['"]have\./,
-      ],
+        /\.should\(['"]have\./
+      ]
     },
 
     [FRAMEWORKS.PLAYWRIGHT]: {
       // Playwright-specific patterns
-      commands: [/page\./g, /browser\./g, /context\./g],
+      commands: [
+        /page\./g,
+        /browser\./g,
+        /context\./g
+      ],
       imports: [
         /from\s+['"]@playwright\/test['"]/,
         /from\s+['"]playwright['"]/,
         /require\s*\(\s*['"]@playwright\/test['"]\s*\)/,
-        /require\s*\(\s*['"]playwright['"]\s*\)/,
+        /require\s*\(\s*['"]playwright['"]\s*\)/
       ],
-      config: [/playwright\.config\.(js|ts|mjs)/],
+      config: [
+        /playwright\.config\.(js|ts|mjs)/
+      ],
       filePatterns: [
         /\.spec\.(js|ts|jsx|tsx)$/,
         /\.test\.(js|ts|jsx|tsx)$/,
         /tests\//,
-        /e2e\//,
+        /e2e\//
       ],
       keywords: [
         /page\.goto\(/,
@@ -56,24 +69,31 @@ export class FrameworkDetector {
         /expect\([^)]+\)\.toBeVisible\(/,
         /expect\([^)]+\)\.toHaveText\(/,
         /test\(['"]/,
-        /test\.describe\(/,
-      ],
+        /test\.describe\(/
+      ]
     },
 
     [FRAMEWORKS.SELENIUM]: {
       // Selenium-specific patterns
-      commands: [/driver\./g, /webdriver\./gi, /WebDriver\./g],
+      commands: [
+        /driver\./g,
+        /webdriver\./gi,
+        /WebDriver\./g
+      ],
       imports: [
         /from\s+['"]selenium-webdriver['"]/,
         /require\s*\(\s*['"]selenium-webdriver['"]\s*\)/,
-        /from\s+['"]webdriver['"]/,
+        /from\s+['"]webdriver['"]/
       ],
-      config: [/wdio\.conf\.(js|ts)/, /selenium\.config\.(js|ts)/],
+      config: [
+        /wdio\.conf\.(js|ts)/,
+        /selenium\.config\.(js|ts)/
+      ],
       filePatterns: [
         /\.test\.(js|ts)$/,
         /\.spec\.(js|ts)$/,
         /test\//,
-        /specs\//,
+        /specs\//
       ],
       keywords: [
         /driver\.get\(/,
@@ -82,9 +102,9 @@ export class FrameworkDetector {
         /By\.(css|xpath|id|name|className)\(/,
         /\.sendKeys\(/,
         /driver\.wait\(/,
-        /until\.elementLocated\(/,
-      ],
-    },
+        /until\.elementLocated\(/
+      ]
+    }
   };
 
   /**
@@ -101,7 +121,7 @@ export class FrameworkDetector {
       const matches = {
         commands: 0,
         imports: 0,
-        keywords: 0,
+        keywords: 0
       };
 
       // Check commands (weight: 2)
@@ -152,7 +172,7 @@ export class FrameworkDetector {
       framework: detectedFramework,
       confidence: Math.round(confidence * 100) / 100,
       scores,
-      details,
+      details
     };
   }
 
@@ -168,7 +188,7 @@ export class FrameworkDetector {
           return {
             framework,
             confidence: 0.7, // Path-based detection is less certain
-            reason: `Matched file pattern: ${pattern.toString()}`,
+            reason: `Matched file pattern: ${pattern.toString()}`
           };
         }
       }
@@ -178,7 +198,7 @@ export class FrameworkDetector {
           return {
             framework,
             confidence: 0.9, // Config file is a strong indicator
-            reason: `Matched config pattern: ${pattern.toString()}`,
+            reason: `Matched config pattern: ${pattern.toString()}`
           };
         }
       }
@@ -187,7 +207,7 @@ export class FrameworkDetector {
     return {
       framework: null,
       confidence: 0,
-      reason: "No matching patterns found",
+      reason: 'No matching patterns found'
     };
   }
 
@@ -197,21 +217,18 @@ export class FrameworkDetector {
    * @param {string} filePath - File path
    * @returns {Object} - Combined detection result
    */
-  static detect(content, filePath = "") {
+  static detect(content, filePath = '') {
     const contentResult = this.detectFromContent(content);
     const pathResult = this.detectFromPath(filePath);
 
     // If both agree, increase confidence
-    if (
-      contentResult.framework === pathResult.framework &&
-      contentResult.framework
-    ) {
+    if (contentResult.framework === pathResult.framework && contentResult.framework) {
       return {
         framework: contentResult.framework,
         confidence: Math.min(1, contentResult.confidence + 0.2),
-        method: "combined",
+        method: 'combined',
         contentAnalysis: contentResult,
-        pathAnalysis: pathResult,
+        pathAnalysis: pathResult
       };
     }
 
@@ -220,9 +237,9 @@ export class FrameworkDetector {
       return {
         framework: contentResult.framework,
         confidence: contentResult.confidence,
-        method: "content",
+        method: 'content',
         contentAnalysis: contentResult,
-        pathAnalysis: pathResult,
+        pathAnalysis: pathResult
       };
     }
 
@@ -230,9 +247,9 @@ export class FrameworkDetector {
     return {
       framework: pathResult.framework,
       confidence: pathResult.confidence,
-      method: "path",
+      method: 'path',
       contentAnalysis: contentResult,
-      pathAnalysis: pathResult,
+      pathAnalysis: pathResult
     };
   }
 
@@ -256,9 +273,9 @@ export class FrameworkDetector {
       /test\s*\(/,
       /expect\s*\(/,
       /assert\./,
-      /\.should\(/,
+      /\.should\(/
     ];
 
-    return testPatterns.some((pattern) => pattern.test(content));
+    return testPatterns.some(pattern => pattern.test(content));
   }
 }

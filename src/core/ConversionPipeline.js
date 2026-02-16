@@ -8,7 +8,7 @@
  * pytest→unittest), the Transform stage applies structural changes.
  */
 
-import { ConfidenceScorer } from "./ConfidenceScorer.js";
+import { ConfidenceScorer } from './ConfidenceScorer.js';
 
 export class ConversionPipeline {
   /**
@@ -29,12 +29,7 @@ export class ConversionPipeline {
    * @param {string} [options.language] - Language hint for disambiguation
    * @returns {Promise<{code: string, report: Object}>}
    */
-  async convert(
-    sourceCode,
-    sourceFrameworkName,
-    targetFrameworkName,
-    options = {},
-  ) {
+  async convert(sourceCode, sourceFrameworkName, targetFrameworkName, options = {}) {
     const language = options.language || null;
 
     // 1. Detect — resolve framework definitions
@@ -52,7 +47,7 @@ export class ConversionPipeline {
     const detectionConfidence = sourceFw.detect(sourceCode);
     if (detectionConfidence === 0 && sourceCode.trim().length > 0) {
       throw new Error(
-        `Source code does not appear to be ${sourceFrameworkName} (detection confidence: 0)`,
+        `Source code does not appear to be ${sourceFrameworkName} (detection confidence: 0)`
       );
     }
 
