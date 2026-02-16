@@ -2,16 +2,19 @@
  * Supported frameworks
  */
 export const FRAMEWORKS = {
-  CYPRESS: 'cypress',
-  PLAYWRIGHT: 'playwright',
-  SELENIUM: 'selenium',
-  JEST: 'jest',
-  VITEST: 'vitest',
-  MOCHA: 'mocha',
-  JASMINE: 'jasmine',
-  JUNIT4: 'junit4',
-  JUNIT5: 'junit5',
-  TESTNG: 'testng',
+  CYPRESS: "cypress",
+  PLAYWRIGHT: "playwright",
+  SELENIUM: "selenium",
+  JEST: "jest",
+  VITEST: "vitest",
+  MOCHA: "mocha",
+  JASMINE: "jasmine",
+  JUNIT4: "junit4",
+  JUNIT5: "junit5",
+  TESTNG: "testng",
+  PYTEST: "pytest",
+  UNITTEST: "unittest",
+  NOSE2: "nose2",
 };
 
 /**
@@ -19,16 +22,27 @@ export const FRAMEWORKS = {
  * Used by _loadFrameworkDefinitions to resolve import paths.
  */
 const FRAMEWORK_LANGUAGE = {
-  cypress: 'javascript',
-  playwright: 'javascript',
-  selenium: 'javascript',
-  jest: 'javascript',
-  vitest: 'javascript',
-  mocha: 'javascript',
-  jasmine: 'javascript',
-  junit4: 'java',
-  junit5: 'java',
-  testng: 'java',
+  cypress: "javascript",
+  playwright: "javascript",
+  selenium: "javascript",
+  jest: "javascript",
+  vitest: "javascript",
+  mocha: "javascript",
+  jasmine: "javascript",
+  junit4: "java",
+  junit5: "java",
+  testng: "java",
+  pytest: "python",
+  unittest: "python",
+  nose2: "python",
+};
+
+/**
+ * Maps framework names to non-standard filenames when the framework name
+ * cannot be used directly as a filename (e.g., Node reserved words).
+ */
+const FRAMEWORK_FILE_OVERRIDE = {
+  unittest: "unittest_fw",
 };
 
 /**
@@ -36,15 +50,18 @@ const FRAMEWORK_LANGUAGE = {
  * All other directions fall back to legacy converters.
  */
 const PIPELINE_DIRECTIONS = new Set([
-  'cypress-playwright',
-  'jest-vitest',
-  'mocha-jest',
-  'jasmine-jest',
-  'jest-mocha',
-  'jest-jasmine',
-  'junit4-junit5',
-  'junit5-testng',
-  'testng-junit5',
+  "cypress-playwright",
+  "jest-vitest",
+  "mocha-jest",
+  "jasmine-jest",
+  "jest-mocha",
+  "jest-jasmine",
+  "junit4-junit5",
+  "junit5-testng",
+  "testng-junit5",
+  "pytest-unittest",
+  "unittest-pytest",
+  "nose2-pytest",
 ]);
 
 /**
@@ -66,11 +83,20 @@ export class ConverterFactory {
     if (this.initialized) return;
 
     const converterModules = [
-      ['cypress-selenium', () => import('../converters/CypressToSelenium.js')],
-      ['playwright-cypress', () => import('../converters/PlaywrightToCypress.js')],
-      ['playwright-selenium', () => import('../converters/PlaywrightToSelenium.js')],
-      ['selenium-cypress', () => import('../converters/SeleniumToCypress.js')],
-      ['selenium-playwright', () => import('../converters/SeleniumToPlaywright.js')]
+      ["cypress-selenium", () => import("../converters/CypressToSelenium.js")],
+      [
+        "playwright-cypress",
+        () => import("../converters/PlaywrightToCypress.js"),
+      ],
+      [
+        "playwright-selenium",
+        () => import("../converters/PlaywrightToSelenium.js"),
+      ],
+      ["selenium-cypress", () => import("../converters/SeleniumToCypress.js")],
+      [
+        "selenium-playwright",
+        () => import("../converters/SeleniumToPlaywright.js"),
+      ],
     ];
 
     for (const [key, loader] of converterModules) {
@@ -101,13 +127,17 @@ export class ConverterFactory {
     // Validate frameworks
     const validFrameworks = Object.values(FRAMEWORKS);
     if (!validFrameworks.includes(fromLower)) {
-      throw new Error(`Invalid source framework: ${from}. Valid options: ${validFrameworks.join(', ')}`);
+      throw new Error(
+        `Invalid source framework: ${from}. Valid options: ${validFrameworks.join(", ")}`,
+      );
     }
     if (!validFrameworks.includes(toLower)) {
-      throw new Error(`Invalid target framework: ${to}. Valid options: ${validFrameworks.join(', ')}`);
+      throw new Error(
+        `Invalid target framework: ${to}. Valid options: ${validFrameworks.join(", ")}`,
+      );
     }
     if (fromLower === toLower) {
-      throw new Error('Source and target frameworks must be different');
+      throw new Error("Source and target frameworks must be different");
     }
 
     const key = `${fromLower}-${toLower}`;
@@ -122,7 +152,7 @@ export class ConverterFactory {
     if (!loader) {
       throw new Error(
         `Unsupported conversion: ${from} to ${to}. ` +
-        `Supported conversions: ${this.getSupportedConversions().join(', ')}`
+          `Supported conversions: ${this.getSupportedConversions().join(", ")}`,
       );
     }
 
@@ -131,7 +161,9 @@ export class ConverterFactory {
       const ConverterClass = module.default || Object.values(module)[0];
       return new ConverterClass(options);
     } catch (error) {
-      throw new Error(`Failed to load converter for ${from} to ${to}: ${error.message}`);
+      throw new Error(
+        `Failed to load converter for ${from} to ${to}: ${error.message}`,
+      );
     }
   }
 
@@ -145,7 +177,7 @@ export class ConverterFactory {
    * @returns {Promise<import('./PipelineConverter.js').PipelineConverter>}
    */
   static async _createPipelineConverter(from, to, options) {
-    const { PipelineConverter } = await import('./PipelineConverter.js');
+    const { PipelineConverter } = await import("./PipelineConverter.js");
 
     // Load framework definitions based on direction
     const definitions = await this._loadFrameworkDefinitions(from, to);
@@ -163,8 +195,11 @@ export class ConverterFactory {
     const definitions = [];
 
     for (const name of names) {
-      const language = FRAMEWORK_LANGUAGE[name] || 'javascript';
-      const mod = await import(`../languages/${language}/frameworks/${name}.js`);
+      const language = FRAMEWORK_LANGUAGE[name] || "javascript";
+      const fileName = FRAMEWORK_FILE_OVERRIDE[name] || name;
+      const mod = await import(
+        `../languages/${language}/frameworks/${fileName}.js`
+      );
       definitions.push(mod.default);
     }
 
@@ -198,20 +233,23 @@ export class ConverterFactory {
    */
   static getSupportedConversions() {
     return [
-      'cypress-playwright',
-      'cypress-selenium',
-      'playwright-cypress',
-      'playwright-selenium',
-      'selenium-cypress',
-      'selenium-playwright',
-      'jest-vitest',
-      'mocha-jest',
-      'jasmine-jest',
-      'jest-mocha',
-      'jest-jasmine',
-      'junit4-junit5',
-      'junit5-testng',
-      'testng-junit5',
+      "cypress-playwright",
+      "cypress-selenium",
+      "playwright-cypress",
+      "playwright-selenium",
+      "selenium-cypress",
+      "selenium-playwright",
+      "jest-vitest",
+      "mocha-jest",
+      "jasmine-jest",
+      "jest-mocha",
+      "jest-jasmine",
+      "junit4-junit5",
+      "junit5-testng",
+      "testng-junit5",
+      "pytest-unittest",
+      "unittest-pytest",
+      "nose2-pytest",
     ];
   }
 
