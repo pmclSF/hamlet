@@ -214,4 +214,64 @@ describe('TestValidator', () => {
       expect(results.passed).toHaveLength(1);
     });
   });
+
+  describe('logValidationSummary', () => {
+    it('should not throw when called with results', () => {
+      validator.results.passed.push({ file: 'a.js' });
+      validator.results.failed.push({ file: 'b.js' });
+      validator.results.skipped.push({ file: 'c.js' });
+      expect(() => validator.logValidationSummary()).not.toThrow();
+    });
+
+    it('should not throw when called with empty results', () => {
+      expect(() => validator.logValidationSummary()).not.toThrow();
+    });
+  });
+
+  describe('checkFixtures', () => {
+    it('should pass when fixtures are properly configured', async () => {
+      const content = `
+        test('my test', async ({ myFixture }) => {
+          test.use({ myFixture: 'value' });
+        });
+      `;
+      const result = await validator.checkFixtures(content);
+      expect(result.status).toBe('passed');
+    });
+
+    it('should fail when fixtures lack test.use', async () => {
+      const content = `
+        test('my test', async ({ myFixture }) => {
+          console.log(myFixture);
+        });
+      `;
+      const result = await validator.checkFixtures(content);
+      expect(result.status).toBe('failed');
+      expect(result.message).toContain('test.use');
+    });
+  });
+
+  describe('checkHooks', () => {
+    it('should pass for properly implemented async hooks with await', async () => {
+      const content = `
+        test.beforeAll(async ({ page }) => {
+          await page.goto('/');
+        });
+        test.beforeEach(async ({ page }) => {
+          await page.reload();
+        });
+      `;
+      const result = await validator.checkHooks(content);
+      expect(result.status).toBeDefined();
+    });
+  });
+
+  describe('executeTest', () => {
+    it('should return failed status for non-existent test file', async () => {
+      const result = await validator.executeTest('/nonexistent/test.spec.js');
+      expect(result.status).toBe('failed');
+      expect(result.rule).toBe('execution');
+      expect(result.message).toContain('Test execution failed');
+    });
+  });
 });
