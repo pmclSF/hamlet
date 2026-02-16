@@ -14,7 +14,7 @@ describe('ConverterFactory', () => {
   });
 
   describe('FRAMEWORKS constant', () => {
-    it('should export all seven frameworks', () => {
+    it('should export all ten frameworks', () => {
       expect(FRAMEWORKS.CYPRESS).toBe('cypress');
       expect(FRAMEWORKS.PLAYWRIGHT).toBe('playwright');
       expect(FRAMEWORKS.SELENIUM).toBe('selenium');
@@ -22,6 +22,9 @@ describe('ConverterFactory', () => {
       expect(FRAMEWORKS.VITEST).toBe('vitest');
       expect(FRAMEWORKS.MOCHA).toBe('mocha');
       expect(FRAMEWORKS.JASMINE).toBe('jasmine');
+      expect(FRAMEWORKS.JUNIT4).toBe('junit4');
+      expect(FRAMEWORKS.JUNIT5).toBe('junit5');
+      expect(FRAMEWORKS.TESTNG).toBe('testng');
     });
   });
 
@@ -98,6 +101,54 @@ describe('ConverterFactory', () => {
         expect(result).toContain('jest.fn()');
         expect(result).not.toContain('jasmine.createSpy');
       });
+
+      it('should create PipelineConverter for junit4→junit5', async () => {
+        const converter = await ConverterFactory.createConverter('junit4', 'junit5');
+        expect(converter).toBeInstanceOf(PipelineConverter);
+        expect(converter.sourceFramework).toBe('junit4');
+        expect(converter.targetFramework).toBe('junit5');
+      });
+
+      it('should create PipelineConverter for junit5→testng', async () => {
+        const converter = await ConverterFactory.createConverter('junit5', 'testng');
+        expect(converter).toBeInstanceOf(PipelineConverter);
+        expect(converter.sourceFramework).toBe('junit5');
+        expect(converter.targetFramework).toBe('testng');
+      });
+
+      it('should create PipelineConverter for testng→junit5', async () => {
+        const converter = await ConverterFactory.createConverter('testng', 'junit5');
+        expect(converter).toBeInstanceOf(PipelineConverter);
+        expect(converter.sourceFramework).toBe('testng');
+        expect(converter.targetFramework).toBe('junit5');
+      });
+
+      it('should convert JUnit 4 to JUnit 5 through pipeline', async () => {
+        const converter = await ConverterFactory.createConverter('junit4', 'junit5');
+        const result = await converter.convert(
+          'import org.junit.Test;\nimport org.junit.Assert;\n\npublic class MyTest {\n    @Test\n    public void testBasic() {\n        Assert.assertEquals(1, 1);\n    }\n}'
+        );
+        expect(result).toContain('org.junit.jupiter.api.Test');
+        expect(result).toContain('Assertions.assertEquals');
+      });
+
+      it('should convert JUnit 5 to TestNG through pipeline', async () => {
+        const converter = await ConverterFactory.createConverter('junit5', 'testng');
+        const result = await converter.convert(
+          'import org.junit.jupiter.api.Test;\nimport org.junit.jupiter.api.Assertions;\n\npublic class MyTest {\n    @Test\n    public void testBasic() {\n        Assertions.assertTrue(true);\n    }\n}'
+        );
+        expect(result).toContain('org.testng.annotations.Test');
+        expect(result).toContain('Assert.assertTrue');
+      });
+
+      it('should convert TestNG to JUnit 5 through pipeline', async () => {
+        const converter = await ConverterFactory.createConverter('testng', 'junit5');
+        const result = await converter.convert(
+          'import org.testng.annotations.Test;\nimport org.testng.Assert;\n\npublic class MyTest {\n    @Test\n    public void testBasic() {\n        Assert.assertTrue(true);\n    }\n}'
+        );
+        expect(result).toContain('org.junit.jupiter.api.Test');
+        expect(result).toContain('Assertions.assertTrue');
+      });
     });
 
     describe('legacy converter directions', () => {
@@ -166,9 +217,9 @@ describe('ConverterFactory', () => {
   });
 
   describe('getSupportedConversions', () => {
-    it('should return all 11 conversion directions', () => {
+    it('should return all 14 conversion directions', () => {
       const conversions = ConverterFactory.getSupportedConversions();
-      expect(conversions).toHaveLength(11);
+      expect(conversions).toHaveLength(14);
       expect(conversions).toContain('cypress-playwright');
       expect(conversions).toContain('playwright-cypress');
       expect(conversions).toContain('cypress-selenium');
@@ -180,6 +231,9 @@ describe('ConverterFactory', () => {
       expect(conversions).toContain('jasmine-jest');
       expect(conversions).toContain('jest-mocha');
       expect(conversions).toContain('jest-jasmine');
+      expect(conversions).toContain('junit4-junit5');
+      expect(conversions).toContain('junit5-testng');
+      expect(conversions).toContain('testng-junit5');
     });
   });
 
@@ -196,6 +250,9 @@ describe('ConverterFactory', () => {
       expect(ConverterFactory.isSupported('jasmine', 'jest')).toBe(true);
       expect(ConverterFactory.isSupported('jest', 'mocha')).toBe(true);
       expect(ConverterFactory.isSupported('jest', 'jasmine')).toBe(true);
+      expect(ConverterFactory.isSupported('junit4', 'junit5')).toBe(true);
+      expect(ConverterFactory.isSupported('junit5', 'testng')).toBe(true);
+      expect(ConverterFactory.isSupported('testng', 'junit5')).toBe(true);
     });
 
     it('should return false for invalid conversions', () => {
