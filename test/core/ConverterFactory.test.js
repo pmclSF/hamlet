@@ -14,7 +14,7 @@ describe('ConverterFactory', () => {
   });
 
   describe('FRAMEWORKS constant', () => {
-    it('should export all ten frameworks', () => {
+    it('should export all thirteen frameworks', () => {
       expect(FRAMEWORKS.CYPRESS).toBe('cypress');
       expect(FRAMEWORKS.PLAYWRIGHT).toBe('playwright');
       expect(FRAMEWORKS.SELENIUM).toBe('selenium');
@@ -25,6 +25,9 @@ describe('ConverterFactory', () => {
       expect(FRAMEWORKS.JUNIT4).toBe('junit4');
       expect(FRAMEWORKS.JUNIT5).toBe('junit5');
       expect(FRAMEWORKS.TESTNG).toBe('testng');
+      expect(FRAMEWORKS.PYTEST).toBe('pytest');
+      expect(FRAMEWORKS.UNITTEST).toBe('unittest');
+      expect(FRAMEWORKS.NOSE2).toBe('nose2');
     });
   });
 
@@ -149,6 +152,54 @@ describe('ConverterFactory', () => {
         expect(result).toContain('org.junit.jupiter.api.Test');
         expect(result).toContain('Assertions.assertTrue');
       });
+
+      it('should create PipelineConverter for pytest→unittest', async () => {
+        const converter = await ConverterFactory.createConverter('pytest', 'unittest');
+        expect(converter).toBeInstanceOf(PipelineConverter);
+        expect(converter.sourceFramework).toBe('pytest');
+        expect(converter.targetFramework).toBe('unittest');
+      });
+
+      it('should create PipelineConverter for unittest→pytest', async () => {
+        const converter = await ConverterFactory.createConverter('unittest', 'pytest');
+        expect(converter).toBeInstanceOf(PipelineConverter);
+        expect(converter.sourceFramework).toBe('unittest');
+        expect(converter.targetFramework).toBe('pytest');
+      });
+
+      it('should create PipelineConverter for nose2→pytest', async () => {
+        const converter = await ConverterFactory.createConverter('nose2', 'pytest');
+        expect(converter).toBeInstanceOf(PipelineConverter);
+        expect(converter.sourceFramework).toBe('nose2');
+        expect(converter.targetFramework).toBe('pytest');
+      });
+
+      it('should convert pytest to unittest through pipeline', async () => {
+        const converter = await ConverterFactory.createConverter('pytest', 'unittest');
+        const result = await converter.convert(
+          'def test_basic():\n    assert 1 == 1\n'
+        );
+        expect(result).toContain('unittest.TestCase');
+        expect(result).toContain('self.assertEqual(1, 1)');
+      });
+
+      it('should convert unittest to pytest through pipeline', async () => {
+        const converter = await ConverterFactory.createConverter('unittest', 'pytest');
+        const result = await converter.convert(
+          'import unittest\n\nclass TestBasic(unittest.TestCase):\n    def test_basic(self):\n        self.assertEqual(1, 1)\n'
+        );
+        expect(result).toContain('assert 1 == 1');
+        expect(result).not.toContain('class TestBasic');
+      });
+
+      it('should convert nose2 to pytest through pipeline', async () => {
+        const converter = await ConverterFactory.createConverter('nose2', 'pytest');
+        const result = await converter.convert(
+          'from nose.tools import assert_equal\n\ndef test_basic():\n    assert_equal(1, 1)\n'
+        );
+        expect(result).toContain('assert 1 == 1');
+        expect(result).not.toContain('assert_equal');
+      });
     });
 
     describe('legacy converter directions', () => {
@@ -217,9 +268,9 @@ describe('ConverterFactory', () => {
   });
 
   describe('getSupportedConversions', () => {
-    it('should return all 14 conversion directions', () => {
+    it('should return all 17 conversion directions', () => {
       const conversions = ConverterFactory.getSupportedConversions();
-      expect(conversions).toHaveLength(14);
+      expect(conversions).toHaveLength(17);
       expect(conversions).toContain('cypress-playwright');
       expect(conversions).toContain('playwright-cypress');
       expect(conversions).toContain('cypress-selenium');
@@ -234,6 +285,9 @@ describe('ConverterFactory', () => {
       expect(conversions).toContain('junit4-junit5');
       expect(conversions).toContain('junit5-testng');
       expect(conversions).toContain('testng-junit5');
+      expect(conversions).toContain('pytest-unittest');
+      expect(conversions).toContain('unittest-pytest');
+      expect(conversions).toContain('nose2-pytest');
     });
   });
 
@@ -253,6 +307,9 @@ describe('ConverterFactory', () => {
       expect(ConverterFactory.isSupported('junit4', 'junit5')).toBe(true);
       expect(ConverterFactory.isSupported('junit5', 'testng')).toBe(true);
       expect(ConverterFactory.isSupported('testng', 'junit5')).toBe(true);
+      expect(ConverterFactory.isSupported('pytest', 'unittest')).toBe(true);
+      expect(ConverterFactory.isSupported('unittest', 'pytest')).toBe(true);
+      expect(ConverterFactory.isSupported('nose2', 'pytest')).toBe(true);
     });
 
     it('should return false for invalid conversions', () => {
