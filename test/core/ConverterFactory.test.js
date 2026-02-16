@@ -105,4 +105,72 @@ describe('ConverterFactory', () => {
       expect(ConverterFactory.isSupported('cypress', 'cypress')).toBe(false);
     });
   });
+
+  describe('createConverterSync', () => {
+    it('should create converter from pre-loaded classes', () => {
+      const converterClasses = {
+        'cypress-playwright': CypressToPlaywright
+      };
+      const converter = ConverterFactory.createConverterSync('cypress', 'playwright', {}, converterClasses);
+      expect(converter).toBeInstanceOf(CypressToPlaywright);
+    });
+
+    it('should pass options to converter', () => {
+      const converterClasses = {
+        'cypress-playwright': CypressToPlaywright
+      };
+      const converter = ConverterFactory.createConverterSync('cypress', 'playwright', { batchSize: 20 }, converterClasses);
+      expect(converter.options.batchSize).toBe(20);
+    });
+
+    it('should throw when converter class not found', () => {
+      expect(() => {
+        ConverterFactory.createConverterSync('cypress', 'playwright', {}, {});
+      }).toThrow('Converter not found for cypress to playwright');
+    });
+
+    it('should be case insensitive for framework names', () => {
+      const converterClasses = {
+        'cypress-selenium': CypressToSelenium
+      };
+      const converter = ConverterFactory.createConverterSync('CYPRESS', 'SELENIUM', {}, converterClasses);
+      expect(converter).toBeInstanceOf(CypressToSelenium);
+    });
+  });
+
+  describe('getFrameworks', () => {
+    it('should return all supported frameworks', () => {
+      const frameworks = ConverterFactory.getFrameworks();
+      expect(frameworks).toContain('cypress');
+      expect(frameworks).toContain('playwright');
+      expect(frameworks).toContain('selenium');
+      expect(frameworks).toHaveLength(3);
+    });
+  });
+
+  describe('getConversionMatrix', () => {
+    it('should return matrix with all framework combinations', () => {
+      const matrix = ConverterFactory.getConversionMatrix();
+      expect(matrix.cypress).toBeDefined();
+      expect(matrix.playwright).toBeDefined();
+      expect(matrix.selenium).toBeDefined();
+    });
+
+    it('should mark same-framework conversions as false', () => {
+      const matrix = ConverterFactory.getConversionMatrix();
+      expect(matrix.cypress.cypress).toBe(false);
+      expect(matrix.playwright.playwright).toBe(false);
+      expect(matrix.selenium.selenium).toBe(false);
+    });
+
+    it('should mark valid cross-framework conversions as true', () => {
+      const matrix = ConverterFactory.getConversionMatrix();
+      expect(matrix.cypress.playwright).toBe(true);
+      expect(matrix.cypress.selenium).toBe(true);
+      expect(matrix.playwright.cypress).toBe(true);
+      expect(matrix.playwright.selenium).toBe(true);
+      expect(matrix.selenium.cypress).toBe(true);
+      expect(matrix.selenium.playwright).toBe(true);
+    });
+  });
 });
