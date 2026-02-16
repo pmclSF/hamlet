@@ -23,15 +23,15 @@ const version = require('../package.json').version;
 
 program
   .version(version)
-  .description('Hamlet: Bidirectional multi-framework test converter for Cypress, Playwright, and Selenium.');
+  .description('Hamlet: Bidirectional multi-framework test converter for Cypress, Playwright, Selenium, Jest, and Vitest.');
 
 // Main convert command with --from and --to flags
 program
   .command('convert')
-  .description('Convert tests between frameworks (Cypress, Playwright, Selenium)')
+  .description('Convert tests between frameworks (Cypress, Playwright, Selenium, Jest, Vitest)')
   .argument('<source>', 'Source test file, directory, or repository URL')
-  .option('-f, --from <framework>', 'Source framework (cypress, playwright, selenium)', 'cypress')
-  .option('-t, --to <framework>', 'Target framework (cypress, playwright, selenium)', 'playwright')
+  .option('-f, --from <framework>', 'Source framework (cypress, playwright, selenium, jest, vitest)', 'cypress')
+  .option('-t, --to <framework>', 'Target framework (cypress, playwright, selenium, jest, vitest)', 'playwright')
   .option('-o, --output <path>', 'Output path for converted tests')
   .option('-c, --config <path>', 'Custom configuration file path')
   .option('--test-type <type>', 'Specify test type (e2e, component, api, etc.)')
@@ -128,6 +128,8 @@ program
               newExt = '.cy.js';
             } else if (toFramework === 'playwright') {
               newExt = '.spec.js';
+            } else if (toFramework === 'vitest') {
+              newExt = '.test.js';
             } else {
               newExt = '.test.js';
             }
@@ -196,6 +198,8 @@ program
               newExt = '.cy' + ext;
             } else if (toFramework === 'playwright') {
               newExt = '.spec' + ext;
+            } else if (toFramework === 'vitest') {
+              newExt = '.test' + ext;
             } else {
               newExt = '.test' + ext;
             }
@@ -252,6 +256,22 @@ program
       '--to', 'playwright',
       ...(options.output ? ['-o', options.output] : []),
       ...(options.validate ? ['--validate'] : [])
+    ]);
+  });
+
+// Shorthand command for Jest to Vitest
+program
+  .command('jest2vt')
+  .description('Convert Jest tests to Vitest (shorthand for convert --from jest --to vitest)')
+  .argument('<source>', 'Source Jest test file or directory')
+  .option('-o, --output <path>', 'Output path for converted tests')
+  .action(async (source, options) => {
+    // Delegate to main convert command
+    await program.parseAsync([
+      'node', 'hamlet', 'convert', source,
+      '--from', 'jest',
+      '--to', 'vitest',
+      ...(options.output ? ['-o', options.output] : [])
     ]);
   });
 

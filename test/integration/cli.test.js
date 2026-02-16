@@ -46,6 +46,29 @@ test.describe('Sample Test', () => {
 });
 `);
 
+    await fs.writeFile(path.join(fixturesDir, 'sample.jest.js'), `
+describe('Sample Test', () => {
+  const mockFn = jest.fn();
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('should call the function', () => {
+    mockFn('hello');
+    expect(mockFn).toHaveBeenCalledWith('hello');
+  });
+
+  it('should use fake timers', () => {
+    jest.useFakeTimers();
+    setTimeout(() => mockFn(), 1000);
+    jest.advanceTimersByTime(1000);
+    expect(mockFn).toHaveBeenCalled();
+    jest.useRealTimers();
+  });
+});
+`);
+
     await fs.writeFile(path.join(fixturesDir, 'sample.selenium.js'), `
 const { Builder, By } = require('selenium-webdriver');
 const { expect } = require('@jest/globals');
@@ -198,6 +221,46 @@ describe('Sample Test', () => {
       expect(output).toContain('page.goto');
       expect(output).toContain('page.locator');
       expect(output).toContain('toBeVisible');
+    });
+  });
+
+  describe('Convert Command - Jest to Vitest', () => {
+    test('should convert Jest file to Vitest', async () => {
+      const inputFile = path.resolve(fixturesDir, 'sample.jest.js');
+      const outputFile = path.resolve(outputDir, 'sample.jest.test.js');
+
+      // Clean up from previous test
+      try {
+        await fs.unlink(outputFile);
+      } catch (e) {}
+
+      runCLI(['convert', inputFile, '--from', 'jest', '--to', 'vitest', '-o', outputDir]);
+
+      const output = await fs.readFile(outputFile, 'utf8');
+      expect(output).toContain("from 'vitest'");
+      expect(output).toContain('vi.fn()');
+      expect(output).toContain('vi.clearAllMocks()');
+      expect(output).toContain('vi.useFakeTimers()');
+      expect(output).toContain('vi.advanceTimersByTime(');
+      expect(output).toContain('vi.useRealTimers()');
+    });
+  });
+
+  describe('Shorthand Commands', () => {
+    test('jest2vt shorthand should convert Jest to Vitest', async () => {
+      const inputFile = path.resolve(fixturesDir, 'sample.jest.js');
+      const outputFile = path.resolve(outputDir, 'sample.jest.test.js');
+
+      // Clean up from previous test
+      try {
+        await fs.unlink(outputFile);
+      } catch (e) {}
+
+      runCLI(['jest2vt', inputFile, '-o', outputDir]);
+
+      const output = await fs.readFile(outputFile, 'utf8');
+      expect(output).toContain("from 'vitest'");
+      expect(output).toContain('vi.fn()');
     });
   });
 
