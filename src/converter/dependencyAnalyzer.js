@@ -159,6 +159,34 @@ export class DependencyAnalyzer {
   }
 
   /**
+   * Generate a summary report of all analyzed dependencies
+   * @returns {Object} - Dependency report with summary and per-file details
+   */
+  generateReport() {
+    const files = Array.from(this.dependencies.entries());
+    const allImports = files.flatMap(([, a]) => a.imports || []);
+    const allCustomCommands = files.flatMap(([, a]) => a.customCommands || []);
+    const allFixtures = files.flatMap(([, a]) => a.fixtures || []);
+
+    return {
+      summary: {
+        totalFiles: files.length,
+        totalImports: allImports.length,
+        totalCustomCommands: allCustomCommands.length,
+        totalFixtures: allFixtures.length,
+      },
+      files: files.map(([filePath, analysis]) => ({
+        path: filePath,
+        imports: analysis.imports,
+        customCommands: analysis.customCommands,
+        fixtures: analysis.fixtures,
+        pageObjects: analysis.pageObjects,
+        dependencies: analysis.dependencies,
+      })),
+    };
+  }
+
+  /**
    * Get dependency tree for a test
    * @param {string} testPath - Path to test file
    * @returns {Object} - Dependency tree

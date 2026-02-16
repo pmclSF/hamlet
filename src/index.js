@@ -73,9 +73,15 @@ function generateImports(types) {
 export async function convertCypressToPlaywright(cypressContent, options = {}) {
     let playwrightContent = cypressContent;
   
-    // Initialize metadata collector if not provided
+    // Extract metadata inline from content (collectMetadata expects a file path)
     const metadataCollector = options.metadataCollector || new TestMetadataCollector();
-    const metadata = await metadataCollector.collectMetadata(cypressContent);
+    const metadata = {
+      type: metadataCollector.detectTestType(cypressContent),
+      suites: metadataCollector.extractTestSuites(cypressContent),
+      cases: metadataCollector.extractTestCases(cypressContent),
+      tags: metadataCollector.extractTags(cypressContent),
+      complexity: metadataCollector.calculateComplexity(cypressContent),
+    };
   
     // Detect test type
     const testType = detectTestType(cypressContent);
@@ -319,8 +325,8 @@ export async function convertConfig(configPath, options = {}) {
       // Handle Cypress plugins if they exist
       if (options.convertPlugins) {
         const pluginConverter = new PluginConverter();
-        const convertedPlugins = await pluginConverter.convertPlugins(configPath);
-        Object.assign(playwrightConfig.use, convertedPlugins);
+        const pluginResult = await pluginConverter.convertPlugin(configPath);
+        Object.assign(playwrightConfig.use, pluginResult.config);
       }
   
       // Generate config file content
@@ -336,7 +342,7 @@ export async function convertConfig(configPath, options = {}) {
   
       // Save extended configuration if needed
       if (options.extendedConfig) {
-        const extendedConfig = await this.generateExtendedConfig(cypressConfig);
+        const extendedConfig = await generateExtendedConfig(cypressConfig);
         await fs.writeFile(
           path.join(path.dirname(configPath), 'playwright.extended.config.js'),
           extendedConfig
@@ -370,7 +376,7 @@ export async function convertConfig(configPath, options = {}) {
   
       // Read and convert content
       const content = await fs.readFile(sourcePath, 'utf8');
-      const converted = await convertCypressToPlaywright(content, {
+      let converted = await convertCypressToPlaywright(content, {
         ...options,
         metadata,
         dependencies
@@ -379,7 +385,7 @@ export async function convertConfig(configPath, options = {}) {
       // Convert TypeScript if needed
       if (options.typescript && sourcePath.endsWith('.ts')) {
         const tsConverter = new TypeScriptConverter();
-        converted = await tsConverter.convert(converted);
+        converted = await tsConverter.convertContent(converted);
       }
   
       // Ensure output directory exists
@@ -399,26 +405,27 @@ export async function convertConfig(configPath, options = {}) {
       }
   
       // Run visual comparison if requested
+      let comparisonResults = null;
       if (options.compareVisuals) {
         const visualComparator = new VisualComparison();
-        const comparisonResults = await visualComparator.compareTest(sourcePath, outputPath);
+        comparisonResults = await visualComparator.compareTest(sourcePath, outputPath);
         reporter.addVisualResults(comparisonResults);
       }
-  
+
       // Add to test mapper
       if (options.mapTests) {
         const testMapper = new TestMapper();
         await testMapper.addMapping(sourcePath, outputPath);
       }
-  
+
       logger.success(`Converted ${path.basename(sourcePath)}`);
-      return { 
-        success: true, 
-        metadata, 
+      return {
+        success: true,
+        metadata,
         dependencies,
         outputPath,
         validationResults: validationResults,
-        visualResults: options.compareVisuals ? comparisonResults : null
+        visualResults: comparisonResults
       };
   
     } catch (error) {

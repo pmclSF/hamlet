@@ -29,6 +29,44 @@ export class RepositoryConverter {
   }
 
   /**
+   * Analyze repository structure for Cypress tests, configs, support files, and plugins
+   * @param {string} repoPath - Path to repository
+   * @returns {Promise<Object>} - Repository analysis with testFiles, configs, supportFiles, plugins
+   */
+  async analyzeRepository(repoPath) {
+    const testFiles = await this.findCypressTests(repoPath);
+
+    const configPatterns = [
+      '**/cypress.json',
+      '**/cypress.config.{js,ts}',
+    ];
+    const configs = await glob(configPatterns, {
+      cwd: repoPath,
+      absolute: true,
+      ignore: this.options.ignore,
+    });
+
+    const supportPatterns = [
+      '**/cypress/support/**/*.{js,ts}',
+    ];
+    const supportFiles = await glob(supportPatterns, {
+      cwd: repoPath,
+      absolute: true,
+      ignore: this.options.ignore,
+    });
+
+    const pluginPatterns = [
+      '**/cypress/plugins/**/*.{js,ts}',
+    ];
+    const plugins = await glob(pluginPatterns, {
+      cwd: repoPath,
+      absolute: true,
+    });
+
+    return { testFiles, configs, supportFiles, plugins };
+  }
+
+  /**
    * Convert a repository's Cypress tests to Playwright
    * @param {string} repoUrl - Repository URL or local path
    * @param {string} outputPath - Output directory path

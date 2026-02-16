@@ -149,6 +149,46 @@ describe('DependencyAnalyzer', () => {
     });
   });
 
+  describe('generateReport', () => {
+    it('should return empty summary when no dependencies analyzed', () => {
+      const report = analyzer.generateReport();
+      expect(report.summary.totalFiles).toBe(0);
+      expect(report.summary.totalImports).toBe(0);
+      expect(report.summary.totalCustomCommands).toBe(0);
+      expect(report.summary.totalFixtures).toBe(0);
+      expect(report.files).toEqual([]);
+    });
+
+    it('should return summary of analyzed dependencies', () => {
+      analyzer.dependencies.set('/test1.js', {
+        imports: [{ source: 'module-a', specifiers: ['a'] }],
+        customCommands: [{ name: 'login' }],
+        fixtures: [{ name: 'users.json' }],
+        pageObjects: [],
+        dependencies: [],
+      });
+      analyzer.dependencies.set('/test2.js', {
+        imports: [
+          { source: 'module-b', specifiers: ['b'] },
+          { source: 'module-c', specifiers: ['c'] },
+        ],
+        customCommands: [],
+        fixtures: [],
+        pageObjects: [{ name: 'LoginPage' }],
+        dependencies: [{ module: 'lodash' }],
+      });
+
+      const report = analyzer.generateReport();
+      expect(report.summary.totalFiles).toBe(2);
+      expect(report.summary.totalImports).toBe(3);
+      expect(report.summary.totalCustomCommands).toBe(1);
+      expect(report.summary.totalFixtures).toBe(1);
+      expect(report.files).toHaveLength(2);
+      expect(report.files[0].path).toBe('/test1.js');
+      expect(report.files[1].path).toBe('/test2.js');
+    });
+  });
+
   describe('findCircularDependencies', () => {
     it('should return empty array when no circular deps', () => {
       analyzer.dependencies.set('a.js', { dependencies: [{ module: 'b.js' }] });
