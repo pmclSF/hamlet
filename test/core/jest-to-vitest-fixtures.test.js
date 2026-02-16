@@ -7,18 +7,11 @@
 import fs from 'fs/promises';
 import path from 'path';
 import os from 'os';
-import { fileURLToPath } from 'url';
 import { MigrationEngine } from '../../src/core/MigrationEngine.js';
 import { InputNormalizer } from '../../src/core/InputNormalizer.js';
 import { FileClassifier } from '../../src/core/FileClassifier.js';
-import { DependencyGraphBuilder } from '../../src/core/DependencyGraphBuilder.js';
-import { TopologicalSorter } from '../../src/core/TopologicalSorter.js';
 import { ImportRewriter } from '../../src/core/ImportRewriter.js';
-import { MigrationStateManager } from '../../src/core/MigrationStateManager.js';
 import { MigrationChecklistGenerator } from '../../src/core/MigrationChecklistGenerator.js';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const FIXTURES_DIR = path.join(__dirname, '..', 'fixtures', 'jest-to-vitest');
 
 describe('MULTI: Multi-file migration scenarios', () => {
   let engine;
@@ -37,11 +30,14 @@ describe('MULTI: Multi-file migration scenarios', () => {
   });
 
   it('MULTI-001: Test file importing a helper — both converted', async () => {
-    const helperSrc = path.join(FIXTURES_DIR, 'multi', 'MULTI-001-helper.input.js');
-    const testSrc = path.join(FIXTURES_DIR, 'multi', 'MULTI-001-test.input.js');
-
-    await fs.copyFile(helperSrc, path.join(tmpDir, 'helper.js'));
-    await fs.copyFile(testSrc, path.join(tmpDir, 'test.test.js'));
+    await fs.writeFile(
+      path.join(tmpDir, 'helper.js'),
+      'export function add(a, b) { return a + b; }\nexport function multiply(a, b) { return a * b; }\n'
+    );
+    await fs.writeFile(
+      path.join(tmpDir, 'test.test.js'),
+      `import { add, multiply } from './helper.js';\n\ndescribe('math helpers', () => {\n  it('adds numbers', () => {\n    expect(add(1, 2)).toBe(3);\n  });\n\n  it('multiplies numbers', () => {\n    expect(multiply(2, 3)).toBe(6);\n  });\n});\n`
+    );
 
     const { results } = await engine.migrate(tmpDir, {
       from: 'jest',
@@ -54,17 +50,17 @@ describe('MULTI: Multi-file migration scenarios', () => {
   });
 
   it('MULTI-002: Shared factory used by multiple test files', async () => {
-    await fs.copyFile(
-      path.join(FIXTURES_DIR, 'multi', 'MULTI-002-factory.input.js'),
-      path.join(tmpDir, 'factory.js')
+    await fs.writeFile(
+      path.join(tmpDir, 'factory.js'),
+      'export function createUser(name) { return { name, id: Math.random() }; }\nexport function createAdmin(name) { return { ...createUser(name), role: "admin" }; }\n'
     );
-    await fs.copyFile(
-      path.join(FIXTURES_DIR, 'multi', 'MULTI-002-test1.input.js'),
-      path.join(tmpDir, 'test1.test.js')
+    await fs.writeFile(
+      path.join(tmpDir, 'test1.test.js'),
+      `import { createUser } from './factory.js';\n\ndescribe('user factory', () => {\n  it('creates a user', () => {\n    const user = createUser('Alice');\n    expect(user.name).toBe('Alice');\n  });\n});\n`
     );
-    await fs.copyFile(
-      path.join(FIXTURES_DIR, 'multi', 'MULTI-002-test2.input.js'),
-      path.join(tmpDir, 'test2.test.js')
+    await fs.writeFile(
+      path.join(tmpDir, 'test2.test.js'),
+      `import { createAdmin } from './factory.js';\n\ndescribe('admin factory', () => {\n  it('creates an admin', () => {\n    const admin = createAdmin('Bob');\n    expect(admin.role).toBe('admin');\n  });\n});\n`
     );
 
     const progress = [];
@@ -79,13 +75,13 @@ describe('MULTI: Multi-file migration scenarios', () => {
   });
 
   it('MULTI-003: Circular dependency between helpers — still converts', async () => {
-    await fs.copyFile(
-      path.join(FIXTURES_DIR, 'multi', 'MULTI-003-helperA.input.js'),
-      path.join(tmpDir, 'helperA.js')
+    await fs.writeFile(
+      path.join(tmpDir, 'helperA.js'),
+      `import { formatName } from './helperB.js';\n\nexport function greet(name) {\n  return \`Hello, \${formatName(name)}!\`;\n}\n`
     );
-    await fs.copyFile(
-      path.join(FIXTURES_DIR, 'multi', 'MULTI-003-helperB.input.js'),
-      path.join(tmpDir, 'helperB.js')
+    await fs.writeFile(
+      path.join(tmpDir, 'helperB.js'),
+      `import { greet } from './helperA.js';\n\nexport function formatName(name) {\n  return name.trim().toUpperCase();\n}\n\nexport function greetFormatted(name) {\n  return greet(name);\n}\n`
     );
 
     // Should not crash on circular deps
@@ -167,8 +163,8 @@ describe('MESSY: Malformed input — full pipeline tests', () => {
     normalizer = new InputNormalizer();
   });
 
-  it('MESSY-001: Mismatched quotes — recovers', async () => {
-    const input = await fs.readFile(path.join(FIXTURES_DIR, 'messy', 'MESSY-001.input.js'), 'utf8');
+  it('MESSY-001: Mismatched quotes — recovers', () => {
+    const input = `describe('mismatched', () => {\n  it("should handle quotes', () => {\n    const x = "hello';\n    expect(x).toBe('hello");\n  });\n});`;
     const { normalized, issues } = normalizer.normalize(input);
 
     expect(issues.some(i => i.type === 'quote')).toBe(true);
@@ -177,32 +173,32 @@ describe('MESSY: Malformed input — full pipeline tests', () => {
     expect(normalized).toContain('describe');
   });
 
-  it('MESSY-002: Unclosed brackets — partial conversion with warning', async () => {
-    const input = await fs.readFile(path.join(FIXTURES_DIR, 'messy', 'MESSY-002.input.js'), 'utf8');
+  it('MESSY-002: Unclosed brackets — partial conversion with warning', () => {
+    const input = `describe('unclosed', () => {\n  it('has unclosed bracket', () => {\n    const arr = [1, 2, 3;\n    expect(arr).toBeDefined();\n  });`;
     const { normalized, issues } = normalizer.normalize(input);
 
     expect(issues.some(i => i.type === 'bracket')).toBe(true);
     expect(normalized).toContain('describe');
   });
 
-  it('MESSY-003: Mixed CommonJS and ES imports — processes both', async () => {
-    const input = await fs.readFile(path.join(FIXTURES_DIR, 'messy', 'MESSY-003.input.js'), 'utf8');
+  it('MESSY-003: Mixed CommonJS and ES imports — processes both', () => {
+    const input = `const path = require('path');\nimport { describe, it, expect } from '@jest/globals';\n\ndescribe('mixed imports', () => {\n  it('uses both', () => {\n    expect(path.sep).toBeDefined();\n  });\n});`;
     const { normalized } = normalizer.normalize(input);
 
     expect(normalized).toContain('require');
     expect(normalized).toContain('import');
   });
 
-  it('MESSY-004: Empty file — empty output, no crash', async () => {
-    const input = await fs.readFile(path.join(FIXTURES_DIR, 'messy', 'MESSY-004.input.js'), 'utf8');
+  it('MESSY-004: Empty file — empty output, no crash', () => {
+    const input = '';
     const { normalized, issues } = normalizer.normalize(input);
 
     expect(issues.some(i => i.type === 'empty')).toBe(true);
     expect(normalized).toBe('');
   });
 
-  it('MESSY-005: File with only comments — passes through', async () => {
-    const input = await fs.readFile(path.join(FIXTURES_DIR, 'messy', 'MESSY-005.input.js'), 'utf8');
+  it('MESSY-005: File with only comments — passes through', () => {
+    const input = '// This is a comment about the test\n/* A block comment */\n// Another single-line comment\n';
     const { normalized, issues } = normalizer.normalize(input);
 
     // Should pass through without errors (non-encoding issues)
@@ -210,24 +206,24 @@ describe('MESSY: Malformed input — full pipeline tests', () => {
     expect(normalized).toContain('comment');
   });
 
-  it('MESSY-006: Deeply nested callbacks — converts what it can', async () => {
-    const input = await fs.readFile(path.join(FIXTURES_DIR, 'messy', 'MESSY-006.input.js'), 'utf8');
+  it('MESSY-006: Deeply nested callbacks — converts what it can', () => {
+    const input = `describe('nested', () => {\n  it('has deep nesting', () => {\n    [1, 2, 3].map(x => {\n      [4, 5].map(y => {\n        expect(x + y).toBeGreaterThan(0);\n      });\n    });\n  });\n});`;
     const { normalized } = normalizer.normalize(input);
 
     expect(normalized).toContain('describe');
     expect(normalized).toContain('map');
   });
 
-  it('MESSY-007: Duplicate imports — processes without crash', async () => {
-    const input = await fs.readFile(path.join(FIXTURES_DIR, 'messy', 'MESSY-007.input.js'), 'utf8');
+  it('MESSY-007: Duplicate imports — processes without crash', () => {
+    const input = `import { describe } from '@jest/globals';\nimport { it, expect } from '@jest/globals';\nimport { describe } from '@jest/globals';\n\ndescribe('duplicate', () => {\n  it('works', () => {\n    expect(true).toBe(true);\n  });\n});`;
     const { normalized } = normalizer.normalize(input);
 
     expect(normalized).toContain('import');
     expect(normalized).toContain('describe');
   });
 
-  it('MESSY-008: Invalid test structure (describe without it) — passes through', async () => {
-    const input = await fs.readFile(path.join(FIXTURES_DIR, 'messy', 'MESSY-008.input.js'), 'utf8');
+  it('MESSY-008: Invalid test structure (describe without it) — passes through', () => {
+    const input = `describe('empty describe', () => {\n  const x = 42;\n});`;
     const { normalized } = normalizer.normalize(input);
 
     expect(normalized).toContain('describe');
@@ -241,8 +237,8 @@ describe('MESSY: Malformed input — full pipeline tests', () => {
     expect(normalized).toBe('');
   });
 
-  it('MESSY-010: Very long lines — handles without timeout', async () => {
-    const input = await fs.readFile(path.join(FIXTURES_DIR, 'messy', 'MESSY-010.input.js'), 'utf8');
+  it('MESSY-010: Very long lines — handles without timeout', () => {
+    const input = `describe('long lines', () => {\n  it('has long strings', () => {\n    const longString = '${'a'.repeat(300)}';\n    expect(longString.length).toBeGreaterThan(100);\n  });\n});`;
     const { normalized } = normalizer.normalize(input);
 
     expect(normalized).toContain('longString');
