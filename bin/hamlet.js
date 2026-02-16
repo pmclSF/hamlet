@@ -385,4 +385,191 @@ program
     }
   });
 
+// Migrate command — full project migration
+program
+  .command('migrate')
+  .description('Migrate an entire project from one test framework to another')
+  .argument('<dir>', 'Project directory to migrate')
+  .option('-f, --from <framework>', 'Source framework (jest, cypress, playwright)', 'jest')
+  .option('-t, --to <framework>', 'Target framework (vitest, playwright, cypress)', 'vitest')
+  .option('-o, --output <path>', 'Output directory for converted files')
+  .option('--continue', 'Resume a previously started migration')
+  .option('--retry-failed', 'Retry only previously failed files')
+  .action(async (dir, options) => {
+    try {
+      const { MigrationEngine } = await import('../src/core/MigrationEngine.js');
+      const engine = new MigrationEngine();
+
+      console.log(chalk.blue(`Migrating ${chalk.bold(dir)} from ${chalk.bold(options.from)} to ${chalk.bold(options.to)}...`));
+
+      const { results, checklist, state } = await engine.migrate(dir, {
+        from: options.from,
+        to: options.to,
+        output: options.output,
+        continue: options.continue,
+        retryFailed: options.retryFailed,
+        onProgress: (file, status, confidence) => {
+          const icon = status === 'converted' ? chalk.green('✓') :
+                       status === 'skipped' ? chalk.yellow('→') :
+                       status === 'failed' ? chalk.red('✗') : chalk.gray('·');
+          const confStr = confidence != null ? ` (${confidence}%)` : '';
+          console.log(`  ${icon} ${file}${confStr}`);
+        },
+      });
+
+      console.log(chalk.green(`\nMigration complete: ${state.converted} converted, ${state.failed} failed, ${state.skipped || 0} skipped`));
+    } catch (error) {
+      console.error(chalk.red('Migration error:'), error.message);
+      if (process.env.DEBUG) console.error(error.stack);
+      process.exit(1);
+    }
+  });
+
+// Estimate command — dry-run complexity estimate
+program
+  .command('estimate')
+  .description('Estimate migration complexity without converting')
+  .argument('<dir>', 'Project directory to estimate')
+  .option('-f, --from <framework>', 'Source framework', 'jest')
+  .option('-t, --to <framework>', 'Target framework', 'vitest')
+  .action(async (dir, options) => {
+    try {
+      const { MigrationEstimator } = await import('../src/core/MigrationEstimator.js');
+      const estimator = new MigrationEstimator();
+
+      console.log(chalk.blue(`Estimating migration for ${chalk.bold(dir)}...`));
+
+      const result = await estimator.estimate(dir, {
+        from: options.from,
+        to: options.to,
+      });
+
+      console.log(chalk.bold('\nEstimation Summary:'));
+      console.log(`  Total files: ${result.summary.totalFiles}`);
+      console.log(`  Test files: ${result.summary.testFiles}`);
+      console.log(`  Helper files: ${result.summary.helperFiles}`);
+      console.log(`  Config files: ${result.summary.configFiles}`);
+      console.log(`  ${chalk.green('High confidence:')} ${result.summary.predictedHigh}`);
+      console.log(`  ${chalk.yellow('Medium confidence:')} ${result.summary.predictedMedium}`);
+      console.log(`  ${chalk.red('Low confidence:')} ${result.summary.predictedLow}`);
+
+      if (result.blockers.length > 0) {
+        console.log(chalk.bold('\nTop Blockers:'));
+        for (const b of result.blockers) {
+          console.log(`  ${chalk.red(b.pattern)} — ${b.count} occurrences`);
+        }
+      }
+
+      console.log(chalk.bold('\nEffort Estimate:'));
+      console.log(`  ${result.estimatedEffort.description}`);
+      if (result.estimatedEffort.estimatedManualMinutes > 0) {
+        console.log(`  Estimated manual time: ~${result.estimatedEffort.estimatedManualMinutes} minutes`);
+      }
+    } catch (error) {
+      console.error(chalk.red('Estimation error:'), error.message);
+      if (process.env.DEBUG) console.error(error.stack);
+      process.exit(1);
+    }
+  });
+
+// Status command — show migration progress
+program
+  .command('status')
+  .description('Show current migration progress')
+  .option('-d, --dir <path>', 'Project directory', '.')
+  .action(async (options) => {
+    try {
+      const { MigrationStateManager } = await import('../src/core/MigrationStateManager.js');
+      const stateManager = new MigrationStateManager(path.resolve(options.dir));
+
+      if (!await stateManager.exists()) {
+        console.log(chalk.yellow('No migration in progress. Run `hamlet migrate` to start.'));
+        return;
+      }
+
+      const state = await stateManager.load();
+      const status = stateManager.getStatus();
+
+      console.log(chalk.bold('Migration Status:'));
+      console.log(`  Source: ${chalk.cyan(status.source || 'unknown')}`);
+      console.log(`  Target: ${chalk.cyan(status.target || 'unknown')}`);
+      console.log(`  Started: ${status.startedAt || 'unknown'}`);
+      console.log(`  Converted: ${chalk.green(status.converted)}`);
+      console.log(`  Failed: ${chalk.red(status.failed)}`);
+      console.log(`  Skipped: ${chalk.yellow(status.skipped)}`);
+      console.log(`  Total tracked: ${status.total}`);
+    } catch (error) {
+      console.error(chalk.red('Status error:'), error.message);
+      process.exit(1);
+    }
+  });
+
+// Checklist command — generate migration checklist
+program
+  .command('checklist')
+  .description('Generate or display migration checklist')
+  .option('-d, --dir <path>', 'Project directory', '.')
+  .action(async (options) => {
+    try {
+      const { MigrationStateManager } = await import('../src/core/MigrationStateManager.js');
+      const { MigrationChecklistGenerator } = await import('../src/core/MigrationChecklistGenerator.js');
+
+      const stateManager = new MigrationStateManager(path.resolve(options.dir));
+
+      if (!await stateManager.exists()) {
+        console.log(chalk.yellow('No migration in progress. Run `hamlet migrate` to start.'));
+        return;
+      }
+
+      const state = await stateManager.load();
+      const generator = new MigrationChecklistGenerator();
+
+      const results = Object.entries(state.files).map(([filePath, info]) => ({
+        path: filePath,
+        confidence: info.confidence || 0,
+        status: info.status,
+        error: info.error || null,
+        warnings: [],
+        todos: [],
+        type: 'unknown',
+      }));
+
+      const checklist = generator.generate({ nodes: [], edges: new Map() }, results);
+      console.log(checklist);
+    } catch (error) {
+      console.error(chalk.red('Checklist error:'), error.message);
+      process.exit(1);
+    }
+  });
+
+// Reset command — clear migration state
+program
+  .command('reset')
+  .description('Clear migration state (.hamlet/ directory)')
+  .option('-d, --dir <path>', 'Project directory', '.')
+  .option('-y, --yes', 'Skip confirmation prompt')
+  .action(async (options) => {
+    try {
+      const { MigrationStateManager } = await import('../src/core/MigrationStateManager.js');
+      const stateManager = new MigrationStateManager(path.resolve(options.dir));
+
+      if (!await stateManager.exists()) {
+        console.log(chalk.yellow('No migration state to reset.'));
+        return;
+      }
+
+      if (!options.yes) {
+        console.log(chalk.yellow('This will remove the .hamlet/ directory and all migration state.'));
+        console.log(chalk.yellow('Use --yes to confirm.'));
+        return;
+      }
+
+      await stateManager.reset();
+      console.log(chalk.green('Migration state cleared.'));
+    } catch (error) {
+      console.error(chalk.red('Reset error:'), error.message);
+      process.exit(1);
+    }
+  });
+
 program.parse();

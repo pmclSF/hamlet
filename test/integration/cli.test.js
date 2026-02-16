@@ -328,4 +328,313 @@ describe('Test 2', () => {
       expect(outputFiles.length).toBeGreaterThan(0);
     });
   });
+
+  describe('Migrate Command', () => {
+    let migrateDir;
+    let migrateOutput;
+
+    beforeEach(async () => {
+      migrateDir = path.resolve(outputDir, 'migrate-src');
+      migrateOutput = path.resolve(outputDir, 'migrate-out');
+      await fs.mkdir(migrateDir, { recursive: true });
+      await fs.mkdir(migrateOutput, { recursive: true });
+    });
+
+    afterEach(async () => {
+      await fs.rm(migrateDir, { recursive: true, force: true }).catch(() => {});
+      await fs.rm(migrateOutput, { recursive: true, force: true }).catch(() => {});
+    });
+
+    test('should run migrate command successfully', async () => {
+      await fs.writeFile(
+        path.join(migrateDir, 'app.test.js'),
+        `describe('app', () => { it('works', () => { expect(1).toBe(1); }); });`
+      );
+
+      const result = runCLI([
+        'migrate', migrateDir,
+        '--from', 'jest', '--to', 'vitest',
+        '-o', migrateOutput,
+      ]);
+
+      expect(result).toContain('Migration complete');
+    });
+
+    test('should show progress for each file', async () => {
+      await fs.writeFile(
+        path.join(migrateDir, 'a.test.js'),
+        `describe('a', () => { it('works', () => { expect(1).toBe(1); }); });`
+      );
+
+      const result = runCLI([
+        'migrate', migrateDir,
+        '--from', 'jest', '--to', 'vitest',
+        '-o', migrateOutput,
+      ]);
+
+      expect(result).toContain('a.test.js');
+    });
+
+    test('should handle empty project directory', async () => {
+      const result = runCLI([
+        'migrate', migrateDir,
+        '--from', 'jest', '--to', 'vitest',
+        '-o', migrateOutput,
+      ]);
+
+      expect(result).toContain('Migration complete');
+    });
+
+    test('should create .hamlet state directory', async () => {
+      await fs.writeFile(
+        path.join(migrateDir, 'test.test.js'),
+        `describe('t', () => { it('w', () => { expect(1).toBe(1); }); });`
+      );
+
+      runCLI([
+        'migrate', migrateDir,
+        '--from', 'jest', '--to', 'vitest',
+        '-o', migrateOutput,
+      ]);
+
+      const stateExists = await fs.access(path.join(migrateDir, '.hamlet', 'state.json'))
+        .then(() => true).catch(() => false);
+      expect(stateExists).toBe(true);
+    });
+  });
+
+  describe('Estimate Command', () => {
+    let estimateDir;
+
+    beforeEach(async () => {
+      estimateDir = path.resolve(outputDir, 'estimate-src');
+      await fs.mkdir(estimateDir, { recursive: true });
+    });
+
+    afterEach(async () => {
+      await fs.rm(estimateDir, { recursive: true, force: true }).catch(() => {});
+    });
+
+    test('should run estimate command and show summary', async () => {
+      await fs.writeFile(
+        path.join(estimateDir, 'simple.test.js'),
+        `describe('simple', () => { it('works', () => { expect(1).toBe(1); }); });`
+      );
+
+      const result = runCLI([
+        'estimate', estimateDir,
+        '--from', 'jest', '--to', 'vitest',
+      ]);
+
+      expect(result).toContain('Estimation Summary');
+      expect(result).toContain('Total files');
+    });
+
+    test('should handle empty directory', async () => {
+      const result = runCLI([
+        'estimate', estimateDir,
+        '--from', 'jest', '--to', 'vitest',
+      ]);
+
+      expect(result).toContain('Estimation Summary');
+      expect(result).toContain('Total files: 0');
+    });
+
+    test('should show effort estimate', async () => {
+      await fs.writeFile(
+        path.join(estimateDir, 'test.test.js'),
+        `describe('test', () => { it('works', () => { expect(1).toBe(1); }); });`
+      );
+
+      const result = runCLI([
+        'estimate', estimateDir,
+        '--from', 'jest', '--to', 'vitest',
+      ]);
+
+      expect(result).toContain('Effort Estimate');
+    });
+
+    test('should NOT create .hamlet directory', async () => {
+      await fs.writeFile(
+        path.join(estimateDir, 'test.test.js'),
+        `describe('t', () => { it('w', () => { expect(1).toBe(1); }); });`
+      );
+
+      runCLI([
+        'estimate', estimateDir,
+        '--from', 'jest', '--to', 'vitest',
+      ]);
+
+      const hamletExists = await fs.access(path.join(estimateDir, '.hamlet'))
+        .then(() => true).catch(() => false);
+      expect(hamletExists).toBe(false);
+    });
+
+    test('should show blockers for complex files', async () => {
+      await fs.writeFile(
+        path.join(estimateDir, 'complex.test.js'),
+        `jest.mock('./module');\njest.spyOn(obj, 'method');\njest.mock('./another');\n\ndescribe('x', () => { it('w', () => { expect(1).toBe(1); }); });`
+      );
+
+      const result = runCLI([
+        'estimate', estimateDir,
+        '--from', 'jest', '--to', 'vitest',
+      ]);
+
+      expect(result).toContain('Top Blockers');
+    });
+  });
+
+  describe('Status Command', () => {
+    let statusDir;
+
+    beforeEach(async () => {
+      statusDir = path.resolve(outputDir, 'status-src');
+      await fs.mkdir(statusDir, { recursive: true });
+    });
+
+    afterEach(async () => {
+      await fs.rm(statusDir, { recursive: true, force: true }).catch(() => {});
+    });
+
+    test('should show "no migration" when .hamlet does not exist', () => {
+      const result = runCLI(['status', '-d', statusDir]);
+      expect(result).toContain('No migration in progress');
+    });
+
+    test('should show migration status after migrate', async () => {
+      await fs.writeFile(
+        path.join(statusDir, 'test.test.js'),
+        `describe('t', () => { it('w', () => { expect(1).toBe(1); }); });`
+      );
+
+      const statusOutput = path.resolve(outputDir, 'status-out');
+      await fs.mkdir(statusOutput, { recursive: true });
+
+      runCLI([
+        'migrate', statusDir,
+        '--from', 'jest', '--to', 'vitest',
+        '-o', statusOutput,
+      ]);
+
+      const result = runCLI(['status', '-d', statusDir]);
+
+      expect(result).toContain('Migration Status');
+      expect(result).toContain('jest');
+      expect(result).toContain('vitest');
+
+      await fs.rm(statusOutput, { recursive: true, force: true }).catch(() => {});
+    });
+  });
+
+  describe('Checklist Command', () => {
+    let checklistDir;
+
+    beforeEach(async () => {
+      checklistDir = path.resolve(outputDir, 'checklist-src');
+      await fs.mkdir(checklistDir, { recursive: true });
+    });
+
+    afterEach(async () => {
+      await fs.rm(checklistDir, { recursive: true, force: true }).catch(() => {});
+    });
+
+    test('should show "no migration" when .hamlet does not exist', () => {
+      const result = runCLI(['checklist', '-d', checklistDir]);
+      expect(result).toContain('No migration in progress');
+    });
+
+    test('should generate checklist after migrate', async () => {
+      await fs.writeFile(
+        path.join(checklistDir, 'test.test.js'),
+        `describe('t', () => { it('w', () => { expect(1).toBe(1); }); });`
+      );
+
+      const checklistOutput = path.resolve(outputDir, 'checklist-out');
+      await fs.mkdir(checklistOutput, { recursive: true });
+
+      runCLI([
+        'migrate', checklistDir,
+        '--from', 'jest', '--to', 'vitest',
+        '-o', checklistOutput,
+      ]);
+
+      const result = runCLI(['checklist', '-d', checklistDir]);
+
+      expect(result).toContain('Migration Checklist');
+
+      await fs.rm(checklistOutput, { recursive: true, force: true }).catch(() => {});
+    });
+  });
+
+  describe('Reset Command', () => {
+    let resetDir;
+
+    beforeEach(async () => {
+      resetDir = path.resolve(outputDir, 'reset-src');
+      await fs.mkdir(resetDir, { recursive: true });
+    });
+
+    afterEach(async () => {
+      await fs.rm(resetDir, { recursive: true, force: true }).catch(() => {});
+    });
+
+    test('should show "no state" when .hamlet does not exist', () => {
+      const result = runCLI(['reset', '-d', resetDir, '--yes']);
+      expect(result).toContain('No migration state');
+    });
+
+    test('should require --yes flag', async () => {
+      await fs.mkdir(path.join(resetDir, '.hamlet'), { recursive: true });
+      await fs.writeFile(
+        path.join(resetDir, '.hamlet', 'state.json'),
+        JSON.stringify({ version: 1, files: {} })
+      );
+
+      const result = runCLI(['reset', '-d', resetDir]);
+      expect(result).toContain('Use --yes');
+    });
+
+    test('should clear .hamlet directory with --yes', async () => {
+      await fs.mkdir(path.join(resetDir, '.hamlet'), { recursive: true });
+      await fs.writeFile(
+        path.join(resetDir, '.hamlet', 'state.json'),
+        JSON.stringify({ version: 1, files: {} })
+      );
+
+      const result = runCLI(['reset', '-d', resetDir, '--yes']);
+      expect(result).toContain('Migration state cleared');
+
+      const hamletExists = await fs.access(path.join(resetDir, '.hamlet'))
+        .then(() => true).catch(() => false);
+      expect(hamletExists).toBe(false);
+    });
+  });
+
+  describe('New Commands - Help', () => {
+    test('should list migrate command in help', () => {
+      const result = runCLI(['--help']);
+      expect(result).toContain('migrate');
+    });
+
+    test('should list estimate command in help', () => {
+      const result = runCLI(['--help']);
+      expect(result).toContain('estimate');
+    });
+
+    test('should list status command in help', () => {
+      const result = runCLI(['--help']);
+      expect(result).toContain('status');
+    });
+
+    test('should list checklist command in help', () => {
+      const result = runCLI(['--help']);
+      expect(result).toContain('checklist');
+    });
+
+    test('should list reset command in help', () => {
+      const result = runCLI(['--help']);
+      expect(result).toContain('reset');
+    });
+  });
 });
