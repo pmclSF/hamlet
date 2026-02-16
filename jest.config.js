@@ -14,7 +14,8 @@ export default {
     '<rootDir>/test/fixtures/'
   ],
   moduleNameMapper: {
-    '^(\\.{1,2}/.*)\\.js$': '$1'
+    '^(\\.{1,2}/.*)\\.js$': '$1',
+    '^signal-exit$': '<rootDir>/node_modules/signal-exit/dist/cjs/index.js',
   },
   collectCoverageFrom: [
     'src/**/*.js',
