@@ -31,8 +31,8 @@ export class PlaywrightToCypress extends BaseConverter {
     // Navigation patterns
     this.engine.registerPatterns('navigation', {
       'await page\\.goto\\(([^)]+)\\)': 'cy.visit($1)',
-      'await page\\.goBack\\(\\)': "cy.go('back')",
-      'await page\\.goForward\\(\\)': "cy.go('forward')",
+      'await page\\.goBack\\(\\)': 'cy.go(\'back\')',
+      'await page\\.goForward\\(\\)': 'cy.go(\'forward\')',
       'await page\\.reload\\(\\)': 'cy.reload()',
       'page\\.url\\(\\)': 'cy.url()',
       'await page\\.title\\(\\)': 'cy.title()'
@@ -103,7 +103,7 @@ export class PlaywrightToCypress extends BaseConverter {
     });
   }
 
-  async convert(content, options = {}) {
+  async convert(content, _options = {}) {
     let result = content;
 
     // Remove Playwright imports
@@ -145,78 +145,78 @@ export class PlaywrightToCypress extends BaseConverter {
     // await expect(page.locator(selector)).toBeVisible()
     result = result.replace(
       /await expect\(page\.locator\(([^()\n]+)\)\)\.toBeVisible\(\)/g,
-      "cy.get($1).should('be.visible')"
+      'cy.get($1).should(\'be.visible\')'
     );
 
     result = result.replace(
       /await expect\(page\.locator\(([^()\n]+)\)\)\.toBeHidden\(\)/g,
-      "cy.get($1).should('not.be.visible')"
+      'cy.get($1).should(\'not.be.visible\')'
     );
 
     result = result.replace(
       /await expect\(page\.locator\(([^()\n]+)\)\)\.toBeAttached\(\)/g,
-      "cy.get($1).should('exist')"
+      'cy.get($1).should(\'exist\')'
     );
 
     result = result.replace(
       /await expect\(page\.locator\(([^()\n]+)\)\)\.not\.toBeAttached\(\)/g,
-      "cy.get($1).should('not.exist')"
+      'cy.get($1).should(\'not.exist\')'
     );
 
     result = result.replace(
       /await expect\(page\.locator\(([^()\n]+)\)\)\.toHaveText\(([^()\n]+)\)/g,
-      "cy.get($1).should('have.text', $2)"
+      'cy.get($1).should(\'have.text\', $2)'
     );
 
     result = result.replace(
       /await expect\(page\.locator\(([^()\n]+)\)\)\.toContainText\(([^()\n]+)\)/g,
-      "cy.get($1).should('contain', $2)"
+      'cy.get($1).should(\'contain\', $2)'
     );
 
     result = result.replace(
       /await expect\(page\.locator\(([^()\n]+)\)\)\.toHaveValue\(([^()\n]+)\)/g,
-      "cy.get($1).should('have.value', $2)"
+      'cy.get($1).should(\'have.value\', $2)'
     );
 
     result = result.replace(
       /await expect\(page\.locator\(([^()\n]+)\)\)\.toHaveClass\(([^()\n]+)\)/g,
-      "cy.get($1).should('have.class', $2)"
+      'cy.get($1).should(\'have.class\', $2)'
     );
 
     result = result.replace(
       /await expect\(page\.locator\(([^()\n]+)\)\)\.toBeChecked\(\)/g,
-      "cy.get($1).should('be.checked')"
+      'cy.get($1).should(\'be.checked\')'
     );
 
     result = result.replace(
       /await expect\(page\.locator\(([^()\n]+)\)\)\.toBeDisabled\(\)/g,
-      "cy.get($1).should('be.disabled')"
+      'cy.get($1).should(\'be.disabled\')'
     );
 
     result = result.replace(
       /await expect\(page\.locator\(([^()\n]+)\)\)\.toBeEnabled\(\)/g,
-      "cy.get($1).should('be.enabled')"
+      'cy.get($1).should(\'be.enabled\')'
     );
 
     result = result.replace(
       /await expect\(page\.locator\(([^()\n]+)\)\)\.toHaveCount\((\d+)\)/g,
-      "cy.get($1).should('have.length', $2)"
+      'cy.get($1).should(\'have.length\', $2)'
     );
 
     result = result.replace(
       /await expect\(page\.locator\(([^()\n]+)\)\)\.toHaveAttribute\(([^,()\n]+),\s*([^()\n]+)\)/g,
-      "cy.get($1).should('have.attr', $2, $3)"
+      'cy.get($1).should(\'have.attr\', $2, $3)'
     );
 
     // Convert page URL/title assertions
     result = result.replace(
       /await expect\(page\)\.toHaveURL\(([^()\n]+)\)/g,
-      "cy.url().should('include', $1)"
+      'cy.url().should(\'include\', $1)'
     );
 
     result = result.replace(
       /await expect\(page\)\.toHaveTitle\(([^()\n]+)\)/g,
-      "cy.title().should('eq', $1)"
+      'cy.title().should(\'eq\', $1)'
     );
 
     // Convert interactions
@@ -267,8 +267,8 @@ export class PlaywrightToCypress extends BaseConverter {
     );
 
     result = result.replace(/await page\.reload\(\)/g, 'cy.reload()');
-    result = result.replace(/await page\.goBack\(\)/g, "cy.go('back')");
-    result = result.replace(/await page\.goForward\(\)/g, "cy.go('forward')");
+    result = result.replace(/await page\.goBack\(\)/g, 'cy.go(\'back\')');
+    result = result.replace(/await page\.goForward\(\)/g, 'cy.go(\'forward\')');
 
     // Convert viewport
     result = result.replace(
@@ -415,7 +415,7 @@ export class PlaywrightToCypress extends BaseConverter {
     return types;
   }
 
-  getImports(testTypes) {
+  getImports(_testTypes) {
     return []; // Cypress doesn't need explicit imports for basic tests
   }
 
@@ -425,7 +425,7 @@ export class PlaywrightToCypress extends BaseConverter {
 `;
   }
 
-  async convertConfig(configPath, options = {}) {
+  async convertConfig(configPath, _options = {}) {
     const fs = await import('fs/promises');
     const content = await fs.readFile(configPath, 'utf8');
 

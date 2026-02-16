@@ -1,6 +1,5 @@
 import fs from 'fs/promises';
 import path from 'path';
-import chalk from 'chalk';
 
 // Import core converters and processors
 import { RepositoryConverter } from './converter/repoConverter.js';
@@ -71,260 +70,266 @@ function generateImports(types) {
  * @returns {string} - Converted Playwright test content
  */
 export async function convertCypressToPlaywright(cypressContent, options = {}) {
-    let playwrightContent = cypressContent;
+  let playwrightContent = cypressContent;
   
-    // Initialize metadata collector if not provided
-    const metadataCollector = options.metadataCollector || new TestMetadataCollector();
-    const metadata = await metadataCollector.collectMetadata(cypressContent);
-  
-    // Detect test type
-    const testType = detectTestType(cypressContent);
+  // Extract metadata inline from content (collectMetadata expects a file path)
+  const metadataCollector = options.metadataCollector || new TestMetadataCollector();
+  const _metadata = {
+    type: metadataCollector.detectTestType(cypressContent),
+    suites: metadataCollector.extractTestSuites(cypressContent),
+    cases: metadataCollector.extractTestCases(cypressContent),
+    tags: metadataCollector.extractTags(cypressContent),
+    complexity: metadataCollector.calculateComplexity(cypressContent),
+  };
+
+  // Detect test type
+  const testType = detectTestType(cypressContent);
     
-    // Get required imports based on test type
-    const imports = generateImports(testType);
+  // Get required imports based on test type
+  const imports = generateImports(testType);
   
-    // Basic conversion patterns
-    const conversions = {
-      // Test Structure
-      'describe\\(': 'test.describe(',
-      'it\\(': 'test(',
-      'cy\\.': 'await page.',
-      'before\\(': 'test.beforeAll(',
-      'after\\(': 'test.afterAll(',
-      'beforeEach\\(': 'test.beforeEach(',
-      'afterEach\\(': 'test.afterEach(',
+  // Basic conversion patterns
+  const conversions = {
+    // Test Structure
+    'describe\\(': 'test.describe(',
+    'it\\(': 'test(',
+    'cy\\.': 'await page.',
+    'before\\(': 'test.beforeAll(',
+    'after\\(': 'test.afterAll(',
+    'beforeEach\\(': 'test.beforeEach(',
+    'afterEach\\(': 'test.afterEach(',
       
-      // Basic Commands
-      'visit\\(': 'goto(',
-      'get\\(': 'locator(',
-      'find\\(': 'locator(',
-      'type\\(': 'fill(',
-      'click\\(': 'click(',
-      'dblclick\\(': 'dblclick(',
-      'rightclick\\(': 'click({ button: "right" })',
-      'check\\(': 'check(',
-      'uncheck\\(': 'uncheck(',
-      'select\\(': 'selectOption(',
-      'scrollTo\\(': 'scroll(',
-      'scrollIntoView\\(': 'scrollIntoViewIfNeeded(',
-      'trigger\\(': 'dispatchEvent(',
-      'focus\\(': 'focus(',
-      'blur\\(': 'blur(',
-      'clear\\(': 'clear(',
+    // Basic Commands
+    'visit\\(': 'goto(',
+    'get\\(': 'locator(',
+    'find\\(': 'locator(',
+    'type\\(': 'fill(',
+    'click\\(': 'click(',
+    'dblclick\\(': 'dblclick(',
+    'rightclick\\(': 'click({ button: "right" })',
+    'check\\(': 'check(',
+    'uncheck\\(': 'uncheck(',
+    'select\\(': 'selectOption(',
+    'scrollTo\\(': 'scroll(',
+    'scrollIntoView\\(': 'scrollIntoViewIfNeeded(',
+    'trigger\\(': 'dispatchEvent(',
+    'focus\\(': 'focus(',
+    'blur\\(': 'blur(',
+    'clear\\(': 'clear(',
       
-      // Assertions
-      'should\\(\'be.visible\'\\)': 'toBeVisible()',
-      'should\\(\'not.be.visible\'\\)': 'toBeHidden()',
-      'should\\(\'exist\'\\)': 'toBeVisible()',
-      'should\\(\'not.exist\'\\)': 'toBeHidden()',
-      'should\\(\'have.text\',\\s*([^)]+)\\)': 'toHaveText($1)',
-      'should\\(\'have.value\',\\s*([^)]+)\\)': 'toHaveValue($1)',
-      'should\\(\'be.checked\'\\)': 'toBeChecked()',
-      'should\\(\'be.disabled\'\\)': 'toBeDisabled()',
-      'should\\(\'be.enabled\'\\)': 'toBeEnabled()',
-      'should\\(\'have.class\',\\s*([^)]+)\\)': 'toHaveClass($1)',
-      'should\\(\'have.attr\',\\s*([^)]+)\\)': 'toHaveAttribute($1)',
-      'should\\(\'have.length\'\\)': 'toHaveCount(',
-      'should\\(\'be.empty\'\\)': 'toBeEmpty()',
-      'should\\(\'be.focused\'\\)': 'toBeFocused()',
+    // Assertions
+    'should\\(\'be.visible\'\\)': 'toBeVisible()',
+    'should\\(\'not.be.visible\'\\)': 'toBeHidden()',
+    'should\\(\'exist\'\\)': 'toBeVisible()',
+    'should\\(\'not.exist\'\\)': 'toBeHidden()',
+    'should\\(\'have.text\',\\s*([^)]+)\\)': 'toHaveText($1)',
+    'should\\(\'have.value\',\\s*([^)]+)\\)': 'toHaveValue($1)',
+    'should\\(\'be.checked\'\\)': 'toBeChecked()',
+    'should\\(\'be.disabled\'\\)': 'toBeDisabled()',
+    'should\\(\'be.enabled\'\\)': 'toBeEnabled()',
+    'should\\(\'have.class\',\\s*([^)]+)\\)': 'toHaveClass($1)',
+    'should\\(\'have.attr\',\\s*([^)]+)\\)': 'toHaveAttribute($1)',
+    'should\\(\'have.length\'\\)': 'toHaveCount(',
+    'should\\(\'be.empty\'\\)': 'toBeEmpty()',
+    'should\\(\'be.focused\'\\)': 'toBeFocused()',
       
-      // API Testing
-      'request\\(': 'await request.fetch(',
-      'intercept\\(': 'await page.route(',
-      'wait\\(@([^)]+)\\)': 'waitForResponse(response => response.url().includes($1))',
+    // API Testing
+    'request\\(': 'await request.fetch(',
+    'intercept\\(': 'await page.route(',
+    'wait\\(@([^)]+)\\)': 'waitForResponse(response => response.url().includes($1))',
       
-      // Component Testing
-      'mount\\(': 'await mount(',
-      '\\.shadow\\(\\)': '.shadowRoot()',
+    // Component Testing
+    'mount\\(': 'await mount(',
+    '\\.shadow\\(\\)': '.shadowRoot()',
       
-      // Accessibility Testing
-      'injectAxe\\(': 'await injectAxe(page)',
-      'checkA11y\\(': 'await checkA11y(page)',
+    // Accessibility Testing
+    'injectAxe\\(': 'await injectAxe(page)',
+    'checkA11y\\(': 'await checkA11y(page)',
       
-      // Visual Testing
-      'matchImageSnapshot\\(': 'screenshot({ name: ',
+    // Visual Testing
+    'matchImageSnapshot\\(': 'screenshot({ name: ',
       
-      // File Handling
-      'readFile\\(': 'await fs.readFile(',
-      'writeFile\\(': 'await fs.writeFile(',
-      'fixture\\(': 'await fs.readFile(path.join(\'fixtures\', ',
+    // File Handling
+    'readFile\\(': 'await fs.readFile(',
+    'writeFile\\(': 'await fs.writeFile(',
+    'fixture\\(': 'await fs.readFile(path.join(\'fixtures\', ',
       
-      // Iframe Handling
-      'iframe\\(\\)': 'frameLocator()',
+    // Iframe Handling
+    'iframe\\(\\)': 'frameLocator()',
       
-      // Multiple Windows/Tabs
-      'window\\(\\)': 'context.newPage()',
+    // Multiple Windows/Tabs
+    'window\\(\\)': 'context.newPage()',
       
-      // Local Storage
-      'clearLocalStorage\\(': 'evaluate(() => localStorage.clear())',
-      'clearCookies\\(': 'context.clearCookies()',
+    // Local Storage
+    'clearLocalStorage\\(': 'evaluate(() => localStorage.clear())',
+    'clearCookies\\(': 'context.clearCookies()',
       
-      // Mouse Events
-      'hover\\(': 'hover(',
-      'mousedown\\(': 'mouseDown(',
-      'mouseup\\(': 'mouseUp(',
-      'mousemove\\(': 'moveBy(',
+    // Mouse Events
+    'hover\\(': 'hover(',
+    'mousedown\\(': 'mouseDown(',
+    'mouseup\\(': 'mouseUp(',
+    'mousemove\\(': 'moveBy(',
       
-      // Keyboard Events
-      'keyboard\\(': 'keyboard.press(',
-      'press\\(': 'press(',
+    // Keyboard Events
+    'keyboard\\(': 'keyboard.press(',
+    'press\\(': 'press(',
       
-      // Viewport/Responsive
-      'viewport\\(': 'setViewportSize(',
+    // Viewport/Responsive
+    'viewport\\(': 'setViewportSize(',
       
-      // Network
-      'server\\(': '// Use page.route() instead of cy.server()',
+    // Network
+    'server\\(': '// Use page.route() instead of cy.server()',
       
-      // State Management
-      'window\\.store': 'await page.evaluate(() => window.store',
+    // State Management
+    'window\\.store': 'await page.evaluate(() => window.store',
       
-      // Database
-      'task\\(': 'await request.fetch(\'/api/db\', ',
+    // Database
+    'task\\(': 'await request.fetch(\'/api/db\', ',
       
-      // Custom Commands
-      'Cypress\\.Commands\\.add\\(': '// Convert to Playwright helper function: ',
+    // Custom Commands
+    'Cypress\\.Commands\\.add\\(': '// Convert to Playwright helper function: ',
   
-      // Extended Assertions
-      'should\\(\'contain\'\\)': 'toContain()',
-      'should\\(\'include\'\\)': 'toContain()',
-      'should\\(\'have.length\',\\s*([^)]+)\\)': 'toHaveCount($1)',
-      'should\\(\'match\'\\)': 'toMatch()',
-      'should\\(\'be.gt\'\\)': 'toBeGreaterThan()',
-      'should\\(\'be.gte\'\\)': 'toBeGreaterThanOrEqual()',
-      'should\\(\'be.lt\'\\)': 'toBeLessThan()',
-      'should\\(\'be.lte\'\\)': 'toBeLessThanOrEqual()',
-      'should\\(\'be.null\'\\)': 'toBeNull()',
-      'should\\(\'be.undefined\'\\)': 'toBeUndefined()',
-      'should\\(\'be.true\'\\)': 'toBeTruthy()',
-      'should\\(\'be.false\'\\)': 'toBeFalsy()',
+    // Extended Assertions
+    'should\\(\'contain\'\\)': 'toContain()',
+    'should\\(\'include\'\\)': 'toContain()',
+    'should\\(\'have.length\',\\s*([^)]+)\\)': 'toHaveCount($1)',
+    'should\\(\'match\'\\)': 'toMatch()',
+    'should\\(\'be.gt\'\\)': 'toBeGreaterThan()',
+    'should\\(\'be.gte\'\\)': 'toBeGreaterThanOrEqual()',
+    'should\\(\'be.lt\'\\)': 'toBeLessThan()',
+    'should\\(\'be.lte\'\\)': 'toBeLessThanOrEqual()',
+    'should\\(\'be.null\'\\)': 'toBeNull()',
+    'should\\(\'be.undefined\'\\)': 'toBeUndefined()',
+    'should\\(\'be.true\'\\)': 'toBeTruthy()',
+    'should\\(\'be.false\'\\)': 'toBeFalsy()',
       
-      // Extended Commands
-      'within\\(': 'locator(',
-      'parents\\(': 'locator(\'.. ',
-      'children\\(': 'locator(\'> ',
-      'first\\(': 'first(',
-      'last\\(': 'last(',
-      'eq\\(': 'nth(',
-      'closest\\(': 'closest(',
-      'prev\\(': 'locator(\':prev\')',
-      'next\\(': 'locator(\':next\')',
-      'trigger\\(\'mouseover\'\\)': 'hover()',
-      'trigger\\(\'mouseenter\'\\)': 'hover()',
-      'trigger\\(\'mouseleave\'\\)': 'hover({ force: false })',
-      'trigger\\(\'focus\'\\)': 'focus()',
-      'trigger\\(\'blur\'\\)': 'blur()',
-      'select\\(([^)]+)\\)': (match) => `selectOption(${match[1]})`,
-    };
+    // Extended Commands
+    'within\\(': 'locator(',
+    'parents\\(': 'locator(\'.. ',
+    'children\\(': 'locator(\'> ',
+    'first\\(': 'first(',
+    'last\\(': 'last(',
+    'eq\\(': 'nth(',
+    'closest\\(': 'closest(',
+    'prev\\(': 'locator(\':prev\')',
+    'next\\(': 'locator(\':next\')',
+    'trigger\\(\'mouseover\'\\)': 'hover()',
+    'trigger\\(\'mouseenter\'\\)': 'hover()',
+    'trigger\\(\'mouseleave\'\\)': 'hover({ force: false })',
+    'trigger\\(\'focus\'\\)': 'focus()',
+    'trigger\\(\'blur\'\\)': 'blur()',
+    'select\\(([^)]+)\\)': (match) => `selectOption(${match[1]})`,
+  };
   
-    // Apply conversions
-    for (const [cypressPattern, playwrightPattern] of Object.entries(conversions)) {
-      playwrightContent = playwrightContent.replace(
-        new RegExp(cypressPattern, 'g'),
-        playwrightPattern
-      );
-    }
+  // Apply conversions
+  for (const [cypressPattern, playwrightPattern] of Object.entries(conversions)) {
+    playwrightContent = playwrightContent.replace(
+      new RegExp(cypressPattern, 'g'),
+      playwrightPattern
+    );
+  }
   
-    // Setup test configuration based on detected types
-    const setupConfig = {
-      mode: 'parallel',
-      timeout: options.timeout || 30000,
-    };
+  // Setup test configuration based on detected types
+  const setupConfig = {
+    mode: 'parallel',
+    timeout: options.timeout || 30000,
+  };
   
-    // Add test type specific setup
-    let setup = `
+  // Add test type specific setup
+  let setup = `
   // Test type: ${testType.join(', ')}
   test.describe.configure(${JSON.stringify(setupConfig, null, 2)});
   `;
   
-    // Clean up and format
-    playwrightContent = playwrightContent
-      // Make test callbacks async and include page parameter
-      .replace(
-        /test\((.*?),\s*\((.*?)\)\s*=>/g,
-        'test($1, async ({ page' + (testType.includes('api') ? ', request' : '') + ' }) =>',
-      )
-      // Clean up any remaining text after the last closing brace
-      .replace(/}[^}]*$/, '});')
-      // Fix any remaining vistest to goto
-      .replace(/vistest\(/g, 'goto(')
-      // Remove any XML-style tags and their content
-      .replace(/<\/?userStyle[^>]*>.*?<\/userStyle>/g, '')
-      // Remove any other XML-style tags
-      .replace(/<[^>]+>/g, '')
-      // Remove any stray characters and whitespace at the end
-      .replace(/[%$#@\s]+$/, '')
-      // Add final newline
-      .trim() + '\n';
+  // Clean up and format
+  playwrightContent = playwrightContent
+  // Make test callbacks async and include page parameter
+    .replace(
+      /test\((.*?),\s*\((.*?)\)\s*=>/g,
+      'test($1, async ({ page' + (testType.includes('api') ? ', request' : '') + ' }) =>',
+    )
+  // Clean up any remaining text after the last closing brace
+    .replace(/}[^}]*$/, '});')
+  // Fix any remaining vistest to goto
+    .replace(/vistest\(/g, 'goto(')
+  // Remove any XML-style tags and their content
+    .replace(/<\/?userStyle[^>]*>.*?<\/userStyle>/g, '')
+  // Remove any other XML-style tags
+    .replace(/<[^>]+>/g, '')
+  // Remove any stray characters and whitespace at the end
+    .replace(/[%$#@\s]+$/, '')
+  // Add final newline
+    .trim() + '\n';
   
-    // Combine imports, setup, and converted content
-    return imports.join('\n') + '\n\n' + setup + playwrightContent;
-  }
+  // Combine imports, setup, and converted content
+  return imports.join('\n') + '\n\n' + setup + playwrightContent;
+}
 
-  /**
+/**
  * Convert Cypress configuration to Playwright configuration
  * @param {string} configPath - Path to cypress.json
  * @param {Object} options - Conversion options
  * @returns {string} - Playwright config content
  */
 export async function convertConfig(configPath, options = {}) {
-    try {
-      const cypressConfig = JSON.parse(await fs.readFile(configPath, 'utf8'));
+  try {
+    const cypressConfig = JSON.parse(await fs.readFile(configPath, 'utf8'));
   
-      const playwrightConfig = {
-        testDir: './tests',
+    const playwrightConfig = {
+      testDir: './tests',
+      timeout: cypressConfig.defaultCommandTimeout || 4000,
+      expect: {
         timeout: cypressConfig.defaultCommandTimeout || 4000,
-        expect: {
-          timeout: cypressConfig.defaultCommandTimeout || 4000,
+      },
+      use: {
+        baseURL: cypressConfig.baseUrl,
+        viewport: cypressConfig.viewportWidth && cypressConfig.viewportHeight
+          ? { width: cypressConfig.viewportWidth, height: cypressConfig.viewportHeight }
+          : undefined,
+        video: cypressConfig.video ? 'on' : 'off',
+        screenshot: cypressConfig.screenshotOnFailure ? 'only-on-failure' : 'off',
+        trace: options.trace || 'retain-on-failure',
+        // Additional Playwright-specific options
+        actionTimeout: cypressConfig.defaultCommandTimeout || 4000,
+        navigationTimeout: cypressConfig.pageLoadTimeout || 30000,
+        testIdAttribute: cypressConfig.testIdAttribute || 'data-testid'
+      },
+      projects: [
+        {
+          name: 'chromium',
+          use: { browserName: 'chromium' },
         },
-        use: {
-          baseURL: cypressConfig.baseUrl,
-          viewport: cypressConfig.viewportWidth && cypressConfig.viewportHeight
-            ? { width: cypressConfig.viewportWidth, height: cypressConfig.viewportHeight }
-            : undefined,
-          video: cypressConfig.video ? 'on' : 'off',
-          screenshot: cypressConfig.screenshotOnFailure ? 'only-on-failure' : 'off',
-          trace: options.trace || 'retain-on-failure',
-          // Additional Playwright-specific options
-          actionTimeout: cypressConfig.defaultCommandTimeout || 4000,
-          navigationTimeout: cypressConfig.pageLoadTimeout || 30000,
-          testIdAttribute: cypressConfig.testIdAttribute || 'data-testid'
+        {
+          name: 'firefox',
+          use: { browserName: 'firefox' },
         },
-        projects: [
-          {
-            name: 'chromium',
-            use: { browserName: 'chromium' },
-          },
-          {
-            name: 'firefox',
-            use: { browserName: 'firefox' },
-          },
-          {
-            name: 'webkit',
-            use: { browserName: 'webkit' },
-          },
-        ],
-        // Additional configuration from Cypress
-        retries: cypressConfig.retries || 0,
-        workers: cypressConfig.numTestsKeptInMemory || undefined,
-        reporter: cypressConfig.reporter ? [['html'], [cypressConfig.reporter]] : [['html']],
-        reportSlowTests: {
-          max: 5,
-          threshold: cypressConfig.slowTestThreshold || 10000
+        {
+          name: 'webkit',
+          use: { browserName: 'webkit' },
         },
-        fullyParallel: true,
-        forbidOnly: !!process.env.CI,
-        maxFailures: cypressConfig.stopOnFirstFail ? 1 : 0
-      };
+      ],
+      // Additional configuration from Cypress
+      retries: cypressConfig.retries || 0,
+      workers: cypressConfig.numTestsKeptInMemory || undefined,
+      reporter: cypressConfig.reporter ? [['html'], [cypressConfig.reporter]] : [['html']],
+      reportSlowTests: {
+        max: 5,
+        threshold: cypressConfig.slowTestThreshold || 10000
+      },
+      fullyParallel: true,
+      forbidOnly: !!process.env.CI,
+      maxFailures: cypressConfig.stopOnFirstFail ? 1 : 0
+    };
   
-      // Handle Cypress plugins if they exist
-      if (options.convertPlugins) {
-        const pluginConverter = new PluginConverter();
-        const convertedPlugins = await pluginConverter.convertPlugins(configPath);
-        Object.assign(playwrightConfig.use, convertedPlugins);
-      }
+    // Handle Cypress plugins if they exist
+    if (options.convertPlugins) {
+      const pluginConverter = new PluginConverter();
+      const pluginResult = await pluginConverter.convertPlugin(configPath);
+      Object.assign(playwrightConfig.use, pluginResult.config);
+    }
   
-      // Generate config file content
-      const configContent = `
+    // Generate config file content
+    const configContent = `
   import { defineConfig, devices } from '@playwright/test';
   
   /**
@@ -334,106 +339,107 @@ export async function convertConfig(configPath, options = {}) {
   export default ${JSON.stringify(playwrightConfig, null, 2)};
   `;
   
-      // Save extended configuration if needed
-      if (options.extendedConfig) {
-        const extendedConfig = await this.generateExtendedConfig(cypressConfig);
-        await fs.writeFile(
-          path.join(path.dirname(configPath), 'playwright.extended.config.js'),
-          extendedConfig
-        );
-      }
-  
-      return configContent;
-  
-    } catch (error) {
-      logger.error('Failed to convert Cypress config:', error);
-      throw error;
+    // Save extended configuration if needed
+    if (options.extendedConfig) {
+      const extendedConfig = await generateExtendedConfig(cypressConfig);
+      await fs.writeFile(
+        path.join(path.dirname(configPath), 'playwright.extended.config.js'),
+        extendedConfig
+      );
     }
-  }
   
-  /**
+    return configContent;
+  
+  } catch (error) {
+    logger.error('Failed to convert Cypress config:', error);
+    throw error;
+  }
+}
+  
+/**
    * Convert a single file from Cypress to Playwright
    * @param {string} sourcePath - Path to source Cypress file
    * @param {string} outputPath - Path for output Playwright file
    * @param {Object} options - Conversion options
    */
-  export async function convertFile(sourcePath, outputPath, options = {}) {
-    try {
-      // Initialize collectors and analyzers
-      const metadataCollector = new TestMetadataCollector();
-      const dependencyAnalyzer = new DependencyAnalyzer();
-      const reporter = options.reporter || new ConversionReporter();
+export async function convertFile(sourcePath, outputPath, options = {}) {
+  try {
+    // Initialize collectors and analyzers
+    const metadataCollector = new TestMetadataCollector();
+    const dependencyAnalyzer = new DependencyAnalyzer();
+    const reporter = options.reporter || new ConversionReporter();
   
-      // Collect metadata and analyze dependencies
-      const metadata = await metadataCollector.collectMetadata(sourcePath);
-      const dependencies = await dependencyAnalyzer.analyzeDependencies(sourcePath);
+    // Collect metadata and analyze dependencies
+    const metadata = await metadataCollector.collectMetadata(sourcePath);
+    const dependencies = await dependencyAnalyzer.analyzeDependencies(sourcePath);
   
-      // Read and convert content
-      const content = await fs.readFile(sourcePath, 'utf8');
-      const converted = await convertCypressToPlaywright(content, {
-        ...options,
-        metadata,
-        dependencies
-      });
+    // Read and convert content
+    const content = await fs.readFile(sourcePath, 'utf8');
+    let converted = await convertCypressToPlaywright(content, {
+      ...options,
+      metadata,
+      dependencies
+    });
   
-      // Convert TypeScript if needed
-      if (options.typescript && sourcePath.endsWith('.ts')) {
-        const tsConverter = new TypeScriptConverter();
-        converted = await tsConverter.convert(converted);
-      }
-  
-      // Ensure output directory exists
-      await fileUtils.ensureDir(path.dirname(outputPath));
-  
-      // Write converted file
-      await fs.writeFile(outputPath, converted);
-  
-      // Validate if requested
-      let validator = null;
-      let validationResults = null;
-      
-      if (options.validate) {
-        validator = new TestValidator();
-        validationResults = await validator.validateTest(outputPath);
-        reporter.addValidationResults(validationResults);
-      }
-  
-      // Run visual comparison if requested
-      if (options.compareVisuals) {
-        const visualComparator = new VisualComparison();
-        const comparisonResults = await visualComparator.compareTest(sourcePath, outputPath);
-        reporter.addVisualResults(comparisonResults);
-      }
-  
-      // Add to test mapper
-      if (options.mapTests) {
-        const testMapper = new TestMapper();
-        await testMapper.addMapping(sourcePath, outputPath);
-      }
-  
-      logger.success(`Converted ${path.basename(sourcePath)}`);
-      return { 
-        success: true, 
-        metadata, 
-        dependencies,
-        outputPath,
-        validationResults: validationResults,
-        visualResults: options.compareVisuals ? comparisonResults : null
-      };
-  
-    } catch (error) {
-      logger.error(`Failed to convert ${sourcePath}:`, error);
-      throw error;
+    // Convert TypeScript if needed
+    if (options.typescript && sourcePath.endsWith('.ts')) {
+      const tsConverter = new TypeScriptConverter();
+      converted = await tsConverter.convertContent(converted);
     }
-  }
   
-  /**
+    // Ensure output directory exists
+    await fileUtils.ensureDir(path.dirname(outputPath));
+  
+    // Write converted file
+    await fs.writeFile(outputPath, converted);
+  
+    // Validate if requested
+    let validator = null;
+    let validationResults = null;
+      
+    if (options.validate) {
+      validator = new TestValidator();
+      validationResults = await validator.validateTest(outputPath);
+      reporter.addValidationResults(validationResults);
+    }
+  
+    // Run visual comparison if requested
+    let comparisonResults = null;
+    if (options.compareVisuals) {
+      const visualComparator = new VisualComparison();
+      comparisonResults = await visualComparator.compareTest(sourcePath, outputPath);
+      reporter.addVisualResults(comparisonResults);
+    }
+
+    // Add to test mapper
+    if (options.mapTests) {
+      const testMapper = new TestMapper();
+      await testMapper.addMapping(sourcePath, outputPath);
+    }
+
+    logger.success(`Converted ${path.basename(sourcePath)}`);
+    return {
+      success: true,
+      metadata,
+      dependencies,
+      outputPath,
+      validationResults: validationResults,
+      visualResults: comparisonResults
+    };
+  
+  } catch (error) {
+    logger.error(`Failed to convert ${sourcePath}:`, error);
+    throw error;
+  }
+}
+  
+/**
    * Generate extended Playwright configuration
    * @param {Object} cypressConfig - Original Cypress configuration
    * @returns {string} - Extended configuration content
    */
-  async function generateExtendedConfig(cypressConfig) {
-    const extendedConfig = `
+async function generateExtendedConfig(cypressConfig) {
+  const extendedConfig = `
   import { defineConfig } from '@playwright/test';
   import baseConfig from './playwright.config';
   
@@ -469,216 +475,216 @@ export async function convertConfig(configPath, options = {}) {
   });
   `;
   
-    return extendedConfig;
-  }
+  return extendedConfig;
+}
 
-  /**
+/**
  * Convert a repository of Cypress tests to Playwright
  * @param {string} repoPath - Path to repository or repository URL
  * @param {string} outputPath - Output directory path
  * @param {Object} options - Conversion options
  */
 export async function convertRepository(repoPath, outputPath, options = {}) {
-    try {
-      // Initialize components
-      const repoConverter = new RepositoryConverter(options);
-      const batchProcessor = new BatchProcessor(options);
-      const metadataCollector = new TestMetadataCollector();
-      const dependencyAnalyzer = new DependencyAnalyzer();
-      const reporter = options.reporter || new ConversionReporter();
-      const testMapper = new TestMapper();
+  try {
+    // Initialize components
+    const repoConverter = new RepositoryConverter(options);
+    const batchProcessor = new BatchProcessor(options);
+    const metadataCollector = new TestMetadataCollector();
+    const dependencyAnalyzer = new DependencyAnalyzer();
+    const reporter = options.reporter || new ConversionReporter();
+    const testMapper = new TestMapper();
   
-      logger.info(`Starting repository conversion: ${repoPath}`);
+    logger.info(`Starting repository conversion: ${repoPath}`);
   
-      // Clone repository if it's a URL
-      const isRemoteRepo = repoPath.startsWith('http') || repoPath.startsWith('git@');
-      const workingPath = isRemoteRepo ? 
-        await repoConverter.cloneRepository(repoPath) : 
-        repoPath;
+    // Clone repository if it's a URL
+    const isRemoteRepo = repoPath.startsWith('http') || repoPath.startsWith('git@');
+    const workingPath = isRemoteRepo ? 
+      await repoConverter.cloneRepository(repoPath) : 
+      repoPath;
   
-      // Analyze repository structure
-      const structure = await repoConverter.analyzeRepository(workingPath);
-      logger.info(`Found ${structure.testFiles.length} test files`);
+    // Analyze repository structure
+    const structure = await repoConverter.analyzeRepository(workingPath);
+    logger.info(`Found ${structure.testFiles.length} test files`);
   
-      // Convert configuration files
-      const configs = await Promise.all(
-        structure.configs.map(async config => {
-          const outputConfig = path.join(outputPath, path.basename(config)
-            .replace('cypress', 'playwright')
-            .replace('.json', '.config.js')
-          );
+    // Convert configuration files
+    const configs = await Promise.all(
+      structure.configs.map(async config => {
+        const outputConfig = path.join(outputPath, path.basename(config)
+          .replace('cypress', 'playwright')
+          .replace('.json', '.config.js')
+        );
           
-          try {
-            const converted = await convertConfig(config, options);
-            await fs.writeFile(outputConfig, converted);
-            return { source: config, output: outputConfig, status: 'success' };
-          } catch (error) {
-            logger.error(`Failed to convert config ${config}:`, error);
-            return { source: config, status: 'error', error: error.message };
-          }
-        })
+        try {
+          const converted = await convertConfig(config, options);
+          await fs.writeFile(outputConfig, converted);
+          return { source: config, output: outputConfig, status: 'success' };
+        } catch (error) {
+          logger.error(`Failed to convert config ${config}:`, error);
+          return { source: config, status: 'error', error: error.message };
+        }
+      })
+    );
+  
+    // Process tests in batches
+    const batchResults = await batchProcessor.processBatch(structure.testFiles, async (file) => {
+      const relativePath = path.relative(workingPath, file);
+      const outputFile = path.join(
+        outputPath, 
+        'tests',
+        relativePath.replace(/\.cy\.(js|ts)$/, '.spec.$1')
       );
   
-      // Process tests in batches
-      const batchResults = await batchProcessor.processBatch(structure.testFiles, async (file) => {
+      try {
+        // Convert individual test file
+        const _result = await convertFile(file, outputFile, {
+          ...options,
+          reporter
+        });
+  
+        // Collect metadata and analyze dependencies
+        const metadata = await metadataCollector.collectMetadata(file);
+        const dependencies = await dependencyAnalyzer.analyzeDependencies(file);
+  
+        // Add to test mapper
+        await testMapper.addMapping(file, outputFile);
+  
+        return {
+          source: file,
+          output: outputFile,
+          status: 'success',
+          metadata,
+          dependencies
+        };
+      } catch (error) {
+        logger.error(`Failed to convert ${file}:`, error);
+        return {
+          source: file,
+          status: 'error',
+          error: error.message
+        };
+      }
+    });
+  
+    // Convert support files
+    const supportResults = await Promise.all(
+      structure.supportFiles.map(async file => {
         const relativePath = path.relative(workingPath, file);
-        const outputFile = path.join(
-          outputPath, 
-          'tests',
-          relativePath.replace(/\.cy\.(js|ts)$/, '.spec.$1')
-        );
+        const outputFile = path.join(outputPath, 'support', relativePath);
   
         try {
-          // Convert individual test file
-          const result = await convertFile(file, outputFile, {
-            ...options,
-            reporter
-          });
-  
-          // Collect metadata and analyze dependencies
-          const metadata = await metadataCollector.collectMetadata(file);
-          const dependencies = await dependencyAnalyzer.analyzeDependencies(file);
-  
-          // Add to test mapper
-          await testMapper.addMapping(file, outputFile);
-  
-          return {
-            source: file,
-            output: outputFile,
-            status: 'success',
-            metadata,
-            dependencies
-          };
+          await convertFile(file, outputFile, options);
+          return { source: file, output: outputFile, status: 'success' };
         } catch (error) {
-          logger.error(`Failed to convert ${file}:`, error);
-          return {
-            source: file,
-            status: 'error',
-            error: error.message
-          };
+          logger.error(`Failed to convert support file ${file}:`, error);
+          return { source: file, status: 'error', error: error.message };
         }
-      });
+      })
+    );
   
-      // Convert support files
-      const supportResults = await Promise.all(
-        structure.supportFiles.map(async file => {
-          const relativePath = path.relative(workingPath, file);
-          const outputFile = path.join(outputPath, 'support', relativePath);
-  
+    // Convert plugins if requested
+    let pluginResults = [];
+    if (options.convertPlugins) {
+      const pluginConverter = new PluginConverter();
+      pluginResults = await Promise.all(
+        structure.plugins.map(async plugin => {
           try {
-            await convertFile(file, outputFile, options);
-            return { source: file, output: outputFile, status: 'success' };
+            const converted = await pluginConverter.convertPlugin(plugin);
+            const outputFile = path.join(
+              outputPath,
+              'plugins',
+              path.basename(plugin)
+            );
+            await fs.writeFile(outputFile, converted);
+            return { source: plugin, output: outputFile, status: 'success' };
           } catch (error) {
-            logger.error(`Failed to convert support file ${file}:`, error);
-            return { source: file, status: 'error', error: error.message };
+            logger.error(`Failed to convert plugin ${plugin}:`, error);
+            return { source: plugin, status: 'error', error: error.message };
           }
         })
       );
+    }
   
-      // Convert plugins if requested
-      let pluginResults = [];
-      if (options.convertPlugins) {
-        const pluginConverter = new PluginConverter();
-        pluginResults = await Promise.all(
-          structure.plugins.map(async plugin => {
-            try {
-              const converted = await pluginConverter.convertPlugin(plugin);
-              const outputFile = path.join(
-                outputPath,
-                'plugins',
-                path.basename(plugin)
-              );
-              await fs.writeFile(outputFile, converted);
-              return { source: plugin, output: outputFile, status: 'success' };
-            } catch (error) {
-              logger.error(`Failed to convert plugin ${plugin}:`, error);
-              return { source: plugin, status: 'error', error: error.message };
-            }
-          })
+    // Generate comprehensive report
+    const report = {
+      summary: {
+        totalFiles: structure.testFiles.length,
+        convertedFiles: batchResults.filter(r => r.status === 'success').length,
+        failedFiles: batchResults.filter(r => r.status === 'error').length,
+        configurationFiles: configs.length,
+        supportFiles: supportResults.length,
+        plugins: pluginResults.length
+      },
+      testResults: batchResults,
+      configResults: configs,
+      supportResults: supportResults,
+      pluginResults: pluginResults,
+      metadata: metadataCollector.generateReport(),
+      dependencies: dependencyAnalyzer.generateReport(),
+      mappings: testMapper.getMappings(),
+      timestamp: new Date().toISOString(),
+      duration: process.hrtime()
+    };
+  
+    // Save report
+    if (options.report) {
+      const reportPath = path.join(outputPath, 'conversion-report.json');
+      await fs.writeFile(reportPath, JSON.stringify(report, null, 2));
+      logger.info(`Report saved to: ${reportPath}`);
+  
+      // Generate HTML report if requested
+      if (options.report === 'html') {
+        const htmlReport = reporter.generateHtmlReport(report);
+        await fs.writeFile(
+          path.join(outputPath, 'conversion-report.html'),
+          htmlReport
         );
       }
-  
-      // Generate comprehensive report
-      const report = {
-        summary: {
-          totalFiles: structure.testFiles.length,
-          convertedFiles: batchResults.filter(r => r.status === 'success').length,
-          failedFiles: batchResults.filter(r => r.status === 'error').length,
-          configurationFiles: configs.length,
-          supportFiles: supportResults.length,
-          plugins: pluginResults.length
-        },
-        testResults: batchResults,
-        configResults: configs,
-        supportResults: supportResults,
-        pluginResults: pluginResults,
-        metadata: metadataCollector.generateReport(),
-        dependencies: dependencyAnalyzer.generateReport(),
-        mappings: testMapper.getMappings(),
-        timestamp: new Date().toISOString(),
-        duration: process.hrtime()
-      };
-  
-      // Save report
-      if (options.report) {
-        const reportPath = path.join(outputPath, 'conversion-report.json');
-        await fs.writeFile(reportPath, JSON.stringify(report, null, 2));
-        logger.info(`Report saved to: ${reportPath}`);
-  
-        // Generate HTML report if requested
-        if (options.report === 'html') {
-          const htmlReport = reporter.generateHtmlReport(report);
-          await fs.writeFile(
-            path.join(outputPath, 'conversion-report.html'),
-            htmlReport
-          );
-        }
-      }
-  
-      // Clean up if remote repository
-      if (isRemoteRepo) {
-        await fs.rm(workingPath, { recursive: true, force: true });
-      }
-  
-      logger.success('Repository conversion completed successfully');
-      return report;
-  
-    } catch (error) {
-      logger.error('Repository conversion failed:', error);
-      throw error;
     }
-  }
   
-  /**
+    // Clean up if remote repository
+    if (isRemoteRepo) {
+      await fs.rm(workingPath, { recursive: true, force: true });
+    }
+  
+    logger.success('Repository conversion completed successfully');
+    return report;
+  
+  } catch (error) {
+    logger.error('Repository conversion failed:', error);
+    throw error;
+  }
+}
+  
+/**
    * Process multiple test files in parallel
    * @param {string[]} files - Array of file paths
    * @param {Object} options - Processing options
    * @returns {Promise<Object>} - Processing results
    */
-  export async function processTestFiles(files, options = {}) {
-    const batchProcessor = new BatchProcessor(options);
-    const results = await batchProcessor.processBatch(files, async (file) => {
-      try {
-        const outputPath = options.getOutputPath?.(file) || 
+export async function processTestFiles(files, options = {}) {
+  const batchProcessor = new BatchProcessor(options);
+  const results = await batchProcessor.processBatch(files, async (file) => {
+    try {
+      const outputPath = options.getOutputPath?.(file) || 
           file.replace(/\.cy\.(js|ts)$/, '.spec.$1');
         
-        return await convertFile(file, outputPath, options);
-      } catch (error) {
-        return {
-          file,
-          error: error.message,
-          status: 'error'
-        };
-      }
-    });
+      return await convertFile(file, outputPath, options);
+    } catch (error) {
+      return {
+        file,
+        error: error.message,
+        status: 'error'
+      };
+    }
+  });
   
-    return {
-      total: files.length,
-      successful: results.filter(r => r.status === 'success').length,
-      failed: results.filter(r => r.status === 'error').length,
-      results
-    };
-  }
+  return {
+    total: files.length,
+    successful: results.filter(r => r.status === 'success').length,
+    failed: results.filter(r => r.status === 'error').length,
+    results
+  };
+}
 
 /**
  * Validate converted tests
@@ -686,7 +692,7 @@ export async function convertRepository(repoPath, outputPath, options = {}) {
  * @param {Object} options - Validation options
  * @returns {Promise<Object>} - Validation results
  */
-export async function validateTests(testDir, options = {}) {
+export async function validateTests(testDir, _options = {}) {
   const validator = new TestValidator();
   return validator.validateConvertedTests(testDir);
 }
@@ -729,25 +735,25 @@ export {
 // Re-export reporter
 export { ConversionReporter };
 
-  // Constants
-  export const VERSION = '1.0.0';
-  export const SUPPORTED_TEST_TYPES = [
-    'e2e',
-    'component',
-    'api',
-    'visual',
-    'accessibility',
-    'performance',
-    'mobile'
-  ];
+// Constants
+export const VERSION = '1.0.0';
+export const SUPPORTED_TEST_TYPES = [
+  'e2e',
+  'component',
+  'api',
+  'visual',
+  'accessibility',
+  'performance',
+  'mobile'
+];
   
-  export const DEFAULT_OPTIONS = {
-    typescript: false,
-    validate: true,
-    compareVisuals: false,
-    convertPlugins: true,
-    preserveStructure: true,
-    report: 'json',
-    batchSize: 5,
-    timeout: 30000
-  };
+export const DEFAULT_OPTIONS = {
+  typescript: false,
+  validate: true,
+  compareVisuals: false,
+  convertPlugins: true,
+  preserveStructure: true,
+  report: 'json',
+  batchSize: 5,
+  timeout: 30000
+};

@@ -38,6 +38,22 @@ export class TypeScriptConverter {
   }
 
   /**
+   * Convert content string by applying type mappings
+   * @param {string} content - Source content string
+   * @returns {string} - Content with Cypress types replaced by Playwright types
+   */
+  convertContent(content) {
+    let result = content;
+    for (const [cypressType, playwrightType] of this.typeMap) {
+      result = result.replaceAll(cypressType, playwrightType);
+    }
+    for (const [cypressInterface, playwrightInterface] of this.interfaceMap) {
+      result = result.replaceAll(cypressInterface, playwrightInterface);
+    }
+    return result;
+  }
+
+  /**
    * Convert TypeScript files and generate type definitions
    * @param {string} sourcePath - Source directory path
    * @param {string} outputPath - Output directory path

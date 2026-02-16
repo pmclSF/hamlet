@@ -155,7 +155,7 @@ export const interactionPatterns = {
       'TYPE_SLOW': (text) => `.sendKeys(${text})`, // Selenium doesn't have built-in delay
       'CLEAR': () => '.clear()',
       'FOCUS': () => '.click()', // Selenium focuses by clicking
-      'BLUR': () => `; await driver.executeScript("arguments[0].blur()", element)`,
+      'BLUR': () => '; await driver.executeScript("arguments[0].blur()", element)',
       'CHECK': () => '.click()', // Selenium uses click for checkbox
       'UNCHECK': () => '.click()',
       'SELECT_OPTION': (value) => `; await new Select(element).selectByVisibleText(${value})`,
@@ -164,10 +164,10 @@ export const interactionPatterns = {
       'MOUSE_DOWN': (context) => `await driver.actions().press(${context || 'element'}).perform()`,
       'MOUSE_UP': () => 'await driver.actions().release().perform()',
       'SCROLL_TO': (pos) => `await driver.executeScript("window.scrollTo(${pos})")`,
-      'SCROLL_INTO_VIEW': () => `await driver.executeScript("arguments[0].scrollIntoView(true)", element)`,
+      'SCROLL_INTO_VIEW': () => 'await driver.executeScript("arguments[0].scrollIntoView(true)", element)',
       'DRAG': (target) => `await driver.actions().dragAndDrop(element, ${target}).perform()`,
-      'DRAG_START': () => `await driver.executeScript("arguments[0].dispatchEvent(new DragEvent('dragstart'))", element)`,
-      'DROP': () => `await driver.executeScript("arguments[0].dispatchEvent(new DragEvent('drop'))", element)`,
+      'DRAG_START': () => 'await driver.executeScript("arguments[0].dispatchEvent(new DragEvent(\'dragstart\'))", element)',
+      'DROP': () => 'await driver.executeScript("arguments[0].dispatchEvent(new DragEvent(\'drop\'))", element)',
       'UPLOAD_FILE': (file) => `.sendKeys(${file})`
     }
   }

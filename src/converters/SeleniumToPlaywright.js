@@ -77,15 +77,15 @@ export class SeleniumToPlaywright extends BaseConverter {
 
     // Remove Selenium imports and setup
     this.engine.registerPatterns('cleanup', {
-      "const\\s*\\{[^{}\n]*Builder[^{}\n]*\\}\\s*=\\s*require\\(['\"]selenium-webdriver['\"]\\);?\\n?": '',
-      "const\\s*\\{[^{}\n]*expect[^{}\n]*\\}\\s*=\\s*require\\(['\"]@jest/globals['\"]\\);?\\n?": '',
+      'const\\s*\\{[^{}\n]*Builder[^{}\n]*\\}\\s*=\\s*require\\([\'"]selenium-webdriver[\'"]\\);?\\n?': '',
+      'const\\s*\\{[^{}\n]*expect[^{}\n]*\\}\\s*=\\s*require\\([\'"]@jest/globals[\'"]\\);?\\n?': '',
       'let\\s+driver;?\\n?': '',
       'beforeAll\\s*\\([^)]*\\)\\s*\\{[\\s\\S]*?new\\s+Builder[\\s\\S]*?\\};?\\n?': '',
       'afterAll\\s*\\([^)]*\\)\\s*\\{[\\s\\S]*?driver\\.quit[\\s\\S]*?\\};?\\n?': ''
     });
   }
 
-  async convert(content, options = {}) {
+  async convert(content, _options = {}) {
     let result = content;
 
     // Remove Selenium boilerplate
@@ -359,17 +359,17 @@ export class SeleniumToPlaywright extends BaseConverter {
     return content;
   }
 
-  detectTestTypes(content) {
+  detectTestTypes(_content) {
     return ['e2e'];
   }
 
-  getImports(testTypes) {
+  getImports(_testTypes) {
     return [
-      "import { test, expect } from '@playwright/test';"
+      'import { test, expect } from \'@playwright/test\';'
     ];
   }
 
-  async convertConfig(configPath, options = {}) {
+  async convertConfig(configPath, _options = {}) {
     return `import { defineConfig } from '@playwright/test';
 
 export default defineConfig({

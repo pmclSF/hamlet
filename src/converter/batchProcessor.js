@@ -1,6 +1,5 @@
-import fs from 'fs/promises';
 import path from 'path';
-import { fileUtils, logUtils } from '../utils/helpers.js';
+import { logUtils } from '../utils/helpers.js';
 
 const logger = logUtils.createLogger('BatchProcessor');
 

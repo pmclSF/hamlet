@@ -75,7 +75,7 @@ export class PlaywrightToSelenium extends BaseConverter {
     });
   }
 
-  async convert(content, options = {}) {
+  async convert(content, _options = {}) {
     let result = content;
 
     // Remove Playwright imports
@@ -215,7 +215,7 @@ export class PlaywrightToSelenium extends BaseConverter {
 
     result = result.replace(
       /await page\.getByText\(([^)]+)\)\.click\(\)/g,
-      "await driver.findElement(By.xpath(`//*[contains(text(),$1)]`)).click()"
+      'await driver.findElement(By.xpath(`//*[contains(text(),$1)]`)).click()'
     );
 
     // Convert navigation
@@ -353,18 +353,18 @@ afterAll(async () => {
 `;
   }
 
-  detectTestTypes(content) {
+  detectTestTypes(_content) {
     return ['e2e'];
   }
 
-  getImports(testTypes) {
+  getImports(_testTypes) {
     return [
-      "const { Builder, By, Key, until } = require('selenium-webdriver');",
-      "const { expect } = require('@jest/globals');"
+      'const { Builder, By, Key, until } = require(\'selenium-webdriver\');',
+      'const { expect } = require(\'@jest/globals\');'
     ];
   }
 
-  async convertConfig(configPath, options = {}) {
+  async convertConfig(configPath, _options = {}) {
     return `// Selenium WebDriver configuration
 // Converted from Playwright config
 

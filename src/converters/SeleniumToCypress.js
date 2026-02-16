@@ -18,8 +18,8 @@ export class SeleniumToCypress extends BaseConverter {
     this.engine.registerPatterns('navigation', {
       'await driver\\.get\\(([^)]+)\\)': 'cy.visit($1)',
       'await driver\\.navigate\\(\\)\\.to\\(([^)]+)\\)': 'cy.visit($1)',
-      'await driver\\.navigate\\(\\)\\.back\\(\\)': "cy.go('back')",
-      'await driver\\.navigate\\(\\)\\.forward\\(\\)': "cy.go('forward')",
+      'await driver\\.navigate\\(\\)\\.back\\(\\)': 'cy.go(\'back\')',
+      'await driver\\.navigate\\(\\)\\.forward\\(\\)': 'cy.go(\'forward\')',
       'await driver\\.navigate\\(\\)\\.refresh\\(\\)': 'cy.reload()',
       'await driver\\.getCurrentUrl\\(\\)': 'cy.url()',
       'await driver\\.getTitle\\(\\)': 'cy.title()'
@@ -72,15 +72,15 @@ export class SeleniumToCypress extends BaseConverter {
 
     // Remove Selenium imports and setup
     this.engine.registerPatterns('cleanup', {
-      "const\\s*\\{[^{}\n]*Builder[^{}\n]*\\}\\s*=\\s*require\\(['\"]selenium-webdriver['\"]\\);?": '',
-      "const\\s*\\{[^{}\n]*expect[^{}\n]*\\}\\s*=\\s*require\\(['\"]@jest/globals['\"]\\);?": '',
+      'const\\s*\\{[^{}\n]*Builder[^{}\n]*\\}\\s*=\\s*require\\([\'"]selenium-webdriver[\'"]\\);?': '',
+      'const\\s*\\{[^{}\n]*expect[^{}\n]*\\}\\s*=\\s*require\\([\'"]@jest/globals[\'"]\\);?': '',
       'let\\s+driver;?': '',
       'beforeAll\\s*\\([^)]*\\)\\s*\\{[^{}\n]*new\\s+Builder[^{}\n]*\\};?': '',
       'afterAll\\s*\\([^)]*\\)\\s*\\{[^{}\n]*driver\\.quit[^{}\n]*\\};?': ''
     });
   }
 
-  async convert(content, options = {}) {
+  async convert(content, _options = {}) {
     let result = content;
 
     // Remove Selenium imports and setup/teardown
@@ -143,58 +143,58 @@ export class SeleniumToCypress extends BaseConverter {
     // expect(await (await driver.findElement(By.css(selector))).isDisplayed()).toBe(true)
     result = result.replace(
       /expect\s*\(\s*await\s*\(\s*await\s+driver\.findElement\s*\(\s*By\.css\s*\(([^)]+)\)\s*\)\s*\)\.isDisplayed\s*\(\s*\)\s*\)\.toBe\s*\(\s*true\s*\)/g,
-      "cy.get($1).should('be.visible')"
+      'cy.get($1).should(\'be.visible\')'
     );
 
     result = result.replace(
       /expect\s*\(\s*await\s*\(\s*await\s+driver\.findElement\s*\(\s*By\.css\s*\(([^)]+)\)\s*\)\s*\)\.isDisplayed\s*\(\s*\)\s*\)\.toBe\s*\(\s*false\s*\)/g,
-      "cy.get($1).should('not.be.visible')"
+      'cy.get($1).should(\'not.be.visible\')'
     );
 
     result = result.replace(
       /expect\s*\(\s*await\s*\(\s*await\s+driver\.findElement\s*\(\s*By\.css\s*\(([^)]+)\)\s*\)\s*\)\.getText\s*\(\s*\)\s*\)\.toBe\s*\(([^)]+)\)/g,
-      "cy.get($1).should('have.text', $2)"
+      'cy.get($1).should(\'have.text\', $2)'
     );
 
     result = result.replace(
       /expect\s*\(\s*await\s*\(\s*await\s+driver\.findElement\s*\(\s*By\.css\s*\(([^)]+)\)\s*\)\s*\)\.getText\s*\(\s*\)\s*\)\.toContain\s*\(([^)]+)\)/g,
-      "cy.get($1).should('contain', $2)"
+      'cy.get($1).should(\'contain\', $2)'
     );
 
     result = result.replace(
       /expect\s*\(\s*await\s*\(\s*await\s+driver\.findElement\s*\(\s*By\.css\s*\(([^)]+)\)\s*\)\s*\)\.getAttribute\s*\(\s*["']value["']\s*\)\s*\)\.toBe\s*\(([^)]+)\)/g,
-      "cy.get($1).should('have.value', $2)"
+      'cy.get($1).should(\'have.value\', $2)'
     );
 
     result = result.replace(
       /expect\s*\(\s*await\s*\(\s*await\s+driver\.findElement\s*\(\s*By\.css\s*\(([^)]+)\)\s*\)\s*\)\.isSelected\s*\(\s*\)\s*\)\.toBe\s*\(\s*true\s*\)/g,
-      "cy.get($1).should('be.checked')"
+      'cy.get($1).should(\'be.checked\')'
     );
 
     result = result.replace(
       /expect\s*\(\s*await\s*\(\s*await\s+driver\.findElement\s*\(\s*By\.css\s*\(([^)]+)\)\s*\)\s*\)\.isEnabled\s*\(\s*\)\s*\)\.toBe\s*\(\s*false\s*\)/g,
-      "cy.get($1).should('be.disabled')"
+      'cy.get($1).should(\'be.disabled\')'
     );
 
     result = result.replace(
       /expect\s*\(\s*await\s*\(\s*await\s+driver\.findElement\s*\(\s*By\.css\s*\(([^)]+)\)\s*\)\s*\)\.isEnabled\s*\(\s*\)\s*\)\.toBe\s*\(\s*true\s*\)/g,
-      "cy.get($1).should('be.enabled')"
+      'cy.get($1).should(\'be.enabled\')'
     );
 
     // Convert findElements length 0 check to not.exist (must come before general length check)
     result = result.replace(
       /expect\s*\(\s*\(\s*await\s+driver\.findElements\s*\(\s*By\.css\s*\(([^)]+)\)\s*\)\s*\)\.length\s*\)\.toBe\s*\(0\)/g,
-      "cy.get($1).should('not.exist')"
+      'cy.get($1).should(\'not.exist\')'
     );
 
     result = result.replace(
       /expect\s*\(\s*\(\s*await\s+driver\.findElements\s*\(\s*By\.css\s*\(([^)]+)\)\s*\)\s*\)\.length\s*\)\.toBe\s*\((\d+)\)/g,
-      "cy.get($1).should('have.length', $2)"
+      'cy.get($1).should(\'have.length\', $2)'
     );
 
     result = result.replace(
       /expect\s*\(\s*\(\s*await\s+driver\.findElements\s*\(\s*By\.css\s*\(([^)]+)\)\s*\)\s*\)\.length\s*\)\.toBeGreaterThan\s*\(0\)/g,
-      "cy.get($1).should('exist')"
+      'cy.get($1).should(\'exist\')'
     );
 
     // Convert interactions
@@ -220,24 +220,24 @@ export class SeleniumToCypress extends BaseConverter {
     );
 
     result = result.replace(/await\s+driver\.navigate\s*\(\s*\)\.refresh\s*\(\s*\)/g, 'cy.reload()');
-    result = result.replace(/await\s+driver\.navigate\s*\(\s*\)\.back\s*\(\s*\)/g, "cy.go('back')");
-    result = result.replace(/await\s+driver\.navigate\s*\(\s*\)\.forward\s*\(\s*\)/g, "cy.go('forward')");
+    result = result.replace(/await\s+driver\.navigate\s*\(\s*\)\.back\s*\(\s*\)/g, 'cy.go(\'back\')');
+    result = result.replace(/await\s+driver\.navigate\s*\(\s*\)\.forward\s*\(\s*\)/g, 'cy.go(\'forward\')');
 
     // Convert URL assertions
     result = result.replace(
       /expect\s*\(\s*await\s+driver\.getCurrentUrl\s*\(\s*\)\s*\)\.toContain\s*\(([^)]+)\)/g,
-      "cy.url().should('include', $1)"
+      'cy.url().should(\'include\', $1)'
     );
 
     result = result.replace(
       /expect\s*\(\s*await\s+driver\.getCurrentUrl\s*\(\s*\)\s*\)\.toBe\s*\(([^)]+)\)/g,
-      "cy.url().should('eq', $1)"
+      'cy.url().should(\'eq\', $1)'
     );
 
     // Convert title assertions
     result = result.replace(
       /expect\s*\(\s*await\s+driver\.getTitle\s*\(\s*\)\s*\)\.toBe\s*\(([^)]+)\)/g,
-      "cy.title().should('eq', $1)"
+      'cy.title().should(\'eq\', $1)'
     );
 
     // Convert waits
@@ -302,11 +302,11 @@ export class SeleniumToCypress extends BaseConverter {
     return content;
   }
 
-  detectTestTypes(content) {
+  detectTestTypes(_content) {
     return ['e2e'];
   }
 
-  getImports(testTypes) {
+  getImports(_testTypes) {
     return [];
   }
 
@@ -316,7 +316,7 @@ export class SeleniumToCypress extends BaseConverter {
 `;
   }
 
-  async convertConfig(configPath, options = {}) {
+  async convertConfig(configPath, _options = {}) {
     return `const { defineConfig } = require('cypress');
 
 module.exports = defineConfig({
