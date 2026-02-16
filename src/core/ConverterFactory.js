@@ -8,7 +8,27 @@ export const FRAMEWORKS = {
   JEST: 'jest',
   VITEST: 'vitest',
   MOCHA: 'mocha',
-  JASMINE: 'jasmine'
+  JASMINE: 'jasmine',
+  JUNIT4: 'junit4',
+  JUNIT5: 'junit5',
+  TESTNG: 'testng',
+};
+
+/**
+ * Maps each framework to its language directory.
+ * Used by _loadFrameworkDefinitions to resolve import paths.
+ */
+const FRAMEWORK_LANGUAGE = {
+  cypress: 'javascript',
+  playwright: 'javascript',
+  selenium: 'javascript',
+  jest: 'javascript',
+  vitest: 'javascript',
+  mocha: 'javascript',
+  jasmine: 'javascript',
+  junit4: 'java',
+  junit5: 'java',
+  testng: 'java',
 };
 
 /**
@@ -22,6 +42,9 @@ const PIPELINE_DIRECTIONS = new Set([
   'jasmine-jest',
   'jest-mocha',
   'jest-jasmine',
+  'junit4-junit5',
+  'junit5-testng',
+  'testng-junit5',
 ]);
 
 /**
@@ -140,7 +163,8 @@ export class ConverterFactory {
     const definitions = [];
 
     for (const name of names) {
-      const mod = await import(`../languages/javascript/frameworks/${name}.js`);
+      const language = FRAMEWORK_LANGUAGE[name] || 'javascript';
+      const mod = await import(`../languages/${language}/frameworks/${name}.js`);
       definitions.push(mod.default);
     }
 
@@ -185,6 +209,9 @@ export class ConverterFactory {
       'jasmine-jest',
       'jest-mocha',
       'jest-jasmine',
+      'junit4-junit5',
+      'junit5-testng',
+      'testng-junit5',
     ];
   }
 
