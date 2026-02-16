@@ -48,6 +48,14 @@ function detect(source) {
   if (/\bjest\.fn\b/.test(source)) score -= 30;
   if (/\bjest\.mock\b/.test(source)) score -= 30;
 
+  // Negative: Mocha/Chai/Sinon
+  if (/from\s+['"]chai['"]/.test(source)) score -= 20;
+  if (/require\s*\(\s*['"]chai['"]\s*\)/.test(source)) score -= 20;
+  if (/require\s*\(\s*['"]sinon['"]\s*\)/.test(source)) score -= 20;
+
+  // Negative: Jasmine-specific
+  if (/jasmine\.createSpy/.test(source)) score -= 20;
+
   return Math.max(0, Math.min(100, score));
 }
 
