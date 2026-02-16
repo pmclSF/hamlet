@@ -165,7 +165,7 @@ export class PatternEngine {
     // Sort by priority
     transformersToApply.sort((a, b) => (b[1]?.priority || 0) - (a[1]?.priority || 0));
 
-    for (const [name, transformer] of transformersToApply) {
+    for (const [_name, transformer] of transformersToApply) {
       if (transformer) {
         result = transformer.fn(result);
         this.stats.transformersApplied++;

@@ -25,7 +25,7 @@ export class BaseConverter {
    * @param {Object} options - Conversion options
    * @returns {Promise<string>} - Converted test content
    */
-  async convert(content, options = {}) {
+  async convert(content, _options = {}) {
     throw new Error('convert() must be implemented by subclass');
   }
 
@@ -35,7 +35,7 @@ export class BaseConverter {
    * @param {Object} options - Conversion options
    * @returns {Promise<string>} - Converted config content
    */
-  async convertConfig(configPath, options = {}) {
+  async convertConfig(configPath, _options = {}) {
     throw new Error('convertConfig() must be implemented by subclass');
   }
 
@@ -44,7 +44,7 @@ export class BaseConverter {
    * @param {string[]} testTypes - Detected test types (e2e, api, component, etc.)
    * @returns {string[]} - Array of import statements
    */
-  getImports(testTypes = []) {
+  getImports(_testTypes = []) {
     throw new Error('getImports() must be implemented by subclass');
   }
 
@@ -53,7 +53,7 @@ export class BaseConverter {
    * @param {string} content - Test content
    * @returns {string[]} - Array of detected test types
    */
-  detectTestTypes(content) {
+  detectTestTypes(_content) {
     throw new Error('detectTestTypes() must be implemented by subclass');
   }
 

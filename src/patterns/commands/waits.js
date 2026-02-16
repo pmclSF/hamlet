@@ -10,10 +10,10 @@ export const waitPatterns = {
       'cy\\.wait\\((\\d+)\\)': 'WAIT($1)',
 
       // Alias waits
-      'cy\\.wait\\([\'"]@([^\'\"]+)[\'"]\\)': 'WAIT_FOR_ALIAS($1)',
+      'cy\\.wait\\([\'"]@([^\'"]+)[\'"]\\)': 'WAIT_FOR_ALIAS($1)',
 
       // Network waits
-      'cy\\.intercept\\(([^)]+)\\)\\.as\\([\'"]([^\'\"]+)[\'"]\\)': 'INTERCEPT_AS($1, $2)',
+      'cy\\.intercept\\(([^)]+)\\)\\.as\\([\'"]([^\'"]+)[\'"]\\)': 'INTERCEPT_AS($1, $2)',
 
       // Element waits (implicit in Cypress via retry-ability)
       'cy\\.get\\(([^)]+),\\s*\\{\\s*timeout:\\s*(\\d+)\\s*\\}\\)': 'WAIT_FOR_ELEMENT($1, $2)'
@@ -29,8 +29,8 @@ export const waitPatterns = {
       'WAIT_FOR_ENABLED': (sel, timeout) => `cy.get(${sel}, { timeout: ${timeout} }).should('be.enabled')`,
       'WAIT_FOR_TEXT': (sel, text, timeout) => `cy.get(${sel}, { timeout: ${timeout} }).should('contain', ${text})`,
       'WAIT_FOR_URL': (url) => `cy.url().should('include', ${url})`,
-      'WAIT_FOR_NAVIGATION': () => `cy.location('pathname')`,
-      'WAIT_FOR_NETWORK_IDLE': () => `cy.wait(1000)` // Cypress doesn't have built-in network idle
+      'WAIT_FOR_NAVIGATION': () => 'cy.location(\'pathname\')',
+      'WAIT_FOR_NETWORK_IDLE': () => 'cy.wait(1000)' // Cypress doesn't have built-in network idle
     }
   },
 
@@ -62,20 +62,20 @@ export const waitPatterns = {
 
     generators: {
       'WAIT': (ms) => `await page.waitForTimeout(${ms})`,
-      'WAIT_FOR_ALIAS': (alias) => `await page.waitForResponse(response => response.url().includes('${alias}'))`,
-      'INTERCEPT_AS': (route, alias) => `await page.route(${route}, route => { route.continue(); })`,
+      'WAIT_FOR_ALIAS': (_alias) => `await page.waitForResponse(response => response.url().includes('${_alias}'))`,
+      'INTERCEPT_AS': (route, _alias) => `await page.route(${route}, route => { route.continue(); })`,
       'WAIT_FOR_ELEMENT': (sel, timeout) => timeout ? `await page.waitForSelector(${sel}, { timeout: ${timeout} })` : `await page.waitForSelector(${sel})`,
       'WAIT_FOR_VISIBLE': (sel, timeout) => timeout ? `await page.waitForSelector(${sel}, { state: 'visible', timeout: ${timeout} })` : `await page.waitForSelector(${sel}, { state: 'visible' })`,
       'WAIT_FOR_HIDDEN': (sel, timeout) => timeout ? `await page.waitForSelector(${sel}, { state: 'hidden', timeout: ${timeout} })` : `await page.waitForSelector(${sel}, { state: 'hidden' })`,
       'WAIT_FOR_ATTACHED': (sel) => `await page.waitForSelector(${sel}, { state: 'attached' })`,
       'WAIT_FOR_DETACHED': (sel) => `await page.waitForSelector(${sel}, { state: 'detached' })`,
-      'WAIT_FOR_ENABLED': (sel, timeout) => `await page.locator(${sel}).waitFor({ state: 'visible' }); await expect(page.locator(${sel})).toBeEnabled()`,
+      'WAIT_FOR_ENABLED': (sel, _timeout) => `await page.locator(${sel}).waitFor({ state: 'visible' }); await expect(page.locator(${sel})).toBeEnabled()`,
       'WAIT_FOR_TEXT': (sel, text, timeout) => `await expect(page.locator(${sel})).toContainText(${text}, { timeout: ${timeout || 30000} })`,
       'WAIT_FOR_URL': (url) => `await page.waitForURL(${url})`,
-      'WAIT_FOR_NAVIGATION': () => `await page.waitForNavigation()`,
-      'WAIT_FOR_NETWORK_IDLE': () => `await page.waitForLoadState('networkidle')`,
-      'WAIT_FOR_DOM_LOADED': () => `await page.waitForLoadState('domcontentloaded')`,
-      'WAIT_FOR_LOAD': () => `await page.waitForLoadState('load')`,
+      'WAIT_FOR_NAVIGATION': () => 'await page.waitForNavigation()',
+      'WAIT_FOR_NETWORK_IDLE': () => 'await page.waitForLoadState(\'networkidle\')',
+      'WAIT_FOR_DOM_LOADED': () => 'await page.waitForLoadState(\'domcontentloaded\')',
+      'WAIT_FOR_LOAD': () => 'await page.waitForLoadState(\'load\')',
       'WAIT_FOR_RESPONSE': (url) => `await page.waitForResponse(${url})`,
       'WAIT_FOR_REQUEST': (url) => `await page.waitForRequest(${url})`,
       'WAIT_FOR_FUNCTION': (fn) => `await page.waitForFunction(${fn})`
@@ -101,8 +101,8 @@ export const waitPatterns = {
 
     generators: {
       'WAIT': (ms) => `await driver.sleep(${ms})`,
-      'WAIT_FOR_ALIAS': (alias) => `// Selenium doesn't have alias waits - use explicit wait`,
-      'INTERCEPT_AS': () => `// Selenium doesn't have built-in network interception`,
+      'WAIT_FOR_ALIAS': (_alias) => '// Selenium doesn\'t have alias waits - use explicit wait',
+      'INTERCEPT_AS': () => '// Selenium doesn\'t have built-in network interception',
       'WAIT_FOR_ELEMENT': (sel, timeout) => `await driver.wait(until.elementLocated(${sel}), ${timeout || 10000})`,
       'WAIT_FOR_VISIBLE': (el, timeout) => `await driver.wait(until.elementIsVisible(${el}), ${timeout || 10000})`,
       'WAIT_FOR_HIDDEN': (el, timeout) => `await driver.wait(until.elementIsNotVisible(${el}), ${timeout || 10000})`,
@@ -111,16 +111,16 @@ export const waitPatterns = {
       'WAIT_FOR_ENABLED': (el, timeout) => `await driver.wait(until.elementIsEnabled(${el}), ${timeout || 10000})`,
       'WAIT_FOR_TEXT': (el, text, timeout) => `await driver.wait(until.elementTextContains(${el}, ${text}), ${timeout || 10000})`,
       'WAIT_FOR_URL': (url) => `await driver.wait(until.urlContains(${url}), 10000)`,
-      'WAIT_FOR_NAVIGATION': () => `await driver.wait(until.urlContains('/'), 10000)`,
-      'WAIT_FOR_NETWORK_IDLE': () => `await driver.sleep(1000)`, // Selenium doesn't have network idle
-      'WAIT_FOR_DOM_LOADED': () => `await driver.wait(async () => await driver.executeScript('return document.readyState') === 'complete', 10000)`,
-      'WAIT_FOR_LOAD': () => `await driver.wait(async () => await driver.executeScript('return document.readyState') === 'complete', 10000)`,
-      'WAIT_FOR_RESPONSE': () => `// Use explicit waits in Selenium`,
-      'WAIT_FOR_REQUEST': () => `// Use explicit waits in Selenium`,
+      'WAIT_FOR_NAVIGATION': () => 'await driver.wait(until.urlContains(\'/\'), 10000)',
+      'WAIT_FOR_NETWORK_IDLE': () => 'await driver.sleep(1000)', // Selenium doesn't have network idle
+      'WAIT_FOR_DOM_LOADED': () => 'await driver.wait(async () => await driver.executeScript(\'return document.readyState\') === \'complete\', 10000)',
+      'WAIT_FOR_LOAD': () => 'await driver.wait(async () => await driver.executeScript(\'return document.readyState\') === \'complete\', 10000)',
+      'WAIT_FOR_RESPONSE': () => '// Use explicit waits in Selenium',
+      'WAIT_FOR_REQUEST': () => '// Use explicit waits in Selenium',
       'WAIT_FOR_FUNCTION': (fn) => `await driver.wait(async () => await driver.executeScript(${fn}), 10000)`,
       'WAIT_FOR_TITLE': (title) => `await driver.wait(until.titleContains(${title}), 10000)`,
       'WAIT_FOR_STALE': (el) => `await driver.wait(until.stalenessOf(${el}), 10000)`,
-      'WAIT_FOR_ALERT': () => `await driver.wait(until.alertIsPresent(), 10000)`
+      'WAIT_FOR_ALERT': () => 'await driver.wait(until.alertIsPresent(), 10000)'
     }
   }
 };
@@ -131,13 +131,13 @@ export const waitPatterns = {
 export const directMappings = {
   'cypress-playwright': {
     'cy\\.wait\\((\\d+)\\)': 'await page.waitForTimeout($1)',
-    'cy\\.wait\\([\'"]@([^\'\"]+)[\'"]\\)': 'await page.waitForResponse(response => response.url().includes("$1"))',
-    'cy\\.intercept\\(([^)]+)\\)\\.as\\([\'"]([^\'\"]+)[\'"]\\)': 'await page.route($1, route => route.continue())'
+    'cy\\.wait\\([\'"]@([^\'"]+)[\'"]\\)': 'await page.waitForResponse(response => response.url().includes("$1"))',
+    'cy\\.intercept\\(([^)]+)\\)\\.as\\([\'"]([^\'"]+)[\'"]\\)': 'await page.route($1, route => route.continue())'
   },
 
   'cypress-selenium': {
     'cy\\.wait\\((\\d+)\\)': 'await driver.sleep($1)',
-    'cy\\.wait\\([\'"]@([^\'\"]+)[\'"]\\)': '// Selenium: use explicit wait for network response'
+    'cy\\.wait\\([\'"]@([^\'"]+)[\'"]\\)': '// Selenium: use explicit wait for network response'
   },
 
   'playwright-cypress': {

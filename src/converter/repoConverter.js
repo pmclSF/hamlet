@@ -2,7 +2,6 @@ import fs from 'fs/promises';
 import path from 'path';
 import { exec } from 'child_process';
 import { promisify } from 'util';
-import chalk from 'chalk';
 import glob from 'fast-glob';
 import { convertFile, convertConfig as convertCypressConfig } from '../index.js';
 import { fileUtils, logUtils } from '../utils/helpers.js';

@@ -1,5 +1,4 @@
 import fs from 'fs/promises';
-import path from 'path';
 import { logUtils } from '../utils/helpers.js';
 
 const logger = logUtils.createLogger('DependencyAnalyzer');

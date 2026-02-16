@@ -133,7 +133,7 @@ export class CypressToPlaywright extends BaseConverter {
    * @param {Object} options - Conversion options
    * @returns {Promise<string>} - Playwright test content
    */
-  async convert(content, options = {}) {
+  async convert(content, _options = {}) {
     let result = content;
 
     // Detect test types
@@ -557,19 +557,19 @@ export class CypressToPlaywright extends BaseConverter {
    */
   getImports(testTypes) {
     const imports = new Set([
-      "import { test, expect } from '@playwright/test';"
+      'import { test, expect } from \'@playwright/test\';'
     ]);
 
     if (testTypes.includes('api')) {
-      imports.add("import { request } from '@playwright/test';");
+      imports.add('import { request } from \'@playwright/test\';');
     }
 
     if (testTypes.includes('component')) {
-      imports.add("import { mount } from '@playwright/experimental-ct-react';");
+      imports.add('import { mount } from \'@playwright/experimental-ct-react\';');
     }
 
     if (testTypes.includes('accessibility')) {
-      imports.add("import { injectAxe, checkA11y } from 'axe-playwright';");
+      imports.add('import { injectAxe, checkA11y } from \'axe-playwright\';');
     }
 
     return Array.from(imports);
@@ -581,7 +581,7 @@ export class CypressToPlaywright extends BaseConverter {
    * @param {Object} options - Conversion options
    * @returns {Promise<string>} - Playwright config content
    */
-  async convertConfig(configPath, options = {}) {
+  async convertConfig(configPath, _options = {}) {
     const fs = await import('fs/promises');
     const content = await fs.readFile(configPath, 'utf8');
 

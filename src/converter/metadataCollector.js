@@ -1,5 +1,4 @@
 import fs from 'fs/promises';
-import path from 'path';
 import { logUtils } from '../utils/helpers.js';
 
 const logger = logUtils.createLogger('MetadataCollector');
@@ -233,7 +232,7 @@ export class TestMetadataCollector {
     let match;
     while ((match = interactionRegex.exec(content)) !== null) {
       interactions.push({
-        type: match[0].replace(/cy\.|[\(\)]/g, ''),
+        type: match[0].replace(/cy\.|[()]/g, ''),
         location: match.index
       });
     }
