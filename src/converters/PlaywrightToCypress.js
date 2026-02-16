@@ -429,13 +429,26 @@ export class PlaywrightToCypress extends BaseConverter {
     const fs = await import('fs/promises');
     const content = await fs.readFile(configPath, 'utf8');
 
-    // Extract config from Playwright config
-    let pwConfig = {};
+    // Extract config from Playwright config using regex (no eval)
+    let pwConfig = { use: {} };
     try {
-      const match = content.match(/defineConfig\s*\(\s*({[\s\S]*})\s*\)/);
-      if (match) {
-        pwConfig = eval(`(${match[1]})`);
+      const baseURLMatch = content.match(/baseURL\s*:\s*['"]([^'"]+)['"]/);
+      if (baseURLMatch) pwConfig.use.baseURL = baseURLMatch[1];
+
+      const widthMatch = content.match(/width\s*:\s*(\d+)/);
+      const heightMatch = content.match(/height\s*:\s*(\d+)/);
+      if (widthMatch && heightMatch) {
+        pwConfig.use.viewport = { width: parseInt(widthMatch[1]), height: parseInt(heightMatch[1]) };
       }
+
+      const videoMatch = content.match(/video\s*:\s*['"]([^'"]+)['"]/);
+      if (videoMatch) pwConfig.use.video = videoMatch[1];
+
+      const screenshotMatch = content.match(/screenshot\s*:\s*['"]([^'"]+)['"]/);
+      if (screenshotMatch) pwConfig.use.screenshot = screenshotMatch[1];
+
+      const timeoutMatch = content.match(/timeout\s*:\s*(\d+)/);
+      if (timeoutMatch) pwConfig.timeout = parseInt(timeoutMatch[1]);
     } catch (e) {
       // Use defaults
     }

@@ -1,11 +1,11 @@
 import fs from 'fs/promises';
 import path from 'path';
 import chalk from 'chalk';
-import { TestValidator } from './validator';
-import { PluginConverter } from './plugins';
-import { VisualComparison } from './visual';
-import { TypeScriptConverter } from './typescript';
-import { TestMapper } from './mapper';
+import { TestValidator } from './validator.js';
+import { PluginConverter } from './plugins.js';
+import { VisualComparison } from './visual.js';
+import { TypeScriptConverter } from './typescript.js';
+import { TestMapper } from './mapper.js';
 
 /**
  * Orchestrates the entire Cypress to Playwright conversion process
