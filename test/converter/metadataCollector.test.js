@@ -203,4 +203,142 @@ describe('TestMetadataCollector', () => {
       expect(collector.average([])).toBe(0);
     });
   });
+
+  describe('extractCoverage', () => {
+    it('should extract all coverage information', () => {
+      const content = `
+        cy.get('.btn-primary');
+        cy.visit('/home');
+        cy.click();
+        expect(x).should('exist');
+      `;
+      const coverage = collector.extractCoverage(content);
+      expect(coverage.selectors).toBeDefined();
+      expect(coverage.routes).toBeDefined();
+      expect(coverage.assertions).toBeDefined();
+      expect(coverage.interactions).toBeDefined();
+    });
+
+    it('should return empty arrays for content without coverage items', () => {
+      const coverage = collector.extractCoverage('const x = 1;');
+      expect(coverage.selectors).toEqual([]);
+      expect(coverage.routes).toEqual([]);
+      expect(coverage.assertions).toEqual([]);
+      expect(coverage.interactions).toEqual([]);
+    });
+  });
+
+  describe('extractAssertions', () => {
+    it('should extract assertion types and values', () => {
+      const content = `should('exist'); should('be.visible'); should('have.text', 'hello');`;
+      const assertions = collector.extractAssertions(content);
+      expect(assertions.length).toBeGreaterThan(0);
+      expect(assertions[0].type).toBeDefined();
+      expect(assertions[0].value).toBeDefined();
+    });
+
+    it('should return empty array for no assertions', () => {
+      expect(collector.extractAssertions('const x = 1;')).toEqual([]);
+    });
+  });
+
+  describe('extractInteractions', () => {
+    it('should extract click interactions', () => {
+      const content = 'cy.click(); cy.type("hello");';
+      const interactions = collector.extractInteractions(content);
+      expect(interactions.length).toBeGreaterThan(0);
+    });
+
+    it('should extract multiple interaction types', () => {
+      const content = 'cy.click(); cy.type("hello"); cy.select("option"); cy.check(); cy.hover();';
+      const interactions = collector.extractInteractions(content);
+      expect(interactions.length).toBe(5);
+    });
+
+    it('should return empty array for no interactions', () => {
+      expect(collector.extractInteractions('const x = 1;')).toEqual([]);
+    });
+  });
+
+  describe('getAllTags', () => {
+    it('should return empty array when no tags collected', () => {
+      expect(collector.getAllTags()).toEqual([]);
+    });
+  });
+
+  describe('summarizeTypes', () => {
+    it('should count tests by type', () => {
+      const tests = [
+        { type: 'e2e' },
+        { type: 'e2e' },
+        { type: 'api' },
+        { type: 'component' }
+      ];
+      const summary = collector.summarizeTypes(tests);
+      expect(summary.e2e).toBe(2);
+      expect(summary.api).toBe(1);
+      expect(summary.component).toBe(1);
+    });
+
+    it('should return empty object for no tests', () => {
+      expect(collector.summarizeTypes([])).toEqual({});
+    });
+  });
+
+  describe('summarizeTags', () => {
+    it('should count tags across tests', () => {
+      const tests = [
+        { tags: ['smoke', 'regression'] },
+        { tags: ['smoke', 'e2e'] },
+        { tags: ['regression'] }
+      ];
+      const summary = collector.summarizeTags(tests);
+      expect(summary.smoke).toBe(2);
+      expect(summary.regression).toBe(2);
+      expect(summary.e2e).toBe(1);
+    });
+
+    it('should return empty object for no tests', () => {
+      expect(collector.summarizeTags([])).toEqual({});
+    });
+  });
+
+  describe('summarizeComplexity', () => {
+    it('should calculate average complexity metrics', () => {
+      const tests = [
+        { complexity: { assertions: 2, commands: 4, conditionals: 0, hooks: 1 } },
+        { complexity: { assertions: 4, commands: 6, conditionals: 2, hooks: 3 } }
+      ];
+      const summary = collector.summarizeComplexity(tests);
+      expect(summary.averageAssertions).toBe(3);
+      expect(summary.averageCommands).toBe(5);
+      expect(summary.averageConditionals).toBe(1);
+      expect(summary.averageHooks).toBe(2);
+    });
+
+    it('should handle empty tests array', () => {
+      const summary = collector.summarizeComplexity([]);
+      expect(summary.averageAssertions).toBe(0);
+      expect(summary.averageCommands).toBe(0);
+    });
+  });
+
+  describe('generateReport', () => {
+    it('should generate report with tests from metadata', () => {
+      collector.metadata.set('/test.js', {
+        path: '/test.js',
+        type: 'e2e',
+        tags: ['smoke'],
+        suites: [{ name: 'Suite' }],
+        cases: [{ name: 'Test' }],
+        complexity: { assertions: 2, commands: 3, conditionals: 0, hooks: 1 }
+      });
+
+      const report = collector.generateReport();
+      expect(report.summary.totalTests).toBe(1);
+      expect(report.summary.types.e2e).toBe(1);
+      expect(report.tests).toHaveLength(1);
+      expect(report.tests[0].path).toBe('/test.js');
+    });
+  });
 });
