@@ -6,7 +6,9 @@ export const FRAMEWORKS = {
   PLAYWRIGHT: 'playwright',
   SELENIUM: 'selenium',
   JEST: 'jest',
-  VITEST: 'vitest'
+  VITEST: 'vitest',
+  MOCHA: 'mocha',
+  JASMINE: 'jasmine'
 };
 
 /**
@@ -16,6 +18,10 @@ export const FRAMEWORKS = {
 const PIPELINE_DIRECTIONS = new Set([
   'cypress-playwright',
   'jest-vitest',
+  'mocha-jest',
+  'jasmine-jest',
+  'jest-mocha',
+  'jest-jasmine',
 ]);
 
 /**
@@ -175,6 +181,10 @@ export class ConverterFactory {
       'selenium-cypress',
       'selenium-playwright',
       'jest-vitest',
+      'mocha-jest',
+      'jasmine-jest',
+      'jest-mocha',
+      'jest-jasmine',
     ];
   }
 

@@ -14,12 +14,14 @@ describe('ConverterFactory', () => {
   });
 
   describe('FRAMEWORKS constant', () => {
-    it('should export all five frameworks', () => {
+    it('should export all seven frameworks', () => {
       expect(FRAMEWORKS.CYPRESS).toBe('cypress');
       expect(FRAMEWORKS.PLAYWRIGHT).toBe('playwright');
       expect(FRAMEWORKS.SELENIUM).toBe('selenium');
       expect(FRAMEWORKS.JEST).toBe('jest');
       expect(FRAMEWORKS.VITEST).toBe('vitest');
+      expect(FRAMEWORKS.MOCHA).toBe('mocha');
+      expect(FRAMEWORKS.JASMINE).toBe('jasmine');
     });
   });
 
@@ -49,6 +51,52 @@ describe('ConverterFactory', () => {
         const converter = await ConverterFactory.createConverter('jest', 'vitest');
         const result = await converter.convert(`jest.fn();`);
         expect(result).toContain('vi.fn()');
+      });
+
+      it('should create PipelineConverter for mocha→jest', async () => {
+        const converter = await ConverterFactory.createConverter('mocha', 'jest');
+        expect(converter).toBeInstanceOf(PipelineConverter);
+        expect(converter.sourceFramework).toBe('mocha');
+        expect(converter.targetFramework).toBe('jest');
+      });
+
+      it('should create PipelineConverter for jasmine→jest', async () => {
+        const converter = await ConverterFactory.createConverter('jasmine', 'jest');
+        expect(converter).toBeInstanceOf(PipelineConverter);
+        expect(converter.sourceFramework).toBe('jasmine');
+        expect(converter.targetFramework).toBe('jest');
+      });
+
+      it('should create PipelineConverter for jest→mocha', async () => {
+        const converter = await ConverterFactory.createConverter('jest', 'mocha');
+        expect(converter).toBeInstanceOf(PipelineConverter);
+        expect(converter.sourceFramework).toBe('jest');
+        expect(converter.targetFramework).toBe('mocha');
+      });
+
+      it('should create PipelineConverter for jest→jasmine', async () => {
+        const converter = await ConverterFactory.createConverter('jest', 'jasmine');
+        expect(converter).toBeInstanceOf(PipelineConverter);
+        expect(converter.sourceFramework).toBe('jest');
+        expect(converter.targetFramework).toBe('jasmine');
+      });
+
+      it('should convert Mocha+Chai to Jest through pipeline', async () => {
+        const converter = await ConverterFactory.createConverter('mocha', 'jest');
+        const result = await converter.convert(
+          "const { expect } = require('chai');\ndescribe('test', () => {\n  it('works', () => {\n    expect(1).to.equal(1);\n  });\n});"
+        );
+        expect(result).toContain('expect(1).toBe(1)');
+        expect(result).not.toContain("require('chai')");
+      });
+
+      it('should convert Jasmine to Jest through pipeline', async () => {
+        const converter = await ConverterFactory.createConverter('jasmine', 'jest');
+        const result = await converter.convert(
+          "describe('test', () => {\n  it('works', () => {\n    const spy = jasmine.createSpy();\n    spy();\n    expect(spy).toHaveBeenCalled();\n  });\n});"
+        );
+        expect(result).toContain('jest.fn()');
+        expect(result).not.toContain('jasmine.createSpy');
       });
     });
 
@@ -118,9 +166,9 @@ describe('ConverterFactory', () => {
   });
 
   describe('getSupportedConversions', () => {
-    it('should return all 7 conversion directions', () => {
+    it('should return all 11 conversion directions', () => {
       const conversions = ConverterFactory.getSupportedConversions();
-      expect(conversions).toHaveLength(7);
+      expect(conversions).toHaveLength(11);
       expect(conversions).toContain('cypress-playwright');
       expect(conversions).toContain('playwright-cypress');
       expect(conversions).toContain('cypress-selenium');
@@ -128,6 +176,10 @@ describe('ConverterFactory', () => {
       expect(conversions).toContain('playwright-selenium');
       expect(conversions).toContain('selenium-playwright');
       expect(conversions).toContain('jest-vitest');
+      expect(conversions).toContain('mocha-jest');
+      expect(conversions).toContain('jasmine-jest');
+      expect(conversions).toContain('jest-mocha');
+      expect(conversions).toContain('jest-jasmine');
     });
   });
 
@@ -140,6 +192,10 @@ describe('ConverterFactory', () => {
       expect(ConverterFactory.isSupported('playwright', 'selenium')).toBe(true);
       expect(ConverterFactory.isSupported('selenium', 'playwright')).toBe(true);
       expect(ConverterFactory.isSupported('jest', 'vitest')).toBe(true);
+      expect(ConverterFactory.isSupported('mocha', 'jest')).toBe(true);
+      expect(ConverterFactory.isSupported('jasmine', 'jest')).toBe(true);
+      expect(ConverterFactory.isSupported('jest', 'mocha')).toBe(true);
+      expect(ConverterFactory.isSupported('jest', 'jasmine')).toBe(true);
     });
 
     it('should return false for invalid conversions', () => {
