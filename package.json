@@ -91,5 +91,8 @@
   },
   "engines": {
     "node": ">=16.0.0"
+  },
+  "overrides": {
+    "signal-exit": "3.0.7"
   }
 }
