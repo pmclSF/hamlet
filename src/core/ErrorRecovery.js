@@ -6,11 +6,11 @@
  * Produces HAMLET-WARNING comments for recovered sections.
  */
 
-import { TodoFormatter } from './TodoFormatter.js';
+import { TodoFormatter } from "./TodoFormatter.js";
 
 export class ErrorRecovery {
   constructor() {
-    this.formatter = new TodoFormatter('javascript');
+    this.formatter = new TodoFormatter("javascript");
   }
 
   /**
@@ -25,10 +25,10 @@ export class ErrorRecovery {
       try {
         const result = fn(...args);
         // Handle async functions
-        if (result && typeof result.then === 'function') {
+        if (result && typeof result.then === "function") {
           return result
-            .then(r => ({ result: r, error: null }))
-            .catch(err => ({ result: fallbackValue, error: err }));
+            .then((r) => ({ result: r, error: null }))
+            .catch((err) => ({ result: fallbackValue, error: err }));
         }
         return { result, error: null };
       } catch (err) {
@@ -48,7 +48,7 @@ export class ErrorRecovery {
    * @returns {{recovered: string, warnings: string[]}}
    */
   recoverFromParseError(content, error, lineProcessor) {
-    const lines = content.split('\n');
+    const lines = content.split("\n");
     const recoveredLines = [];
     const warnings = [];
 
@@ -86,7 +86,7 @@ export class ErrorRecovery {
     }
 
     return {
-      recovered: recoveredLines.join('\n'),
+      recovered: recoveredLines.join("\n"),
       warnings,
     };
   }

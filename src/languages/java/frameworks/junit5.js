@@ -17,10 +17,10 @@ import {
   RawCode,
   Comment,
   Modifier,
-} from '../../../core/ir.js';
-import { TodoFormatter } from '../../../core/TodoFormatter.js';
+} from "../../../core/ir.js";
+import { TodoFormatter } from "../../../core/TodoFormatter.js";
 
-const formatter = new TodoFormatter('java');
+const formatter = new TodoFormatter("java");
 
 /**
  * Detect whether source code is JUnit 5.
@@ -51,7 +51,11 @@ function detect(source) {
   if (/@Test\b/.test(source)) score += 5;
 
   // Negative signals: NOT JUnit 5
-  if (/import\s+org\.junit\.Test\b/.test(source) && !/import\s+org\.junit\.jupiter/.test(source)) score -= 30;
+  if (
+    /import\s+org\.junit\.Test\b/.test(source) &&
+    !/import\s+org\.junit\.jupiter/.test(source)
+  )
+    score -= 30;
   if (/import\s+org\.testng/.test(source)) score -= 40;
   if (/@RunWith\b/.test(source)) score -= 20;
   if (/@Rule\b/.test(source)) score -= 20;
@@ -63,7 +67,7 @@ function detect(source) {
  * Parse JUnit 5 source code into an IR tree.
  */
 function parse(source) {
-  const lines = source.split('\n');
+  const lines = source.split("\n");
   const imports = [];
   const allNodes = [];
 
@@ -75,130 +79,195 @@ function parse(source) {
     if (!trimmed) continue;
 
     // Comments
-    if (trimmed.startsWith('//') || trimmed.startsWith('/*') || trimmed.startsWith('*')) {
-      const isLicense = /license|copyright|MIT|Apache|BSD/i.test(trimmed) && i < 5;
-      allNodes.push(new Comment({
-        text: line,
-        commentKind: isLicense ? 'license' : 'inline',
-        preserveExact: isLicense,
-        sourceLocation: loc,
-        originalSource: line,
-      }));
+    if (
+      trimmed.startsWith("//") ||
+      trimmed.startsWith("/*") ||
+      trimmed.startsWith("*")
+    ) {
+      const isLicense =
+        /license|copyright|MIT|Apache|BSD/i.test(trimmed) && i < 5;
+      allNodes.push(
+        new Comment({
+          text: line,
+          commentKind: isLicense ? "license" : "inline",
+          preserveExact: isLicense,
+          sourceLocation: loc,
+          originalSource: line,
+        }),
+      );
       continue;
     }
 
     // Import statements
     if (/^import\s/.test(trimmed)) {
       const sourceMatch = trimmed.match(/import\s+(?:static\s+)?([^\s;]+)/);
-      allNodes.push(new ImportStatement({
-        kind: 'library',
-        source: sourceMatch ? sourceMatch[1] : '',
-        sourceLocation: loc,
-        originalSource: line,
-        confidence: 'converted',
-      }));
+      allNodes.push(
+        new ImportStatement({
+          kind: "library",
+          source: sourceMatch ? sourceMatch[1] : "",
+          sourceLocation: loc,
+          originalSource: line,
+          confidence: "converted",
+        }),
+      );
       imports.push(allNodes[allNodes.length - 1]);
       continue;
     }
 
     // Class declaration
     if (/\bclass\s+\w+/.test(trimmed)) {
-      allNodes.push(new TestSuite({
-        name: (trimmed.match(/class\s+(\w+)/) || [])[1] || '',
-        modifiers: [],
-        sourceLocation: loc,
-        originalSource: line,
-        confidence: 'converted',
-      }));
+      allNodes.push(
+        new TestSuite({
+          name: (trimmed.match(/class\s+(\w+)/) || [])[1] || "",
+          modifiers: [],
+          sourceLocation: loc,
+          originalSource: line,
+          confidence: "converted",
+        }),
+      );
       continue;
     }
 
     // @Test annotation
     if (/@Test\b/.test(trimmed)) {
-      allNodes.push(new Modifier({
-        modifierType: 'test',
-        sourceLocation: loc,
-        originalSource: line,
-        confidence: 'converted',
-      }));
+      allNodes.push(
+        new Modifier({
+          modifierType: "test",
+          sourceLocation: loc,
+          originalSource: line,
+          confidence: "converted",
+        }),
+      );
       continue;
     }
 
     // Lifecycle annotations
     if (/@BeforeEach\b/.test(trimmed)) {
-      allNodes.push(new Hook({ hookType: 'beforeEach', sourceLocation: loc, originalSource: line, confidence: 'converted' }));
+      allNodes.push(
+        new Hook({
+          hookType: "beforeEach",
+          sourceLocation: loc,
+          originalSource: line,
+          confidence: "converted",
+        }),
+      );
       continue;
     }
     if (/@AfterEach\b/.test(trimmed)) {
-      allNodes.push(new Hook({ hookType: 'afterEach', sourceLocation: loc, originalSource: line, confidence: 'converted' }));
+      allNodes.push(
+        new Hook({
+          hookType: "afterEach",
+          sourceLocation: loc,
+          originalSource: line,
+          confidence: "converted",
+        }),
+      );
       continue;
     }
     if (/@BeforeAll\b/.test(trimmed)) {
-      allNodes.push(new Hook({ hookType: 'beforeAll', sourceLocation: loc, originalSource: line, confidence: 'converted' }));
+      allNodes.push(
+        new Hook({
+          hookType: "beforeAll",
+          sourceLocation: loc,
+          originalSource: line,
+          confidence: "converted",
+        }),
+      );
       continue;
     }
     if (/@AfterAll\b/.test(trimmed)) {
-      allNodes.push(new Hook({ hookType: 'afterAll', sourceLocation: loc, originalSource: line, confidence: 'converted' }));
+      allNodes.push(
+        new Hook({
+          hookType: "afterAll",
+          sourceLocation: loc,
+          originalSource: line,
+          confidence: "converted",
+        }),
+      );
       continue;
     }
 
     // @Disabled
     if (/@Disabled\b/.test(trimmed)) {
-      allNodes.push(new Modifier({ modifierType: 'skip', sourceLocation: loc, originalSource: line, confidence: 'converted' }));
+      allNodes.push(
+        new Modifier({
+          modifierType: "skip",
+          sourceLocation: loc,
+          originalSource: line,
+          confidence: "converted",
+        }),
+      );
       continue;
     }
 
     // @DisplayName
     if (/@DisplayName\b/.test(trimmed)) {
-      allNodes.push(new Modifier({ modifierType: 'displayName', sourceLocation: loc, originalSource: line, confidence: 'converted' }));
+      allNodes.push(
+        new Modifier({
+          modifierType: "displayName",
+          sourceLocation: loc,
+          originalSource: line,
+          confidence: "converted",
+        }),
+      );
       continue;
     }
 
     // Test methods
     if (/(?:public\s+|protected\s+|private\s+)?void\s+\w+\s*\(/.test(trimmed)) {
-      allNodes.push(new TestCase({
-        name: (trimmed.match(/void\s+(\w+)\s*\(/) || [])[1] || '',
-        isAsync: false,
-        modifiers: [],
-        sourceLocation: loc,
-        originalSource: line,
-        confidence: 'converted',
-      }));
+      allNodes.push(
+        new TestCase({
+          name: (trimmed.match(/void\s+(\w+)\s*\(/) || [])[1] || "",
+          isAsync: false,
+          modifiers: [],
+          sourceLocation: loc,
+          originalSource: line,
+          confidence: "converted",
+        }),
+      );
       continue;
     }
 
     // Assertions
-    if (/\bAssertions\.\w+\s*\(/.test(trimmed) || /\bassertThrows\s*\(/.test(trimmed) || /\bassertTimeout\s*\(/.test(trimmed)) {
-      let kind = 'equal';
-      if (/assertEquals/.test(trimmed)) kind = 'equal';
-      else if (/assertTrue/.test(trimmed)) kind = 'truthy';
-      else if (/assertFalse/.test(trimmed)) kind = 'falsy';
-      else if (/assertNull/.test(trimmed)) kind = 'isNull';
-      else if (/assertNotNull/.test(trimmed)) kind = 'isDefined';
-      else if (/assertThrows/.test(trimmed)) kind = 'throws';
-      else if (/assertTimeout/.test(trimmed)) kind = 'timeout';
+    if (
+      /\bAssertions\.\w+\s*\(/.test(trimmed) ||
+      /\bassertThrows\s*\(/.test(trimmed) ||
+      /\bassertTimeout\s*\(/.test(trimmed)
+    ) {
+      let kind = "equal";
+      if (/assertEquals/.test(trimmed)) kind = "equal";
+      else if (/assertTrue/.test(trimmed)) kind = "truthy";
+      else if (/assertFalse/.test(trimmed)) kind = "falsy";
+      else if (/assertNull/.test(trimmed)) kind = "isNull";
+      else if (/assertNotNull/.test(trimmed)) kind = "isDefined";
+      else if (/assertThrows/.test(trimmed)) kind = "throws";
+      else if (/assertTimeout/.test(trimmed)) kind = "timeout";
 
-      allNodes.push(new Assertion({
-        kind,
-        sourceLocation: loc,
-        originalSource: line,
-        confidence: 'converted',
-      }));
+      allNodes.push(
+        new Assertion({
+          kind,
+          sourceLocation: loc,
+          originalSource: line,
+          confidence: "converted",
+        }),
+      );
       continue;
     }
 
     // Everything else
-    allNodes.push(new RawCode({
-      code: line,
-      sourceLocation: loc,
-      originalSource: line,
-    }));
+    allNodes.push(
+      new RawCode({
+        code: line,
+        sourceLocation: loc,
+        originalSource: line,
+      }),
+    );
   }
 
   return new TestFile({
-    language: 'java',
+    language: "java",
     imports,
-    body: allNodes.filter(n => !imports.includes(n)),
+    body: allNodes.filter((n) => !imports.includes(n)),
   });
 }
 
@@ -219,35 +288,49 @@ function extractMethodBody(lines, startIdx) {
   for (let i = startIdx; i < lines.length; i++) {
     const line = lines[i];
     let inString = false;
-    let stringChar = '';
+    let stringChar = "";
     let inLineComment = false;
 
     for (let j = 0; j < line.length; j++) {
       const ch = line[j];
-      const next = j + 1 < line.length ? line[j + 1] : '';
+      const next = j + 1 < line.length ? line[j + 1] : "";
 
       if (inLineComment) break;
 
       if (inString) {
-        if (ch === '\\') { j++; continue; }
+        if (ch === "\\") {
+          j++;
+          continue;
+        }
         if (ch === stringChar) inString = false;
         continue;
       }
 
-      if (ch === '/' && next === '/') { inLineComment = true; continue; }
-      if (ch === '"' || ch === '\'') { inString = true; stringChar = ch; continue; }
+      if (ch === "/" && next === "/") {
+        inLineComment = true;
+        continue;
+      }
+      if (ch === '"' || ch === "'") {
+        inString = true;
+        stringChar = ch;
+        continue;
+      }
 
-      if (ch === '{') {
+      if (ch === "{") {
         if (!foundOpen) {
           foundOpen = true;
           bodyStart = i;
         }
         depth++;
-      } else if (ch === '}') {
+      } else if (ch === "}") {
         depth--;
         if (depth === 0 && foundOpen) {
           bodyEnd = i;
-          return { bodyLines: lines.slice(bodyStart, bodyEnd + 1), startLine: bodyStart, endLine: bodyEnd };
+          return {
+            bodyLines: lines.slice(bodyStart, bodyEnd + 1),
+            startLine: bodyStart,
+            endLine: bodyEnd,
+          };
         }
       }
     }
@@ -265,36 +348,40 @@ function extractMethodBody(lines, startIdx) {
 function splitArgs(argStr) {
   const args = [];
   let depth = 0;
-  let current = '';
+  let current = "";
   let inString = false;
-  let stringChar = '';
+  let stringChar = "";
 
   for (let i = 0; i < argStr.length; i++) {
     const ch = argStr[i];
 
     if (inString) {
       current += ch;
-      if (ch === '\\') { i++; current += argStr[i] || ''; continue; }
+      if (ch === "\\") {
+        i++;
+        current += argStr[i] || "";
+        continue;
+      }
       if (ch === stringChar) inString = false;
       continue;
     }
 
-    if (ch === '"' || ch === '\'') {
+    if (ch === '"' || ch === "'") {
       inString = true;
       stringChar = ch;
       current += ch;
       continue;
     }
 
-    if (ch === '(' || ch === '<' || ch === '{' || ch === '[') {
+    if (ch === "(" || ch === "<" || ch === "{" || ch === "[") {
       depth++;
       current += ch;
-    } else if (ch === ')' || ch === '>' || ch === '}' || ch === ']') {
+    } else if (ch === ")" || ch === ">" || ch === "}" || ch === "]") {
       depth--;
       current += ch;
-    } else if (ch === ',' && depth === 0) {
+    } else if (ch === "," && depth === 0) {
       args.push(current.trim());
-      current = '';
+      current = "";
     } else {
       current += ch;
     }
@@ -317,12 +404,9 @@ function splitArgs(argStr) {
  * @returns {string}
  */
 function reorderAssertionArgs(source, methodName, arityWithMessage) {
-  const pattern = new RegExp(
-    `Assertions\\.${methodName}\\(`,
-    'g'
-  );
+  const pattern = new RegExp(`Assertions\\.${methodName}\\(`, "g");
 
-  let result = '';
+  let result = "";
   let lastIndex = 0;
   let match;
 
@@ -332,17 +416,25 @@ function reorderAssertionArgs(source, methodName, arityWithMessage) {
     let depth = 1;
     let pos = start;
     let inStr = false;
-    let strCh = '';
+    let strCh = "";
 
     while (pos < source.length && depth > 0) {
       const ch = source[pos];
       if (inStr) {
-        if (ch === '\\') { pos++; }
-        else if (ch === strCh) { inStr = false; }
+        if (ch === "\\") {
+          pos++;
+        } else if (ch === strCh) {
+          inStr = false;
+        }
       } else {
-        if (ch === '"' || ch === '\'') { inStr = true; strCh = ch; }
-        else if (ch === '(') { depth++; }
-        else if (ch === ')') { depth--; }
+        if (ch === '"' || ch === "'") {
+          inStr = true;
+          strCh = ch;
+        } else if (ch === "(") {
+          depth++;
+        } else if (ch === ")") {
+          depth--;
+        }
       }
       if (depth > 0) pos++;
     }
@@ -355,7 +447,7 @@ function reorderAssertionArgs(source, methodName, arityWithMessage) {
       const message = args[0];
       const rest = args.slice(1);
       result += source.substring(lastIndex, match.index);
-      result += `Assertions.${methodName}(${[...rest, message].join(', ')})`;
+      result += `Assertions.${methodName}(${[...rest, message].join(", ")})`;
       lastIndex = pos + 1;
     }
     // If arity doesn't match, leave unchanged
@@ -380,7 +472,9 @@ function emit(_ir, source) {
   let result = source;
 
   // Detect source framework to apply only relevant phases
-  const isJUnit4Source = /import\s+org\.junit\./.test(source) && !/import\s+org\.junit\.jupiter/.test(source);
+  const isJUnit4Source =
+    /import\s+org\.junit\./.test(source) &&
+    !/import\s+org\.junit\.jupiter/.test(source);
   const isTestNGSource = /import\s+org\.testng/.test(source);
 
   // ========================================
@@ -388,84 +482,133 @@ function emit(_ir, source) {
   // ========================================
 
   if (isJUnit4Source) {
+    // --- Phase 1: JUnit 4 annotation renames ---
 
-  // --- Phase 1: JUnit 4 annotation renames ---
+    // @Before → @BeforeEach (negative lookahead for @BeforeClass/@BeforeEach/@BeforeAll/@BeforeMethod)
+    result = result.replace(
+      /@Before\b(?!Class|Each|All|Method)/g,
+      "@BeforeEach",
+    );
 
-  // @Before → @BeforeEach (negative lookahead for @BeforeClass/@BeforeEach/@BeforeAll/@BeforeMethod)
-  result = result.replace(/@Before\b(?!Class|Each|All|Method)/g, '@BeforeEach');
+    // @After → @AfterEach (negative lookahead for @AfterClass/@AfterEach/@AfterAll/@AfterMethod)
+    result = result.replace(/@After\b(?!Class|Each|All|Method)/g, "@AfterEach");
 
-  // @After → @AfterEach (negative lookahead for @AfterClass/@AfterEach/@AfterAll/@AfterMethod)
-  result = result.replace(/@After\b(?!Class|Each|All|Method)/g, '@AfterEach');
+    // @BeforeClass → @BeforeAll
+    result = result.replace(/@BeforeClass\b/g, "@BeforeAll");
 
-  // @BeforeClass → @BeforeAll
-  result = result.replace(/@BeforeClass\b/g, '@BeforeAll');
+    // @AfterClass → @AfterAll
+    result = result.replace(/@AfterClass\b/g, "@AfterAll");
 
-  // @AfterClass → @AfterAll
-  result = result.replace(/@AfterClass\b/g, '@AfterAll');
+    // @Ignore → @Disabled
+    result = result.replace(/@Ignore\b/g, "@Disabled");
 
-  // @Ignore → @Disabled
-  result = result.replace(/@Ignore\b/g, '@Disabled');
+    // @RunWith(X.class) → @ExtendWith(X.class)
+    result = result.replace(/@RunWith\s*\(/g, "@ExtendWith(");
 
-  // @RunWith(X.class) → @ExtendWith(X.class)
-  result = result.replace(/@RunWith\s*\(/g, '@ExtendWith(');
+    // @Category(X.class) → @Tag("X")
+    result = result.replace(
+      /@Category\s*\(\s*(\w+)\.class\s*\)/g,
+      '@Tag("$1")',
+    );
 
-  // @Category(X.class) → @Tag("X")
-  result = result.replace(
-    /@Category\s*\(\s*(\w+)\.class\s*\)/g,
-    '@Tag("$1")'
-  );
+    // --- Phase 2: JUnit 4 import rewrites ---
 
-  // --- Phase 2: JUnit 4 import rewrites ---
+    result = result.replace(
+      /import\s+org\.junit\.Test\s*;/g,
+      "import org.junit.jupiter.api.Test;",
+    );
+    result = result.replace(
+      /import\s+org\.junit\.Before\s*;/g,
+      "import org.junit.jupiter.api.BeforeEach;",
+    );
+    result = result.replace(
+      /import\s+org\.junit\.After\s*;/g,
+      "import org.junit.jupiter.api.AfterEach;",
+    );
+    result = result.replace(
+      /import\s+org\.junit\.BeforeClass\s*;/g,
+      "import org.junit.jupiter.api.BeforeAll;",
+    );
+    result = result.replace(
+      /import\s+org\.junit\.AfterClass\s*;/g,
+      "import org.junit.jupiter.api.AfterAll;",
+    );
+    result = result.replace(
+      /import\s+org\.junit\.Ignore\s*;/g,
+      "import org.junit.jupiter.api.Disabled;",
+    );
+    result = result.replace(
+      /import\s+org\.junit\.Assert\s*;/g,
+      "import org.junit.jupiter.api.Assertions;",
+    );
+    result = result.replace(
+      /import\s+static\s+org\.junit\.Assert\.\*\s*;/g,
+      "import static org.junit.jupiter.api.Assertions.*;",
+    );
+    result = result.replace(
+      /import\s+static\s+org\.junit\.Assert\.(\w+)\s*;/g,
+      "import static org.junit.jupiter.api.Assertions.$1;",
+    );
+    result = result.replace(
+      /import\s+org\.junit\.runner\.RunWith\s*;/g,
+      "import org.junit.jupiter.api.extension.ExtendWith;",
+    );
+    result = result.replace(
+      /import\s+org\.junit\.experimental\.categories\.Category\s*;/g,
+      "import org.junit.jupiter.api.Tag;",
+    );
+    result = result.replace(
+      /import\s+org\.junit\.Rule\s*;/g,
+      "import org.junit.jupiter.api.Rule;",
+    );
+    result = result.replace(
+      /import\s+org\.junit\.\*\s*;/g,
+      "import org.junit.jupiter.api.*;",
+    );
+    result = result.replace(
+      /import\s+org\.junit\.Assume\s*;/g,
+      "import org.junit.jupiter.api.Assumptions;",
+    );
 
-  result = result.replace(/import\s+org\.junit\.Test\s*;/g, 'import org.junit.jupiter.api.Test;');
-  result = result.replace(/import\s+org\.junit\.Before\s*;/g, 'import org.junit.jupiter.api.BeforeEach;');
-  result = result.replace(/import\s+org\.junit\.After\s*;/g, 'import org.junit.jupiter.api.AfterEach;');
-  result = result.replace(/import\s+org\.junit\.BeforeClass\s*;/g, 'import org.junit.jupiter.api.BeforeAll;');
-  result = result.replace(/import\s+org\.junit\.AfterClass\s*;/g, 'import org.junit.jupiter.api.AfterAll;');
-  result = result.replace(/import\s+org\.junit\.Ignore\s*;/g, 'import org.junit.jupiter.api.Disabled;');
-  result = result.replace(/import\s+org\.junit\.Assert\s*;/g, 'import org.junit.jupiter.api.Assertions;');
-  result = result.replace(/import\s+static\s+org\.junit\.Assert\.\*\s*;/g, 'import static org.junit.jupiter.api.Assertions.*;');
-  result = result.replace(/import\s+static\s+org\.junit\.Assert\.(\w+)\s*;/g, 'import static org.junit.jupiter.api.Assertions.$1;');
-  result = result.replace(/import\s+org\.junit\.runner\.RunWith\s*;/g, 'import org.junit.jupiter.api.extension.ExtendWith;');
-  result = result.replace(/import\s+org\.junit\.experimental\.categories\.Category\s*;/g, 'import org.junit.jupiter.api.Tag;');
-  result = result.replace(/import\s+org\.junit\.Rule\s*;/g, 'import org.junit.jupiter.api.Rule;');
-  result = result.replace(/import\s+org\.junit\.\*\s*;/g, 'import org.junit.jupiter.api.*;');
-  result = result.replace(/import\s+org\.junit\.Assume\s*;/g, 'import org.junit.jupiter.api.Assumptions;');
+    // --- Phase 3: JUnit 4 assertion class renames ---
 
-  // --- Phase 3: JUnit 4 assertion class renames ---
+    result = result.replace(
+      /\bAssert\.(assertEquals|assertTrue|assertFalse|assertNull|assertNotNull|assertSame|assertNotSame|assertArrayEquals|assertNotEquals|fail)\b/g,
+      "Assertions.$1",
+    );
+    result = result.replace(
+      /\bAssume\.(assumeTrue|assumeFalse|assumeNotNull|assumeThat)\b/g,
+      "Assumptions.$1",
+    );
 
-  result = result.replace(/\bAssert\.(assertEquals|assertTrue|assertFalse|assertNull|assertNotNull|assertSame|assertNotSame|assertArrayEquals|assertNotEquals|fail)\b/g, 'Assertions.$1');
-  result = result.replace(/\bAssume\.(assumeTrue|assumeFalse|assumeNotNull|assumeThat)\b/g, 'Assumptions.$1');
+    // --- Phase 4: Assertion message parameter reorder ---
+    // JUnit 4: Assert.assertEquals("msg", expected, actual) → 3-arg
+    // JUnit 5: Assertions.assertEquals(expected, actual, "msg") → message last
+    // Only reorder 3-arg calls. 2-arg calls are never reordered.
 
-  // --- Phase 4: Assertion message parameter reorder ---
-  // JUnit 4: Assert.assertEquals("msg", expected, actual) → 3-arg
-  // JUnit 5: Assertions.assertEquals(expected, actual, "msg") → message last
-  // Only reorder 3-arg calls. 2-arg calls are never reordered.
+    result = reorderAssertionArgs(result, "assertEquals", 3);
+    result = reorderAssertionArgs(result, "assertNotEquals", 3);
+    result = reorderAssertionArgs(result, "assertSame", 3);
+    result = reorderAssertionArgs(result, "assertNotSame", 3);
+    result = reorderAssertionArgs(result, "assertArrayEquals", 3);
 
-  result = reorderAssertionArgs(result, 'assertEquals', 3);
-  result = reorderAssertionArgs(result, 'assertNotEquals', 3);
-  result = reorderAssertionArgs(result, 'assertSame', 3);
-  result = reorderAssertionArgs(result, 'assertNotSame', 3);
-  result = reorderAssertionArgs(result, 'assertArrayEquals', 3);
+    // For assertTrue/assertFalse/assertNull/assertNotNull, message form is 2-arg
+    result = reorderAssertionArgs(result, "assertTrue", 2);
+    result = reorderAssertionArgs(result, "assertFalse", 2);
+    result = reorderAssertionArgs(result, "assertNull", 2);
+    result = reorderAssertionArgs(result, "assertNotNull", 2);
 
-  // For assertTrue/assertFalse/assertNull/assertNotNull, message form is 2-arg
-  result = reorderAssertionArgs(result, 'assertTrue', 2);
-  result = reorderAssertionArgs(result, 'assertFalse', 2);
-  result = reorderAssertionArgs(result, 'assertNull', 2);
-  result = reorderAssertionArgs(result, 'assertNotNull', 2);
+    // --- Phase 5: @Test(expected = X.class) → assertThrows lambda wrapping ---
 
-  // --- Phase 5: @Test(expected = X.class) → assertThrows lambda wrapping ---
+    result = convertExpectedExceptions(result);
 
-  result = convertExpectedExceptions(result);
+    // --- Phase 6: @Test(timeout = N) → assertTimeout wrapping ---
 
-  // --- Phase 6: @Test(timeout = N) → assertTimeout wrapping ---
+    result = convertTimeoutAnnotations(result);
 
-  result = convertTimeoutAnnotations(result);
+    // --- Phase 7: Unconvertible JUnit 4 patterns → HAMLET-TODO ---
 
-  // --- Phase 7: Unconvertible JUnit 4 patterns → HAMLET-TODO ---
-
-  result = markUnconvertibleJUnit4Patterns(result);
-
+    result = markUnconvertibleJUnit4Patterns(result);
   } // end JUnit 4 → JUnit 5
 
   // ========================================
@@ -473,73 +616,101 @@ function emit(_ir, source) {
   // ========================================
 
   if (isTestNGSource) {
+    // --- Phase 8: TestNG annotation renames ---
 
-  // --- Phase 8: TestNG annotation renames ---
+    result = result.replace(/@BeforeMethod\b/g, "@BeforeEach");
+    result = result.replace(/@AfterMethod\b/g, "@AfterEach");
 
-  result = result.replace(/@BeforeMethod\b/g, '@BeforeEach');
-  result = result.replace(/@AfterMethod\b/g, '@AfterEach');
+    // TestNG @BeforeClass/@AfterClass → JUnit 5 @BeforeAll/@AfterAll
+    // Only match if it's a TestNG file (has testng imports or annotations)
+    // These are safe since JUnit4 @BeforeClass/@AfterClass were already converted in Phase 1
+    // At this point any remaining @BeforeClass/@AfterClass must be from TestNG source
+    result = result.replace(/@BeforeClass\b/g, "@BeforeAll");
+    result = result.replace(/@AfterClass\b/g, "@AfterAll");
 
-  // TestNG @BeforeClass/@AfterClass → JUnit 5 @BeforeAll/@AfterAll
-  // Only match if it's a TestNG file (has testng imports or annotations)
-  // These are safe since JUnit4 @BeforeClass/@AfterClass were already converted in Phase 1
-  // At this point any remaining @BeforeClass/@AfterClass must be from TestNG source
-  result = result.replace(/@BeforeClass\b/g, '@BeforeAll');
-  result = result.replace(/@AfterClass\b/g, '@AfterAll');
+    // --- Phase 9: @Test(enabled = false) → @Disabled + @Test ---
 
-  // --- Phase 9: @Test(enabled = false) → @Disabled + @Test ---
+    result = result.replace(
+      /@Test\s*\(\s*enabled\s*=\s*false\s*\)/g,
+      "@Disabled\n    @Test",
+    );
 
-  result = result.replace(
-    /@Test\s*\(\s*enabled\s*=\s*false\s*\)/g,
-    '@Disabled\n    @Test'
-  );
+    // --- Phase 10: @Test(groups = {"x"}) → @Tag("x") + @Test ---
 
-  // --- Phase 10: @Test(groups = {"x"}) → @Tag("x") + @Test ---
+    result = result.replace(
+      /@Test\s*\(\s*groups\s*=\s*\{\s*"([^"]+)"\s*\}\s*\)/g,
+      '@Tag("$1")\n    @Test',
+    );
 
-  result = result.replace(
-    /@Test\s*\(\s*groups\s*=\s*\{\s*"([^"]+)"\s*\}\s*\)/g,
-    '@Tag("$1")\n    @Test'
-  );
+    // --- Phase 11: TestNG import rewrites ---
 
-  // --- Phase 11: TestNG import rewrites ---
+    result = result.replace(
+      /import\s+org\.testng\.annotations\.\*\s*;/g,
+      "import org.junit.jupiter.api.*;",
+    );
+    result = result.replace(
+      /import\s+org\.testng\.annotations\.Test\s*;/g,
+      "import org.junit.jupiter.api.Test;",
+    );
+    result = result.replace(
+      /import\s+org\.testng\.annotations\.BeforeMethod\s*;/g,
+      "import org.junit.jupiter.api.BeforeEach;",
+    );
+    result = result.replace(
+      /import\s+org\.testng\.annotations\.AfterMethod\s*;/g,
+      "import org.junit.jupiter.api.AfterEach;",
+    );
+    result = result.replace(
+      /import\s+org\.testng\.annotations\.BeforeClass\s*;/g,
+      "import org.junit.jupiter.api.BeforeAll;",
+    );
+    result = result.replace(
+      /import\s+org\.testng\.annotations\.AfterClass\s*;/g,
+      "import org.junit.jupiter.api.AfterAll;",
+    );
+    result = result.replace(
+      /import\s+org\.testng\.annotations\.DataProvider\s*;/g,
+      "import org.junit.jupiter.params.provider.MethodSource;",
+    );
+    result = result.replace(
+      /import\s+org\.testng\.Assert\s*;/g,
+      "import org.junit.jupiter.api.Assertions;",
+    );
+    result = result.replace(
+      /import\s+static\s+org\.testng\.Assert\.\*\s*;/g,
+      "import static org.junit.jupiter.api.Assertions.*;",
+    );
 
-  result = result.replace(/import\s+org\.testng\.annotations\.\*\s*;/g, 'import org.junit.jupiter.api.*;');
-  result = result.replace(/import\s+org\.testng\.annotations\.Test\s*;/g, 'import org.junit.jupiter.api.Test;');
-  result = result.replace(/import\s+org\.testng\.annotations\.BeforeMethod\s*;/g, 'import org.junit.jupiter.api.BeforeEach;');
-  result = result.replace(/import\s+org\.testng\.annotations\.AfterMethod\s*;/g, 'import org.junit.jupiter.api.AfterEach;');
-  result = result.replace(/import\s+org\.testng\.annotations\.BeforeClass\s*;/g, 'import org.junit.jupiter.api.BeforeAll;');
-  result = result.replace(/import\s+org\.testng\.annotations\.AfterClass\s*;/g, 'import org.junit.jupiter.api.AfterAll;');
-  result = result.replace(/import\s+org\.testng\.annotations\.DataProvider\s*;/g, 'import org.junit.jupiter.params.provider.MethodSource;');
-  result = result.replace(/import\s+org\.testng\.Assert\s*;/g, 'import org.junit.jupiter.api.Assertions;');
-  result = result.replace(/import\s+static\s+org\.testng\.Assert\.\*\s*;/g, 'import static org.junit.jupiter.api.Assertions.*;');
+    // --- Phase 12: TestNG assertion arg order swap ---
+    // TestNG: Assert.assertEquals(actual, expected) — actual first
+    // JUnit 5: Assertions.assertEquals(expected, actual) — expected first
+    // We swap the first two args. Message (if any) stays last.
 
-  // --- Phase 12: TestNG assertion arg order swap ---
-  // TestNG: Assert.assertEquals(actual, expected) — actual first
-  // JUnit 5: Assertions.assertEquals(expected, actual) — expected first
-  // We swap the first two args. Message (if any) stays last.
+    result = swapTestNGAssertionArgs(result, "assertEquals");
+    result = swapTestNGAssertionArgs(result, "assertNotEquals");
 
-  result = swapTestNGAssertionArgs(result, 'assertEquals');
-  result = swapTestNGAssertionArgs(result, 'assertNotEquals');
+    // Simple renames (no arg swap needed)
+    result = result.replace(
+      /\bAssert\.(assertTrue|assertFalse|assertNull|assertNotNull|fail)\b/g,
+      "Assertions.$1",
+    );
 
-  // Simple renames (no arg swap needed)
-  result = result.replace(/\bAssert\.(assertTrue|assertFalse|assertNull|assertNotNull|fail)\b/g, 'Assertions.$1');
+    // --- Phase 13: @Test(expectedExceptions = X.class) → assertThrows ---
 
-  // --- Phase 13: @Test(expectedExceptions = X.class) → assertThrows ---
+    result = convertExpectedExceptionsTestNG(result);
 
-  result = convertExpectedExceptionsTestNG(result);
+    // --- Phase 14: Unconvertible TestNG patterns → HAMLET-TODO ---
 
-  // --- Phase 14: Unconvertible TestNG patterns → HAMLET-TODO ---
-
-  result = markUnconvertibleTestNGPatterns(result);
-
+    result = markUnconvertibleTestNGPatterns(result);
   } // end TestNG → JUnit 5
 
   // --- Cleanup ---
 
   // Clean up multiple blank lines
-  result = result.replace(/\n{3,}/g, '\n\n');
+  result = result.replace(/\n{3,}/g, "\n\n");
 
   // Ensure trailing newline
-  if (!result.endsWith('\n')) result += '\n';
+  if (!result.endsWith("\n")) result += "\n";
 
   return result;
 }
@@ -548,7 +719,7 @@ function emit(_ir, source) {
  * Convert @Test(expected = X.class) → assertThrows() lambda wrapping.
  */
 function convertExpectedExceptions(source) {
-  const lines = source.split('\n');
+  const lines = source.split("\n");
   const result = [];
   let i = 0;
   let needsAssertThrowsImport = false;
@@ -558,13 +729,17 @@ function convertExpectedExceptions(source) {
     const trimmed = line.trim();
 
     // Match @Test(expected = X.class) — possibly with other attributes
-    const expectedMatch = trimmed.match(/@Test\s*\(\s*expected\s*=\s*([\w.]+)\.class\s*\)/);
+    const expectedMatch = trimmed.match(
+      /@Test\s*\(\s*expected\s*=\s*([\w.]+)\.class\s*\)/,
+    );
 
     if (expectedMatch) {
       const exceptionClass = expectedMatch[1];
 
       // Replace the annotation
-      result.push(line.replace(/@Test\s*\(\s*expected\s*=\s*[\w.]+\.class\s*\)/, '@Test'));
+      result.push(
+        line.replace(/@Test\s*\(\s*expected\s*=\s*[\w.]+\.class\s*\)/, "@Test"),
+      );
       i++;
 
       // Find the method signature and body
@@ -585,7 +760,9 @@ function convertExpectedExceptions(source) {
 
         // Indent and wrap in assertThrows
         const indent = lines[startLine].match(/^(\s*)/)[1];
-        result.push(`${indent}    assertThrows(${exceptionClass}.class, () -> {`);
+        result.push(
+          `${indent}    assertThrows(${exceptionClass}.class, () -> {`,
+        );
         for (const bodyLine of bodyContent) {
           result.push(`    ${bodyLine}`);
         }
@@ -596,12 +773,17 @@ function convertExpectedExceptions(source) {
         needsAssertThrowsImport = true;
       } else {
         // Brace-counting failed — emit HAMLET-TODO
-        result.push(line.replace(/@Test\s*\(\s*expected\s*=\s*[\w.]+\.class\s*\)/, '@Test'));
+        result.push(
+          line.replace(
+            /@Test\s*\(\s*expected\s*=\s*[\w.]+\.class\s*\)/,
+            "@Test",
+          ),
+        );
         const todoComment = formatter.formatTodo({
-          id: 'UNCONVERTIBLE-EXPECTED-EXCEPTION',
+          id: "UNCONVERTIBLE-EXPECTED-EXCEPTION",
           description: `@Test(expected = ${exceptionClass}.class) could not be auto-wrapped`,
           original: trimmed,
-          action: 'Manually wrap test body in assertThrows()',
+          action: "Manually wrap test body in assertThrows()",
         });
         result.push(todoComment);
       }
@@ -611,11 +793,19 @@ function convertExpectedExceptions(source) {
     }
   }
 
-  let output = result.join('\n');
+  let output = result.join("\n");
 
   // Add assertThrows import if needed
-  if (needsAssertThrowsImport && !/import\s+static\s+org\.junit\.jupiter\.api\.Assertions\.assertThrows\s*;/.test(output)) {
-    output = addImport(output, 'import static org.junit.jupiter.api.Assertions.assertThrows;');
+  if (
+    needsAssertThrowsImport &&
+    !/import\s+static\s+org\.junit\.jupiter\.api\.Assertions\.assertThrows\s*;/.test(
+      output,
+    )
+  ) {
+    output = addImport(
+      output,
+      "import static org.junit.jupiter.api.Assertions.assertThrows;",
+    );
   }
 
   return output;
@@ -625,7 +815,7 @@ function convertExpectedExceptions(source) {
  * Convert @Test(timeout = N) → assertTimeout() wrapping.
  */
 function convertTimeoutAnnotations(source) {
-  const lines = source.split('\n');
+  const lines = source.split("\n");
   const result = [];
   let i = 0;
   let needsTimeoutImport = false;
@@ -641,7 +831,7 @@ function convertTimeoutAnnotations(source) {
       const timeoutMs = timeoutMatch[1];
 
       // Replace the annotation
-      result.push(line.replace(/@Test\s*\(\s*timeout\s*=\s*\d+\s*\)/, '@Test'));
+      result.push(line.replace(/@Test\s*\(\s*timeout\s*=\s*\d+\s*\)/, "@Test"));
       i++;
 
       // Find the method signature and body
@@ -662,7 +852,9 @@ function convertTimeoutAnnotations(source) {
 
         // Indent and wrap in assertTimeout
         const indent = lines[startLine].match(/^(\s*)/)[1];
-        result.push(`${indent}    assertTimeout(Duration.ofMillis(${timeoutMs}), () -> {`);
+        result.push(
+          `${indent}    assertTimeout(Duration.ofMillis(${timeoutMs}), () -> {`,
+        );
         for (const bodyLine of bodyContent) {
           result.push(`    ${bodyLine}`);
         }
@@ -673,12 +865,14 @@ function convertTimeoutAnnotations(source) {
         needsTimeoutImport = true;
         needsDurationImport = true;
       } else {
-        result.push(line.replace(/@Test\s*\(\s*timeout\s*=\s*\d+\s*\)/, '@Test'));
+        result.push(
+          line.replace(/@Test\s*\(\s*timeout\s*=\s*\d+\s*\)/, "@Test"),
+        );
         const todoComment = formatter.formatTodo({
-          id: 'UNCONVERTIBLE-TIMEOUT',
+          id: "UNCONVERTIBLE-TIMEOUT",
           description: `@Test(timeout = ${timeoutMs}) could not be auto-wrapped`,
           original: trimmed,
-          action: 'Manually wrap test body in assertTimeout()',
+          action: "Manually wrap test body in assertTimeout()",
         });
         result.push(todoComment);
       }
@@ -688,13 +882,24 @@ function convertTimeoutAnnotations(source) {
     }
   }
 
-  let output = result.join('\n');
+  let output = result.join("\n");
 
-  if (needsTimeoutImport && !/import\s+static\s+org\.junit\.jupiter\.api\.Assertions\.assertTimeout\s*;/.test(output)) {
-    output = addImport(output, 'import static org.junit.jupiter.api.Assertions.assertTimeout;');
+  if (
+    needsTimeoutImport &&
+    !/import\s+static\s+org\.junit\.jupiter\.api\.Assertions\.assertTimeout\s*;/.test(
+      output,
+    )
+  ) {
+    output = addImport(
+      output,
+      "import static org.junit.jupiter.api.Assertions.assertTimeout;",
+    );
   }
-  if (needsDurationImport && !/import\s+java\.time\.Duration\s*;/.test(output)) {
-    output = addImport(output, 'import java.time.Duration;');
+  if (
+    needsDurationImport &&
+    !/import\s+java\.time\.Duration\s*;/.test(output)
+  ) {
+    output = addImport(output, "import java.time.Duration;");
   }
 
   return output;
@@ -708,12 +913,21 @@ function markUnconvertibleJUnit4Patterns(source) {
 
   // @Rule with specific type suggestions
   const rulePatterns = [
-    { pattern: /ExpectedException/, suggestion: 'Use `assertThrows()` instead' },
-    { pattern: /TemporaryFolder/, suggestion: 'Use `@TempDir` annotation' },
-    { pattern: /TestName/, suggestion: 'Use `TestInfo` parameter injection' },
-    { pattern: /Timeout/, suggestion: 'Use `@Timeout` annotation' },
-    { pattern: /ExternalResource/, suggestion: 'Implement `BeforeEachCallback`/`AfterEachCallback`' },
-    { pattern: /ErrorCollector/, suggestion: 'Use `assertAll()` for grouped assertions' },
+    {
+      pattern: /ExpectedException/,
+      suggestion: "Use `assertThrows()` instead",
+    },
+    { pattern: /TemporaryFolder/, suggestion: "Use `@TempDir` annotation" },
+    { pattern: /TestName/, suggestion: "Use `TestInfo` parameter injection" },
+    { pattern: /Timeout/, suggestion: "Use `@Timeout` annotation" },
+    {
+      pattern: /ExternalResource/,
+      suggestion: "Implement `BeforeEachCallback`/`AfterEachCallback`",
+    },
+    {
+      pattern: /ErrorCollector/,
+      suggestion: "Use `assertAll()` for grouped assertions",
+    },
   ];
 
   // @Rule annotations — look ahead at following lines for specific type
@@ -722,33 +936,51 @@ function markUnconvertibleJUnit4Patterns(source) {
     (match, indent, offset, fullStr) => {
       // Check the match line plus the next few lines for rule type
       const context = fullStr.substring(offset, offset + match.length + 200);
-      let suggestion = 'Manually refactor to JUnit 5 extension';
+      let suggestion = "Manually refactor to JUnit 5 extension";
       for (const { pattern, suggestion: sug } of rulePatterns) {
         if (pattern.test(context)) {
           suggestion = sug;
           break;
         }
       }
-      return formatter.formatTodo({
-        id: 'UNCONVERTIBLE-RULE',
-        description: 'JUnit 4 @Rule/@ClassRule has no direct JUnit 5 equivalent',
-        original: match.trim(),
-        action: suggestion,
-      }).split('\n').map(l => indent + l).join('\n') + '\n' + match;
-    }
+      return (
+        formatter
+          .formatTodo({
+            id: "UNCONVERTIBLE-RULE",
+            description:
+              "JUnit 4 @Rule/@ClassRule has no direct JUnit 5 equivalent",
+            original: match.trim(),
+            action: suggestion,
+          })
+          .split("\n")
+          .map((l) => indent + l)
+          .join("\n") +
+        "\n" +
+        match
+      );
+    },
   );
 
   // Hamcrest assertThat
   result = result.replace(
     /^([ \t]*).*\bassertThat\b.*(?:Matchers|CoreMatchers|is\(|hasItem|containsString).*$/gm,
     (match, indent) => {
-      return formatter.formatTodo({
-        id: 'UNCONVERTIBLE-HAMCREST',
-        description: 'Hamcrest assertThat with matchers is not directly convertible',
-        original: match.trim(),
-        action: 'Rewrite using JUnit 5 Assertions methods',
-      }).split('\n').map(l => indent + l).join('\n') + '\n' + match;
-    }
+      return (
+        formatter
+          .formatTodo({
+            id: "UNCONVERTIBLE-HAMCREST",
+            description:
+              "Hamcrest assertThat with matchers is not directly convertible",
+            original: match.trim(),
+            action: "Rewrite using JUnit 5 Assertions methods",
+          })
+          .split("\n")
+          .map((l) => indent + l)
+          .join("\n") +
+        "\n" +
+        match
+      );
+    },
   );
 
   return result;
@@ -762,12 +994,12 @@ function markUnconvertibleJUnit4Patterns(source) {
 function swapTestNGAssertionArgs(source, methodName) {
   // First rename Assert. to Assertions.
   source = source.replace(
-    new RegExp(`\\bAssert\\.${methodName}\\(`, 'g'),
-    `Assertions.${methodName}(`
+    new RegExp(`\\bAssert\\.${methodName}\\(`, "g"),
+    `Assertions.${methodName}(`,
   );
 
-  const pattern = new RegExp(`Assertions\\.${methodName}\\(`, 'g');
-  let result = '';
+  const pattern = new RegExp(`Assertions\\.${methodName}\\(`, "g");
+  let result = "";
   let lastIndex = 0;
   let match;
 
@@ -776,17 +1008,25 @@ function swapTestNGAssertionArgs(source, methodName) {
     let depth = 1;
     let pos = start;
     let inStr = false;
-    let strCh = '';
+    let strCh = "";
 
     while (pos < source.length && depth > 0) {
       const ch = source[pos];
       if (inStr) {
-        if (ch === '\\') { pos++; }
-        else if (ch === strCh) { inStr = false; }
+        if (ch === "\\") {
+          pos++;
+        } else if (ch === strCh) {
+          inStr = false;
+        }
       } else {
-        if (ch === '"' || ch === '\'') { inStr = true; strCh = ch; }
-        else if (ch === '(') { depth++; }
-        else if (ch === ')') { depth--; }
+        if (ch === '"' || ch === "'") {
+          inStr = true;
+          strCh = ch;
+        } else if (ch === "(") {
+          depth++;
+        } else if (ch === ")") {
+          depth--;
+        }
       }
       if (depth > 0) pos++;
     }
@@ -798,7 +1038,7 @@ function swapTestNGAssertionArgs(source, methodName) {
       // Swap first two args, keep rest in order
       const swapped = [args[1], args[0], ...args.slice(2)];
       result += source.substring(lastIndex, match.index);
-      result += `Assertions.${methodName}(${swapped.join(', ')})`;
+      result += `Assertions.${methodName}(${swapped.join(", ")})`;
       lastIndex = pos + 1;
     }
   }
@@ -811,7 +1051,7 @@ function swapTestNGAssertionArgs(source, methodName) {
  * Convert TestNG @Test(expectedExceptions = X.class) → assertThrows().
  */
 function convertExpectedExceptionsTestNG(source) {
-  const lines = source.split('\n');
+  const lines = source.split("\n");
   const result = [];
   let i = 0;
   let needsAssertThrowsImport = false;
@@ -820,12 +1060,19 @@ function convertExpectedExceptionsTestNG(source) {
     const line = lines[i];
     const trimmed = line.trim();
 
-    const expectedMatch = trimmed.match(/@Test\s*\(\s*expectedExceptions\s*=\s*([\w.]+)\.class\s*\)/);
+    const expectedMatch = trimmed.match(
+      /@Test\s*\(\s*expectedExceptions\s*=\s*([\w.]+)\.class\s*\)/,
+    );
 
     if (expectedMatch) {
       const exceptionClass = expectedMatch[1];
 
-      result.push(line.replace(/@Test\s*\(\s*expectedExceptions\s*=\s*[\w.]+\.class\s*\)/, '@Test'));
+      result.push(
+        line.replace(
+          /@Test\s*\(\s*expectedExceptions\s*=\s*[\w.]+\.class\s*\)/,
+          "@Test",
+        ),
+      );
       i++;
 
       const bodyResult = extractMethodBody(lines, i);
@@ -842,7 +1089,9 @@ function convertExpectedExceptionsTestNG(source) {
         }
 
         const indent = lines[startLine].match(/^(\s*)/)[1];
-        result.push(`${indent}    assertThrows(${exceptionClass}.class, () -> {`);
+        result.push(
+          `${indent}    assertThrows(${exceptionClass}.class, () -> {`,
+        );
         for (const bodyLine of bodyContent) {
           result.push(`    ${bodyLine}`);
         }
@@ -854,10 +1103,10 @@ function convertExpectedExceptionsTestNG(source) {
       } else {
         result.push(line);
         const todoComment = formatter.formatTodo({
-          id: 'UNCONVERTIBLE-EXPECTED-EXCEPTION',
+          id: "UNCONVERTIBLE-EXPECTED-EXCEPTION",
           description: `@Test(expectedExceptions = ${exceptionClass}.class) could not be auto-wrapped`,
           original: trimmed,
-          action: 'Manually wrap test body in assertThrows()',
+          action: "Manually wrap test body in assertThrows()",
         });
         result.push(todoComment);
       }
@@ -867,10 +1116,18 @@ function convertExpectedExceptionsTestNG(source) {
     }
   }
 
-  let output = result.join('\n');
+  let output = result.join("\n");
 
-  if (needsAssertThrowsImport && !/import\s+static\s+org\.junit\.jupiter\.api\.Assertions\.assertThrows\s*;/.test(output)) {
-    output = addImport(output, 'import static org.junit.jupiter.api.Assertions.assertThrows;');
+  if (
+    needsAssertThrowsImport &&
+    !/import\s+static\s+org\.junit\.jupiter\.api\.Assertions\.assertThrows\s*;/.test(
+      output,
+    )
+  ) {
+    output = addImport(
+      output,
+      "import static org.junit.jupiter.api.Assertions.assertThrows;",
+    );
   }
 
   return output;
@@ -886,13 +1143,21 @@ function markUnconvertibleTestNGPatterns(source) {
   result = result.replace(
     /^([ \t]*).*\bdependsOnMethods\b.*$/gm,
     (match, indent) => {
-      return formatter.formatTodo({
-        id: 'UNCONVERTIBLE-DEPENDS-ON-METHODS',
-        description: 'TestNG dependsOnMethods has no JUnit 5 equivalent',
-        original: match.trim(),
-        action: 'Refactor tests to be independent or use @Order annotation',
-      }).split('\n').map(l => indent + l).join('\n') + '\n' + match;
-    }
+      return (
+        formatter
+          .formatTodo({
+            id: "UNCONVERTIBLE-DEPENDS-ON-METHODS",
+            description: "TestNG dependsOnMethods has no JUnit 5 equivalent",
+            original: match.trim(),
+            action: "Refactor tests to be independent or use @Order annotation",
+          })
+          .split("\n")
+          .map((l) => indent + l)
+          .join("\n") +
+        "\n" +
+        match
+      );
+    },
   );
 
   // priority
@@ -900,40 +1165,59 @@ function markUnconvertibleTestNGPatterns(source) {
     /^([ \t]*).*@Test\s*\(.*\bpriority\s*=.*$/gm,
     (match, indent) => {
       if (/HAMLET-TODO/.test(match)) return match;
-      return formatter.formatTodo({
-        id: 'UNCONVERTIBLE-PRIORITY',
-        description: 'TestNG priority has no direct JUnit 5 equivalent',
-        original: match.trim(),
-        action: 'Use @Order annotation with @TestMethodOrder(OrderAnnotation.class)',
-      }).split('\n').map(l => indent + l).join('\n') + '\n' + match;
-    }
+      return (
+        formatter
+          .formatTodo({
+            id: "UNCONVERTIBLE-PRIORITY",
+            description: "TestNG priority has no direct JUnit 5 equivalent",
+            original: match.trim(),
+            action:
+              "Use @Order annotation with @TestMethodOrder(OrderAnnotation.class)",
+          })
+          .split("\n")
+          .map((l) => indent + l)
+          .join("\n") +
+        "\n" +
+        match
+      );
+    },
   );
 
   // @Factory
-  result = result.replace(
-    /^([ \t]*)@Factory\b.*$/gm,
-    (match, indent) => {
-      return formatter.formatTodo({
-        id: 'UNCONVERTIBLE-FACTORY',
-        description: 'TestNG @Factory has no direct JUnit 5 equivalent',
-        original: match.trim(),
-        action: 'Use @ParameterizedTest or @TestFactory in JUnit 5',
-      }).split('\n').map(l => indent + l).join('\n') + '\n' + match;
-    }
-  );
+  result = result.replace(/^([ \t]*)@Factory\b.*$/gm, (match, indent) => {
+    return (
+      formatter
+        .formatTodo({
+          id: "UNCONVERTIBLE-FACTORY",
+          description: "TestNG @Factory has no direct JUnit 5 equivalent",
+          original: match.trim(),
+          action: "Use @ParameterizedTest or @TestFactory in JUnit 5",
+        })
+        .split("\n")
+        .map((l) => indent + l)
+        .join("\n") +
+      "\n" +
+      match
+    );
+  });
 
   // @Listeners
-  result = result.replace(
-    /^([ \t]*)@Listeners\b.*$/gm,
-    (match, indent) => {
-      return formatter.formatTodo({
-        id: 'UNCONVERTIBLE-LISTENERS',
-        description: 'TestNG @Listeners has no direct JUnit 5 equivalent',
-        original: match.trim(),
-        action: 'Use @ExtendWith with JUnit 5 extension instead',
-      }).split('\n').map(l => indent + l).join('\n') + '\n' + match;
-    }
-  );
+  result = result.replace(/^([ \t]*)@Listeners\b.*$/gm, (match, indent) => {
+    return (
+      formatter
+        .formatTodo({
+          id: "UNCONVERTIBLE-LISTENERS",
+          description: "TestNG @Listeners has no direct JUnit 5 equivalent",
+          original: match.trim(),
+          action: "Use @ExtendWith with JUnit 5 extension instead",
+        })
+        .split("\n")
+        .map((l) => indent + l)
+        .join("\n") +
+      "\n" +
+      match
+    );
+  });
 
   return result;
 }
@@ -942,7 +1226,7 @@ function markUnconvertibleTestNGPatterns(source) {
  * Add an import statement after existing imports.
  */
 function addImport(source, importLine) {
-  const lines = source.split('\n');
+  const lines = source.split("\n");
   let lastImportIdx = -1;
 
   for (let i = 0; i < lines.length; i++) {
@@ -962,20 +1246,25 @@ function addImport(source, importLine) {
         break;
       }
     }
-    lines.splice(insertIdx, 0, '', importLine);
+    lines.splice(insertIdx, 0, "", importLine);
   }
 
-  return lines.join('\n');
+  return lines.join("\n");
 }
 
 export default {
-  name: 'junit5',
-  language: 'java',
-  paradigm: 'xunit',
+  name: "junit5",
+  language: "java",
+  paradigm: "xunit",
   detect,
   parse,
   emit,
   imports: {
-    packages: ['org.junit.jupiter.api.Test', 'org.junit.jupiter.api.Assertions', 'org.junit.jupiter.api.BeforeEach', 'org.junit.jupiter.api.AfterEach'],
+    packages: [
+      "org.junit.jupiter.api.Test",
+      "org.junit.jupiter.api.Assertions",
+      "org.junit.jupiter.api.BeforeEach",
+      "org.junit.jupiter.api.AfterEach",
+    ],
   },
 };

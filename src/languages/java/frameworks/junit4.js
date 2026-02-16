@@ -16,7 +16,7 @@ import {
   RawCode,
   Comment,
   Modifier,
-} from '../../../core/ir.js';
+} from "../../../core/ir.js";
 
 /**
  * Detect whether source code is JUnit 4.
@@ -67,7 +67,7 @@ function detect(source) {
  * Parse JUnit 4 source code into an IR tree.
  */
 function parse(source) {
-  const lines = source.split('\n');
+  const lines = source.split("\n");
   const imports = [];
   const allNodes = [];
 
@@ -79,161 +79,195 @@ function parse(source) {
     if (!trimmed) continue;
 
     // Comments
-    if (trimmed.startsWith('//') || trimmed.startsWith('/*') || trimmed.startsWith('*')) {
-      const isLicense = /license|copyright|MIT|Apache|BSD/i.test(trimmed) && i < 5;
-      allNodes.push(new Comment({
-        text: line,
-        commentKind: isLicense ? 'license' : 'inline',
-        preserveExact: isLicense,
-        sourceLocation: loc,
-        originalSource: line,
-      }));
+    if (
+      trimmed.startsWith("//") ||
+      trimmed.startsWith("/*") ||
+      trimmed.startsWith("*")
+    ) {
+      const isLicense =
+        /license|copyright|MIT|Apache|BSD/i.test(trimmed) && i < 5;
+      allNodes.push(
+        new Comment({
+          text: line,
+          commentKind: isLicense ? "license" : "inline",
+          preserveExact: isLicense,
+          sourceLocation: loc,
+          originalSource: line,
+        }),
+      );
       continue;
     }
 
     // Import statements
     if (/^import\s/.test(trimmed)) {
       const sourceMatch = trimmed.match(/import\s+(?:static\s+)?([^\s;]+)/);
-      allNodes.push(new ImportStatement({
-        kind: 'library',
-        source: sourceMatch ? sourceMatch[1] : '',
-        sourceLocation: loc,
-        originalSource: line,
-        confidence: 'converted',
-      }));
+      allNodes.push(
+        new ImportStatement({
+          kind: "library",
+          source: sourceMatch ? sourceMatch[1] : "",
+          sourceLocation: loc,
+          originalSource: line,
+          confidence: "converted",
+        }),
+      );
       imports.push(allNodes[allNodes.length - 1]);
       continue;
     }
 
     // Class declaration
     if (/\bclass\s+\w+/.test(trimmed)) {
-      allNodes.push(new TestSuite({
-        name: (trimmed.match(/class\s+(\w+)/) || [])[1] || '',
-        modifiers: [],
-        sourceLocation: loc,
-        originalSource: line,
-        confidence: 'converted',
-      }));
+      allNodes.push(
+        new TestSuite({
+          name: (trimmed.match(/class\s+(\w+)/) || [])[1] || "",
+          modifiers: [],
+          sourceLocation: loc,
+          originalSource: line,
+          confidence: "converted",
+        }),
+      );
       continue;
     }
 
     // @Test annotation (possibly with parameters)
     if (/@Test\b/.test(trimmed)) {
-      allNodes.push(new Modifier({
-        modifierType: 'test',
-        sourceLocation: loc,
-        originalSource: line,
-        confidence: 'converted',
-      }));
+      allNodes.push(
+        new Modifier({
+          modifierType: "test",
+          sourceLocation: loc,
+          originalSource: line,
+          confidence: "converted",
+        }),
+      );
       continue;
     }
 
     // @Before / @After / @BeforeClass / @AfterClass
     if (/@Before\b(?!Class)/.test(trimmed)) {
-      allNodes.push(new Hook({
-        hookType: 'beforeEach',
-        sourceLocation: loc,
-        originalSource: line,
-        confidence: 'converted',
-      }));
+      allNodes.push(
+        new Hook({
+          hookType: "beforeEach",
+          sourceLocation: loc,
+          originalSource: line,
+          confidence: "converted",
+        }),
+      );
       continue;
     }
     if (/@After\b(?!Class)/.test(trimmed)) {
-      allNodes.push(new Hook({
-        hookType: 'afterEach',
-        sourceLocation: loc,
-        originalSource: line,
-        confidence: 'converted',
-      }));
+      allNodes.push(
+        new Hook({
+          hookType: "afterEach",
+          sourceLocation: loc,
+          originalSource: line,
+          confidence: "converted",
+        }),
+      );
       continue;
     }
     if (/@BeforeClass\b/.test(trimmed)) {
-      allNodes.push(new Hook({
-        hookType: 'beforeAll',
-        sourceLocation: loc,
-        originalSource: line,
-        confidence: 'converted',
-      }));
+      allNodes.push(
+        new Hook({
+          hookType: "beforeAll",
+          sourceLocation: loc,
+          originalSource: line,
+          confidence: "converted",
+        }),
+      );
       continue;
     }
     if (/@AfterClass\b/.test(trimmed)) {
-      allNodes.push(new Hook({
-        hookType: 'afterAll',
-        sourceLocation: loc,
-        originalSource: line,
-        confidence: 'converted',
-      }));
+      allNodes.push(
+        new Hook({
+          hookType: "afterAll",
+          sourceLocation: loc,
+          originalSource: line,
+          confidence: "converted",
+        }),
+      );
       continue;
     }
 
     // @Ignore
     if (/@Ignore\b/.test(trimmed)) {
-      allNodes.push(new Modifier({
-        modifierType: 'skip',
-        sourceLocation: loc,
-        originalSource: line,
-        confidence: 'converted',
-      }));
+      allNodes.push(
+        new Modifier({
+          modifierType: "skip",
+          sourceLocation: loc,
+          originalSource: line,
+          confidence: "converted",
+        }),
+      );
       continue;
     }
 
     // @Rule / @ClassRule
     if (/@(?:Class)?Rule\b/.test(trimmed)) {
-      allNodes.push(new RawCode({
-        code: line,
-        sourceLocation: loc,
-        originalSource: line,
-        confidence: 'unconvertible',
-      }));
+      allNodes.push(
+        new RawCode({
+          code: line,
+          sourceLocation: loc,
+          originalSource: line,
+          confidence: "unconvertible",
+        }),
+      );
       continue;
     }
 
     // Test methods
     if (/public\s+void\s+\w+\s*\(/.test(trimmed)) {
-      allNodes.push(new TestCase({
-        name: (trimmed.match(/void\s+(\w+)\s*\(/) || [])[1] || '',
-        isAsync: false,
-        modifiers: [],
-        sourceLocation: loc,
-        originalSource: line,
-        confidence: 'converted',
-      }));
+      allNodes.push(
+        new TestCase({
+          name: (trimmed.match(/void\s+(\w+)\s*\(/) || [])[1] || "",
+          isAsync: false,
+          modifiers: [],
+          sourceLocation: loc,
+          originalSource: line,
+          confidence: "converted",
+        }),
+      );
       continue;
     }
 
     // Assert calls
-    if (/\bAssert\.\w+\s*\(/.test(trimmed) || /\bassert\w+\s*\(/.test(trimmed)) {
-      let kind = 'equal';
-      if (/assertEquals/.test(trimmed)) kind = 'equal';
-      else if (/assertTrue/.test(trimmed)) kind = 'truthy';
-      else if (/assertFalse/.test(trimmed)) kind = 'falsy';
-      else if (/assertNull/.test(trimmed)) kind = 'isNull';
-      else if (/assertNotNull/.test(trimmed)) kind = 'isDefined';
-      else if (/assertSame/.test(trimmed)) kind = 'strictEqual';
-      else if (/assertArrayEquals/.test(trimmed)) kind = 'deepEqual';
-      else if (/assertNotEquals/.test(trimmed)) kind = 'notEqual';
+    if (
+      /\bAssert\.\w+\s*\(/.test(trimmed) ||
+      /\bassert\w+\s*\(/.test(trimmed)
+    ) {
+      let kind = "equal";
+      if (/assertEquals/.test(trimmed)) kind = "equal";
+      else if (/assertTrue/.test(trimmed)) kind = "truthy";
+      else if (/assertFalse/.test(trimmed)) kind = "falsy";
+      else if (/assertNull/.test(trimmed)) kind = "isNull";
+      else if (/assertNotNull/.test(trimmed)) kind = "isDefined";
+      else if (/assertSame/.test(trimmed)) kind = "strictEqual";
+      else if (/assertArrayEquals/.test(trimmed)) kind = "deepEqual";
+      else if (/assertNotEquals/.test(trimmed)) kind = "notEqual";
 
-      allNodes.push(new Assertion({
-        kind,
-        sourceLocation: loc,
-        originalSource: line,
-        confidence: 'converted',
-      }));
+      allNodes.push(
+        new Assertion({
+          kind,
+          sourceLocation: loc,
+          originalSource: line,
+          confidence: "converted",
+        }),
+      );
       continue;
     }
 
     // Everything else
-    allNodes.push(new RawCode({
-      code: line,
-      sourceLocation: loc,
-      originalSource: line,
-    }));
+    allNodes.push(
+      new RawCode({
+        code: line,
+        sourceLocation: loc,
+        originalSource: line,
+      }),
+    );
   }
 
   return new TestFile({
-    language: 'java',
+    language: "java",
     imports,
-    body: allNodes.filter(n => !imports.includes(n)),
+    body: allNodes.filter((n) => !imports.includes(n)),
   });
 }
 
@@ -247,13 +281,18 @@ function emit(_ir, source) {
 }
 
 export default {
-  name: 'junit4',
-  language: 'java',
-  paradigm: 'xunit',
+  name: "junit4",
+  language: "java",
+  paradigm: "xunit",
   detect,
   parse,
   emit,
   imports: {
-    packages: ['org.junit.Test', 'org.junit.Assert', 'org.junit.Before', 'org.junit.After'],
+    packages: [
+      "org.junit.Test",
+      "org.junit.Assert",
+      "org.junit.Before",
+      "org.junit.After",
+    ],
   },
 };

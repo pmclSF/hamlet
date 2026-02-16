@@ -1,6 +1,6 @@
-import fs from 'fs/promises';
-import path from 'path';
-import { logUtils, reportUtils } from './helpers.js';
+import fs from "fs/promises";
+import path from "path";
+import { logUtils, reportUtils } from "./helpers.js";
 
 /**
  * Handles report generation for the conversion process
@@ -8,14 +8,14 @@ import { logUtils, reportUtils } from './helpers.js';
 export class ConversionReporter {
   constructor(options = {}) {
     this.options = {
-      outputDir: options.outputDir || 'reports',
-      format: options.format || 'html',
+      outputDir: options.outputDir || "reports",
+      format: options.format || "html",
       includeTimestamps: options.includeTimestamps ?? true,
       includeLogs: options.includeLogs ?? true,
       ...options,
     };
 
-    this.logger = logUtils.createLogger('Reporter');
+    this.logger = logUtils.createLogger("Reporter");
 
     this.data = {
       summary: {
@@ -50,7 +50,7 @@ export class ConversionReporter {
    */
   startReport() {
     this.data.summary.startTime = new Date();
-    this.logger.info('Started conversion report');
+    this.logger.info("Started conversion report");
   }
 
   /**
@@ -58,7 +58,7 @@ export class ConversionReporter {
    */
   endReport() {
     this.data.summary.endTime = new Date();
-    this.logger.info('Completed conversion report');
+    this.logger.info("Completed conversion report");
   }
 
   /**
@@ -66,9 +66,9 @@ export class ConversionReporter {
    * @param {Object} result - Test result
    */
   addTestResult(result) {
-    if (result.status === 'passed') {
+    if (result.status === "passed") {
       this.data.testResults.passed.push(result);
-    } else if (result.status === 'failed') {
+    } else if (result.status === "failed") {
       this.data.testResults.failed.push(result);
     } else {
       this.data.testResults.skipped.push(result);
@@ -80,9 +80,9 @@ export class ConversionReporter {
    * @param {Object} result - Validation result
    */
   addValidationResult(result) {
-    if (result.status === 'passed') {
+    if (result.status === "passed") {
       this.data.validationResults.passed.push(result);
-    } else if (result.status === 'failed') {
+    } else if (result.status === "failed") {
       this.data.validationResults.failed.push(result);
     } else {
       this.data.validationResults.warnings.push(result);
@@ -132,11 +132,11 @@ export class ConversionReporter {
       );
 
       let content;
-      if (this.options.format === 'html') {
+      if (this.options.format === "html") {
         content = this.generateHtmlReport();
-      } else if (this.options.format === 'json') {
+      } else if (this.options.format === "json") {
         content = JSON.stringify(this.data, null, 2);
-      } else if (this.options.format === 'md') {
+      } else if (this.options.format === "md") {
         content = this.generateMarkdownReport();
       }
 
@@ -144,7 +144,7 @@ export class ConversionReporter {
       this.logger.success(`Report generated at: ${reportPath}`);
       return reportPath;
     } catch (error) {
-      this.logger.error('Failed to generate report');
+      this.logger.error("Failed to generate report");
       throw error;
     }
   }
@@ -277,27 +277,27 @@ export class ConversionReporter {
         <th>Details</th>
       </tr>
       ${this.data.validationResults.passed
-    .map(
-      (result) => `
+        .map(
+          (result) => `
         <tr class="success">
           <td>${result.check}</td>
           <td>Passed</td>
-          <td>${result.details || ''}</td>
+          <td>${result.details || ""}</td>
         </tr>
       `,
-    )
-    .join('')}
+        )
+        .join("")}
       ${this.data.validationResults.failed
-    .map(
-      (result) => `
+        .map(
+          (result) => `
         <tr class="error">
           <td>${result.check}</td>
           <td>Failed</td>
-          <td>${result.details || ''}</td>
+          <td>${result.details || ""}</td>
         </tr>
       `,
-    )
-    .join('')}
+        )
+        .join("")}
     </table>
   </div>
 
@@ -310,88 +310,88 @@ export class ConversionReporter {
         <th>Difference</th>
       </tr>
       ${this.data.visualResults.matches
-    .map(
-      (result) => `
+        .map(
+          (result) => `
         <tr class="success">
           <td>${result.test}</td>
           <td>Match</td>
-          <td>${result.difference || '0%'}</td>
+          <td>${result.difference || "0%"}</td>
         </tr>
       `,
-    )
-    .join('')}
+        )
+        .join("")}
       ${this.data.visualResults.mismatches
-    .map(
-      (result) => `
+        .map(
+          (result) => `
         <tr class="error">
           <td>${result.test}</td>
           <td>Mismatch</td>
           <td>${result.difference}</td>
         </tr>
       `,
-    )
-    .join('')}
+        )
+        .join("")}
     </table>
   </div>
 
   <div class="section">
     <h2>Conversion Steps</h2>
     ${this.data.conversionSteps
-    .map(
-      (step) => `
+      .map(
+        (step) => `
       <div class="step ${step.status}">
         <h3>${step.step}</h3>
         <p>Status: ${step.status}</p>
         ${
-  step.details
-    ? `
+          step.details
+            ? `
           <div class="details">
             <pre>${JSON.stringify(step.details, null, 2)}</pre>
           </div>
         `
-    : ''
-}
+            : ""
+        }
         ${
-  this.options.includeTimestamps
-    ? `
+          this.options.includeTimestamps
+            ? `
           <small>Timestamp: ${new Date(step.timestamp).toLocaleString()}</small>
         `
-    : ''
-}
+            : ""
+        }
       </div>
     `,
-    )
-    .join('')}
+      )
+      .join("")}
   </div>
 
   ${
-  this.data.summary.errors.length > 0
-    ? `
+    this.data.summary.errors.length > 0
+      ? `
     <div class="section">
       <h2>Errors</h2>
       ${this.data.summary.errors
-    .map(
-      (error) => `
+        .map(
+          (error) => `
         <div class="step error">
           <h3>${error.type} Error</h3>
           <p>${error.message}</p>
           ${
-  error.stack
-    ? `
+            error.stack
+              ? `
             <div class="details">
               <pre>${error.stack}</pre>
             </div>
           `
-    : ''
-}
+              : ""
+          }
         </div>
       `,
-    )
-    .join('')}
+        )
+        .join("")}
     </div>
   `
-    : ''
-}
+      : ""
+  }
 </body>
 </html>`;
   }
@@ -426,71 +426,71 @@ Duration: ${duration}
 
 ## Validation Results
 ${this.data.validationResults.passed
-    .map(
-      (result) => `
+  .map(
+    (result) => `
 ### ✅ ${result.check}
-${result.details || 'No details provided'}
+${result.details || "No details provided"}
 `,
-    )
-    .join('\n')}
+  )
+  .join("\n")}
 
 ${this.data.validationResults.failed
-    .map(
-      (result) => `
+  .map(
+    (result) => `
 ### ❌ ${result.check}
-${result.details || 'No details provided'}
+${result.details || "No details provided"}
 `,
-    )
-    .join('\n')}
+  )
+  .join("\n")}
 
 ## Visual Comparison Results
 ${this.data.visualResults.matches
-    .map(
-      (result) => `
+  .map(
+    (result) => `
 ### ✅ ${result.test}
 - Status: Match
-- Difference: ${result.difference || '0%'}
+- Difference: ${result.difference || "0%"}
 `,
-    )
-    .join('\n')}
+  )
+  .join("\n")}
 
 ${this.data.visualResults.mismatches
-    .map(
-      (result) => `
+  .map(
+    (result) => `
 ### ❌ ${result.test}
 - Status: Mismatch
 - Difference: ${result.difference}
 `,
-    )
-    .join('\n')}
+  )
+  .join("\n")}
 
 ## Conversion Steps
 ${this.data.conversionSteps
-    .map(
-      (step) => `
+  .map(
+    (step) => `
 ### ${step.step}
 - Status: ${step.status}
-${step.details ? `- Details:\n\`\`\`json\n${JSON.stringify(step.details, null, 2)}\n\`\`\`` : ''}
-${this.options.includeTimestamps ? `- Timestamp: ${new Date(step.timestamp).toLocaleString()}` : ''}
+${step.details ? `- Details:\n\`\`\`json\n${JSON.stringify(step.details, null, 2)}\n\`\`\`` : ""}
+${this.options.includeTimestamps ? `- Timestamp: ${new Date(step.timestamp).toLocaleString()}` : ""}
 `,
-    )
-    .join('\n')}
+  )
+  .join("\n")}
 
 ${
   this.data.summary.errors.length > 0
     ? `
 ## Errors
 ${this.data.summary.errors
-    .map(
-      (error) => `
+  .map(
+    (error) => `
 ### ${error.type} Error
 ${error.message}
-${error.stack ? `\`\`\`\n${error.stack}\n\`\`\`` : ''}
+${error.stack ? `\`\`\`\n${error.stack}\n\`\`\`` : ""}
 `,
-    )
-    .join('\n')}
+  )
+  .join("\n")}
 `
-    : ''
+    : ""
 }`;
   }
 

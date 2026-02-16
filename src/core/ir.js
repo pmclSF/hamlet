@@ -20,8 +20,8 @@ export class IRNode {
   constructor(type, props = {}) {
     this.type = type;
     this.sourceLocation = props.sourceLocation || null;
-    this.confidence = props.confidence || 'converted';
-    this.originalSource = props.originalSource || '';
+    this.confidence = props.confidence || "converted";
+    this.originalSource = props.originalSource || "";
   }
 }
 
@@ -30,8 +30,8 @@ export class IRNode {
  */
 export class TestFile extends IRNode {
   constructor(props = {}) {
-    super('TestFile', props);
-    this.language = props.language || 'javascript';
+    super("TestFile", props);
+    this.language = props.language || "javascript";
     this.imports = props.imports || [];
     this.body = props.body || [];
   }
@@ -42,8 +42,8 @@ export class TestFile extends IRNode {
  */
 export class TestSuite extends IRNode {
   constructor(props = {}) {
-    super('TestSuite', props);
-    this.name = props.name || '';
+    super("TestSuite", props);
+    this.name = props.name || "";
     this.hooks = props.hooks || [];
     this.tests = props.tests || [];
     this.sharedState = props.sharedState || [];
@@ -56,8 +56,8 @@ export class TestSuite extends IRNode {
  */
 export class TestCase extends IRNode {
   constructor(props = {}) {
-    super('TestCase', props);
-    this.name = props.name || '';
+    super("TestCase", props);
+    this.name = props.name || "";
     this.body = props.body || [];
     this.modifiers = props.modifiers || [];
     this.parameters = props.parameters || null;
@@ -70,9 +70,9 @@ export class TestCase extends IRNode {
  */
 export class Hook extends IRNode {
   constructor(props = {}) {
-    super('Hook', props);
-    this.hookType = props.hookType || 'beforeEach';
-    this.scope = props.scope || 'suite';
+    super("Hook", props);
+    this.hookType = props.hookType || "beforeEach";
+    this.scope = props.scope || "suite";
     this.body = props.body || [];
     this.isAsync = props.isAsync || false;
   }
@@ -83,9 +83,9 @@ export class Hook extends IRNode {
  */
 export class Assertion extends IRNode {
   constructor(props = {}) {
-    super('Assertion', props);
-    this.kind = props.kind || 'equal';
-    this.subject = props.subject || '';
+    super("Assertion", props);
+    this.kind = props.kind || "equal";
+    this.subject = props.subject || "";
     this.expected = props.expected !== undefined ? props.expected : null;
     this.isNegated = props.isNegated || false;
     this.message = props.message || null;
@@ -97,11 +97,12 @@ export class Assertion extends IRNode {
  */
 export class MockCall extends IRNode {
   constructor(props = {}) {
-    super('MockCall', props);
-    this.kind = props.kind || 'createMock';
-    this.target = props.target || '';
+    super("MockCall", props);
+    this.kind = props.kind || "createMock";
+    this.target = props.target || "";
     this.args = props.args || [];
-    this.returnValue = props.returnValue !== undefined ? props.returnValue : null;
+    this.returnValue =
+      props.returnValue !== undefined ? props.returnValue : null;
   }
 }
 
@@ -110,9 +111,9 @@ export class MockCall extends IRNode {
  */
 export class ImportStatement extends IRNode {
   constructor(props = {}) {
-    super('ImportStatement', props);
-    this.kind = props.kind || 'framework';
-    this.source = props.source || '';
+    super("ImportStatement", props);
+    this.kind = props.kind || "framework";
+    this.source = props.source || "";
     this.specifiers = props.specifiers || [];
     this.isDefault = props.isDefault || false;
     this.isTypeOnly = props.isTypeOnly || false;
@@ -124,8 +125,8 @@ export class ImportStatement extends IRNode {
  */
 export class RawCode extends IRNode {
   constructor(props = {}) {
-    super('RawCode', props);
-    this.code = props.code || '';
+    super("RawCode", props);
+    this.code = props.code || "";
     this.comment = props.comment || null;
   }
 }
@@ -135,9 +136,9 @@ export class RawCode extends IRNode {
  */
 export class Comment extends IRNode {
   constructor(props = {}) {
-    super('Comment', props);
-    this.text = props.text || '';
-    this.commentKind = props.commentKind || 'inline';
+    super("Comment", props);
+    this.text = props.text || "";
+    this.commentKind = props.commentKind || "inline";
     this.preserveExact = props.preserveExact || false;
   }
 }
@@ -147,11 +148,11 @@ export class Comment extends IRNode {
  */
 export class SharedVariable extends IRNode {
   constructor(props = {}) {
-    super('SharedVariable', props);
-    this.name = props.name || '';
-    this.initializer = props.initializer || '';
+    super("SharedVariable", props);
+    this.name = props.name || "";
+    this.initializer = props.initializer || "";
     this.isLazy = props.isLazy || false;
-    this.scope = props.scope || 'instance';
+    this.scope = props.scope || "instance";
   }
 }
 
@@ -160,8 +161,8 @@ export class SharedVariable extends IRNode {
  */
 export class Modifier extends IRNode {
   constructor(props = {}) {
-    super('Modifier', props);
-    this.modifierType = props.modifierType || 'skip';
+    super("Modifier", props);
+    this.modifierType = props.modifierType || "skip";
     this.value = props.value !== undefined ? props.value : null;
     this.condition = props.condition || null;
   }
@@ -172,8 +173,8 @@ export class Modifier extends IRNode {
  */
 export class ParameterSet extends IRNode {
   constructor(props = {}) {
-    super('ParameterSet', props);
-    this.paramKind = props.paramKind || 'values';
+    super("ParameterSet", props);
+    this.paramKind = props.paramKind || "values";
     this.parameters = props.parameters || [];
     this.ids = props.ids || null;
   }

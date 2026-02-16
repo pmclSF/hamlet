@@ -5,38 +5,41 @@
  * Unrecognized keys get a HAMLET-TODO comment (not silent omission).
  */
 
-import { TodoFormatter } from './TodoFormatter.js';
+import { TodoFormatter } from "./TodoFormatter.js";
 
 const JEST_TO_VITEST_KEYS = {
   testEnvironment: (value) => {
-    if (value === 'jsdom') return { key: 'environment', value: '\'jsdom\'' };
-    if (value === 'node') return { key: 'environment', value: '\'node\'' };
-    return { key: 'environment', value: `'${value}'` };
+    if (value === "jsdom") return { key: "environment", value: "'jsdom'" };
+    if (value === "node") return { key: "environment", value: "'node'" };
+    return { key: "environment", value: `'${value}'` };
   },
-  setupFiles: (value) => ({ key: 'setupFiles', value }),
-  setupFilesAfterFramework: (value) => ({ key: 'setupFiles', value }),
-  testMatch: (value) => ({ key: 'include', value }),
-  coverageThreshold: (value) => ({ key: 'coverage.thresholds', value }),
-  testTimeout: (value) => ({ key: 'testTimeout', value }),
-  clearMocks: (value) => ({ key: 'clearMocks', value }),
-  resetMocks: (value) => ({ key: 'restoreMocks', value }),
-  restoreMocks: (value) => ({ key: 'restoreMocks', value }),
+  setupFiles: (value) => ({ key: "setupFiles", value }),
+  setupFilesAfterFramework: (value) => ({ key: "setupFiles", value }),
+  testMatch: (value) => ({ key: "include", value }),
+  coverageThreshold: (value) => ({ key: "coverage.thresholds", value }),
+  testTimeout: (value) => ({ key: "testTimeout", value }),
+  clearMocks: (value) => ({ key: "clearMocks", value }),
+  resetMocks: (value) => ({ key: "restoreMocks", value }),
+  restoreMocks: (value) => ({ key: "restoreMocks", value }),
 };
 
 const CYPRESS_TO_PLAYWRIGHT_KEYS = {
-  baseUrl: (value) => ({ key: 'use.baseURL', value }),
+  baseUrl: (value) => ({ key: "use.baseURL", value }),
   viewportWidth: (value, allConfig) => {
     const height = allConfig.viewportHeight || 720;
-    return { key: 'use.viewport', value: `{ width: ${value}, height: ${height} }` };
+    return {
+      key: "use.viewport",
+      value: `{ width: ${value}, height: ${height} }`,
+    };
   },
   viewportHeight: () => null, // Handled by viewportWidth
-  retries: (value) => ({ key: 'retries', value }),
-  specPattern: (value) => ({ key: 'testMatch', value }),
+  retries: (value) => ({ key: "retries", value }),
+  specPattern: (value) => ({ key: "testMatch", value }),
 };
 
 export class ConfigConverter {
   constructor() {
-    this.formatter = new TodoFormatter('javascript');
+    this.formatter = new TodoFormatter("javascript");
   }
 
   /**
@@ -50,11 +53,11 @@ export class ConfigConverter {
   convert(configContent, fromFramework, toFramework) {
     const direction = `${fromFramework}-${toFramework}`;
 
-    if (direction === 'jest-vitest') {
+    if (direction === "jest-vitest") {
       return this._convertJestToVitest(configContent);
     }
 
-    if (direction === 'cypress-playwright') {
+    if (direction === "cypress-playwright") {
       return this._convertCypressToPlaywright(configContent);
     }
 
@@ -68,47 +71,49 @@ export class ConfigConverter {
   _convertJestToVitest(content) {
     const parsed = this._extractConfigObject(content);
     if (!parsed) {
-      return this._addTodoHeader(content, 'jest', 'vitest');
+      return this._addTodoHeader(content, "jest", "vitest");
     }
 
     const { keys } = parsed;
     const converted = [];
     const todos = [];
 
-    converted.push('import { defineConfig } from \'vitest/config\';');
-    converted.push('');
-    converted.push('export default defineConfig({');
-    converted.push('  test: {');
+    converted.push("import { defineConfig } from 'vitest/config';");
+    converted.push("");
+    converted.push("export default defineConfig({");
+    converted.push("  test: {");
 
     for (const [key, value] of Object.entries(keys)) {
       const mapper = JEST_TO_VITEST_KEYS[key];
       if (mapper) {
         const result = mapper(value);
         if (result) {
-          converted.push(`    ${result.key}: ${this._formatValue(result.value)},`);
+          converted.push(
+            `    ${result.key}: ${this._formatValue(result.value)},`,
+          );
         }
       } else {
         const todo = this.formatter.formatTodo({
-          id: 'CONFIG-UNSUPPORTED',
+          id: "CONFIG-UNSUPPORTED",
           description: `Unsupported Jest config key: ${key}`,
           original: `${key}: ${JSON.stringify(value)}`,
-          action: 'Manually convert this option to Vitest equivalent',
+          action: "Manually convert this option to Vitest equivalent",
         });
         todos.push(todo);
       }
     }
 
-    converted.push('  },');
-    converted.push('});');
+    converted.push("  },");
+    converted.push("});");
 
     if (todos.length > 0) {
-      converted.push('');
+      converted.push("");
       for (const todo of todos) {
         converted.push(todo);
       }
     }
 
-    return converted.join('\n') + '\n';
+    return converted.join("\n") + "\n";
   }
 
   /**
@@ -118,45 +123,47 @@ export class ConfigConverter {
   _convertCypressToPlaywright(content) {
     const parsed = this._extractConfigObject(content);
     if (!parsed) {
-      return this._addTodoHeader(content, 'cypress', 'playwright');
+      return this._addTodoHeader(content, "cypress", "playwright");
     }
 
     const { keys } = parsed;
     const converted = [];
     const todos = [];
 
-    converted.push('import { defineConfig, devices } from \'@playwright/test\';');
-    converted.push('');
-    converted.push('export default defineConfig({');
+    converted.push("import { defineConfig, devices } from '@playwright/test';");
+    converted.push("");
+    converted.push("export default defineConfig({");
 
     for (const [key, value] of Object.entries(keys)) {
       const mapper = CYPRESS_TO_PLAYWRIGHT_KEYS[key];
       if (mapper) {
         const result = mapper(value, keys);
         if (result) {
-          converted.push(`  ${result.key}: ${this._formatValue(result.value)},`);
+          converted.push(
+            `  ${result.key}: ${this._formatValue(result.value)},`,
+          );
         }
       } else {
         const todo = this.formatter.formatTodo({
-          id: 'CONFIG-UNSUPPORTED',
+          id: "CONFIG-UNSUPPORTED",
           description: `Unsupported Cypress config key: ${key}`,
           original: `${key}: ${JSON.stringify(value)}`,
-          action: 'Manually convert this option to Playwright equivalent',
+          action: "Manually convert this option to Playwright equivalent",
         });
         todos.push(todo);
       }
     }
 
-    converted.push('});');
+    converted.push("});");
 
     if (todos.length > 0) {
-      converted.push('');
+      converted.push("");
       for (const todo of todos) {
         converted.push(todo);
       }
     }
 
-    return converted.join('\n') + '\n';
+    return converted.join("\n") + "\n";
   }
 
   /**
@@ -186,7 +193,11 @@ export class ConfigConverter {
     }
 
     // Check for JS logic (conditional, function calls, etc.)
-    if (/\bif\s*\(/.test(content) || /\bfunction\s/.test(content) || /=>\s*\{/.test(content)) {
+    if (
+      /\bif\s*\(/.test(content) ||
+      /\bfunction\s/.test(content) ||
+      /=>\s*\{/.test(content)
+    ) {
       return null; // Too complex — will get HAMLET-TODO
     }
 
@@ -203,14 +214,18 @@ export class ConfigConverter {
   _parseSimpleObject(body) {
     const keys = {};
     // Match key: value patterns (simple values only)
-    const keyValuePattern = /(\w+)\s*:\s*(?:'([^']*)'|"([^"]*)"|(\d+)|(\btrue\b|\bfalse\b)|\[([^\]]*)\])/g;
+    const keyValuePattern =
+      /(\w+)\s*:\s*(?:'([^']*)'|"([^"]*)"|(\d+)|(\btrue\b|\bfalse\b)|\[([^\]]*)\])/g;
 
     let match;
     while ((match = keyValuePattern.exec(body)) !== null) {
       const key = match[1];
-      const value = match[2] ?? match[3] ?? (match[4] ? Number(match[4]) : null) ??
-                    (match[5] === 'true' ? true : match[5] === 'false' ? false : null) ??
-                    (match[6] ? match[6] : null);
+      const value =
+        match[2] ??
+        match[3] ??
+        (match[4] ? Number(match[4]) : null) ??
+        (match[5] === "true" ? true : match[5] === "false" ? false : null) ??
+        (match[6] ? match[6] : null);
       if (value !== null) {
         keys[key] = value;
       }
@@ -225,14 +240,19 @@ export class ConfigConverter {
    * @returns {string}
    */
   _formatValue(value) {
-    if (typeof value === 'string') {
+    if (typeof value === "string") {
       // Already formatted string (with quotes)
-      if (value.startsWith('\'') || value.startsWith('"') || value.startsWith('{') || value.startsWith('[')) {
+      if (
+        value.startsWith("'") ||
+        value.startsWith('"') ||
+        value.startsWith("{") ||
+        value.startsWith("[")
+      ) {
         return value;
       }
       return `'${value}'`;
     }
-    if (typeof value === 'boolean' || typeof value === 'number') {
+    if (typeof value === "boolean" || typeof value === "number") {
       return String(value);
     }
     return JSON.stringify(value);
@@ -247,11 +267,11 @@ export class ConfigConverter {
    */
   _addTodoHeader(content, from, to) {
     const todo = this.formatter.formatTodo({
-      id: 'CONFIG-MANUAL',
+      id: "CONFIG-MANUAL",
       description: `Config conversion from ${from} to ${to} requires manual review`,
       original: `Full config file (${from})`,
       action: `Rewrite this config for ${to}`,
     });
-    return todo + '\n\n' + content;
+    return todo + "\n\n" + content;
   }
 }

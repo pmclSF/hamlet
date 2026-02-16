@@ -1,7 +1,7 @@
-import fs from 'fs/promises';
-import { logUtils } from '../utils/helpers.js';
+import fs from "fs/promises";
+import { logUtils } from "../utils/helpers.js";
 
-const logger = logUtils.createLogger('MetadataCollector');
+const logger = logUtils.createLogger("MetadataCollector");
 
 /**
  * Collects and manages test metadata
@@ -20,8 +20,8 @@ export class TestMetadataCollector {
    */
   async collectMetadata(testPath) {
     try {
-      const content = await fs.readFile(testPath, 'utf8');
-      
+      const content = await fs.readFile(testPath, "utf8");
+
       const metadata = {
         path: testPath,
         type: this.detectTestType(content),
@@ -30,12 +30,11 @@ export class TestMetadataCollector {
         tags: this.extractTags(content),
         complexity: this.calculateComplexity(content),
         coverage: this.extractCoverage(content),
-        lastModified: await this.getLastModified(testPath)
+        lastModified: await this.getLastModified(testPath),
       };
 
       this.metadata.set(testPath, metadata);
       return metadata;
-
     } catch (error) {
       logger.error(`Failed to collect metadata for ${testPath}:`, error);
       throw error;
@@ -54,7 +53,7 @@ export class TestMetadataCollector {
       api: /cy\.request|cy\.intercept/i,
       visual: /cy\.screenshot|matchImageSnapshot/i,
       performance: /cy\.lighthouse|performance\./i,
-      accessibility: /cy\.injectAxe|cy\.checkA11y/i
+      accessibility: /cy\.injectAxe|cy\.checkA11y/i,
     };
 
     for (const [type, pattern] of Object.entries(patterns)) {
@@ -63,7 +62,7 @@ export class TestMetadataCollector {
       }
     }
 
-    return 'unknown';
+    return "unknown";
   }
 
   /**
@@ -74,12 +73,12 @@ export class TestMetadataCollector {
   extractTestSuites(content) {
     const suites = [];
     const suiteRegex = /describe\(['"](.*?)['"],/g;
-    
+
     let match;
     while ((match = suiteRegex.exec(content)) !== null) {
       suites.push({
         name: match[1],
-        location: match.index
+        location: match.index,
       });
     }
 
@@ -94,12 +93,12 @@ export class TestMetadataCollector {
   extractTestCases(content) {
     const cases = [];
     const caseRegex = /it\(['"](.*?)['"],/g;
-    
+
     let match;
     while ((match = caseRegex.exec(content)) !== null) {
       cases.push({
         name: match[1],
-        location: match.index
+        location: match.index,
       });
     }
 
@@ -113,8 +112,9 @@ export class TestMetadataCollector {
    */
   extractTags(content) {
     const tags = new Set();
-    const tagRegex = /@(smoke|regression|e2e|api|visual|performance|accessibility)/g;
-    
+    const tagRegex =
+      /@(smoke|regression|e2e|api|visual|performance|accessibility)/g;
+
     let match;
     while ((match = tagRegex.exec(content)) !== null) {
       tags.add(match[1]);
@@ -133,7 +133,7 @@ export class TestMetadataCollector {
       assertions: (content.match(/expect|should|assert/g) || []).length,
       commands: (content.match(/cy\./g) || []).length,
       conditionals: (content.match(/if|else|switch|case/g) || []).length,
-      hooks: (content.match(/before|after|beforeEach|afterEach/g) || []).length
+      hooks: (content.match(/before|after|beforeEach|afterEach/g) || []).length,
     };
   }
 
@@ -147,7 +147,7 @@ export class TestMetadataCollector {
       selectors: this.extractSelectors(content),
       routes: this.extractRoutes(content),
       assertions: this.extractAssertions(content),
-      interactions: this.extractInteractions(content)
+      interactions: this.extractInteractions(content),
     };
   }
 
@@ -159,7 +159,7 @@ export class TestMetadataCollector {
   extractSelectors(content) {
     const selectors = new Set();
     const selectorRegex = /cy\.(?:get|find|contains)\(['"](.*?)['"]\)/g;
-    
+
     let match;
     while ((match = selectorRegex.exec(content)) !== null) {
       selectors.add(match[1]);
@@ -176,7 +176,7 @@ export class TestMetadataCollector {
   extractRoutes(content) {
     const routes = new Set();
     const routeRegex = /cy\.(?:visit|request|intercept)\(['"](.*?)['"]\)/g;
-    
+
     let match;
     while ((match = routeRegex.exec(content)) !== null) {
       routes.add(match[1]);
@@ -193,12 +193,12 @@ export class TestMetadataCollector {
   extractAssertions(content) {
     const assertions = [];
     const assertionRegex = /(?:expect|should|assert).*?['"](.*?)['"]/g;
-    
+
     let match;
     while ((match = assertionRegex.exec(content)) !== null) {
       assertions.push({
         type: this.getAssertionType(match[0]),
-        value: match[1]
+        value: match[1],
       });
     }
 
@@ -211,13 +211,13 @@ export class TestMetadataCollector {
    * @returns {string} - Assertion type
    */
   getAssertionType(assertion) {
-    if (assertion.includes('exist')) return 'existence';
-    if (assertion.includes('visible')) return 'visibility';
-    if (assertion.includes('have.text')) return 'text';
-    if (assertion.includes('have.value')) return 'value';
-    if (assertion.includes('have.class')) return 'class';
-    if (assertion.includes('have.attr')) return 'attribute';
-    return 'other';
+    if (assertion.includes("exist")) return "existence";
+    if (assertion.includes("visible")) return "visibility";
+    if (assertion.includes("have.text")) return "text";
+    if (assertion.includes("have.value")) return "value";
+    if (assertion.includes("have.class")) return "class";
+    if (assertion.includes("have.attr")) return "attribute";
+    return "other";
   }
 
   /**
@@ -228,12 +228,12 @@ export class TestMetadataCollector {
   extractInteractions(content) {
     const interactions = [];
     const interactionRegex = /cy\.(?:click|type|select|check|uncheck|hover)\(/g;
-    
+
     let match;
     while ((match = interactionRegex.exec(content)) !== null) {
       interactions.push({
-        type: match[0].replace(/cy\.|[()]/g, ''),
-        location: match.index
+        type: match[0].replace(/cy\.|[()]/g, ""),
+        location: match.index,
       });
     }
 
@@ -273,8 +273,9 @@ export class TestMetadataCollector {
    * @returns {Object[]} - Array of matching tests
    */
   getTestsByTag(tag) {
-    return Array.from(this.metadata.values())
-      .filter(meta => meta.tags.includes(tag));
+    return Array.from(this.metadata.values()).filter((meta) =>
+      meta.tags.includes(tag),
+    );
   }
 
   /**
@@ -283,22 +284,22 @@ export class TestMetadataCollector {
    */
   generateReport() {
     const tests = Array.from(this.metadata.values());
-    
+
     return {
       summary: {
         totalTests: tests.length,
         types: this.summarizeTypes(tests),
         tags: this.summarizeTags(tests),
-        complexity: this.summarizeComplexity(tests)
+        complexity: this.summarizeComplexity(tests),
       },
-      tests: tests.map(test => ({
+      tests: tests.map((test) => ({
         path: test.path,
         type: test.type,
         tags: test.tags,
         suites: test.suites.length,
         cases: test.cases.length,
-        complexity: test.complexity
-      }))
+        complexity: test.complexity,
+      })),
     };
   }
 
@@ -321,7 +322,7 @@ export class TestMetadataCollector {
    */
   summarizeTags(tests) {
     return tests.reduce((acc, test) => {
-      test.tags.forEach(tag => {
+      test.tags.forEach((tag) => {
         acc[tag] = (acc[tag] || 0) + 1;
       });
       return acc;
@@ -334,13 +335,15 @@ export class TestMetadataCollector {
    * @returns {Object} - Complexity summary
    */
   summarizeComplexity(tests) {
-    const complexities = tests.map(t => t.complexity);
-    
+    const complexities = tests.map((t) => t.complexity);
+
     return {
-      averageAssertions: this.average(complexities.map(c => c.assertions)),
-      averageCommands: this.average(complexities.map(c => c.commands)),
-      averageConditionals: this.average(complexities.map(c => c.conditionals)),
-      averageHooks: this.average(complexities.map(c => c.hooks))
+      averageAssertions: this.average(complexities.map((c) => c.assertions)),
+      averageCommands: this.average(complexities.map((c) => c.commands)),
+      averageConditionals: this.average(
+        complexities.map((c) => c.conditionals),
+      ),
+      averageHooks: this.average(complexities.map((c) => c.hooks)),
     };
   }
 
@@ -350,8 +353,8 @@ export class TestMetadataCollector {
    * @returns {number} - Average value
    */
   average(numbers) {
-    return numbers.length ?
-      numbers.reduce((a, b) => a + b, 0) / numbers.length :
-      0;
+    return numbers.length
+      ? numbers.reduce((a, b) => a + b, 0) / numbers.length
+      : 0;
   }
 }

@@ -6,11 +6,11 @@
  * Read-only: does NOT modify files, does NOT create .hamlet/.
  */
 
-import fs from 'fs/promises';
-import path from 'path';
-import { Scanner } from './Scanner.js';
-import { FileClassifier } from './FileClassifier.js';
-import { DependencyGraphBuilder } from './DependencyGraphBuilder.js';
+import fs from "fs/promises";
+import path from "path";
+import { Scanner } from "./Scanner.js";
+import { FileClassifier } from "./FileClassifier.js";
+import { DependencyGraphBuilder } from "./DependencyGraphBuilder.js";
 
 const COMPLEXITY_PATTERNS = {
   jest: {
@@ -47,7 +47,7 @@ export class MigrationEstimator {
 
     // Scan
     const scanned = await this.scanner.scan(resolvedRoot, {
-      include: ['*.js', '*.ts', '*.jsx', '*.tsx', '*.mjs'],
+      include: ["*.js", "*.ts", "*.jsx", "*.tsx", "*.mjs"],
     });
 
     // Read and classify
@@ -55,12 +55,15 @@ export class MigrationEstimator {
     for (const entry of scanned) {
       let content;
       try {
-        content = await fs.readFile(entry.path, 'utf8');
+        content = await fs.readFile(entry.path, "utf8");
       } catch {
         continue;
       }
 
-      const classification = this.classifier.classify(entry.relativePath, content);
+      const classification = this.classifier.classify(
+        entry.relativePath,
+        content,
+      );
       const complexity = this._estimateFileComplexity(content, from);
 
       files.push({
@@ -75,7 +78,7 @@ export class MigrationEstimator {
     const graph = this.graphBuilder.build(files);
 
     // Aggregate results
-    const fileEstimates = files.map(f => ({
+    const fileEstimates = files.map((f) => ({
       path: f.relativePath,
       type: f.classification.type,
       framework: f.classification.framework,
@@ -83,9 +86,15 @@ export class MigrationEstimator {
       complexity: f.complexity,
     }));
 
-    const high = fileEstimates.filter(f => f.predictedConfidence >= 90).length;
-    const medium = fileEstimates.filter(f => f.predictedConfidence >= 70 && f.predictedConfidence < 90).length;
-    const low = fileEstimates.filter(f => f.predictedConfidence > 0 && f.predictedConfidence < 70).length;
+    const high = fileEstimates.filter(
+      (f) => f.predictedConfidence >= 90,
+    ).length;
+    const medium = fileEstimates.filter(
+      (f) => f.predictedConfidence >= 70 && f.predictedConfidence < 90,
+    ).length;
+    const low = fileEstimates.filter(
+      (f) => f.predictedConfidence > 0 && f.predictedConfidence < 70,
+    ).length;
 
     // Identify top blockers
     const blockers = this._identifyBlockers(files, from);
@@ -93,10 +102,12 @@ export class MigrationEstimator {
     return {
       summary: {
         totalFiles: files.length,
-        testFiles: fileEstimates.filter(f => f.type === 'test').length,
-        helperFiles: fileEstimates.filter(f => f.type === 'helper').length,
-        configFiles: fileEstimates.filter(f => f.type === 'config').length,
-        otherFiles: fileEstimates.filter(f => !['test', 'helper', 'config'].includes(f.type)).length,
+        testFiles: fileEstimates.filter((f) => f.type === "test").length,
+        helperFiles: fileEstimates.filter((f) => f.type === "helper").length,
+        configFiles: fileEstimates.filter((f) => f.type === "config").length,
+        otherFiles: fileEstimates.filter(
+          (f) => !["test", "helper", "config"].includes(f.type),
+        ).length,
         predictedHigh: high,
         predictedMedium: medium,
         predictedLow: low,
@@ -123,18 +134,18 @@ export class MigrationEstimator {
     let mediumPatterns = 0;
     let lowPatterns = 0;
 
-    for (const pattern of (patterns.high || [])) {
-      const matches = content.match(new RegExp(pattern.source, 'g'));
+    for (const pattern of patterns.high || []) {
+      const matches = content.match(new RegExp(pattern.source, "g"));
       if (matches) highPatterns += matches.length;
     }
 
-    for (const pattern of (patterns.medium || [])) {
-      const matches = content.match(new RegExp(pattern.source, 'g'));
+    for (const pattern of patterns.medium || []) {
+      const matches = content.match(new RegExp(pattern.source, "g"));
       if (matches) mediumPatterns += matches.length;
     }
 
-    for (const pattern of (patterns.low || [])) {
-      const matches = content.match(new RegExp(pattern.source, 'g'));
+    for (const pattern of patterns.low || []) {
+      const matches = content.match(new RegExp(pattern.source, "g"));
       if (matches) lowPatterns += matches.length;
     }
 
@@ -167,8 +178,8 @@ export class MigrationEstimator {
     const counts = new Map();
 
     for (const file of files) {
-      for (const pattern of (patterns.high || [])) {
-        const matches = file.content.match(new RegExp(pattern.source, 'g'));
+      for (const pattern of patterns.high || []) {
+        const matches = file.content.match(new RegExp(pattern.source, "g"));
         if (matches) {
           const key = pattern.source;
           counts.set(key, (counts.get(key) || 0) + matches.length);
@@ -178,9 +189,9 @@ export class MigrationEstimator {
 
     return Array.from(counts.entries())
       .map(([pattern, count]) => ({
-        pattern: pattern.replace(/\\\(/g, '(').replace(/\\\./g, '.'),
+        pattern: pattern.replace(/\\\(/g, "(").replace(/\\\./g, "."),
         count,
-        impact: 'high',
+        impact: "high",
       }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 5);
@@ -193,21 +204,23 @@ export class MigrationEstimator {
    * @returns {{lowConfidenceFiles: number, estimatedManualMinutes: number, description: string}}
    */
   _estimateEffort(fileEstimates) {
-    const lowFiles = fileEstimates.filter(f => f.predictedConfidence < 70);
-    const mediumFiles = fileEstimates.filter(f => f.predictedConfidence >= 70 && f.predictedConfidence < 90);
+    const lowFiles = fileEstimates.filter((f) => f.predictedConfidence < 70);
+    const mediumFiles = fileEstimates.filter(
+      (f) => f.predictedConfidence >= 70 && f.predictedConfidence < 90,
+    );
 
     // Rough estimate: 15 min per low-confidence file, 5 min per medium
     const minutes = lowFiles.length * 15 + mediumFiles.length * 5;
 
     let description;
     if (minutes === 0) {
-      description = 'Fully automated — no manual intervention expected';
+      description = "Fully automated — no manual intervention expected";
     } else if (minutes < 30) {
-      description = 'Minimal manual effort expected';
+      description = "Minimal manual effort expected";
     } else if (minutes < 120) {
-      description = 'Moderate manual effort expected';
+      description = "Moderate manual effort expected";
     } else {
-      description = 'Significant manual effort expected';
+      description = "Significant manual effort expected";
     }
 
     return {

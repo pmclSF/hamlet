@@ -18,7 +18,7 @@ export class OutputValidator {
     const issues = [];
 
     if (!output || output.trim().length === 0) {
-      issues.push({ type: 'empty', message: 'Output is empty' });
+      issues.push({ type: "empty", message: "Output is empty" });
       return { valid: false, issues };
     }
 
@@ -37,46 +37,63 @@ export class OutputValidator {
    * @param {Array} issues
    */
   _checkBalancedBrackets(output, issues) {
-    const pairs = { '(': ')', '[': ']', '{': '}' };
+    const pairs = { "(": ")", "[": "]", "{": "}" };
     const openers = new Set(Object.keys(pairs));
-    const closerToOpener = new Map(Object.entries(pairs).map(([k, v]) => [v, k]));
+    const closerToOpener = new Map(
+      Object.entries(pairs).map(([k, v]) => [v, k]),
+    );
     const stack = [];
     let inString = false;
-    let stringChar = '';
+    let stringChar = "";
 
     for (let i = 0; i < output.length; i++) {
       const ch = output[i];
-      const prev = i > 0 ? output[i - 1] : '';
+      const prev = i > 0 ? output[i - 1] : "";
 
-      if (!inString && (ch === '\'' || ch === '"' || ch === '`') && prev !== '\\') {
+      if (
+        !inString &&
+        (ch === "'" || ch === '"' || ch === "`") &&
+        prev !== "\\"
+      ) {
         inString = true;
         stringChar = ch;
         continue;
       }
-      if (inString && ch === stringChar && prev !== '\\') {
+      if (inString && ch === stringChar && prev !== "\\") {
         inString = false;
         continue;
       }
       if (inString) continue;
 
       // Skip comments
-      if (ch === '/' && i + 1 < output.length && output[i + 1] === '/') {
-        const nlIndex = output.indexOf('\n', i);
-        if (nlIndex !== -1) { i = nlIndex; } else { break; }
+      if (ch === "/" && i + 1 < output.length && output[i + 1] === "/") {
+        const nlIndex = output.indexOf("\n", i);
+        if (nlIndex !== -1) {
+          i = nlIndex;
+        } else {
+          break;
+        }
         continue;
       }
-      if (ch === '/' && i + 1 < output.length && output[i + 1] === '*') {
-        const endIndex = output.indexOf('*/', i + 2);
-        if (endIndex !== -1) { i = endIndex + 1; } else { break; }
+      if (ch === "/" && i + 1 < output.length && output[i + 1] === "*") {
+        const endIndex = output.indexOf("*/", i + 2);
+        if (endIndex !== -1) {
+          i = endIndex + 1;
+        } else {
+          break;
+        }
         continue;
       }
 
       if (openers.has(ch)) {
         stack.push(ch);
       } else if (closerToOpener.has(ch)) {
-        if (stack.length === 0 || stack[stack.length - 1] !== closerToOpener.get(ch)) {
+        if (
+          stack.length === 0 ||
+          stack[stack.length - 1] !== closerToOpener.get(ch)
+        ) {
           issues.push({
-            type: 'bracket',
+            type: "bracket",
             message: `Unmatched '${ch}' at position ${i}`,
           });
         } else {
@@ -87,7 +104,7 @@ export class OutputValidator {
 
     for (const unclosed of stack) {
       issues.push({
-        type: 'bracket',
+        type: "bracket",
         message: `Unclosed '${unclosed}'`,
       });
     }
@@ -109,21 +126,21 @@ export class OutputValidator {
     };
 
     const patterns = sourcePatterns[targetFramework] || [];
-    const lines = output.split('\n');
+    const lines = output.split("\n");
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       // Skip comments
-      if (line.trim().startsWith('//') || line.trim().startsWith('*')) continue;
+      if (line.trim().startsWith("//") || line.trim().startsWith("*")) continue;
       // Skip string literals containing these references
-      if (line.trim().startsWith('\'') || line.trim().startsWith('"')) continue;
+      if (line.trim().startsWith("'") || line.trim().startsWith('"')) continue;
 
       for (const pattern of patterns) {
         const regex = new RegExp(pattern.source, pattern.flags);
         const match = regex.exec(line);
         if (match) {
           issues.push({
-            type: 'dangling-reference',
+            type: "dangling-reference",
             message: `Dangling source framework reference '${match[0]}' on line ${i + 1}`,
             line: i + 1,
           });
@@ -139,7 +156,7 @@ export class OutputValidator {
    * @param {Array} issues
    */
   _checkImports(output, issues) {
-    const lines = output.split('\n');
+    const lines = output.split("\n");
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i].trim();
@@ -147,7 +164,7 @@ export class OutputValidator {
       // Check for empty import source
       if (/^import\s.*from\s+['"]["']/.test(line)) {
         issues.push({
-          type: 'import',
+          type: "import",
           message: `Empty import source on line ${i + 1}`,
           line: i + 1,
         });
@@ -156,7 +173,7 @@ export class OutputValidator {
       // Check for duplicate 'from' keyword
       if (/^import\s.*from\s.*from\s/.test(line)) {
         issues.push({
-          type: 'import',
+          type: "import",
           message: `Malformed import with duplicate 'from' on line ${i + 1}`,
           line: i + 1,
         });
@@ -172,13 +189,14 @@ export class OutputValidator {
    */
   _checkEmptyTestBodies(output, issues) {
     // Match test/it calls followed by empty function bodies
-    const emptyTestPattern = /(?:it|test)\s*\(\s*['"][^'"]*['"]\s*,\s*(?:async\s*)?\(\s*\)\s*=>\s*\{\s*\}\s*\)/g;
+    const emptyTestPattern =
+      /(?:it|test)\s*\(\s*['"][^'"]*['"]\s*,\s*(?:async\s*)?\(\s*\)\s*=>\s*\{\s*\}\s*\)/g;
     let match;
 
     while ((match = emptyTestPattern.exec(output)) !== null) {
-      const line = output.slice(0, match.index).split('\n').length;
+      const line = output.slice(0, match.index).split("\n").length;
       issues.push({
-        type: 'empty-test',
+        type: "empty-test",
         message: `Empty test body on line ${line}`,
         line,
       });

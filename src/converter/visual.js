@@ -1,8 +1,8 @@
-import fs from 'fs/promises';
-import path from 'path';
-import chalk from 'chalk';
-import { PNG } from 'pngjs';
-import pixelmatch from 'pixelmatch';
+import fs from "fs/promises";
+import path from "path";
+import chalk from "chalk";
+import { PNG } from "pngjs";
+import pixelmatch from "pixelmatch";
 
 /**
  * Handles visual comparison between Cypress and Playwright tests
@@ -13,7 +13,7 @@ export class VisualComparison {
       threshold: options.threshold || 0.1,
       includeLogs: options.includeLogs ?? true,
       saveSnapshots: options.saveSnapshots ?? true,
-      snapshotDir: options.snapshotDir || 'snapshots',
+      snapshotDir: options.snapshotDir || "snapshots",
       ...options,
     };
 
@@ -33,7 +33,7 @@ export class VisualComparison {
    */
   async compareProjects(cypressDir, playwrightDir) {
     try {
-      console.log(chalk.blue('\nStarting visual comparison...'));
+      console.log(chalk.blue("\nStarting visual comparison..."));
 
       // Ensure snapshot directory exists
       await fs.mkdir(this.options.snapshotDir, { recursive: true });
@@ -53,9 +53,9 @@ export class VisualComparison {
           await this.compareScreenshots(cypressShot, playwrightShot);
         } else {
           this.results.errors.push({
-            type: 'missing',
+            type: "missing",
             cypressShot,
-            message: 'No matching Playwright screenshot found',
+            message: "No matching Playwright screenshot found",
           });
         }
       }
@@ -63,12 +63,12 @@ export class VisualComparison {
       // Generate report
       const report = await this.generateReport();
 
-      console.log(chalk.green('\n✓ Visual comparison completed'));
+      console.log(chalk.green("\n✓ Visual comparison completed"));
       this.logSummary();
 
       return report;
     } catch (error) {
-      console.error(chalk.red('Error during visual comparison:'), error);
+      console.error(chalk.red("Error during visual comparison:"), error);
       throw error;
     }
   }
@@ -123,11 +123,11 @@ export class VisualComparison {
   calculateNameSimilarity(name1, name2) {
     // Remove common prefixes/suffixes
     name1 = name1
-      .replace(/(cypress|playwright)-?/, '')
-      .replace(/-?screenshot/, '');
+      .replace(/(cypress|playwright)-?/, "")
+      .replace(/-?screenshot/, "");
     name2 = name2
-      .replace(/(cypress|playwright)-?/, '')
-      .replace(/-?screenshot/, '');
+      .replace(/(cypress|playwright)-?/, "")
+      .replace(/-?screenshot/, "");
 
     const distance = this.levenshteinDistance(name1, name2);
     const maxLength = Math.max(name1.length, name2.length);
@@ -198,10 +198,15 @@ export class VisualComparison {
         );
       }
 
-      return this.performComparison(cypress, playwright, cypressShot, playwrightShot);
+      return this.performComparison(
+        cypress,
+        playwright,
+        cypressShot,
+        playwrightShot,
+      );
     } catch (error) {
       this.results.errors.push({
-        type: 'comparison',
+        type: "comparison",
         cypressShot,
         playwrightShot,
         message: error.message,
@@ -319,7 +324,7 @@ export class VisualComparison {
       const htmlReport = await this.generateHtmlReport(report);
       const reportPath = path.join(
         this.options.snapshotDir,
-        'visual-report.html',
+        "visual-report.html",
       );
       await fs.writeFile(reportPath, htmlReport);
     }
@@ -362,49 +367,49 @@ export class VisualComparison {
   <div class="comparisons">
     <h2>Detailed Results</h2>
     ${report.comparisons
-    .map(
-      (comp) => `
+      .map(
+        (comp) => `
       <div class="comparison">
-        <h3 class="${comp.passed ? 'passed' : 'failed'}">
+        <h3 class="${comp.passed ? "passed" : "failed"}">
           ${path.basename(comp.cypressShot)}
           (${(comp.diffRatio * 100).toFixed(2)}% difference)
         </h3>
         ${
-  comp.diffPath
-    ? `
+          comp.diffPath
+            ? `
           <div class="diff">
             <img src="${comp.cypressShot}" alt="Cypress version">
             <img src="${comp.playwrightShot}" alt="Playwright version">
             <img src="${comp.diffPath}" alt="Difference">
           </div>
         `
-    : ''
-}
+            : ""
+        }
       </div>
     `,
-    )
-    .join('')}
+      )
+      .join("")}
   </div>
 
   ${
-  report.errors.length > 0
-    ? `
+    report.errors.length > 0
+      ? `
     <div class="errors">
       <h2>Errors</h2>
       ${report.errors
-    .map(
-      (error) => `
+        .map(
+          (error) => `
         <div class="error">
           <p>Type: ${error.type}</p>
           <p>Message: ${error.message}</p>
         </div>
       `,
-    )
-    .join('')}
+        )
+        .join("")}
     </div>
   `
-    : ''
-}
+      : ""
+  }
 </body>
 </html>`;
   }
@@ -414,7 +419,7 @@ export class VisualComparison {
    */
   logSummary() {
     const { summary } = this.results;
-    console.log('\nComparison Summary:');
+    console.log("\nComparison Summary:");
     console.log(chalk.green(`Matches: ${summary.matches}`));
     console.log(chalk.red(`Mismatches: ${summary.mismatches}`));
     console.log(chalk.yellow(`Errors: ${summary.errors.length}`));

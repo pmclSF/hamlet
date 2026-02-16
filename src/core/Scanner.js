@@ -5,21 +5,21 @@
  * and supports configurable include/exclude globs.
  */
 
-import fs from 'fs/promises';
-import path from 'path';
+import fs from "fs/promises";
+import path from "path";
 
 const DEFAULT_IGNORE = [
-  'node_modules',
-  '.git',
-  'dist',
-  'build',
-  'coverage',
-  '.nyc_output',
-  '.cache',
-  '.hamlet',
-  '__pycache__',
-  '.tox',
-  '.mypy_cache',
+  "node_modules",
+  ".git",
+  "dist",
+  "build",
+  "coverage",
+  ".nyc_output",
+  ".cache",
+  ".hamlet",
+  "__pycache__",
+  ".tox",
+  ".mypy_cache",
 ];
 
 /**
@@ -29,10 +29,10 @@ const DEFAULT_IGNORE = [
  */
 function matchesAny(name, patterns) {
   for (const pattern of patterns) {
-    if (pattern.startsWith('*.')) {
+    if (pattern.startsWith("*.")) {
       const ext = pattern.slice(1);
       if (name.endsWith(ext)) return true;
-    } else if (pattern.startsWith('**/*.')) {
+    } else if (pattern.startsWith("**/*.")) {
       const ext = pattern.slice(4);
       if (name.endsWith(ext)) return true;
     } else if (name === pattern) {
@@ -60,7 +60,14 @@ export class Scanner {
     const exclude = options.exclude || [];
     const results = [];
 
-    await this._walk(resolvedRoot, resolvedRoot, ignoreSet, include, exclude, results);
+    await this._walk(
+      resolvedRoot,
+      resolvedRoot,
+      ignoreSet,
+      include,
+      exclude,
+      results,
+    );
     return results;
   }
 
@@ -87,7 +94,14 @@ export class Scanner {
       if (ignoreSet.has(entry.name)) continue;
 
       if (entry.isDirectory()) {
-        await this._walk(fullPath, rootDir, ignoreSet, include, exclude, results);
+        await this._walk(
+          fullPath,
+          rootDir,
+          ignoreSet,
+          include,
+          exclude,
+          results,
+        );
       } else if (entry.isFile()) {
         if (exclude.length > 0 && matchesAny(entry.name, exclude)) continue;
         if (include.length > 0 && !matchesAny(entry.name, include)) continue;

@@ -5,8 +5,8 @@
  * Never overwrites source files.
  */
 
-import fs from 'fs/promises';
-import path from 'path';
+import fs from "fs/promises";
+import path from "path";
 
 export class SafetyManager {
   /**
@@ -14,7 +14,7 @@ export class SafetyManager {
    */
   constructor(projectRoot) {
     this.projectRoot = projectRoot;
-    this.backupDir = path.join(projectRoot, '.hamlet', 'backups');
+    this.backupDir = path.join(projectRoot, ".hamlet", "backups");
   }
 
   /**
@@ -28,8 +28,8 @@ export class SafetyManager {
     const dir = path.dirname(filePath);
     await fs.mkdir(dir, { recursive: true });
 
-    const tmpPath = filePath + '.hamlet-tmp';
-    await fs.writeFile(tmpPath, content, 'utf8');
+    const tmpPath = filePath + ".hamlet-tmp";
+    await fs.writeFile(tmpPath, content, "utf8");
     await fs.rename(tmpPath, filePath);
   }
 
@@ -83,13 +83,13 @@ export class SafetyManager {
       handler();
     };
 
-    process.on('SIGINT', syncHandler);
-    process.on('SIGTERM', syncHandler);
+    process.on("SIGINT", syncHandler);
+    process.on("SIGTERM", syncHandler);
 
     // Return cleanup function
     return () => {
-      process.removeListener('SIGINT', syncHandler);
-      process.removeListener('SIGTERM', syncHandler);
+      process.removeListener("SIGINT", syncHandler);
+      process.removeListener("SIGTERM", syncHandler);
     };
   }
 }

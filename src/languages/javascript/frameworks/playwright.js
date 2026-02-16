@@ -16,7 +16,7 @@ import {
   ImportStatement,
   RawCode,
   Comment,
-} from '../../../core/ir.js';
+} from "../../../core/ir.js";
 
 function detect(source) {
   if (!source || !source.trim()) return 0;
@@ -41,7 +41,7 @@ function detect(source) {
 function parse(source) {
   // Minimal parse for when Playwright is the source (Playwright→X direction).
   return new TestFile({
-    language: 'javascript',
+    language: "javascript",
     imports: [],
     body: [new RawCode({ code: source })],
   });
@@ -79,7 +79,7 @@ function emit(ir, source) {
   result = cleanupOutput(result);
 
   // Combine
-  result = imports.join('\n') + '\n\n' + result;
+  result = imports.join("\n") + "\n\n" + result;
 
   return result;
 }
@@ -95,215 +95,212 @@ function convertCypressCommands(content) {
 
   result = result.replace(
     /cy\.get\(([^()\n]+)\)\.should\(['"]be\.visible['"]\)/g,
-    'await expect(page.locator($1)).toBeVisible()'
+    "await expect(page.locator($1)).toBeVisible()",
   );
   result = result.replace(
     /cy\.get\(([^()\n]+)\)\.should\(['"]not\.be\.visible['"]\)/g,
-    'await expect(page.locator($1)).toBeHidden()'
+    "await expect(page.locator($1)).toBeHidden()",
   );
   result = result.replace(
     /cy\.get\(([^()\n]+)\)\.should\(['"]exist['"]\)/g,
-    'await expect(page.locator($1)).toBeAttached()'
+    "await expect(page.locator($1)).toBeAttached()",
   );
   result = result.replace(
     /cy\.get\(([^()\n]+)\)\.should\(['"]not\.exist['"]\)/g,
-    'await expect(page.locator($1)).not.toBeAttached()'
+    "await expect(page.locator($1)).not.toBeAttached()",
   );
   result = result.replace(
     /cy\.get\(([^()\n]+)\)\.should\(['"]have\.text['"],\s*([^()\n]+)\)/g,
-    'await expect(page.locator($1)).toHaveText($2)'
+    "await expect(page.locator($1)).toHaveText($2)",
   );
   result = result.replace(
     /cy\.get\(([^()\n]+)\)\.should\(['"]contain['"],\s*([^()\n]+)\)/g,
-    'await expect(page.locator($1)).toContainText($2)'
+    "await expect(page.locator($1)).toContainText($2)",
   );
   result = result.replace(
     /cy\.get\(([^()\n]+)\)\.should\(['"]have\.value['"],\s*([^()\n]+)\)/g,
-    'await expect(page.locator($1)).toHaveValue($2)'
+    "await expect(page.locator($1)).toHaveValue($2)",
   );
   result = result.replace(
     /cy\.get\(([^()\n]+)\)\.should\(['"]have\.class['"],\s*([^()\n]+)\)/g,
-    'await expect(page.locator($1)).toHaveClass($2)'
+    "await expect(page.locator($1)).toHaveClass($2)",
   );
   result = result.replace(
     /cy\.get\(([^)]+)\)\.should\(['"]be\.checked['"]\)/g,
-    'await expect(page.locator($1)).toBeChecked()'
+    "await expect(page.locator($1)).toBeChecked()",
   );
   result = result.replace(
     /cy\.get\(([^)]+)\)\.should\(['"]be\.disabled['"]\)/g,
-    'await expect(page.locator($1)).toBeDisabled()'
+    "await expect(page.locator($1)).toBeDisabled()",
   );
   result = result.replace(
     /cy\.get\(([^)]+)\)\.should\(['"]be\.enabled['"]\)/g,
-    'await expect(page.locator($1)).toBeEnabled()'
+    "await expect(page.locator($1)).toBeEnabled()",
   );
   result = result.replace(
     /cy\.get\(([^)]+)\)\.should\(['"]have\.length['"],\s*(\d+)\)/g,
-    'await expect(page.locator($1)).toHaveCount($2)'
+    "await expect(page.locator($1)).toHaveCount($2)",
   );
   result = result.replace(
     /cy\.get\(([^)]+)\)\.should\(['"]have\.attr['"],\s*([^,\n]+),\s*([^)]+)\)/g,
-    'await expect(page.locator($1)).toHaveAttribute($2, $3)'
+    "await expect(page.locator($1)).toHaveAttribute($2, $3)",
   );
 
   // --- Composite cy.get().action() chains ---
 
   result = result.replace(
     /cy\.get\(([^)]+)\)\.type\(([^)]+)\)/g,
-    'await page.locator($1).fill($2)'
+    "await page.locator($1).fill($2)",
   );
   result = result.replace(
     /cy\.get\(([^)]+)\)\.click\(\)/g,
-    'await page.locator($1).click()'
+    "await page.locator($1).click()",
   );
   result = result.replace(
     /cy\.get\(([^)]+)\)\.dblclick\(\)/g,
-    'await page.locator($1).dblclick()'
+    "await page.locator($1).dblclick()",
   );
   result = result.replace(
     /cy\.get\(([^)]+)\)\.check\(\)/g,
-    'await page.locator($1).check()'
+    "await page.locator($1).check()",
   );
   result = result.replace(
     /cy\.get\(([^)]+)\)\.uncheck\(\)/g,
-    'await page.locator($1).uncheck()'
+    "await page.locator($1).uncheck()",
   );
   result = result.replace(
     /cy\.get\(([^)]+)\)\.select\(([^)]+)\)/g,
-    'await page.locator($1).selectOption($2)'
+    "await page.locator($1).selectOption($2)",
   );
   result = result.replace(
     /cy\.get\(([^)]+)\)\.clear\(\)/g,
-    'await page.locator($1).clear()'
+    "await page.locator($1).clear()",
   );
   result = result.replace(
     /cy\.get\(([^)]+)\)\.focus\(\)/g,
-    'await page.locator($1).focus()'
+    "await page.locator($1).focus()",
   );
   result = result.replace(
     /cy\.get\(([^)]+)\)\.blur\(\)/g,
-    'await page.locator($1).blur()'
+    "await page.locator($1).blur()",
   );
 
   // --- Actions with options (strip force/options object) ---
 
   result = result.replace(
     /cy\.get\(([^)]+)\)\.check\(\{[^{}\n]*\}\)/g,
-    'await page.locator($1).check()'
+    "await page.locator($1).check()",
   );
 
   // --- Traversal chains ---
 
   result = result.replace(
     /cy\.get\(([^)]+)\)\.first\(\)\.click\(\)/g,
-    'await page.locator($1).first().click()'
+    "await page.locator($1).first().click()",
   );
   result = result.replace(
     /cy\.get\(([^)]+)\)\.last\(\)\.click\(\)/g,
-    'await page.locator($1).last().click()'
+    "await page.locator($1).last().click()",
   );
   result = result.replace(
     /cy\.get\(([^)]+)\)\.eq\((\d+)\)\.click\(\)/g,
-    'await page.locator($1).nth($2).click()'
+    "await page.locator($1).nth($2).click()",
   );
   result = result.replace(
     /cy\.get\(([^)]+)\)\.first\(\)/g,
-    'page.locator($1).first()'
+    "page.locator($1).first()",
   );
   result = result.replace(
     /cy\.get\(([^)]+)\)\.last\(\)/g,
-    'page.locator($1).last()'
+    "page.locator($1).last()",
   );
   result = result.replace(
     /cy\.get\(([^)]+)\)\.eq\((\d+)\)/g,
-    'page.locator($1).nth($2)'
+    "page.locator($1).nth($2)",
   );
 
   // --- cy.contains ---
 
   result = result.replace(
     /cy\.contains\(([^)]+)\)\.click\(\)/g,
-    'await page.getByText($1).click()'
+    "await page.getByText($1).click()",
   );
-  result = result.replace(
-    /cy\.contains\(([^)]+)\)/g,
-    'page.getByText($1)'
-  );
+  result = result.replace(/cy\.contains\(([^)]+)\)/g, "page.getByText($1)");
 
   // --- Navigation ---
 
-  result = result.replace(
-    /cy\.visit\(([^)]+)\)/g,
-    'await page.goto($1)'
-  );
+  result = result.replace(/cy\.visit\(([^)]+)\)/g, "await page.goto($1)");
   result = result.replace(
     /cy\.url\(\)\.should\(['"]include['"],\s*([^)]+)\)/g,
-    'await expect(page).toHaveURL(new RegExp($1))'
+    "await expect(page).toHaveURL(new RegExp($1))",
   );
   result = result.replace(
     /cy\.url\(\)\.should\(['"]eq['"],\s*([^)]+)\)/g,
-    'await expect(page).toHaveURL($1)'
+    "await expect(page).toHaveURL($1)",
   );
   result = result.replace(
     /cy\.title\(\)\.should\(['"]eq['"],\s*([^)]+)\)/g,
-    'await expect(page).toHaveTitle($1)'
+    "await expect(page).toHaveTitle($1)",
   );
   result = result.replace(
     /cy\.title\(\)\.should\(['"]include['"],\s*([^)]+)\)/g,
-    'await expect(page).toHaveTitle(new RegExp($1))'
+    "await expect(page).toHaveTitle(new RegExp($1))",
   );
 
   // --- Waits ---
 
   result = result.replace(
     /cy\.wait\(['"]@([^'"]+)['"]\)/g,
-    'await page.waitForResponse(response => response.url().includes("$1"))'
+    'await page.waitForResponse(response => response.url().includes("$1"))',
   );
   result = result.replace(
     /cy\.wait\((\d+)\)/g,
-    'await page.waitForTimeout($1)'
+    "await page.waitForTimeout($1)",
   );
 
   // --- Simple commands ---
 
-  result = result.replace(/cy\.reload\(\)/g, 'await page.reload()');
-  result = result.replace(/cy\.go\(['"]back['"]\)/g, 'await page.goBack()');
-  result = result.replace(/cy\.go\(['"]forward['"]\)/g, 'await page.goForward()');
+  result = result.replace(/cy\.reload\(\)/g, "await page.reload()");
+  result = result.replace(/cy\.go\(['"]back['"]\)/g, "await page.goBack()");
+  result = result.replace(
+    /cy\.go\(['"]forward['"]\)/g,
+    "await page.goForward()",
+  );
   result = result.replace(
     /cy\.viewport\((\d+),\s*(\d+)\)/g,
-    'await page.setViewportSize({ width: $1, height: $2 })'
+    "await page.setViewportSize({ width: $1, height: $2 })",
   );
   result = result.replace(
     /cy\.screenshot\(([^)]*)\)/g,
-    'await page.screenshot({ path: $1 })'
+    "await page.screenshot({ path: $1 })",
   );
-  result = result.replace(/cy\.clearCookies\(\)/g, 'await context.clearCookies()');
+  result = result.replace(
+    /cy\.clearCookies\(\)/g,
+    "await context.clearCookies()",
+  );
   result = result.replace(
     /cy\.clearLocalStorage\(\)/g,
-    "await page.evaluate(() => localStorage.clear())"
+    "await page.evaluate(() => localStorage.clear())",
   );
-  result = result.replace(/cy\.log\(([^)]+)\)/g, 'console.log($1)');
+  result = result.replace(/cy\.log\(([^)]+)\)/g, "console.log($1)");
 
   // --- Network ---
 
   result = result.replace(
     /cy\.intercept\(([^,\n]+),\s*([^)]+)\)\.as\(['"]([^'"]+)['"]\)/g,
-    'await page.route($1, route => route.fulfill($2))'
+    "await page.route($1, route => route.fulfill($2))",
   );
 
   // --- Viewport (numeric args) ---
 
   result = result.replace(
     /cy\.go\((-?\d+)\)/g,
-    'await page.goBack() /* go($1) */'
+    "await page.goBack() /* go($1) */",
   );
-  result = result.replace(
-    /cy\.reload\([^)]+\)/g,
-    'await page.reload()'
-  );
+  result = result.replace(/cy\.reload\([^)]+\)/g, "await page.reload()");
 
   // Clean up empty screenshot args
-  result = result.replace(/screenshot\(\{ path: \s*\}\)/g, 'screenshot()');
+  result = result.replace(/screenshot\(\{ path: \s*\}\)/g, "screenshot()");
 
   return result;
 }
@@ -314,18 +311,18 @@ function convertCypressCommands(content) {
 function convertTestStructure(content) {
   let result = content;
 
-  result = result.replace(/describe\.only\(/g, 'test.describe.only(');
-  result = result.replace(/describe\.skip\(/g, 'test.describe.skip(');
-  result = result.replace(/describe\(/g, 'test.describe(');
-  result = result.replace(/context\(/g, 'test.describe(');
-  result = result.replace(/it\.only\(/g, 'test.only(');
-  result = result.replace(/it\.skip\(/g, 'test.skip(');
-  result = result.replace(/specify\(/g, 'test(');
-  result = result.replace(/it\(/g, 'test(');
-  result = result.replace(/before\(/g, 'test.beforeAll(');
-  result = result.replace(/after\(/g, 'test.afterAll(');
-  result = result.replace(/beforeEach\(/g, 'test.beforeEach(');
-  result = result.replace(/afterEach\(/g, 'test.afterEach(');
+  result = result.replace(/describe\.only\(/g, "test.describe.only(");
+  result = result.replace(/describe\.skip\(/g, "test.describe.skip(");
+  result = result.replace(/describe\(/g, "test.describe(");
+  result = result.replace(/context\(/g, "test.describe(");
+  result = result.replace(/it\.only\(/g, "test.only(");
+  result = result.replace(/it\.skip\(/g, "test.skip(");
+  result = result.replace(/specify\(/g, "test(");
+  result = result.replace(/it\(/g, "test(");
+  result = result.replace(/before\(/g, "test.beforeAll(");
+  result = result.replace(/after\(/g, "test.afterAll(");
+  result = result.replace(/beforeEach\(/g, "test.beforeEach(");
+  result = result.replace(/afterEach\(/g, "test.afterEach(");
 
   return result;
 }
@@ -334,23 +331,23 @@ function convertTestStructure(content) {
  * Transform test callbacks to async with { page } parameter.
  */
 function transformTestCallbacks(content, testTypes) {
-  const params = testTypes.includes('api') ? '{ page, request }' : '{ page }';
+  const params = testTypes.includes("api") ? "{ page, request }" : "{ page }";
 
   // Note: Using [^,()\n]+ to prevent ReDoS
   content = content.replace(
     /test\(([^,()\n]+),\s*(?:async\s*)?\(\s*\)\s*=>\s*\{/g,
-    `test($1, async (${params}) => {`
+    `test($1, async (${params}) => {`,
   );
 
   content = content.replace(
     /test\.describe\(([^,()\n]+),\s*(?:async\s*)?\(\s*\)\s*=>\s*\{/g,
-    'test.describe($1, () => {'
+    "test.describe($1, () => {",
   );
 
-  const hookParams = '{ page }';
+  const hookParams = "{ page }";
   content = content.replace(
     /test\.(beforeAll|afterAll|beforeEach|afterEach)\(\s*(?:async\s*)?\(\s*\)\s*=>\s*\{/g,
-    `test.$1(async (${hookParams}) => {`
+    `test.$1(async (${hookParams}) => {`,
   );
 
   return content;
@@ -361,11 +358,11 @@ function transformTestCallbacks(content, testTypes) {
  */
 function detectTestTypes(content) {
   const types = [];
-  if (/cy\.request|cy\.intercept/.test(content)) types.push('api');
-  if (/cy\.mount/.test(content)) types.push('component');
-  if (/cy\.injectAxe|cy\.checkA11y/.test(content)) types.push('accessibility');
-  if (/cy\.screenshot|matchImageSnapshot/.test(content)) types.push('visual');
-  if (types.length === 0) types.push('e2e');
+  if (/cy\.request|cy\.intercept/.test(content)) types.push("api");
+  if (/cy\.mount/.test(content)) types.push("component");
+  if (/cy\.injectAxe|cy\.checkA11y/.test(content)) types.push("accessibility");
+  if (/cy\.screenshot|matchImageSnapshot/.test(content)) types.push("visual");
+  if (types.length === 0) types.push("e2e");
   return types;
 }
 
@@ -373,16 +370,14 @@ function detectTestTypes(content) {
  * Generate Playwright import statements.
  */
 function getImports(testTypes) {
-  const imports = new Set([
-    "import { test, expect } from '@playwright/test';"
-  ]);
-  if (testTypes.includes('api')) {
+  const imports = new Set(["import { test, expect } from '@playwright/test';"]);
+  if (testTypes.includes("api")) {
     imports.add("import { request } from '@playwright/test';");
   }
-  if (testTypes.includes('component')) {
+  if (testTypes.includes("component")) {
     imports.add("import { mount } from '@playwright/experimental-ct-react';");
   }
-  if (testTypes.includes('accessibility')) {
+  if (testTypes.includes("accessibility")) {
     imports.add("import { injectAxe, checkA11y } from 'axe-playwright';");
   }
   return Array.from(imports);
@@ -392,23 +387,25 @@ function getImports(testTypes) {
  * Clean up output.
  */
 function cleanupOutput(content) {
-  return content
-    .replace(/await\s+await/g, 'await')
-    .replace(/screenshot\(\{ path: \s*\}\)/g, 'screenshot()')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim() + '\n';
+  return (
+    content
+      .replace(/await\s+await/g, "await")
+      .replace(/screenshot\(\{ path: \s*\}\)/g, "screenshot()")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim() + "\n"
+  );
 }
 
 export default {
-  name: 'playwright',
-  language: 'javascript',
-  paradigm: 'bdd-e2e',
+  name: "playwright",
+  language: "javascript",
+  paradigm: "bdd-e2e",
   detect,
   parse,
   emit,
   imports: {
-    explicit: ['test', 'expect'],
-    from: '@playwright/test',
+    explicit: ["test", "expect"],
+    from: "@playwright/test",
     mockNamespace: null,
   },
 };

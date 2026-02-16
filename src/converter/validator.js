@@ -1,7 +1,7 @@
-import fs from 'fs/promises';
-import path from 'path';
-import chalk from 'chalk';
-import { chromium } from '@playwright/test';
+import fs from "fs/promises";
+import path from "path";
+import chalk from "chalk";
+import { chromium } from "@playwright/test";
 
 /**
  * Validates converted Playwright tests for correctness and functionality
@@ -34,7 +34,7 @@ export class TestValidator {
    */
   async validateConvertedTests(testDir) {
     try {
-      console.log(chalk.blue('\nStarting test validation...'));
+      console.log(chalk.blue("\nStarting test validation..."));
 
       // Find all test files
       const testFiles = await this.findTestFiles(testDir);
@@ -52,7 +52,7 @@ export class TestValidator {
 
       return report;
     } catch (error) {
-      console.error(chalk.red('Error during test validation:'), error);
+      console.error(chalk.red("Error during test validation:"), error);
       throw error;
     }
   }
@@ -94,7 +94,7 @@ export class TestValidator {
     try {
       console.log(chalk.blue(`\nValidating ${path.basename(testFile)}...`));
 
-      const content = await fs.readFile(testFile, 'utf8');
+      const content = await fs.readFile(testFile, "utf8");
       const validationResults = [];
 
       // Run all validation rules
@@ -110,7 +110,7 @@ export class TestValidator {
         } catch (error) {
           validationResults.push({
             rule: ruleName,
-            status: 'error',
+            status: "error",
             message: error.message,
           });
         }
@@ -143,10 +143,10 @@ export class TestValidator {
     try {
       // Try to parse the content as a module
       new Function(content);
-      return { status: 'passed' };
+      return { status: "passed" };
     } catch (error) {
       return {
-        status: 'failed',
+        status: "failed",
         message: `Syntax error: ${error.message}`,
       };
     }
@@ -158,7 +158,7 @@ export class TestValidator {
    * @returns {Object} - Validation result
    */
   async validateImports(content) {
-    const requiredImports = ['@playwright/test', 'expect'];
+    const requiredImports = ["@playwright/test", "expect"];
 
     const missingImports = requiredImports.filter(
       (imp) =>
@@ -167,10 +167,10 @@ export class TestValidator {
     );
 
     return {
-      status: missingImports.length === 0 ? 'passed' : 'failed',
+      status: missingImports.length === 0 ? "passed" : "failed",
       message:
         missingImports.length > 0
-          ? `Missing required imports: ${missingImports.join(', ')}`
+          ? `Missing required imports: ${missingImports.join(", ")}`
           : null,
     };
   }
@@ -185,8 +185,8 @@ export class TestValidator {
     const assertions = content.match(assertionPattern);
 
     return {
-      status: assertions ? 'passed' : 'failed',
-      message: assertions ? null : 'No assertions found in test',
+      status: assertions ? "passed" : "failed",
+      message: assertions ? null : "No assertions found in test",
     };
   }
 
@@ -203,11 +203,11 @@ export class TestValidator {
     const hasAwait = awaitPattern.test(content);
 
     return {
-      status: hasAsyncTests && hasAwait ? 'passed' : 'failed',
+      status: hasAsyncTests && hasAwait ? "passed" : "failed",
       message: !hasAsyncTests
-        ? 'Missing async test functions'
+        ? "Missing async test functions"
         : !hasAwait
-          ? 'Missing await keywords'
+          ? "Missing await keywords"
           : null,
     };
   }
@@ -228,17 +228,17 @@ export class TestValidator {
     const invalidSelectors = selectors.filter((selector) => {
       // Check for common issues in selectors
       return (
-        selector.includes('>>') || // Old Cypress chain syntax
+        selector.includes(">>") || // Old Cypress chain syntax
         /^[.#][0-9]/.test(selector) || // Invalid CSS selector
-        selector.includes('cypress-') // Cypress-specific attributes
+        selector.includes("cypress-") // Cypress-specific attributes
       );
     });
 
     return {
-      status: invalidSelectors.length === 0 ? 'passed' : 'failed',
+      status: invalidSelectors.length === 0 ? "passed" : "failed",
       message:
         invalidSelectors.length > 0
-          ? `Invalid selectors found: ${invalidSelectors.join(', ')}`
+          ? `Invalid selectors found: ${invalidSelectors.join(", ")}`
           : null,
     };
   }
@@ -254,14 +254,14 @@ export class TestValidator {
     const hasPageObjects = pageObjectPattern.test(content);
 
     if (!hasPageObjects) {
-      return { status: 'skipped' };
+      return { status: "skipped" };
     }
 
-    const properUsage = content.includes('constructor(page)');
+    const properUsage = content.includes("constructor(page)");
     return {
-      status: properUsage ? 'passed' : 'failed',
+      status: properUsage ? "passed" : "failed",
       message: !properUsage
-        ? 'Page objects should accept page in constructor'
+        ? "Page objects should accept page in constructor"
         : null,
     };
   }
@@ -277,14 +277,14 @@ export class TestValidator {
     const hasFixtures = fixturePattern.test(content);
 
     if (!hasFixtures) {
-      return { status: 'skipped' };
+      return { status: "skipped" };
     }
 
-    const properUsage = content.includes('test.use(');
+    const properUsage = content.includes("test.use(");
     return {
-      status: properUsage ? 'passed' : 'failed',
+      status: properUsage ? "passed" : "failed",
       message: !properUsage
-        ? 'Fixtures should be properly configured with test.use'
+        ? "Fixtures should be properly configured with test.use"
         : null,
     };
   }
@@ -300,19 +300,19 @@ export class TestValidator {
     const hooks = content.match(hookPattern);
 
     if (!hooks) {
-      return { status: 'skipped' };
+      return { status: "skipped" };
     }
 
     const properUsage = hooks.every(
       (hook) =>
-        content.includes(`${hook.split('.')[1]}(async`) &&
-        content.includes('await'),
+        content.includes(`${hook.split(".")[1]}(async`) &&
+        content.includes("await"),
     );
 
     return {
-      status: properUsage ? 'passed' : 'failed',
+      status: properUsage ? "passed" : "failed",
       message: !properUsage
-        ? 'Hooks should be async functions with proper await usage'
+        ? "Hooks should be async functions with proper await usage"
         : null,
     };
   }
@@ -333,11 +333,11 @@ export class TestValidator {
       await testModule.default({ page });
 
       await browser.close();
-      return { status: 'passed', rule: 'execution' };
+      return { status: "passed", rule: "execution" };
     } catch (error) {
       return {
-        status: 'failed',
-        rule: 'execution',
+        status: "failed",
+        rule: "execution",
         message: `Test execution failed: ${error.message}`,
       };
     }
@@ -349,8 +349,8 @@ export class TestValidator {
    * @param {Object[]} results - Validation results
    */
   processValidationResults(testFile, results) {
-    const failed = results.filter((r) => r.status === 'failed');
-    const skipped = results.filter((r) => r.status === 'skipped');
+    const failed = results.filter((r) => r.status === "failed");
+    const skipped = results.filter((r) => r.status === "skipped");
 
     if (failed.length === 0) {
       this.results.passed.push({
@@ -408,7 +408,7 @@ export class TestValidator {
   logValidationSummary() {
     const { summary } = this.generateValidationReport();
 
-    console.log('\nValidation Summary:');
+    console.log("\nValidation Summary:");
     console.log(chalk.green(`Passed: ${summary.passed}`));
     console.log(chalk.red(`Failed: ${summary.failed}`));
     console.log(chalk.yellow(`Skipped: ${summary.skipped}`));
