@@ -1,6 +1,4 @@
 import org.testng.Assert;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
 import java.util.stream.Stream;
 
 public class MethodSourceTest {
@@ -8,7 +6,13 @@ public class MethodSourceTest {
         return Stream.of("apple", "banana");
     }
 
+    // HAMLET-TODO [UNCONVERTIBLE-PARAMETERIZED-TEST]: JUnit 5 @ParameterizedTest requires manual conversion to TestNG @DataProvider
+    // Original: @ParameterizedTest
+    // Manual action required: Create a @DataProvider method and reference it with @Test(dataProvider = "...")
     @ParameterizedTest
+    // HAMLET-TODO [UNCONVERTIBLE-METHOD-SOURCE]: JUnit 5 @MethodSource should be converted to TestNG @DataProvider
+    // Original: @MethodSource("stringProvider")
+    // Manual action required: Rename the source method and annotate it with @DataProvider
     @MethodSource("stringProvider")
     public void testFruit(String fruit) {
         Assert.assertNotNull(fruit);

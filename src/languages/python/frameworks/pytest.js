@@ -447,12 +447,100 @@ function convertUnittestAssertions(result) {
     },
   );
 
+  // self.assertNotAlmostEqual(a, b) -> assert a != pytest.approx(b)
+  result = result.replace(
+    /^(\s*)self\.assertNotAlmostEqual\((.+)\)\s*$/gm,
+    (match, indent, argsStr) => {
+      const args = splitArgs(argsStr);
+      if (args.length >= 2)
+        return `${indent}assert ${args[0]} != pytest.approx(${args[1]})`;
+      return match;
+    },
+  );
+
+  // self.assertNotIsInstance(x, Y) -> assert not isinstance(x, Y)
+  result = result.replace(
+    /^(\s*)self\.assertNotIsInstance\((.+)\)\s*$/gm,
+    "$1assert not isinstance($2)",
+  );
+
+  // self.assertCountEqual(a, b) -> assert sorted(a) == sorted(b)
+  result = result.replace(
+    /^(\s*)self\.assertCountEqual\((.+)\)\s*$/gm,
+    (match, indent, argsStr) => {
+      const args = splitArgs(argsStr);
+      if (args.length >= 2)
+        return `${indent}assert sorted(${args[0]}) == sorted(${args[1]})`;
+      return match;
+    },
+  );
+
+  // self.assertRegex(text, regex) -> assert re.search(regex, text)
+  result = result.replace(
+    /^(\s*)self\.assertRegex\((.+)\)\s*$/gm,
+    (match, indent, argsStr) => {
+      const args = splitArgs(argsStr);
+      if (args.length >= 2)
+        return `${indent}assert re.search(${args[1]}, ${args[0]})`;
+      return match;
+    },
+  );
+
+  // self.assertNotRegex(text, regex) -> assert not re.search(regex, text)
+  result = result.replace(
+    /^(\s*)self\.assertNotRegex\((.+)\)\s*$/gm,
+    (match, indent, argsStr) => {
+      const args = splitArgs(argsStr);
+      if (args.length >= 2)
+        return `${indent}assert not re.search(${args[1]}, ${args[0]})`;
+      return match;
+    },
+  );
+
   // self.assertDictEqual/assertListEqual/assertSetEqual/assertTupleEqual(a, b) -> assert a == b
   result = result.replace(
     /^(\s*)self\.assert(?:Dict|List|Set|Tuple)Equal\((.+)\)\s*$/gm,
     (match, indent, argsStr) => {
       const args = splitArgs(argsStr);
       if (args.length >= 2) return `${indent}assert ${args[0]} == ${args[1]}`;
+      return match;
+    },
+  );
+
+  // self.assertMultiLineEqual(a, b) -> assert a == b
+  result = result.replace(
+    /^(\s*)self\.assertMultiLineEqual\((.+)\)\s*$/gm,
+    (match, indent, argsStr) => {
+      const args = splitArgs(argsStr);
+      if (args.length >= 2) return `${indent}assert ${args[0]} == ${args[1]}`;
+      return match;
+    },
+  );
+
+  // self.assertSequenceEqual(a, b) -> assert list(a) == list(b)
+  result = result.replace(
+    /^(\s*)self\.assertSequenceEqual\((.+)\)\s*$/gm,
+    (match, indent, argsStr) => {
+      const args = splitArgs(argsStr);
+      if (args.length >= 2)
+        return `${indent}assert list(${args[0]}) == list(${args[1]})`;
+      return match;
+    },
+  );
+
+  // self.assertWarns(Warning) context manager -> pytest.warns(Warning)
+  result = result.replace(
+    /^(\s*)with\s+self\.assertWarns\((.+)\)\s*:/gm,
+    "$1with pytest.warns($2):",
+  );
+
+  // self.assertWarnsRegex(Warning, "pattern") context manager -> pytest.warns(Warning, match="pattern")
+  result = result.replace(
+    /^(\s*)with\s+self\.assertWarnsRegex\((.+)\)\s*:/gm,
+    (match, indent, argsStr) => {
+      const args = splitArgs(argsStr);
+      if (args.length >= 2)
+        return `${indent}with pytest.warns(${args[0]}, match=${args[1]}):`;
       return match;
     },
   );
@@ -472,6 +560,33 @@ function convertUnittestAssertions(result) {
   result = result.replace(
     /^(\s*)with\s+self\.assertRaises\((.+)\)\s*:/gm,
     "$1with pytest.raises($2):",
+  );
+
+  // self.assertRaisesRegex(E, pattern, callable, *args) inline -> pytest.raises(E, match=pattern) with call
+  result = result.replace(
+    /^(\s*)self\.assertRaisesRegex\((.+)\)\s*$/gm,
+    (match, indent, argsStr) => {
+      const args = splitArgs(argsStr);
+      if (args.length >= 3) {
+        const callArgs = args.slice(2).join(', ');
+        return `${indent}with pytest.raises(${args[0]}, match=${args[1]}):\n${indent}    ${callArgs.includes(',') ? args[2] + '(' + args.slice(3).join(', ') + ')' : args[2] + '()'}`;
+      }
+      return match;
+    },
+  );
+
+  // self.assertRaises(E, callable, *args) inline -> with pytest.raises(E): callable(*args)
+  result = result.replace(
+    /^(\s*)self\.assertRaises\((.+)\)\s*$/gm,
+    (match, indent, argsStr) => {
+      const args = splitArgs(argsStr);
+      if (args.length >= 2) {
+        const callable = args[1];
+        const callArgs = args.slice(2).join(', ');
+        return `${indent}with pytest.raises(${args[0]}):\n${indent}    ${callable}(${callArgs})`;
+      }
+      return match;
+    },
   );
 
   // self.fail("msg") -> pytest.fail("msg")
@@ -940,6 +1055,8 @@ function emit(_ir, source) {
     const needsPytest =
       /self\.assertRaises/.test(source) ||
       /self\.assertAlmostEqual/.test(source) ||
+      /self\.assertNotAlmostEqual/.test(source) ||
+      /self\.assertWarns/.test(source) ||
       /@unittest\.skip/.test(source) ||
       /self\.fail\(/.test(source) ||
       /def\s+setUp\b/.test(source) ||
@@ -970,7 +1087,20 @@ function emit(_ir, source) {
     // Phase 6: Convert decorators
     result = convertUnittestDecorators(result);
 
-    // Phase 7: Remove import unittest if somehow still present
+    // Phase 7: Add import re if re.search was introduced
+    if (/\bre\.search\(/.test(result) && !/^import\s+re\b/m.test(result)) {
+      const firstImportMatch = result.match(/^(?:import|from)\s+.+$/m);
+      if (firstImportMatch) {
+        result = result.replace(
+          firstImportMatch[0],
+          `import re\n${firstImportMatch[0]}`,
+        );
+      } else {
+        result = `import re\n\n${result}`;
+      }
+    }
+
+    // Phase 7b: Remove import unittest if somehow still present
     result = result.replace(/^import\s+unittest\s*\n/gm, "");
 
     // Phase 8: Cleanup
