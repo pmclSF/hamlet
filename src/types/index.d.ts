@@ -2,12 +2,28 @@
  * Hamlet - Multi-framework test converter type definitions
  */
 
-export type Framework = 'cypress' | 'playwright' | 'selenium';
+export type Framework =
+  | 'cypress'
+  | 'playwright'
+  | 'selenium'
+  | 'jest'
+  | 'vitest'
+  | 'mocha'
+  | 'jasmine'
+  | 'webdriverio'
+  | 'puppeteer'
+  | 'testcafe'
+  | 'junit4'
+  | 'junit5'
+  | 'testng'
+  | 'pytest'
+  | 'unittest'
+  | 'nose2';
 
 export interface ConversionOptions {
   /** Preserve original directory structure */
   preserveStructure?: boolean;
-  /** Number of files to process in parallel */
+  /** Number of files to process in batch */
   batchSize?: number;
   /** Test type hint (e2e, component, api, etc.) */
   testType?: string;
@@ -39,17 +55,45 @@ export interface ConversionStats {
   processingTime?: number;
 }
 
+export interface ConversionReport {
+  /** Confidence score 0-100 */
+  confidence: number;
+  /** Confidence level */
+  level: 'high' | 'medium' | 'low';
+  /** Number of patterns successfully converted */
+  converted: number;
+  /** Number of unconvertible patterns */
+  unconvertible: number;
+  /** Number of patterns converted with warnings */
+  warnings: number;
+  /** Total number of patterns */
+  total: number;
+  /** Detailed breakdown of issues */
+  details: Array<{
+    type: 'unconvertible' | 'warning';
+    nodeType: string;
+    line: number | null;
+    source: string;
+  }>;
+}
+
 export interface DetectionResult {
   /** Detected framework */
   framework: Framework | null;
   /** Confidence score (0-1) */
   confidence: number;
   /** Detection method used */
-  method: 'filename' | 'content' | 'both';
+  method: 'filename' | 'content' | 'combined' | 'path';
   /** Detailed content analysis */
   contentAnalysis?: {
-    scores: Record<Framework, number>;
-    patterns: string[];
+    scores: Record<string, number>;
+    details: Record<string, { commands: number; imports: number; keywords: number }>;
+  };
+  /** Path-based analysis */
+  pathAnalysis?: {
+    framework: Framework | null;
+    confidence: number;
+    reason: string;
   };
 }
 
@@ -80,9 +124,9 @@ export interface ConverterConfig {
  */
 export interface IConverter {
   /** Source framework */
-  readonly sourceFramework: Framework;
+  readonly sourceFramework: string;
   /** Target framework */
-  readonly targetFramework: Framework;
+  readonly targetFramework: string;
   /** Conversion statistics */
   readonly stats: ConversionStats;
 
@@ -156,12 +200,12 @@ export interface IConverterFactory {
  */
 export interface IFrameworkDetector {
   /**
-   * Detect framework from file content and/or filename
+   * Detect framework from file content and/or path
    * @param content - File content
-   * @param filename - Optional filename
+   * @param filePath - Optional file path
    * @returns Detection result
    */
-  detect(content: string, filename?: string): DetectionResult;
+  detect(content: string, filePath?: string): DetectionResult;
 
   /**
    * Detect framework from content only
@@ -171,11 +215,11 @@ export interface IFrameworkDetector {
   detectFromContent(content: string): DetectionResult;
 
   /**
-   * Detect framework from filename only
-   * @param filename - Filename
+   * Detect framework from file path only
+   * @param filePath - File path
    * @returns Detection result
    */
-  detectFromFilename(filename: string): DetectionResult;
+  detectFromPath(filePath: string): DetectionResult;
 }
 
 /**
@@ -211,8 +255,8 @@ export interface IPatternEngine {
 
 // Export converter classes
 export class BaseConverter implements IConverter {
-  readonly sourceFramework: Framework;
-  readonly targetFramework: Framework;
+  readonly sourceFramework: string;
+  readonly targetFramework: string;
   readonly stats: ConversionStats;
 
   constructor(options?: ConversionOptions);
@@ -220,6 +264,18 @@ export class BaseConverter implements IConverter {
   convertConfig(configPath: string, options?: ConversionOptions): Promise<string>;
   detectTestTypes(content: string): string[];
   getImports(testTypes: string[]): string[];
+}
+
+export class PipelineConverter extends BaseConverter {
+  constructor(
+    sourceFrameworkName: string,
+    targetFrameworkName: string,
+    frameworkDefinitions: object[],
+    options?: ConversionOptions
+  );
+  convert(content: string, options?: ConversionOptions): Promise<string>;
+  convertConfig(configPath: string, options?: ConversionOptions): Promise<string>;
+  getLastReport(): ConversionReport | null;
 }
 
 export class CypressToPlaywright extends BaseConverter {}
@@ -238,9 +294,11 @@ export class ConverterFactory implements IConverterFactory {
 }
 
 export class FrameworkDetector implements IFrameworkDetector {
-  static detect(content: string, filename?: string): DetectionResult;
+  static detect(content: string, filePath?: string): DetectionResult;
   static detectFromContent(content: string): DetectionResult;
-  static detectFromFilename(filename: string): DetectionResult;
+  static detectFromPath(filePath: string): DetectionResult;
+  static getDetectableFrameworks(): string[];
+  static isTestFile(content: string): boolean;
 }
 
 export class PatternEngine implements IPatternEngine {
@@ -268,4 +326,17 @@ export const FRAMEWORKS: {
   CYPRESS: 'cypress';
   PLAYWRIGHT: 'playwright';
   SELENIUM: 'selenium';
+  JEST: 'jest';
+  VITEST: 'vitest';
+  MOCHA: 'mocha';
+  JASMINE: 'jasmine';
+  WEBDRIVERIO: 'webdriverio';
+  PUPPETEER: 'puppeteer';
+  TESTCAFE: 'testcafe';
+  JUNIT4: 'junit4';
+  JUNIT5: 'junit5';
+  TESTNG: 'testng';
+  PYTEST: 'pytest';
+  UNITTEST: 'unittest';
+  NOSE2: 'nose2';
 };

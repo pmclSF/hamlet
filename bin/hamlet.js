@@ -331,10 +331,11 @@ async function convertAction(source, options) {
         console.log(JSON.stringify({
           success: true,
           dryRun: true,
-          files: sourceFiles.map(f => f.relativePath || f.path),
+          files: sourceFiles.map(f => ({ source: f.relativePath || f.path })),
           summary: {
-            total: sourceFiles.length,
-            wouldConvert: sourceFiles.length,
+            converted: sourceFiles.length,
+            skipped: 0,
+            failed: 0,
             confidence: counts,
           },
         }));
@@ -359,12 +360,12 @@ async function convertAction(source, options) {
           console.log(JSON.stringify({
             success: true,
             dryRun: true,
-            file: filePath,
-            confidence: report ? report.confidence : null,
-            level: report ? report.level : null,
-            converted: report ? report.converted : null,
-            warnings: report ? report.warnings : null,
-            unconvertible: report ? report.unconvertible : null,
+            files: [{ source: filePath, confidence: report ? report.confidence : null }],
+            summary: {
+              converted: 1,
+              skipped: 0,
+              failed: 0,
+            },
           }));
         } else if (!quiet) {
           console.log(chalk.yellow('Dry run mode - no files will be modified\n'));
@@ -384,7 +385,7 @@ async function convertAction(source, options) {
         }
       } catch (error) {
         if (jsonOutput) {
-          console.log(JSON.stringify({ success: false, dryRun: true, error: error.message }));
+          console.log(JSON.stringify({ success: false, dryRun: true, files: [{ source: filePath, error: error.message }], summary: { converted: 0, skipped: 0, failed: 1 } }));
         } else {
           console.error(chalk.red('Dry run error:'), error.message);
         }
@@ -558,7 +559,7 @@ async function convertAction(source, options) {
         await fs.mkdir(path.dirname(outputPath), { recursive: true });
         await fs.writeFile(outputPath, converted);
         if (jsonOutput) {
-          console.log(JSON.stringify({ success: false, error: error.message, partial: true }));
+          console.log(JSON.stringify({ success: false, files: [{ source: filePath, error: error.message, partial: true }], summary: { converted: 0, skipped: 0, failed: 1 } }));
         } else if (!quiet) {
           console.log(chalk.yellow(`Partial output written: ${outputPath}`));
         }
@@ -619,12 +620,12 @@ async function convertAction(source, options) {
 // ── Program setup ────────────────────────────────────────────────────
 program
   .version(version)
-  .description('Hamlet: Bidirectional multi-framework test converter for Cypress, Playwright, Selenium, Jest, and Vitest.');
+  .description('Hamlet: Multi-framework test converter — 25 directions across JavaScript, Java, and Python.');
 
 // ── Main convert command ─────────────────────────────────────────────
 program
   .command('convert')
-  .description('Convert tests between frameworks (Cypress, Playwright, Selenium, Jest, Vitest)')
+  .description('Convert tests between frameworks')
   .argument('<source>', 'Source test file, directory, or repository URL')
   .option('-f, --from <framework>', 'Source framework', 'cypress')
   .option('-t, --to <framework>', 'Target framework', 'playwright')
@@ -634,8 +635,7 @@ program
   .option('--validate', 'Validate converted tests')
   .option('--report <format>', 'Generate conversion report (html, json, markdown)')
   .option('--preserve-structure', 'Maintain original directory structure')
-  .option('--batch-size <number>', 'Number of tests to process in parallel', '5')
-  .option('--ignore <pattern>', 'Files to ignore (glob pattern)')
+  .option('--batch-size <number>', 'Number of files per batch', '5')
   .option('--dry-run', 'Show what would be converted without making changes')
   .option('--auto-detect', 'Auto-detect source framework from file content')
   .option('-q, --quiet', 'Suppress non-error output')
@@ -719,7 +719,7 @@ program
         const classification = classifier.classify(source, content);
         if (classification.framework) {
           fromFramework = classification.framework;
-          console.error(chalk.yellow(`Auto-detected source framework: ${fromFramework}`));
+          console.log(chalk.yellow(`Auto-detected source framework: ${fromFramework}`));
         } else {
           console.error(chalk.red('Could not auto-detect source framework. Use --from <framework>.'));
           process.exit(1);
@@ -785,7 +785,7 @@ program
   .description('List all shorthand command aliases')
   .action(() => {
     console.log(chalk.blue('\nShorthand command aliases:\n'));
-    console.log(`  ${chalk.bold('Alias'.padEnd(18))} ${chalk.bold('From'.padEnd(14))} ${chalk.bold('To')}`);
+    console.log(`  ${chalk.bold('Alias'.padEnd(18))} ${chalk.bold('From'.padEnd(14))} ${chalk.bold('To'.padEnd(14))}`);
     console.log(`  ${'─'.repeat(18)} ${'─'.repeat(14)} ${'─'.repeat(14)}`);
 
     for (const [alias, { from, to }] of Object.entries(SHORTHANDS)) {

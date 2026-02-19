@@ -14,7 +14,7 @@ const NODE_WEIGHTS = {
   Assertion: 2,
   MockCall: 2,
   ImportStatement: 1,
-  RawCode: 0,
+  RawCode: 1,
   Comment: 0,
   SharedVariable: 1,
   Modifier: 1,
