@@ -123,16 +123,16 @@ describe('ConfidenceScorer', () => {
       expect(report.total).toBe(0);
     });
 
-    it('should not count RawCode or Comment nodes in weight', () => {
+    it('should count RawCode with weight 1 and not count Comment nodes', () => {
       const raw = new RawCode({ code: 'const x = 42;', confidence: 'converted' });
       const comment = new Comment({ text: '// TODO', confidence: 'converted' });
       const tc = new TestCase({ name: 'test', body: [raw, comment], confidence: 'converted' });
       const file = new TestFile({ body: [tc] });
 
       const report = scorer.score(file);
-      // Only tc(3) has weight, raw and comment have 0 weight
+      // tc(3) + raw(1) have weight, comment has 0 weight
       expect(report.confidence).toBe(100);
-      expect(report.converted).toBe(1); // only tc
+      expect(report.converted).toBe(2); // tc + raw
     });
 
     it('should weight structural nodes higher than assertions', () => {

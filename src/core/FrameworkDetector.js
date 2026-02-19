@@ -9,7 +9,6 @@ export class FrameworkDetector {
    */
   static patterns = {
     [FRAMEWORKS.CYPRESS]: {
-      // Cypress-specific patterns
       commands: [
         /cy\./g,
         /cypress\./gi,
@@ -41,11 +40,9 @@ export class FrameworkDetector {
     },
 
     [FRAMEWORKS.PLAYWRIGHT]: {
-      // Playwright-specific patterns
       commands: [
-        /page\./g,
-        /browser\./g,
-        /context\./g
+        /page\.(goto|locator|getBy)/g,
+        /test\.describe\(/g
       ],
       imports: [
         /from\s+['"]@playwright\/test['"]/,
@@ -57,10 +54,7 @@ export class FrameworkDetector {
         /playwright\.config\.(js|ts|mjs)/
       ],
       filePatterns: [
-        /\.spec\.(js|ts|jsx|tsx)$/,
-        /\.test\.(js|ts|jsx|tsx)$/,
-        /tests\//,
-        /e2e\//
+        /\.spec\.(js|ts|jsx|tsx)$/
       ],
       keywords: [
         /page\.goto\(/,
@@ -68,13 +62,12 @@ export class FrameworkDetector {
         /page\.getBy/,
         /expect\([^)]+\)\.toBeVisible\(/,
         /expect\([^)]+\)\.toHaveText\(/,
-        /test\(['"]/,
-        /test\.describe\(/
+        /test\.describe\(/,
+        /test\.beforeEach\(/
       ]
     },
 
     [FRAMEWORKS.SELENIUM]: {
-      // Selenium-specific patterns
       commands: [
         /driver\./g,
         /webdriver\./gi,
@@ -86,14 +79,10 @@ export class FrameworkDetector {
         /from\s+['"]webdriver['"]/
       ],
       config: [
-        /wdio\.conf\.(js|ts)/,
         /selenium\.config\.(js|ts)/
       ],
       filePatterns: [
-        /\.test\.(js|ts)$/,
-        /\.spec\.(js|ts)$/,
-        /test\//,
-        /specs\//
+        /selenium/i
       ],
       keywords: [
         /driver\.get\(/,
@@ -103,6 +92,348 @@ export class FrameworkDetector {
         /\.sendKeys\(/,
         /driver\.wait\(/,
         /until\.elementLocated\(/
+      ]
+    },
+
+    [FRAMEWORKS.JEST]: {
+      commands: [
+        /jest\./g
+      ],
+      imports: [
+        /from\s+['"]@jest\/globals['"]/,
+        /from\s+['"]jest['"]/
+      ],
+      config: [
+        /jest\.config\.(js|ts|mjs|cjs)/
+      ],
+      filePatterns: [
+        /\.test\.(js|ts|jsx|tsx)$/,
+        /__tests__\//
+      ],
+      keywords: [
+        /jest\.fn\(/,
+        /jest\.mock\(/,
+        /jest\.spyOn\(/,
+        /jest\.clearAllMocks/,
+        /jest\.useFakeTimers/,
+        /test\.each/,
+        /expect\([^)]*\)\.(toBe|toEqual|toContain|toThrow|toHaveBeenCalled)/
+      ]
+    },
+
+    [FRAMEWORKS.VITEST]: {
+      commands: [
+        /vi\./g
+      ],
+      imports: [
+        /from\s+['"]vitest['"]/
+      ],
+      config: [
+        /vitest\.config\.(js|ts|mjs)/,
+        /vite\.config\.(js|ts|mjs)/
+      ],
+      filePatterns: [
+        /\.test\.(js|ts|jsx|tsx)$/,
+        /\.spec\.(js|ts|jsx|tsx)$/
+      ],
+      keywords: [
+        /vi\.fn\(/,
+        /vi\.mock\(/,
+        /vi\.spyOn\(/,
+        /vi\.useFakeTimers/,
+        /vi\.useRealTimers/
+      ]
+    },
+
+    [FRAMEWORKS.MOCHA]: {
+      commands: [],
+      imports: [
+        /from\s+['"]mocha['"]/,
+        /require\s*\(\s*['"]mocha['"]\s*\)/,
+        /from\s+['"]chai['"]/,
+        /require\s*\(\s*['"]chai['"]\s*\)/
+      ],
+      config: [
+        /\.mocharc\.(yml|yaml|json|js|cjs)/
+      ],
+      filePatterns: [
+        /\.test\.(js|ts)$/,
+        /\.spec\.(js|ts)$/,
+        /test\//
+      ],
+      keywords: [
+        /\bcontext\s*\(/,
+        /\bspecify\s*\(/,
+        /\bsuiteSetup\s*\(/,
+        /\bsuiteTeardown\s*\(/,
+        /\bsetup\s*\(/,
+        /\bteardown\s*\(/,
+        /expect\([^)]*\)\.to\.(be|have|equal|deep|include)/,
+        /assert\.(equal|deepEqual|strictEqual|ok|throws)/
+      ]
+    },
+
+    [FRAMEWORKS.JASMINE]: {
+      commands: [
+        /jasmine\./g
+      ],
+      imports: [
+        /from\s+['"]jasmine['"]/,
+        /require\s*\(\s*['"]jasmine['"]\s*\)/
+      ],
+      config: [
+        /jasmine\.json/,
+        /jasmine\.config/
+      ],
+      filePatterns: [
+        /\.spec\.(js|ts)$/,
+        /spec\//
+      ],
+      keywords: [
+        /jasmine\.createSpy/,
+        /jasmine\.createSpyObj/,
+        /\.and\.returnValue\(/,
+        /\.and\.callThrough\(/,
+        /\.and\.callFake\(/,
+        /\bfdescribe\s*\(/,
+        /\bfit\s*\(/,
+        /\bxdescribe\s*\(/,
+        /\bxit\s*\(/
+      ]
+    },
+
+    [FRAMEWORKS.WEBDRIVERIO]: {
+      commands: [
+        /browser\.(url|getUrl|pause|keys)\(/g,
+        /\$\(/g,
+        /\$\$\(/g
+      ],
+      imports: [
+        /from\s+['"]webdriverio['"]/,
+        /from\s+['"]@wdio\//,
+        /require\s*\(\s*['"]webdriverio['"]\s*\)/
+      ],
+      config: [
+        /wdio\.conf\.(js|ts|mjs)/
+      ],
+      filePatterns: [
+        /\.test\.(js|ts)$/,
+        /\.spec\.(js|ts)$/,
+        /wdio/i
+      ],
+      keywords: [
+        /browser\.url\(/,
+        /\$\(['"][^'"]+['"]\)/,
+        /\$\$\(['"][^'"]+['"]\)/,
+        /\.waitForDisplayed\(/,
+        /\.waitForExist\(/,
+        /\.setValue\(/,
+        /\.getValue\(/,
+        /\.isDisplayed\(/
+      ]
+    },
+
+    [FRAMEWORKS.PUPPETEER]: {
+      commands: [
+        /puppeteer\./g
+      ],
+      imports: [
+        /from\s+['"]puppeteer['"]/,
+        /require\s*\(\s*['"]puppeteer['"]\s*\)/
+      ],
+      config: [],
+      filePatterns: [
+        /puppeteer/i
+      ],
+      keywords: [
+        /puppeteer\.launch\(/,
+        /browser\.newPage\(/,
+        /page\.type\(/,
+        /page\.\$eval\(/,
+        /page\.\$\$eval\(/,
+        /page\.waitForSelector\(/,
+        /page\.evaluate\(/,
+        /page\.screenshot\(/
+      ]
+    },
+
+    [FRAMEWORKS.TESTCAFE]: {
+      commands: [
+        /\bt\./g
+      ],
+      imports: [
+        /from\s+['"]testcafe['"]/,
+        /require\s*\(\s*['"]testcafe['"]\s*\)/
+      ],
+      config: [
+        /\.testcaferc\.(json|js|cjs)/
+      ],
+      filePatterns: [
+        /testcafe/i
+      ],
+      keywords: [
+        /\bfixture\s*\(/,
+        /\bSelector\s*\(/,
+        /\bClientFunction\s*\(/,
+        /t\.typeText\(/,
+        /t\.click\(/,
+        /t\.expect\(/,
+        /t\.navigateTo\(/
+      ]
+    },
+
+    [FRAMEWORKS.JUNIT4]: {
+      commands: [],
+      imports: [
+        /import\s+org\.junit\.Test/,
+        /import\s+org\.junit\.Before/,
+        /import\s+org\.junit\.After/,
+        /import\s+org\.junit\.Assert/,
+        /import\s+static\s+org\.junit\.Assert\.\*/,
+        /import\s+org\.junit\.runner/
+      ],
+      config: [],
+      filePatterns: [
+        /Test\.java$/,
+        /Tests\.java$/
+      ],
+      keywords: [
+        /@Test\b/,
+        /@Before\b(?!Each|All)/,
+        /@After\b(?!Each|All)/,
+        /@RunWith\(/,
+        /@Rule\b/,
+        /Assert\.(assertEquals|assertTrue|assertFalse|assertNull|assertNotNull)/,
+        /@Test\s*\(\s*expected\s*=/
+      ]
+    },
+
+    [FRAMEWORKS.JUNIT5]: {
+      commands: [],
+      imports: [
+        /import\s+org\.junit\.jupiter/,
+        /import\s+static\s+org\.junit\.jupiter\.api\.Assertions\.\*/
+      ],
+      config: [],
+      filePatterns: [
+        /Test\.java$/,
+        /Tests\.java$/
+      ],
+      keywords: [
+        /@Test\b/,
+        /@BeforeEach\b/,
+        /@AfterEach\b/,
+        /@BeforeAll\b/,
+        /@AfterAll\b/,
+        /@DisplayName\(/,
+        /@Nested\b/,
+        /@ParameterizedTest\b/,
+        /@CsvSource\(/,
+        /@ValueSource\(/,
+        /Assertions\.(assertEquals|assertTrue|assertFalse|assertThrows|assertAll)/,
+        /assertThrows\(/
+      ]
+    },
+
+    [FRAMEWORKS.TESTNG]: {
+      commands: [],
+      imports: [
+        /import\s+org\.testng/,
+        /import\s+static\s+org\.testng\.Assert\.\*/
+      ],
+      config: [
+        /testng\.xml/
+      ],
+      filePatterns: [
+        /Test\.java$/
+      ],
+      keywords: [
+        /@Test\b/,
+        /@BeforeMethod\b/,
+        /@AfterMethod\b/,
+        /@BeforeClass\b/,
+        /@AfterClass\b/,
+        /@DataProvider\b/,
+        /@Test\s*\(\s*dataProvider\s*=/,
+        /@Test\s*\(\s*expectedExceptions\s*=/,
+        /Assert\.(assertEquals|assertTrue|assertFalse|assertNull|assertNotNull)/
+      ]
+    },
+
+    [FRAMEWORKS.PYTEST]: {
+      commands: [
+        /pytest\./g
+      ],
+      imports: [
+        /import\s+pytest/,
+        /from\s+pytest\s+import/
+      ],
+      config: [
+        /pytest\.ini/,
+        /pyproject\.toml/,
+        /conftest\.py/,
+        /setup\.cfg/
+      ],
+      filePatterns: [
+        /test_.*\.py$/,
+        /.*_test\.py$/,
+        /conftest\.py$/
+      ],
+      keywords: [
+        /@pytest\.fixture/,
+        /@pytest\.mark\./,
+        /@pytest\.mark\.parametrize/,
+        /pytest\.raises\(/,
+        /pytest\.skip\(/,
+        /\bdef test_\w+/,
+        /\bassert\s+/
+      ]
+    },
+
+    [FRAMEWORKS.UNITTEST]: {
+      commands: [
+        /unittest\./g
+      ],
+      imports: [
+        /import\s+unittest/,
+        /from\s+unittest\s+import/
+      ],
+      config: [],
+      filePatterns: [
+        /test_.*\.py$/,
+        /.*_test\.py$/
+      ],
+      keywords: [
+        /class\s+\w+\(unittest\.TestCase\)/,
+        /self\.assert(Equal|True|False|Raises|In|NotIn|Is|IsNone|IsNotNone)/,
+        /self\.setUp\(/,
+        /self\.tearDown\(/,
+        /unittest\.main\(/,
+        /self\.subTest\(/,
+        /unittest\.skip\(/
+      ]
+    },
+
+    [FRAMEWORKS.NOSE2]: {
+      commands: [
+        /nose2\./g
+      ],
+      imports: [
+        /import\s+nose2/,
+        /from\s+nose2/,
+        /from\s+nose2\.tools\s+import/
+      ],
+      config: [
+        /nose2\.cfg/,
+        /setup\.cfg/
+      ],
+      filePatterns: [
+        /test_.*\.py$/
+      ],
+      keywords: [
+        /@params\b/,
+        /nose2\.tools/,
+        /nose2\.discover/
       ]
     }
   };
@@ -273,7 +604,11 @@ export class FrameworkDetector {
       /test\s*\(/,
       /expect\s*\(/,
       /assert\./,
-      /\.should\(/
+      /\.should\(/,
+      /@Test\b/,
+      /def test_\w+/,
+      /class\s+\w+\(unittest\.TestCase\)/,
+      /fixture\s*\(/
     ];
 
     return testPatterns.some(pattern => pattern.test(content));
