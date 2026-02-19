@@ -14,7 +14,7 @@ describe('ConverterFactory', () => {
   });
 
   describe('FRAMEWORKS constant', () => {
-    it('should export all thirteen frameworks', () => {
+    it('should export all sixteen frameworks', () => {
       expect(FRAMEWORKS.CYPRESS).toBe('cypress');
       expect(FRAMEWORKS.PLAYWRIGHT).toBe('playwright');
       expect(FRAMEWORKS.SELENIUM).toBe('selenium');
@@ -28,6 +28,9 @@ describe('ConverterFactory', () => {
       expect(FRAMEWORKS.PYTEST).toBe('pytest');
       expect(FRAMEWORKS.UNITTEST).toBe('unittest');
       expect(FRAMEWORKS.NOSE2).toBe('nose2');
+      expect(FRAMEWORKS.WEBDRIVERIO).toBe('webdriverio');
+      expect(FRAMEWORKS.PUPPETEER).toBe('puppeteer');
+      expect(FRAMEWORKS.TESTCAFE).toBe('testcafe');
     });
   });
 
@@ -200,6 +203,138 @@ describe('ConverterFactory', () => {
         expect(result).toContain('assert 1 == 1');
         expect(result).not.toContain('assert_equal');
       });
+
+      it('should create PipelineConverter for webdriverio→playwright', async () => {
+        const converter = await ConverterFactory.createConverter('webdriverio', 'playwright');
+        expect(converter).toBeInstanceOf(PipelineConverter);
+        expect(converter.sourceFramework).toBe('webdriverio');
+        expect(converter.targetFramework).toBe('playwright');
+      });
+
+      it('should create PipelineConverter for webdriverio→cypress', async () => {
+        const converter = await ConverterFactory.createConverter('webdriverio', 'cypress');
+        expect(converter).toBeInstanceOf(PipelineConverter);
+        expect(converter.sourceFramework).toBe('webdriverio');
+        expect(converter.targetFramework).toBe('cypress');
+      });
+
+      it('should create PipelineConverter for playwright→webdriverio', async () => {
+        const converter = await ConverterFactory.createConverter('playwright', 'webdriverio');
+        expect(converter).toBeInstanceOf(PipelineConverter);
+        expect(converter.sourceFramework).toBe('playwright');
+        expect(converter.targetFramework).toBe('webdriverio');
+      });
+
+      it('should create PipelineConverter for cypress→webdriverio', async () => {
+        const converter = await ConverterFactory.createConverter('cypress', 'webdriverio');
+        expect(converter).toBeInstanceOf(PipelineConverter);
+        expect(converter.sourceFramework).toBe('cypress');
+        expect(converter.targetFramework).toBe('webdriverio');
+      });
+
+      it('should create PipelineConverter for puppeteer→playwright', async () => {
+        const converter = await ConverterFactory.createConverter('puppeteer', 'playwright');
+        expect(converter).toBeInstanceOf(PipelineConverter);
+        expect(converter.sourceFramework).toBe('puppeteer');
+        expect(converter.targetFramework).toBe('playwright');
+      });
+
+      it('should create PipelineConverter for playwright→puppeteer', async () => {
+        const converter = await ConverterFactory.createConverter('playwright', 'puppeteer');
+        expect(converter).toBeInstanceOf(PipelineConverter);
+        expect(converter.sourceFramework).toBe('playwright');
+        expect(converter.targetFramework).toBe('puppeteer');
+      });
+
+      it('should create PipelineConverter for testcafe→playwright', async () => {
+        const converter = await ConverterFactory.createConverter('testcafe', 'playwright');
+        expect(converter).toBeInstanceOf(PipelineConverter);
+        expect(converter.sourceFramework).toBe('testcafe');
+        expect(converter.targetFramework).toBe('playwright');
+      });
+
+      it('should create PipelineConverter for testcafe→cypress', async () => {
+        const converter = await ConverterFactory.createConverter('testcafe', 'cypress');
+        expect(converter).toBeInstanceOf(PipelineConverter);
+        expect(converter.sourceFramework).toBe('testcafe');
+        expect(converter.targetFramework).toBe('cypress');
+      });
+
+      it('should convert WebdriverIO to Playwright through pipeline', async () => {
+        const converter = await ConverterFactory.createConverter('webdriverio', 'playwright');
+        const result = await converter.convert(
+          "describe('test', () => {\n  it('works', async () => {\n    await browser.url('/page');\n    await $('#btn').click();\n  });\n});"
+        );
+        expect(result).toContain("await page.goto('/page')");
+        expect(result).toContain("await page.locator('#btn').click()");
+      });
+
+      it('should convert WebdriverIO to Cypress through pipeline', async () => {
+        const converter = await ConverterFactory.createConverter('webdriverio', 'cypress');
+        const result = await converter.convert(
+          "describe('test', () => {\n  it('works', async () => {\n    await browser.url('/page');\n    await $('#btn').click();\n  });\n});"
+        );
+        expect(result).toContain("cy.visit('/page')");
+        expect(result).toContain("cy.get('#btn').click()");
+      });
+
+      it('should convert Playwright to WebdriverIO through pipeline', async () => {
+        const converter = await ConverterFactory.createConverter('playwright', 'webdriverio');
+        const result = await converter.convert(
+          "import { test, expect } from '@playwright/test';\n\ntest.describe('test', () => {\n  test('works', async ({ page }) => {\n    await page.goto('/page');\n    await page.locator('#btn').click();\n  });\n});"
+        );
+        expect(result).toContain("await browser.url('/page')");
+        expect(result).toContain("await $('#btn').click()");
+      });
+
+      it('should convert Cypress to WebdriverIO through pipeline', async () => {
+        const converter = await ConverterFactory.createConverter('cypress', 'webdriverio');
+        const result = await converter.convert(
+          "describe('test', () => {\n  it('works', () => {\n    cy.visit('/page');\n    cy.get('#btn').click();\n  });\n});"
+        );
+        expect(result).toContain("await browser.url('/page')");
+        expect(result).toContain("await $('#btn').click()");
+      });
+
+      it('should convert Puppeteer to Playwright through pipeline', async () => {
+        const converter = await ConverterFactory.createConverter('puppeteer', 'playwright');
+        const result = await converter.convert(
+          "const puppeteer = require('puppeteer');\n\ndescribe('test', () => {\n  let browser, page;\n\n  beforeAll(async () => {\n    browser = await puppeteer.launch();\n    page = await browser.newPage();\n  });\n\n  afterAll(async () => {\n    await browser.close();\n  });\n\n  it('works', async () => {\n    await page.goto('/page');\n    await page.click('#btn');\n  });\n});"
+        );
+        expect(result).toContain("await page.goto('/page')");
+        expect(result).toContain("page.locator('#btn').click()");
+        expect(result).not.toContain('puppeteer.launch');
+      });
+
+      it('should convert Playwright to Puppeteer through pipeline', async () => {
+        const converter = await ConverterFactory.createConverter('playwright', 'puppeteer');
+        const result = await converter.convert(
+          "import { test, expect } from '@playwright/test';\n\ntest.describe('test', () => {\n  test('works', async ({ page }) => {\n    await page.goto('/page');\n    await page.locator('#btn').click();\n  });\n});"
+        );
+        expect(result).toContain("await page.goto('/page')");
+        expect(result).toContain("await page.click('#btn')");
+        expect(result).toContain("puppeteer");
+      });
+
+      it('should convert TestCafe to Playwright through pipeline', async () => {
+        const converter = await ConverterFactory.createConverter('testcafe', 'playwright');
+        const result = await converter.convert(
+          "import { Selector } from 'testcafe';\n\nfixture`Test`.page`http://localhost`;\n\ntest('works', async t => {\n  await t.click('#btn');\n  await t.expect(Selector('#msg').visible).ok();\n});"
+        );
+        expect(result).toContain("page.locator('#btn').click()");
+        expect(result).toContain('toBeVisible');
+        expect(result).not.toContain('testcafe');
+      });
+
+      it('should convert TestCafe to Cypress through pipeline', async () => {
+        const converter = await ConverterFactory.createConverter('testcafe', 'cypress');
+        const result = await converter.convert(
+          "import { Selector } from 'testcafe';\n\nfixture`Test`.page`http://localhost`;\n\ntest('works', async t => {\n  await t.click('#btn');\n  await t.expect(Selector('#msg').visible).ok();\n});"
+        );
+        expect(result).toContain("cy.get('#btn').click()");
+        expect(result).toContain("should('be.visible')");
+        expect(result).not.toContain('testcafe');
+      });
     });
 
     describe('legacy converter directions', () => {
@@ -268,9 +403,9 @@ describe('ConverterFactory', () => {
   });
 
   describe('getSupportedConversions', () => {
-    it('should return all 17 conversion directions', () => {
+    it('should return all 25 conversion directions', () => {
       const conversions = ConverterFactory.getSupportedConversions();
-      expect(conversions).toHaveLength(17);
+      expect(conversions).toHaveLength(25);
       expect(conversions).toContain('cypress-playwright');
       expect(conversions).toContain('playwright-cypress');
       expect(conversions).toContain('cypress-selenium');
@@ -288,6 +423,14 @@ describe('ConverterFactory', () => {
       expect(conversions).toContain('pytest-unittest');
       expect(conversions).toContain('unittest-pytest');
       expect(conversions).toContain('nose2-pytest');
+      expect(conversions).toContain('webdriverio-playwright');
+      expect(conversions).toContain('webdriverio-cypress');
+      expect(conversions).toContain('playwright-webdriverio');
+      expect(conversions).toContain('cypress-webdriverio');
+      expect(conversions).toContain('puppeteer-playwright');
+      expect(conversions).toContain('playwright-puppeteer');
+      expect(conversions).toContain('testcafe-playwright');
+      expect(conversions).toContain('testcafe-cypress');
     });
   });
 
@@ -310,6 +453,14 @@ describe('ConverterFactory', () => {
       expect(ConverterFactory.isSupported('pytest', 'unittest')).toBe(true);
       expect(ConverterFactory.isSupported('unittest', 'pytest')).toBe(true);
       expect(ConverterFactory.isSupported('nose2', 'pytest')).toBe(true);
+      expect(ConverterFactory.isSupported('webdriverio', 'playwright')).toBe(true);
+      expect(ConverterFactory.isSupported('webdriverio', 'cypress')).toBe(true);
+      expect(ConverterFactory.isSupported('playwright', 'webdriverio')).toBe(true);
+      expect(ConverterFactory.isSupported('cypress', 'webdriverio')).toBe(true);
+      expect(ConverterFactory.isSupported('puppeteer', 'playwright')).toBe(true);
+      expect(ConverterFactory.isSupported('playwright', 'puppeteer')).toBe(true);
+      expect(ConverterFactory.isSupported('testcafe', 'playwright')).toBe(true);
+      expect(ConverterFactory.isSupported('testcafe', 'cypress')).toBe(true);
     });
 
     it('should return false for invalid conversions', () => {

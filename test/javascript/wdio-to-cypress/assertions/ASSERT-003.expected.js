@@ -1,0 +1,8 @@
+describe('text assertions', () => {
+  it('should check text', () => {
+    cy.visit('/page');
+    cy.get('#msg').should('have.text', 'Hello');
+    cy.get('#msg').should('contain', 'Hel');
+    cy.get('#input').should('have.value', 'test');
+  });
+});

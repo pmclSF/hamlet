@@ -15,6 +15,9 @@ export const FRAMEWORKS = {
   PYTEST: 'pytest',
   UNITTEST: 'unittest',
   NOSE2: 'nose2',
+  WEBDRIVERIO: 'webdriverio',
+  PUPPETEER: 'puppeteer',
+  TESTCAFE: 'testcafe',
 };
 
 /**
@@ -35,6 +38,9 @@ const FRAMEWORK_LANGUAGE = {
   pytest: 'python',
   unittest: 'python',
   nose2: 'python',
+  webdriverio: 'javascript',
+  puppeteer: 'javascript',
+  testcafe: 'javascript',
 };
 
 /**
@@ -62,6 +68,14 @@ const PIPELINE_DIRECTIONS = new Set([
   'pytest-unittest',
   'unittest-pytest',
   'nose2-pytest',
+  'webdriverio-playwright',
+  'webdriverio-cypress',
+  'playwright-webdriverio',
+  'cypress-webdriverio',
+  'puppeteer-playwright',
+  'playwright-puppeteer',
+  'testcafe-playwright',
+  'testcafe-cypress',
 ]);
 
 /**
@@ -250,6 +264,14 @@ export class ConverterFactory {
       'pytest-unittest',
       'unittest-pytest',
       'nose2-pytest',
+      'webdriverio-playwright',
+      'webdriverio-cypress',
+      'playwright-webdriverio',
+      'cypress-webdriverio',
+      'puppeteer-playwright',
+      'playwright-puppeteer',
+      'testcafe-playwright',
+      'testcafe-cypress',
     ];
   }
 
