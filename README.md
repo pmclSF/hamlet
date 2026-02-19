@@ -4,365 +4,226 @@
 [![npm version](https://badge.fury.io/js/hamlet-converter.svg)](https://www.npmjs.com/package/hamlet-converter)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Bidirectional multi-framework test converter for **Cypress**, **Playwright**, and **Selenium**.
+Migrate your test suites between frameworks with confidence.
 
-## Overview
-
-Hamlet enables seamless migration of automated tests between the three most popular testing frameworks. Convert tests in any direction with a single command.
-
-```
-┌──────────┐     ┌────────────┐     ┌──────────┐
-│  Cypress │ ←→  │ Playwright │ ←→  │ Selenium │
-└──────────┘     └────────────┘     └──────────┘
-      ↑                                   ↑
-      └───────────────────────────────────┘
-```
-
-## Features
-
-- **6 Conversion Directions**: Convert between any pair of supported frameworks
-- **CLI & Programmatic API**: Use from command line or import in your code
-- **TypeScript Support**: Full type definitions included
-- **Auto-detection**: Automatically detect source framework from file content
-- **Batch Processing**: Convert entire directories of tests
-- **Config Conversion**: Convert framework configuration files
-- **207 Tests**: Thoroughly tested with comprehensive edge cases
-
-## Installation
-
-```bash
-# Global installation
-npm install -g hamlet-converter
-
-# Local installation
-npm install hamlet-converter
-```
+**25 conversion directions** across **16 frameworks** in **4 languages** (JavaScript, Java, Python).
 
 ## Quick Start
 
 ```bash
-# Convert Cypress to Playwright
-hamlet convert ./tests/login.cy.js --from cypress --to playwright -o ./output
+npm install -g hamlet-converter
 
-# Convert Playwright to Selenium
-hamlet convert ./tests/login.spec.ts --from playwright --to selenium -o ./output
+# Convert a single file
+hamlet jest2vt auth.test.js -o converted/
 
-# Convert entire directory
-hamlet convert ./cypress/e2e --from cypress --to playwright -o ./playwright-tests
+# Preview a migration
+hamlet estimate tests/ --from jest --to vitest
 
-# List all supported conversions
-hamlet list-conversions
+# Migrate your project
+hamlet migrate tests/ --from jest --to vitest -o converted/
 ```
 
 ## Supported Conversions
 
-| From | To | Command |
-|------|-----|---------|
-| Cypress | Playwright | `--from cypress --to playwright` |
-| Cypress | Selenium | `--from cypress --to selenium` |
-| Playwright | Cypress | `--from playwright --to cypress` |
-| Playwright | Selenium | `--from playwright --to selenium` |
-| Selenium | Cypress | `--from selenium --to cypress` |
-| Selenium | Playwright | `--from selenium --to playwright` |
+### JavaScript Unit Testing
 
-## CLI Reference
+| Direction | Shorthand |
+|-----------|-----------|
+| Jest &rarr; Vitest | `hamlet jest2vt` |
+| Mocha &rarr; Jest | `hamlet mocha2jest` |
+| Jasmine &rarr; Jest | `hamlet jas2jest` |
+| Jest &rarr; Mocha | `hamlet jest2mocha` |
+| Jest &rarr; Jasmine | `hamlet jest2jas` |
+
+### JavaScript E2E / Browser
+
+| Direction | Shorthand |
+|-----------|-----------|
+| Cypress &harr; Playwright | `hamlet cy2pw` / `hamlet pw2cy` |
+| Cypress &harr; Selenium | `hamlet cy2sel` / `hamlet sel2cy` |
+| Playwright &harr; Selenium | `hamlet pw2sel` / `hamlet sel2pw` |
+| Cypress &harr; WebdriverIO | `hamlet cy2wdio` / `hamlet wdio2cy` |
+| Playwright &harr; WebdriverIO | `hamlet pw2wdio` / `hamlet wdio2pw` |
+| Puppeteer &harr; Playwright | `hamlet pptr2pw` / `hamlet pw2pptr` |
+| TestCafe &rarr; Playwright | `hamlet tcafe2pw` |
+| TestCafe &rarr; Cypress | `hamlet tcafe2cy` |
+
+### Java
+
+| Direction | Shorthand |
+|-----------|-----------|
+| JUnit 4 &rarr; JUnit 5 | `hamlet ju42ju5` |
+| JUnit 5 &harr; TestNG | `hamlet ju52tng` / `hamlet tng2ju5` |
+
+### Python
+
+| Direction | Shorthand |
+|-----------|-----------|
+| pytest &harr; unittest | `hamlet pyt2ut` / `hamlet ut2pyt` |
+| nose2 &rarr; pytest | `hamlet nose22pyt` |
+
+Run `hamlet list` to see all directions with their shorthand aliases.
+
+## Commands
+
+### Convert
+
+Convert a single file, directory, or glob pattern:
 
 ```bash
-Usage: hamlet [command] [options]
+# Single file
+hamlet convert auth.test.js --from jest --to vitest -o converted/
 
-Commands:
-  convert <source>      Convert tests between frameworks
-  list-conversions      List all supported conversion directions
-  detect <file>         Auto-detect the testing framework from a file
-  validate <path>       Validate converted tests
-  init                  Initialize Hamlet configuration
-  cy2pw <source>        Shorthand for Cypress to Playwright
+# Directory (requires --output)
+hamlet convert tests/ --from jest --to vitest -o converted/
 
-Options for convert:
-  -f, --from <framework>   Source framework (cypress, playwright, selenium)
-  -t, --to <framework>     Target framework (cypress, playwright, selenium)
-  -o, --output <path>      Output path for converted tests
-  --validate               Validate converted tests after conversion
-  --dry-run                Show what would be converted without making changes
-  --auto-detect            Auto-detect source framework from file content
+# Glob pattern
+hamlet convert "tests/**/*.test.js" --from jest --to vitest -o converted/
+
+# Shorthand (equivalent to convert --from jest --to vitest)
+hamlet jest2vt auth.test.js -o converted/
 ```
 
-## Conversion Examples
+### Migrate
 
-### Cypress → Playwright
+Full project migration with state tracking, dependency ordering, and config conversion:
 
-**Input:**
+```bash
+hamlet migrate tests/ --from jest --to vitest -o converted/
+
+# Resume an interrupted migration
+hamlet migrate tests/ --from jest --to vitest -o converted/ --continue
+
+# Retry only previously failed files
+hamlet migrate tests/ --from jest --to vitest -o converted/ --retry-failed
+```
+
+### Estimate
+
+Preview migration complexity without converting:
+
+```bash
+hamlet estimate tests/ --from jest --to vitest
+```
+
+### Dry Run
+
+Preview what would happen without writing files:
+
+```bash
+hamlet convert tests/ --from jest --to vitest -o converted/ --dry-run
+hamlet migrate tests/ --from jest --to vitest --dry-run
+```
+
+### Other Commands
+
+```bash
+hamlet list              # Show all conversion directions with shorthands
+hamlet shorthands        # List all shorthand command aliases
+hamlet detect file.js    # Auto-detect testing framework from a file
+hamlet doctor            # Run diagnostics
+hamlet status -d .       # Show current migration progress
+hamlet checklist -d .    # Generate migration checklist
+hamlet reset -d . --yes  # Clear migration state
+```
+
+## Options
+
+| Option | Description |
+|--------|-------------|
+| `-o, --output <path>` | Output path (required for directories) |
+| `-f, --from <framework>` | Source framework |
+| `-t, --to <framework>` | Target framework |
+| `--dry-run` | Preview without writing files |
+| `--on-error <mode>` | Error handling: `skip` (default), `fail`, `best-effort` |
+| `-q, --quiet` | Suppress non-error output |
+| `--verbose` | Show detailed per-pattern output |
+| `--json` | Machine-readable JSON output |
+| `--no-color` | Disable color output |
+| `--auto-detect` | Auto-detect source framework |
+
+## JSON Output
+
+For CI integration, use `--json` for machine-readable output:
+
+```bash
+hamlet jest2vt auth.test.js -o converted/ --json
+```
+
+```json
+{
+  "success": true,
+  "files": [{ "source": "auth.test.js", "output": "converted/auth.test.js", "confidence": 95 }],
+  "summary": { "converted": 1, "skipped": 0, "failed": 0 }
+}
+```
+
+## How It Works
+
+1. **Scan** &mdash; discover test files in the source directory
+2. **Classify** &mdash; identify file types (test, helper, config, fixture)
+3. **Detect** &mdash; determine source framework from content
+4. **Parse** &mdash; convert source code into framework-neutral IR (intermediate representation)
+5. **Convert** &mdash; emit target framework code from the IR
+6. **Score** &mdash; calculate confidence based on converted vs. unconvertible patterns
+7. **Report** &mdash; generate HAMLET-TODO markers for patterns that need manual review
+
+## Confidence Scores
+
+Every conversion produces a confidence score (0-100%):
+
+- **High (80-100%)**: Fully automated, ready to use
+- **Medium (50-79%)**: Mostly automated, review HAMLET-TODO markers
+- **Low (0-49%)**: Significant manual work needed
+
+## HAMLET-TODO Markers
+
+When a pattern can't be automatically converted, Hamlet inserts a comment:
+
 ```javascript
-describe('Login', () => {
-  beforeEach(() => {
-    cy.visit('/login');
-  });
-
-  it('should login successfully', () => {
-    cy.get('#username').type('testuser');
-    cy.get('#password').type('secret123');
-    cy.get('#remember').check();
-    cy.get('button[type="submit"]').click();
-    cy.get('.welcome').should('be.visible');
-    cy.get('.welcome').should('have.text', 'Welcome!');
-  });
-});
+// HAMLET-TODO: cy.session() has no direct equivalent in Playwright
+// Original: cy.session('admin', () => { ... })
 ```
 
-**Output:**
-```javascript
-import { test, expect } from '@playwright/test';
+Search for `HAMLET-TODO` after conversion to find patterns that need manual attention.
 
-test.describe('Login', () => {
-  test.beforeEach(async ({ page }) => {
-    await page.goto('/login');
-  });
+## Config Conversion
 
-  test('should login successfully', async ({ page }) => {
-    await page.locator('#username').fill('testuser');
-    await page.locator('#password').fill('secret123');
-    await page.locator('#remember').check();
-    await page.locator('button[type="submit"]').click();
-    await expect(page.locator('.welcome')).toBeVisible();
-    await expect(page.locator('.welcome')).toHaveText('Welcome!');
-  });
-});
+Convert framework configuration files:
+
+```bash
+hamlet convert-config jest.config.js --to vitest -o vitest.config.js
+hamlet convert-config cypress.config.js --to playwright -o playwright.config.ts
 ```
-
-### Playwright → Selenium
-
-**Input:**
-```javascript
-import { test, expect } from '@playwright/test';
-
-test('should handle form', async ({ page }) => {
-  await page.goto('/form');
-  await page.locator('#email').fill('user@example.com');
-  await page.locator('#country').selectOption('USA');
-  await expect(page.locator('.result')).toBeVisible();
-});
-```
-
-**Output:**
-```javascript
-const { Builder, By, Key, until } = require('selenium-webdriver');
-const { expect } = require('@jest/globals');
-
-let driver;
-
-beforeAll(async () => {
-  driver = await new Builder().forBrowser('chrome').build();
-});
-
-afterAll(async () => {
-  await driver.quit();
-});
-
-describe('Test Suite', () => {
-  it('should handle form', async () => {
-    await driver.get('/form');
-    await driver.findElement(By.css('#email')).sendKeys('user@example.com');
-    const select = await driver.findElement(By.css('#country'));
-    await select.findElement(By.css(`option[value=${'USA'}]`)).click();
-    expect(await (await driver.findElement(By.css('.result'))).isDisplayed()).toBe(true);
-  });
-});
-```
-
-## Command Mapping
-
-### Actions
-
-| Cypress | Playwright | Selenium |
-|---------|------------|----------|
-| `cy.visit(url)` | `page.goto(url)` | `driver.get(url)` |
-| `cy.get(sel)` | `page.locator(sel)` | `driver.findElement(By.css(sel))` |
-| `.type(text)` | `.fill(text)` | `.sendKeys(text)` |
-| `.click()` | `.click()` | `.click()` |
-| `.clear()` | `.clear()` | `.clear()` |
-| `.check()` | `.check()` | Conditional click |
-| `.uncheck()` | `.uncheck()` | Conditional click |
-| `.select(val)` | `.selectOption(val)` | Select option by value |
-| `cy.reload()` | `page.reload()` | `driver.navigate().refresh()` |
-| `cy.go('back')` | `page.goBack()` | `driver.navigate().back()` |
-| `cy.wait(ms)` | `page.waitForTimeout(ms)` | `driver.sleep(ms)` |
-
-### Assertions
-
-| Cypress | Playwright | Selenium |
-|---------|------------|----------|
-| `.should('be.visible')` | `expect().toBeVisible()` | `expect(isDisplayed()).toBe(true)` |
-| `.should('not.be.visible')` | `expect().toBeHidden()` | `expect(isDisplayed()).toBe(false)` |
-| `.should('have.text', t)` | `expect().toHaveText(t)` | `expect(getText()).toBe(t)` |
-| `.should('contain', t)` | `expect().toContainText(t)` | `expect(getText()).toContain(t)` |
-| `.should('have.value', v)` | `expect().toHaveValue(v)` | `expect(getAttribute('value')).toBe(v)` |
-| `.should('exist')` | `expect().toBeAttached()` | `expect(elements.length).toBeGreaterThan(0)` |
-| `.should('not.exist')` | `expect().not.toBeAttached()` | `expect(elements.length).toBe(0)` |
-| `.should('be.checked')` | `expect().toBeChecked()` | `expect(isSelected()).toBe(true)` |
-| `.should('be.disabled')` | `expect().toBeDisabled()` | `expect(isEnabled()).toBe(false)` |
-| `.should('have.length', n)` | `expect().toHaveCount(n)` | `expect(elements.length).toBe(n)` |
-
-### Test Structure
-
-| Cypress | Playwright | Selenium/Jest |
-|---------|------------|---------------|
-| `describe()` | `test.describe()` | `describe()` |
-| `it()` | `test()` | `it()` |
-| `beforeEach()` | `test.beforeEach()` | `beforeEach()` |
-| `afterEach()` | `test.afterEach()` | `afterEach()` |
-| `before()` | `test.beforeAll()` | `beforeAll()` |
-| `after()` | `test.afterAll()` | `afterAll()` |
 
 ## Programmatic API
 
 ```javascript
 import { ConverterFactory, FRAMEWORKS } from 'hamlet-converter';
 
-// Create a converter
-const converter = await ConverterFactory.createConverter(
-  FRAMEWORKS.CYPRESS,
-  FRAMEWORKS.PLAYWRIGHT
-);
+const converter = await ConverterFactory.createConverter('jest', 'vitest');
+const output = await converter.convert(jestCode);
 
-// Convert content
-const cypressCode = `
-  describe('Test', () => {
-    it('works', () => {
-      cy.visit('/');
-      cy.get('#btn').click();
-    });
-  });
-`;
-
-const playwrightCode = await converter.convert(cypressCode);
-console.log(playwrightCode);
+// Get conversion report
+const report = converter.getLastReport();
+console.log(`Confidence: ${report.confidence}%`);
 ```
 
-### TypeScript Support
+## Exit Codes
 
-```typescript
-import {
-  ConverterFactory,
-  IConverter,
-  Framework,
-  ConversionOptions
-} from 'hamlet-converter';
-
-const options: ConversionOptions = {
-  preserveStructure: true,
-  batchSize: 10
-};
-
-const converter: IConverter = await ConverterFactory.createConverter(
-  'cypress' as Framework,
-  'playwright' as Framework,
-  options
-);
-```
-
-### Available Exports
-
-```javascript
-import {
-  // Factory
-  ConverterFactory,
-  FRAMEWORKS,
-
-  // Individual converters
-  CypressToPlaywright,
-  PlaywrightToCypress,
-  CypressToSelenium,
-  SeleniumToCypress,
-  PlaywrightToSelenium,
-  SeleniumToPlaywright,
-
-  // Core utilities
-  BaseConverter,
-  PatternEngine,
-  FrameworkDetector
-} from 'hamlet-converter';
-```
-
-## Configuration
-
-Create a `.hamletrc.json` configuration file:
-
-```bash
-hamlet init
-```
-
-```json
-{
-  "defaultSource": "cypress",
-  "defaultTarget": "playwright",
-  "output": "./converted",
-  "preserveStructure": true,
-  "validate": true,
-  "batchSize": 5,
-  "ignore": ["node_modules/**", "**/fixtures/**"]
-}
-```
-
-## Framework Detection
-
-Auto-detect the testing framework from file content:
-
-```bash
-hamlet detect ./tests/unknown-test.js
-```
-
-Output:
-```
-Framework Detection Results:
-
-  File: ./tests/unknown-test.js
-  Detected Framework: cypress
-  Confidence: 95%
-  Detection Method: content
-
-  Scores:
-    cypress      ████████████████████ (95)
-    playwright   ██ (10)
-    selenium     █ (5)
-```
-
-## Project Structure
-
-```
-hamlet/
-├── bin/hamlet.js           # CLI entry point
-├── src/
-│   ├── core/
-│   │   ├── BaseConverter.js
-│   │   ├── ConverterFactory.js
-│   │   ├── FrameworkDetector.js
-│   │   └── PatternEngine.js
-│   ├── converters/
-│   │   ├── CypressToPlaywright.js
-│   │   ├── CypressToSelenium.js
-│   │   ├── PlaywrightToCypress.js
-│   │   ├── PlaywrightToSelenium.js
-│   │   ├── SeleniumToCypress.js
-│   │   └── SeleniumToPlaywright.js
-│   └── types/
-│       └── index.d.ts      # TypeScript definitions
-└── test/                   # 207 tests
-```
+| Code | Meaning |
+|------|---------|
+| 0 | Success |
+| 1 | Runtime error (conversion failed) |
+| 2 | Invalid arguments (bad framework, missing file) |
 
 ## Development
 
 ```bash
-# Install dependencies
 npm install
-
-# Run tests
-npm test
-
-# Run linter
-npm run lint
-
-# Format code
-npm run format
+npm test                    # Run all tests
+npm run lint                # Lint source
+npm run format              # Format with Prettier
 ```
 
 ## Requirements
@@ -371,13 +232,7 @@ npm run format
 
 ## Contributing
 
-Contributions are welcome! Please:
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on adding new frameworks.
 
 ## License
 
