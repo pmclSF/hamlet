@@ -18,6 +18,13 @@ const CONFIG_PATTERNS = [
   /webpack\.config/,
   /rollup\.config/,
   /vite\.config\.[jt]sx?$/,
+  /wdio\.conf\.[jt]sx?$/,
+  /\.mocharc\.(yml|yaml|json|js|cjs)$/,
+  /jasmine\.json$/,
+  /testng\.xml$/,
+  /pytest\.ini$/,
+  /pyproject\.toml$/,
+  /setup\.cfg$/,
 ];
 
 const SETUP_PATTERNS = [
@@ -250,6 +257,12 @@ export class FileClassifier {
     if (/vitest\.config/i.test(filePath)) return 'vitest';
     if (/playwright\.config/i.test(filePath)) return 'playwright';
     if (/cypress\.config/i.test(filePath)) return 'cypress';
+    if (/wdio\.conf/i.test(filePath)) return 'webdriverio';
+    if (/\.mocharc/i.test(filePath)) return 'mocha';
+    if (/jasmine\.json/i.test(filePath)) return 'jasmine';
+    if (/testng\.xml/i.test(filePath)) return 'testng';
+    if (/pytest\.ini/i.test(filePath)) return 'pytest';
+    if (/pyproject\.toml/i.test(filePath)) return 'pytest';
     return null;
   }
 }

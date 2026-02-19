@@ -253,6 +253,53 @@ describe('MigrationEngine', () => {
     });
   });
 
+  describe('config file handling', () => {
+    it('should convert config files separately from test files', async () => {
+      await fs.writeFile(path.join(tmpDir, 'app.test.js'), jestContent('app'));
+      await fs.writeFile(path.join(tmpDir, 'jest.config.js'), `module.exports = { testEnvironment: 'node', testTimeout: 30000 };`);
+
+      const { results } = await engine.migrate(tmpDir, {
+        from: 'jest',
+        to: 'vitest',
+        output: outputDir,
+      });
+
+      const configResult = results.find(r => r.path.includes('jest.config'));
+      expect(configResult).toBeDefined();
+      expect(configResult.status).toBe('converted');
+      expect(configResult.type).toBe('config');
+
+      // Verify config output was written
+      const outputFiles = await fs.readdir(outputDir);
+      const hasVitestConfig = outputFiles.some(f => f.includes('vitest.config'));
+      expect(hasVitestConfig).toBe(true);
+
+      // Verify config content is valid (not garbled test conversion)
+      const vitestConfigPath = path.join(outputDir, 'vitest.config.ts');
+      const configContent = await fs.readFile(vitestConfigPath, 'utf8');
+      expect(configContent).toContain('vitest/config');
+      expect(configContent).toContain("environment: 'node'");
+    });
+
+    it('should not process config files through the test converter', async () => {
+      await fs.writeFile(path.join(tmpDir, 'jest.config.js'), `module.exports = { testEnvironment: 'jsdom' };`);
+
+      const progress = [];
+      await engine.migrate(tmpDir, {
+        from: 'jest',
+        to: 'vitest',
+        output: outputDir,
+        onProgress: (file, status) => progress.push({ file, status }),
+      });
+
+      // Config should be skipped in main loop then converted in config step
+      const configProgress = progress.filter(p => p.file.includes('jest.config'));
+      // Should appear with 'skipped' (from main loop) and 'converted' (from config step)
+      const hasConverted = configProgress.some(p => p.status === 'converted');
+      expect(hasConverted).toBe(true);
+    });
+  });
+
   describe('ordering', () => {
     it('should convert files that import nothing before files that depend on them', async () => {
       // Create helper and test that imports it
