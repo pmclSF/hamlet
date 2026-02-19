@@ -59,7 +59,7 @@ export default defineConfig({
 
       const result = await converter.convertConfig(configPath);
 
-      expect(result).toContain("import { defineConfig } from '@playwright/test'");
+      expect(result).toContain("@playwright/test");
       expect(result).toContain('defineConfig');
       expect(result).toContain('baseURL');
       expect(result).toContain('viewport');

@@ -8,15 +8,7 @@
 import { BaseConverter } from './BaseConverter.js';
 import { ConversionPipeline } from './ConversionPipeline.js';
 import { FrameworkRegistry } from './FrameworkRegistry.js';
-
-/**
- * Map of legacy converter module paths for config conversion fallback.
- * Config conversion is not yet handled by the pipeline, so we delegate
- * to the legacy converter when convertConfig() is called.
- */
-const LEGACY_CONVERTER_PATHS = {
-  'cypress-playwright': '../converters/CypressToPlaywright.js',
-};
+import { ConfigConverter } from './ConfigConverter.js';
 
 export class PipelineConverter extends BaseConverter {
   /**
@@ -36,6 +28,7 @@ export class PipelineConverter extends BaseConverter {
     }
 
     this.pipeline = new ConversionPipeline(registry);
+    this.configConverter = new ConfigConverter();
   }
 
   /**
@@ -56,27 +49,16 @@ export class PipelineConverter extends BaseConverter {
   }
 
   /**
-   * Convert config file by delegating to the legacy converter.
-   * Config conversion is not yet handled by the pipeline.
+   * Convert config file using ConfigConverter.
    *
    * @param {string} configPath - Path to source config file
-   * @param {Object} [options]
+   * @param {Object} [_options]
    * @returns {Promise<string>} Converted config content
    */
-  async convertConfig(configPath, options = {}) {
-    const key = `${this.sourceFramework}-${this.targetFramework}`;
-    const legacyPath = LEGACY_CONVERTER_PATHS[key];
-
-    if (!legacyPath) {
-      throw new Error(
-        `Config conversion not yet supported for ${this.sourceFramework}→${this.targetFramework}`
-      );
-    }
-
-    const mod = await import(legacyPath);
-    const LegacyClass = mod.default || Object.values(mod)[0];
-    const legacy = new LegacyClass(this.options);
-    return legacy.convertConfig(configPath, options);
+  async convertConfig(configPath, _options = {}) {
+    const fs = (await import('fs/promises')).default;
+    const content = await fs.readFile(configPath, 'utf8');
+    return this.configConverter.convert(content, this.sourceFramework, this.targetFramework);
   }
 
   /**

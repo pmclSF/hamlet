@@ -241,6 +241,57 @@ program
     }
   });
 
+// Convert config command
+program
+  .command('convert-config')
+  .description('Convert a test framework configuration file')
+  .argument('<source>', 'Source config file path')
+  .option('-f, --from <framework>', 'Source framework (auto-detected from filename if omitted)')
+  .option('-t, --to <framework>', 'Target framework (required)')
+  .option('-o, --output <path>', 'Output file path (prints to stdout if omitted)')
+  .action(async (source, options) => {
+    try {
+      const { FileClassifier } = await import('../src/core/FileClassifier.js');
+      const { ConfigConverter } = await import('../src/core/ConfigConverter.js');
+
+      const toFramework = options.to;
+      if (!toFramework) {
+        console.error(chalk.red('--to <framework> is required'));
+        process.exit(1);
+      }
+
+      const content = await fs.readFile(source, 'utf8');
+
+      // Auto-detect source framework from filename if not specified
+      let fromFramework = options.from;
+      if (!fromFramework) {
+        const classifier = new FileClassifier();
+        const classification = classifier.classify(source, content);
+        if (classification.framework) {
+          fromFramework = classification.framework;
+          console.error(chalk.yellow(`Auto-detected source framework: ${fromFramework}`));
+        } else {
+          console.error(chalk.red('Could not auto-detect source framework. Use --from <framework>.'));
+          process.exit(1);
+        }
+      }
+      const converter = new ConfigConverter();
+      const result = converter.convert(content, fromFramework.toLowerCase(), toFramework.toLowerCase());
+
+      if (options.output) {
+        await fs.mkdir(path.dirname(path.resolve(options.output)), { recursive: true });
+        await fs.writeFile(options.output, result);
+        console.error(chalk.green(`Config converted: ${source} -> ${options.output}`));
+      } else {
+        process.stdout.write(result);
+      }
+    } catch (error) {
+      console.error(chalk.red('Config conversion error:'), error.message);
+      if (process.env.DEBUG) console.error(error.stack);
+      process.exit(1);
+    }
+  });
+
 // Shorthand command for Cypress to Playwright (backward compatibility)
 program
   .command('cy2pw')
