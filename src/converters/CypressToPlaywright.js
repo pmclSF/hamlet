@@ -387,10 +387,74 @@ export class CypressToPlaywright extends BaseConverter {
     // Convert cy.log()
     result = result.replace(/cy\.log\(([^)]+)\)/g, 'console.log($1)');
 
-    // Convert cy.intercept()
+    // Convert cy.getCookie()
+    result = result.replace(
+      /cy\.getCookie\(([^)]+)\)/g,
+      'await context.cookies().then(cookies => cookies.find(c => c.name === $1))'
+    );
+    result = result.replace(
+      /cy\.getCookies\(\)/g,
+      'await context.cookies()'
+    );
+    result = result.replace(
+      /cy\.setCookie\(([^,]+),\s*([^)]+)\)/g,
+      'await context.addCookies([{ name: $1, value: $2, url: page.url() }])'
+    );
+
+    // Convert cy.location()
+    result = result.replace(
+      /cy\.location\(['"]pathname['"]\)\.should\(['"]eq['"],\s*([^)]+)\)/g,
+      'await expect(page).toHaveURL(new RegExp($1))'
+    );
+    result = result.replace(
+      /cy\.location\(['"]([^'"]+)['"]\)/g,
+      'new URL(page.url()).$1'
+    );
+    result = result.replace(
+      /cy\.location\(\)/g,
+      'new URL(page.url())'
+    );
+
+    // Convert cy.visualSnapshot()
+    result = result.replace(
+      /cy\.visualSnapshot\(([^)]*)\)/g,
+      'await page.screenshot({ path: $1 })'
+    );
+
+    // Convert cy.getBySel() — common custom command in Cypress RWA
+    result = result.replace(
+      /cy\.getBySel\(([^)]+)\)/g,
+      'page.getByTestId($1)'
+    );
+
+    // Convert cy.getBySelLike()
+    result = result.replace(
+      /cy\.getBySelLike\(([^)]+)\)/g,
+      'page.locator(`[data-test*=${$1}]`)'
+    );
+
+    // Convert cy.intercept(method, url, response).as(alias)
+    result = result.replace(
+      /cy\.intercept\(([^,\n]+),\s*([^,\n]+),\s*([^)]+)\)\.as\(['"]([^'"]+)['"]\)/g,
+      'await page.route($2, route => route.fulfill($3))'
+    );
+
+    // Convert cy.intercept(method, url).as(alias)
     result = result.replace(
       /cy\.intercept\(([^,\n]+),\s*([^)]+)\)\.as\(['"]([^'"]+)['"]\)/g,
-      'await page.route($1, route => route.fulfill($2))'
+      'await page.route($2, route => route.continue())'
+    );
+
+    // Convert cy.intercept(url, callback)
+    result = result.replace(
+      /cy\.intercept\(([^,\n]+),\s*(?:(?:req|request)\s*=>\s*\{)/g,
+      'await page.route($1, (route) => {'
+    );
+
+    // Convert cy.intercept(url).as(alias) — bare spy
+    result = result.replace(
+      /cy\.intercept\(([^)]+)\)\.as\(['"]([^'"]+)['"]\)/g,
+      'await page.route($1, route => route.continue())'
     );
 
     // Convert cy.get().check() with options (e.g., { force: true })

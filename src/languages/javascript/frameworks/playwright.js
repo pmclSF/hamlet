@@ -340,11 +340,81 @@ function convertCypressCommands(content) {
   );
   result = result.replace(/cy\.log\(([^)]+)\)/g, 'console.log($1)');
 
-  // --- Network ---
+  // --- Cookies ---
 
   result = result.replace(
+    /cy\.getCookie\(([^)]+)\)/g,
+    'await context.cookies().then(cookies => cookies.find(c => c.name === $1))'
+  );
+  result = result.replace(
+    /cy\.getCookies\(\)/g,
+    'await context.cookies()'
+  );
+  result = result.replace(
+    /cy\.setCookie\(([^,]+),\s*([^)]+)\)/g,
+    'await context.addCookies([{ name: $1, value: $2, url: page.url() }])'
+  );
+
+  // --- Location ---
+
+  result = result.replace(
+    /cy\.location\(['"]pathname['"]\)\.should\(['"]eq['"],\s*([^)]+)\)/g,
+    'await expect(page).toHaveURL(new RegExp($1))'
+  );
+  result = result.replace(
+    /cy\.location\(['"]([^'"]+)['"]\)/g,
+    'new URL(page.url()).$1'
+  );
+  result = result.replace(
+    /cy\.location\(\)/g,
+    'new URL(page.url())'
+  );
+
+  // --- Visual snapshot ---
+
+  result = result.replace(
+    /cy\.visualSnapshot\(([^)]*)\)/g,
+    'await page.screenshot({ path: $1 })'
+  );
+
+  // --- Network ---
+
+  // cy.intercept(method, url, response).as(alias) — static stub
+  result = result.replace(
+    /cy\.intercept\(([^,\n]+),\s*([^,\n]+),\s*([^)]+)\)\.as\(['"]([^'"]+)['"]\)/g,
+    'await page.route($2, route => route.fulfill($3))'
+  );
+
+  // cy.intercept(method, url).as(alias) — spy
+  result = result.replace(
     /cy\.intercept\(([^,\n]+),\s*([^)]+)\)\.as\(['"]([^'"]+)['"]\)/g,
-    'await page.route($1, route => route.fulfill($2))'
+    'await page.route($2, route => route.continue())'
+  );
+
+  // cy.intercept(url, callback) — callback form
+  result = result.replace(
+    /cy\.intercept\(([^,\n]+),\s*(?:(?:req|request)\s*=>\s*\{)/g,
+    'await page.route($1, (route) => {'
+  );
+
+  // cy.intercept(url) — bare spy
+  result = result.replace(
+    /cy\.intercept\(([^)]+)\)\.as\(['"]([^'"]+)['"]\)/g,
+    'await page.route($1, route => route.continue())'
+  );
+
+  // --- Custom Cypress commands → HAMLET-TODO ---
+
+  // cy.getBySel(selector) → page.getByTestId(selector) (common pattern in Cypress RWA)
+  result = result.replace(
+    /cy\.getBySel\(([^)]+)\)/g,
+    'page.getByTestId($1)'
+  );
+
+  // cy.getBySelLike(selector) → page.locator with data-test*= selector
+  result = result.replace(
+    /cy\.getBySelLike\(([^)]+)\)/g,
+    'page.locator(`[data-test*=${$1}]`)'
   );
 
   // --- Viewport (numeric args) ---
@@ -360,6 +430,20 @@ function convertCypressCommands(content) {
 
   // Clean up empty screenshot args
   result = result.replace(/screenshot\(\{ path: \s*\}\)/g, 'screenshot()');
+
+  // --- Catch-all: remaining cy.* custom commands → HAMLET-TODO ---
+  result = result.replace(
+    /cy\.(\w+)\(([^)]*)\)/g,
+    (match, method, args) => {
+      // Skip if it's already been converted (shouldn't start with cy. anymore)
+      return formatter.formatTodo({
+        id: 'UNCONVERTIBLE-CUSTOM-COMMAND',
+        description: `Cypress custom command cy.${method}() has no Playwright equivalent`,
+        original: match.trim(),
+        action: 'Rewrite as a Playwright helper function or page object method',
+      }) + '\n// ' + match.trim();
+    }
+  );
 
   return result;
 }

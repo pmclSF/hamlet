@@ -481,6 +481,18 @@ function emit(_ir, source) {
   result = result.replace(/import\s+static\s+org\.junit\.jupiter\.api\.Assertions\.assertThrows\s*;\n?/g, '');
   result = result.replace(/import\s+static\s+org\.junit\.jupiter\.api\.Assertions\.assertTimeout\s*;\n?/g, '');
 
+  // Remove JUnit 5 params imports (no direct TestNG equivalent)
+  result = result.replace(/import\s+org\.junit\.jupiter\.params\.ParameterizedTest\s*;\n?/g, '');
+  result = result.replace(/import\s+org\.junit\.jupiter\.params\.provider\.CsvSource\s*;\n?/g, '');
+  result = result.replace(/import\s+org\.junit\.jupiter\.params\.provider\.ValueSource\s*;\n?/g, '');
+  result = result.replace(/import\s+org\.junit\.jupiter\.params\.provider\.NullAndEmptySource\s*;\n?/g, '');
+  result = result.replace(/import\s+org\.junit\.jupiter\.params\.provider\.NullSource\s*;\n?/g, '');
+  result = result.replace(/import\s+org\.junit\.jupiter\.params\.provider\.EmptySource\s*;\n?/g, '');
+  result = result.replace(/import\s+org\.junit\.jupiter\.params\.provider\.EnumSource\s*;\n?/g, '');
+  result = result.replace(/import\s+org\.junit\.jupiter\.params\.provider\.MethodSource\s*;\n?/g, '');
+  result = result.replace(/import\s+org\.junit\.jupiter\.params\.provider\.\*\s*;\n?/g, '');
+  result = result.replace(/import\s+org\.junit\.jupiter\.params\.\*\s*;\n?/g, '');
+
   // --- Phase 5: Assertion argument order swap ---
   // JUnit 5: Assertions.assertEquals(expected, actual[, message]) — expected first
   // TestNG:  Assert.assertEquals(actual, expected[, message]) — actual first
@@ -549,6 +561,86 @@ function emit(_ir, source) {
         description: 'JUnit 5 @TestFactory has no TestNG equivalent',
         original: match.trim(),
         action: 'Use @DataProvider or @Factory in TestNG',
+      }).split('\n').map(l => indent + l).join('\n') + '\n' + match;
+    }
+  );
+
+  // --- Phase 8: @ParameterizedTest + source annotations → HAMLET-TODO ---
+
+  // @ParameterizedTest (with or without name attribute)
+  result = result.replace(
+    /^([ \t]*)@ParameterizedTest\b.*$/gm,
+    (match, indent) => {
+      return formatter.formatTodo({
+        id: 'UNCONVERTIBLE-PARAMETERIZED-TEST',
+        description: 'JUnit 5 @ParameterizedTest requires manual conversion to TestNG @DataProvider',
+        original: match.trim(),
+        action: 'Create a @DataProvider method and reference it with @Test(dataProvider = "...")',
+      }).split('\n').map(l => indent + l).join('\n') + '\n' + match;
+    }
+  );
+
+  // @CsvSource
+  result = result.replace(
+    /^([ \t]*)@CsvSource\b.*$/gm,
+    (match, indent) => {
+      return formatter.formatTodo({
+        id: 'UNCONVERTIBLE-CSV-SOURCE',
+        description: 'JUnit 5 @CsvSource has no direct TestNG equivalent',
+        original: match.trim(),
+        action: 'Convert CSV data into a @DataProvider method returning Object[][]',
+      }).split('\n').map(l => indent + l).join('\n') + '\n' + match;
+    }
+  );
+
+  // @ValueSource
+  result = result.replace(
+    /^([ \t]*)@ValueSource\b.*$/gm,
+    (match, indent) => {
+      return formatter.formatTodo({
+        id: 'UNCONVERTIBLE-VALUE-SOURCE',
+        description: 'JUnit 5 @ValueSource has no direct TestNG equivalent',
+        original: match.trim(),
+        action: 'Convert values into a @DataProvider method returning Object[][]',
+      }).split('\n').map(l => indent + l).join('\n') + '\n' + match;
+    }
+  );
+
+  // @NullAndEmptySource / @NullSource / @EmptySource
+  result = result.replace(
+    /^([ \t]*)@(?:NullAndEmpty|Null|Empty)Source\b.*$/gm,
+    (match, indent) => {
+      return formatter.formatTodo({
+        id: 'UNCONVERTIBLE-NULL-EMPTY-SOURCE',
+        description: 'JUnit 5 @NullAndEmptySource/@NullSource/@EmptySource has no TestNG equivalent',
+        original: match.trim(),
+        action: 'Add null/empty values to the @DataProvider data set',
+      }).split('\n').map(l => indent + l).join('\n') + '\n' + match;
+    }
+  );
+
+  // @EnumSource
+  result = result.replace(
+    /^([ \t]*)@EnumSource\b.*$/gm,
+    (match, indent) => {
+      return formatter.formatTodo({
+        id: 'UNCONVERTIBLE-ENUM-SOURCE',
+        description: 'JUnit 5 @EnumSource has no direct TestNG equivalent',
+        original: match.trim(),
+        action: 'Create a @DataProvider method that returns enum values',
+      }).split('\n').map(l => indent + l).join('\n') + '\n' + match;
+    }
+  );
+
+  // @MethodSource
+  result = result.replace(
+    /^([ \t]*)@MethodSource\b.*$/gm,
+    (match, indent) => {
+      return formatter.formatTodo({
+        id: 'UNCONVERTIBLE-METHOD-SOURCE',
+        description: 'JUnit 5 @MethodSource should be converted to TestNG @DataProvider',
+        original: match.trim(),
+        action: 'Rename the source method and annotate it with @DataProvider',
       }).split('\n').map(l => indent + l).join('\n') + '\n' + match;
     }
   );
