@@ -52,6 +52,55 @@ describe('FileClassifier', () => {
       expect(result.framework).toBe('cypress');
     });
 
+    // New config file patterns
+    it('should classify wdio.conf.js as config/webdriverio', () => {
+      const result = classifier.classify('wdio.conf.js', 'exports.config = { baseUrl: "/" }');
+      expect(result.type).toBe('config');
+      expect(result.framework).toBe('webdriverio');
+    });
+
+    it('should classify wdio.conf.ts as config/webdriverio', () => {
+      const result = classifier.classify('wdio.conf.ts', 'export const config = {}');
+      expect(result.type).toBe('config');
+      expect(result.framework).toBe('webdriverio');
+    });
+
+    it('should classify .mocharc.yml as config/mocha', () => {
+      const result = classifier.classify('.mocharc.yml', 'timeout: 5000');
+      expect(result.type).toBe('config');
+      expect(result.framework).toBe('mocha');
+    });
+
+    it('should classify .mocharc.json as config/mocha', () => {
+      const result = classifier.classify('.mocharc.json', '{ "timeout": 5000 }');
+      expect(result.type).toBe('config');
+      expect(result.framework).toBe('mocha');
+    });
+
+    it('should classify jasmine.json as config/jasmine', () => {
+      const result = classifier.classify('jasmine.json', '{ "spec_dir": "spec" }');
+      expect(result.type).toBe('config');
+      expect(result.framework).toBe('jasmine');
+    });
+
+    it('should classify testng.xml as config/testng', () => {
+      const result = classifier.classify('testng.xml', '<suite name="S"><test name="T"></test></suite>');
+      expect(result.type).toBe('config');
+      expect(result.framework).toBe('testng');
+    });
+
+    it('should classify pytest.ini as config/pytest', () => {
+      const result = classifier.classify('pytest.ini', '[pytest]\ntestpaths = tests');
+      expect(result.type).toBe('config');
+      expect(result.framework).toBe('pytest');
+    });
+
+    it('should classify pyproject.toml as config/pytest', () => {
+      const result = classifier.classify('pyproject.toml', '[tool.pytest]');
+      expect(result.type).toBe('config');
+      expect(result.framework).toBe('pytest');
+    });
+
     // Path pattern detection
     it('should classify file in helpers/ directory as helper', () => {
       const result = classifier.classify('test/helpers/setup-db.js', 'export function setupDb() { return db.connect(); }');

@@ -2,8 +2,8 @@
  * Playwright framework definition.
  *
  * Provides detect, parse, and emit for the Playwright E2E testing framework.
- * emit() transforms Cypress source code into Playwright code — the core of
- * the Cypress→Playwright conversion, ported from the legacy CypressToPlaywright.js.
+ * emit() is the E2E hub — it handles conversions from Cypress, WebdriverIO,
+ * Puppeteer, and TestCafe into Playwright code.
  */
 
 import {
@@ -17,6 +17,10 @@ import {
   RawCode,
   Comment,
 } from '../../../core/ir.js';
+
+import { TodoFormatter } from '../../../core/TodoFormatter.js';
+
+const formatter = new TodoFormatter('javascript');
 
 function detect(source) {
   if (!source || !source.trim()) return 0;
@@ -48,34 +52,82 @@ function parse(source) {
 }
 
 /**
- * Emit Playwright code from IR + original Cypress source.
+ * Emit Playwright code from IR + original source.
  *
- * This is the Cypress→Playwright converter, ported from the legacy
- * CypressToPlaywright.js. It applies regex transforms on the source text.
+ * Handles Cypress→PW, WebdriverIO→PW, Puppeteer→PW, and TestCafe→PW.
+ * Each source framework's patterns are isolated in a separate function
+ * and gated by source detection to prevent phase interference.
  *
  * @param {TestFile} ir - Parsed IR tree (for scoring metadata)
- * @param {string} source - Original Cypress source code
+ * @param {string} source - Original source code
  * @returns {string} Converted Playwright source code
  */
 function emit(ir, source) {
   let result = source;
 
-  // Detect test types for import generation
+  // Detect source framework
+  const isCypressSource = /\bcy\./.test(source);
+  const isWdioSource = /\bbrowser\.url\s*\(/.test(source) ||
+    (/\$\(/.test(source) && /\.setValue\s*\(/.test(source));
+  const isPuppeteerSource = /puppeteer\.launch/.test(source) ||
+    /require\(['"]puppeteer['"]\)/.test(source) ||
+    /from\s+['"]puppeteer['"]/.test(source);
+  const isTestCafeSource = /\bfixture\s*`/.test(source) ||
+    /from\s+['"]testcafe['"]/.test(source);
+
+  // Phase 1: Remove source-framework imports
+  if (isCypressSource) {
+    // Cypress uses globals — no imports to remove
+  }
+  if (isWdioSource) {
+    result = result.replace(/import\s+\{[^}]*\}\s+from\s+['"]@wdio\/globals['"];?\n?/g, '');
+    result = result.replace(/import\s+\{[^}]*\}\s+from\s+['"]webdriverio['"];?\n?/g, '');
+  }
+  if (isPuppeteerSource) {
+    result = result.replace(/const\s+puppeteer\s*=\s*require\(['"]puppeteer['"]\)\s*;?\n?/g, '');
+    result = result.replace(/import\s+puppeteer\s+from\s+['"]puppeteer['"];?\n?/g, '');
+  }
+  if (isTestCafeSource) {
+    result = result.replace(/import\s+\{[^}]*\}\s+from\s+['"]testcafe['"];?\n?/g, '');
+  }
+
+  // Phase 2: Convert source commands (each only matches its own patterns)
+  if (isCypressSource) {
+    result = convertCypressCommands(result);
+  }
+  if (isWdioSource) {
+    result = convertWdioCommands(result);
+  }
+  if (isPuppeteerSource) {
+    result = convertPuppeteerCommands(result);
+  }
+  if (isTestCafeSource) {
+    result = convertTestCafeCommands(result);
+  }
+
+  // Phase 3: Convert test structure
+  if (isCypressSource) {
+    result = convertCypressTestStructure(result);
+  }
+  if (isPuppeteerSource) {
+    result = convertPuppeteerTestStructure(result);
+  }
+  if (isTestCafeSource) {
+    result = convertTestCafeTestStructure(result);
+  }
+  // WDIO uses describe/it same as Mocha — needs same structure conversion as Cypress
+  if (isWdioSource) {
+    result = convertCypressTestStructure(result);
+  }
+
+  // Phase 4: Detect test types and transform callbacks
   const testTypes = detectTestTypes(source);
-
-  // Phase 1: Convert Cypress commands (order matters — specific patterns first)
-  result = convertCypressCommands(result);
-
-  // Phase 2: Convert test structure
-  result = convertTestStructure(result);
-
-  // Phase 3: Transform callbacks to async with page parameter
   result = transformTestCallbacks(result, testTypes);
 
-  // Phase 4: Add imports
+  // Phase 5: Add imports
   const imports = getImports(testTypes);
 
-  // Phase 5: Clean up
+  // Phase 6: Clean up
   result = cleanupOutput(result);
 
   // Combine
@@ -83,6 +135,10 @@ function emit(ir, source) {
 
   return result;
 }
+
+// ═══════════════════════════════════════════════════════════════════════
+// Cypress → Playwright
+// ═══════════════════════════════════════════════════════════════════════
 
 /**
  * Convert Cypress commands to Playwright equivalents.
@@ -308,10 +364,606 @@ function convertCypressCommands(content) {
   return result;
 }
 
+// ═══════════════════════════════════════════════════════════════════════
+// WebdriverIO → Playwright
+// ═══════════════════════════════════════════════════════════════════════
+
 /**
- * Convert test structure (describe, it, hooks).
+ * Convert WebdriverIO commands to Playwright equivalents.
  */
-function convertTestStructure(content) {
+function convertWdioCommands(content) {
+  let result = content;
+
+  // --- WDIO assertions (most specific first) ---
+
+  result = result.replace(
+    /await expect\(browser\)\.toHaveUrl\(([^)]+)\)/g,
+    'await expect(page).toHaveURL($1)'
+  );
+  result = result.replace(
+    /await expect\(browser\)\.toHaveUrlContaining\(([^)]+)\)/g,
+    'await expect(page).toHaveURL(new RegExp($1))'
+  );
+  result = result.replace(
+    /await expect\(browser\)\.toHaveTitle\(([^)]+)\)/g,
+    'await expect(page).toHaveTitle($1)'
+  );
+  result = result.replace(
+    /await expect\(\$\(([^)]+)\)\)\.toBeDisplayed\(\)/g,
+    'await expect(page.locator($1)).toBeVisible()'
+  );
+  result = result.replace(
+    /await expect\(\$\(([^)]+)\)\)\.not\.toBeDisplayed\(\)/g,
+    'await expect(page.locator($1)).toBeHidden()'
+  );
+  result = result.replace(
+    /await expect\(\$\(([^)]+)\)\)\.toExist\(\)/g,
+    'await expect(page.locator($1)).toBeAttached()'
+  );
+  result = result.replace(
+    /await expect\(\$\(([^)]+)\)\)\.not\.toExist\(\)/g,
+    'await expect(page.locator($1)).not.toBeAttached()'
+  );
+  result = result.replace(
+    /await expect\(\$\(([^)]+)\)\)\.toHaveText\(([^)]+)\)/g,
+    'await expect(page.locator($1)).toHaveText($2)'
+  );
+  result = result.replace(
+    /await expect\(\$\(([^)]+)\)\)\.toHaveTextContaining\(([^)]+)\)/g,
+    'await expect(page.locator($1)).toContainText($2)'
+  );
+  result = result.replace(
+    /await expect\(\$\(([^)]+)\)\)\.toHaveValue\(([^)]+)\)/g,
+    'await expect(page.locator($1)).toHaveValue($2)'
+  );
+  result = result.replace(
+    /await expect\(\$\$\(([^)]+)\)\)\.toBeElementsArrayOfSize\(([^)]+)\)/g,
+    'await expect(page.locator($1)).toHaveCount($2)'
+  );
+  result = result.replace(
+    /await expect\(\$\(([^)]+)\)\)\.toBeSelected\(\)/g,
+    'await expect(page.locator($1)).toBeChecked()'
+  );
+  result = result.replace(
+    /await expect\(\$\(([^)]+)\)\)\.toBeEnabled\(\)/g,
+    'await expect(page.locator($1)).toBeEnabled()'
+  );
+  result = result.replace(
+    /await expect\(\$\(([^)]+)\)\)\.toBeDisabled\(\)/g,
+    'await expect(page.locator($1)).toBeDisabled()'
+  );
+  result = result.replace(
+    /await expect\(\$\(([^)]+)\)\)\.toHaveAttribute\(([^,]+),\s*([^)]+)\)/g,
+    'await expect(page.locator($1)).toHaveAttribute($2, $3)'
+  );
+
+  // --- WDIO text selectors (before composite patterns to avoid $() catch-all) ---
+
+  // $('=text') -> page.getByText('text')  (link text)
+  result = result.replace(
+    /\$\(['"]=([\w\s]+)['"]\)/g,
+    "page.getByText('$1')"
+  );
+  // $('*=text') -> page.getByText('text')  (partial link text)
+  result = result.replace(
+    /\$\(['"]\*=([\w\s]+)['"]\)/g,
+    "page.getByText('$1')"
+  );
+
+  // --- Composite $().action() chains ---
+
+  result = result.replace(
+    /await \$\(([^)]+)\)\.setValue\(([^)]+)\)/g,
+    'await page.locator($1).fill($2)'
+  );
+  result = result.replace(
+    /await \$\(([^)]+)\)\.click\(\)/g,
+    'await page.locator($1).click()'
+  );
+  result = result.replace(
+    /await \$\(([^)]+)\)\.doubleClick\(\)/g,
+    'await page.locator($1).dblclick()'
+  );
+  result = result.replace(
+    /await \$\(([^)]+)\)\.clearValue\(\)/g,
+    'await page.locator($1).clear()'
+  );
+  result = result.replace(
+    /await \$\(([^)]+)\)\.moveTo\(\)/g,
+    'await page.locator($1).hover()'
+  );
+  result = result.replace(
+    /await \$\(([^)]+)\)\.getText\(\)/g,
+    'await page.locator($1).textContent()'
+  );
+  result = result.replace(
+    /await \$\(([^)]+)\)\.isDisplayed\(\)/g,
+    'await page.locator($1).isVisible()'
+  );
+  result = result.replace(
+    /await \$\(([^)]+)\)\.isExisting\(\)/g,
+    'await page.locator($1).isVisible()'
+  );
+  result = result.replace(
+    /await \$\(([^)]+)\)\.waitForDisplayed\(\)/g,
+    'await page.locator($1).waitFor({ state: \'visible\' })'
+  );
+  result = result.replace(
+    /await \$\(([^)]+)\)\.waitForExist\(\)/g,
+    'await page.locator($1).waitFor()'
+  );
+  result = result.replace(
+    /await \$\(([^)]+)\)\.selectByVisibleText\(([^)]+)\)/g,
+    'await page.locator($1).selectOption({ label: $2 })'
+  );
+  result = result.replace(
+    /await \$\(([^)]+)\)\.selectByAttribute\(['"]value['"],\s*([^)]+)\)/g,
+    'await page.locator($1).selectOption($2)'
+  );
+  result = result.replace(
+    /await \$\(([^)]+)\)\.getAttribute\(([^)]+)\)/g,
+    'await page.locator($1).getAttribute($2)'
+  );
+
+  // --- Standalone $() / $$() -> page.locator() ---
+
+  result = result.replace(
+    /\$\$\(([^)]+)\)/g,
+    'page.locator($1)'
+  );
+  result = result.replace(
+    /\$\(([^)]+)\)/g,
+    'page.locator($1)'
+  );
+
+  // --- Navigation ---
+
+  result = result.replace(
+    /await browser\.url\(([^)]+)\)/g,
+    'await page.goto($1)'
+  );
+
+  // --- Browser API ---
+
+  result = result.replace(
+    /await browser\.pause\(([^)]+)\)/g,
+    'await page.waitForTimeout($1)'
+  );
+  result = result.replace(
+    /await browser\.execute\(/g,
+    'await page.evaluate('
+  );
+  result = result.replace(
+    /await browser\.refresh\(\)/g,
+    'await page.reload()'
+  );
+  result = result.replace(
+    /await browser\.back\(\)/g,
+    'await page.goBack()'
+  );
+  result = result.replace(
+    /await browser\.forward\(\)/g,
+    'await page.goForward()'
+  );
+  result = result.replace(
+    /await browser\.getTitle\(\)/g,
+    'await page.title()'
+  );
+  result = result.replace(
+    /await browser\.getUrl\(\)/g,
+    'page.url()'
+  );
+  result = result.replace(
+    /await browser\.keys\(\[([^\]]+)\]\)/g,
+    'await page.keyboard.press($1)'
+  );
+
+  // --- Cookies ---
+
+  result = result.replace(
+    /await browser\.setCookies\(/g,
+    'await context.addCookies('
+  );
+  result = result.replace(
+    /await browser\.getCookies\(\)/g,
+    'await context.cookies()'
+  );
+  result = result.replace(
+    /await browser\.deleteCookies\(\)/g,
+    'await context.clearCookies()'
+  );
+
+  // --- Unconvertible: browser.mock ---
+
+  result = result.replace(
+    /await browser\.mock\([^)]+(?:,\s*[^)]+)?\)/g,
+    (match) => formatter.formatTodo({
+      id: 'UNCONVERTIBLE-MOCK',
+      description: 'WDIO browser.mock() has no direct Playwright equivalent',
+      original: match.trim(),
+      action: 'Use page.route() for network interception in Playwright',
+    }) + '\n// ' + match.trim()
+  );
+
+  return result;
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// Puppeteer → Playwright
+// ═══════════════════════════════════════════════════════════════════════
+
+/**
+ * Convert Puppeteer commands to Playwright equivalents.
+ */
+function convertPuppeteerCommands(content) {
+  let result = content;
+
+  // --- Remove browser lifecycle ---
+
+  // Remove: let browser, page; (top-level declaration)
+  result = result.replace(/\s*let\s+browser\s*,\s*page\s*;?\n?/g, '\n');
+
+  // Remove beforeAll that only does lifecycle (puppeteer.launch + newPage)
+  result = result.replace(
+    /\s*beforeAll\(async\s*\(\)\s*=>\s*\{\s*\n?\s*browser\s*=\s*await\s+puppeteer\.launch\([^)]*\)\s*;?\s*\n?\s*page\s*=\s*await\s+browser\.newPage\(\)\s*;?\s*\n?\s*\}\)\s*;?\n?/g,
+    '\n'
+  );
+
+  // Remove afterAll that only does browser.close
+  result = result.replace(
+    /\s*afterAll\(async\s*\(\)\s*=>\s*\{\s*\n?\s*await\s+browser\.close\(\)\s*;?\s*\n?\s*\}\)\s*;?\n?/g,
+    '\n'
+  );
+
+  // Remove standalone lifecycle lines that weren't caught by the block pattern
+  result = result.replace(/^\s*browser\s*=\s*await\s+puppeteer\.launch\([^)]*\)\s*;?\s*$/gm, '');
+  result = result.replace(/^\s*page\s*=\s*await\s+browser\.newPage\(\)\s*;?\s*$/gm, '');
+  result = result.replace(/^\s*await\s+browser\.close\(\)\s*;?\s*$/gm, '');
+
+  // --- Puppeteer assertions → Playwright assertions ---
+
+  result = result.replace(
+    /expect\(page\.url\(\)\)\.toBe\(([^)]+)\)/g,
+    'await expect(page).toHaveURL($1)'
+  );
+  result = result.replace(
+    /expect\(page\.url\(\)\)\.toContain\(([^)]+)\)/g,
+    'await expect(page).toHaveURL(new RegExp($1))'
+  );
+  result = result.replace(
+    /expect\(await\s+page\.title\(\)\)\.toBe\(([^)]+)\)/g,
+    'await expect(page).toHaveTitle($1)'
+  );
+  result = result.replace(
+    /expect\(await\s+page\.\$\(([^)]+)\)\)\.toBeTruthy\(\)/g,
+    'await expect(page.locator($1)).toBeVisible()'
+  );
+  result = result.replace(
+    /expect\(await\s+page\.\$\(([^)]+)\)\)\.toBeFalsy\(\)/g,
+    'await expect(page.locator($1)).toBeHidden()'
+  );
+  result = result.replace(
+    /expect\(await\s+page\.\$eval\(([^,]+),\s*el\s*=>\s*el\.textContent\)\)\.toBe\(([^)]+)\)/g,
+    'await expect(page.locator($1)).toHaveText($2)'
+  );
+  result = result.replace(
+    /expect\(await\s+page\.\$eval\(([^,]+),\s*el\s*=>\s*el\.textContent\)\)\.toContain\(([^)]+)\)/g,
+    'await expect(page.locator($1)).toContainText($2)'
+  );
+  result = result.replace(
+    /expect\(await\s+page\.\$eval\(([^,]+),\s*el\s*=>\s*el\.value\)\)\.toBe\(([^)]+)\)/g,
+    'await expect(page.locator($1)).toHaveValue($2)'
+  );
+  result = result.replace(
+    /expect\(\(await\s+page\.\$\$\(([^)]+)\)\)\.length\)\.toBe\(([^)]+)\)/g,
+    'await expect(page.locator($1)).toHaveCount($2)'
+  );
+
+  // --- Page-level actions → locator-based ---
+
+  result = result.replace(
+    /await page\.type\(([^,]+),\s*([^)]+)\)/g,
+    'await page.locator($1).fill($2)'
+  );
+  result = result.replace(
+    /await page\.click\(([^)]+)\)/g,
+    'await page.locator($1).click()'
+  );
+  result = result.replace(
+    /await page\.hover\(([^)]+)\)/g,
+    'await page.locator($1).hover()'
+  );
+  result = result.replace(
+    /await page\.select\(([^,]+),\s*([^)]+)\)/g,
+    'await page.locator($1).selectOption($2)'
+  );
+  result = result.replace(
+    /await page\.focus\(([^)]+)\)/g,
+    'await page.locator($1).focus()'
+  );
+
+  // --- Selectors ---
+
+  result = result.replace(
+    /await page\.\$eval\(([^,]+),\s*/g,
+    'await page.locator($1).evaluate('
+  );
+  result = result.replace(
+    /await page\.\$\$eval\(([^,]+),\s*/g,
+    'await page.locator($1).evaluateAll('
+  );
+  result = result.replace(
+    /await page\.\$\$\(([^)]+)\)/g,
+    'page.locator($1)'
+  );
+  result = result.replace(
+    /await page\.\$\(([^)]+)\)/g,
+    'page.locator($1)'
+  );
+
+  // --- Waits ---
+
+  result = result.replace(
+    /await page\.waitForSelector\(([^)]+)\)/g,
+    'await page.locator($1).waitFor()'
+  );
+  result = result.replace(
+    /await page\.waitForNavigation\(\)/g,
+    ''
+  );
+
+  // --- Browser API ---
+
+  result = result.replace(
+    /await page\.setViewport\(\{/g,
+    'await page.setViewportSize({'
+  );
+
+  // Cookie conversion
+  result = result.replace(
+    /await page\.setCookie\(/g,
+    'await context.addCookies('
+  );
+  result = result.replace(
+    /await page\.cookies\(\)/g,
+    'await context.cookies()'
+  );
+  result = result.replace(
+    /await page\.deleteCookie\(\)/g,
+    'await context.clearCookies()'
+  );
+
+  // Standalone page.$ catch-all (after all specific patterns)
+  result = result.replace(
+    /page\.\$\(([^)]+)\)/g,
+    'page.locator($1)'
+  );
+
+  return result;
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// TestCafe → Playwright
+// ═══════════════════════════════════════════════════════════════════════
+
+/**
+ * Convert TestCafe commands to Playwright equivalents.
+ */
+function convertTestCafeCommands(content) {
+  let result = content;
+
+  // --- TestCafe assertions (before action conversion) ---
+
+  // t.expect(Selector(s).exists).ok() -> await expect(page.locator(s)).toBeAttached()
+  result = result.replace(
+    /await\s+t\.expect\(Selector\(([^)]+)\)\.exists\)\.ok\(\)/g,
+    'await expect(page.locator($1)).toBeAttached()'
+  );
+  result = result.replace(
+    /await\s+t\.expect\(Selector\(([^)]+)\)\.exists\)\.notOk\(\)/g,
+    'await expect(page.locator($1)).not.toBeAttached()'
+  );
+  // t.expect(Selector(s).visible).ok() -> await expect(page.locator(s)).toBeVisible()
+  result = result.replace(
+    /await\s+t\.expect\(Selector\(([^)]+)\)\.visible\)\.ok\(\)/g,
+    'await expect(page.locator($1)).toBeVisible()'
+  );
+  result = result.replace(
+    /await\s+t\.expect\(Selector\(([^)]+)\)\.visible\)\.notOk\(\)/g,
+    'await expect(page.locator($1)).toBeHidden()'
+  );
+  // t.expect(Selector(s).count).eql(n) -> await expect(page.locator(s)).toHaveCount(n)
+  result = result.replace(
+    /await\s+t\.expect\(Selector\(([^)]+)\)\.count\)\.eql\(([^)]+)\)/g,
+    'await expect(page.locator($1)).toHaveCount($2)'
+  );
+  // t.expect(Selector(s).innerText).eql(text) -> await expect(page.locator(s)).toHaveText(text)
+  result = result.replace(
+    /await\s+t\.expect\(Selector\(([^)]+)\)\.innerText\)\.eql\(([^)]+)\)/g,
+    'await expect(page.locator($1)).toHaveText($2)'
+  );
+  result = result.replace(
+    /await\s+t\.expect\(Selector\(([^)]+)\)\.innerText\)\.contains\(([^)]+)\)/g,
+    'await expect(page.locator($1)).toContainText($2)'
+  );
+  // t.expect(Selector(s).value).eql(val) -> await expect(page.locator(s)).toHaveValue(val)
+  result = result.replace(
+    /await\s+t\.expect\(Selector\(([^)]+)\)\.value\)\.eql\(([^)]+)\)/g,
+    'await expect(page.locator($1)).toHaveValue($2)'
+  );
+
+  // Generic t.expect assertions
+  result = result.replace(
+    /await\s+t\.expect\(([^)]+)\)\.ok\(\)/g,
+    'expect($1).toBeTruthy()'
+  );
+  result = result.replace(
+    /await\s+t\.expect\(([^)]+)\)\.notOk\(\)/g,
+    'expect($1).toBeFalsy()'
+  );
+  result = result.replace(
+    /await\s+t\.expect\(([^)]+)\)\.eql\(([^)]+)\)/g,
+    'expect($1).toEqual($2)'
+  );
+  result = result.replace(
+    /await\s+t\.expect\(([^)]+)\)\.notEql\(([^)]+)\)/g,
+    'expect($1).not.toEqual($2)'
+  );
+  result = result.replace(
+    /await\s+t\.expect\(([^)]+)\)\.contains\(([^)]+)\)/g,
+    'expect($1).toContain($2)'
+  );
+  result = result.replace(
+    /await\s+t\.expect\(([^)]+)\)\.notContains\(([^)]+)\)/g,
+    'expect($1).not.toContain($2)'
+  );
+  result = result.replace(
+    /await\s+t\.expect\(([^)]+)\)\.match\(([^)]+)\)/g,
+    'expect($1).toMatch($2)'
+  );
+  result = result.replace(
+    /await\s+t\.expect\(([^)]+)\)\.gt\(([^)]+)\)/g,
+    'expect($1).toBeGreaterThan($2)'
+  );
+  result = result.replace(
+    /await\s+t\.expect\(([^)]+)\)\.lt\(([^)]+)\)/g,
+    'expect($1).toBeLessThan($2)'
+  );
+  result = result.replace(
+    /await\s+t\.expect\(([^)]+)\)\.gte\(([^)]+)\)/g,
+    'expect($1).toBeGreaterThanOrEqual($2)'
+  );
+  result = result.replace(
+    /await\s+t\.expect\(([^)]+)\)\.lte\(([^)]+)\)/g,
+    'expect($1).toBeLessThanOrEqual($2)'
+  );
+
+  // --- t.* actions ---
+
+  result = result.replace(
+    /await\s+t\.typeText\(([^,]+),\s*([^)]+)\)/g,
+    'await page.locator($1).fill($2)'
+  );
+  result = result.replace(
+    /await\s+t\.click\(([^)]+)\)/g,
+    'await page.locator($1).click()'
+  );
+  result = result.replace(
+    /await\s+t\.doubleClick\(([^)]+)\)/g,
+    'await page.locator($1).dblclick()'
+  );
+  result = result.replace(
+    /await\s+t\.rightClick\(([^)]+)\)/g,
+    'await page.locator($1).click({ button: \'right\' })'
+  );
+  result = result.replace(
+    /await\s+t\.hover\(([^)]+)\)/g,
+    'await page.locator($1).hover()'
+  );
+  result = result.replace(
+    /await\s+t\.pressKey\(([^)]+)\)/g,
+    'await page.keyboard.press($1)'
+  );
+  result = result.replace(
+    /await\s+t\.navigateTo\(([^)]+)\)/g,
+    'await page.goto($1)'
+  );
+  result = result.replace(
+    /await\s+t\.wait\(([^)]+)\)/g,
+    'await page.waitForTimeout($1)'
+  );
+  result = result.replace(
+    /await\s+t\.takeScreenshot\(\)/g,
+    'await page.screenshot()'
+  );
+  result = result.replace(
+    /await\s+t\.resizeWindow\(([^,]+),\s*([^)]+)\)/g,
+    'await page.setViewportSize({ width: $1, height: $2 })'
+  );
+  result = result.replace(
+    /await\s+t\.eval\(\(\)\s*=>\s*/g,
+    'await page.evaluate(() => '
+  );
+  result = result.replace(
+    /await\s+t\.setFilesToUpload\(([^,]+),\s*([^)]+)\)/g,
+    'await page.locator($1).setInputFiles($2)'
+  );
+  result = result.replace(
+    /await\s+t\.switchToIframe\(([^)]+)\)/g,
+    'page.frameLocator($1)'
+  );
+  result = result.replace(
+    /await\s+t\.switchToMainWindow\(\)/g,
+    '// Back to main page'
+  );
+
+  // --- Selector chains ---
+
+  // Selector(s).nth(n) -> page.locator(s).nth(n)
+  result = result.replace(
+    /Selector\(([^)]+)\)\.nth\(([^)]+)\)/g,
+    'page.locator($1).nth($2)'
+  );
+  // Selector(s).find(child) -> page.locator(s).locator(child)
+  result = result.replace(
+    /Selector\(([^)]+)\)\.find\(([^)]+)\)/g,
+    'page.locator($1).locator($2)'
+  );
+  // Selector(s).withText(text) -> page.locator(s).filter({ hasText: text })
+  result = result.replace(
+    /Selector\(([^)]+)\)\.withText\(([^)]+)\)/g,
+    'page.locator($1).filter({ hasText: $2 })'
+  );
+
+  // Standalone Selector() -> page.locator()
+  result = result.replace(
+    /Selector\(([^)]+)\)/g,
+    'page.locator($1)'
+  );
+
+  // --- Unconvertible: Role, RequestMock, ClientFunction ---
+
+  result = result.replace(
+    /const\s+\w+\s*=\s*Role\([^)]+(?:,\s*async\s+t\s*=>\s*\{[\s\S]*?\})\s*\)\s*;?/g,
+    (match) => formatter.formatTodo({
+      id: 'UNCONVERTIBLE-ROLE',
+      description: 'TestCafe Role() has no direct Playwright equivalent',
+      original: match.trim(),
+      action: 'Use storageState or page.context().addCookies() for auth state in Playwright',
+    }) + '\n// ' + match.trim()
+  );
+
+  result = result.replace(
+    /await\s+t\.useRole\([^)]+\)/g,
+    (match) => formatter.formatTodo({
+      id: 'UNCONVERTIBLE-USE-ROLE',
+      description: 'TestCafe t.useRole() has no direct Playwright equivalent',
+      original: match.trim(),
+      action: 'Use storageState or page.context().addCookies() for auth state in Playwright',
+    }) + '\n// ' + match.trim()
+  );
+
+  result = result.replace(
+    /RequestMock\(\)/g,
+    (match) => '/* ' + formatter.formatTodo({
+      id: 'UNCONVERTIBLE-REQUEST-MOCK',
+      description: 'TestCafe RequestMock() — use page.route() in Playwright',
+      original: match.trim(),
+      action: 'Rewrite using page.route() for network mocking',
+    }) + ' */'
+  );
+
+  return result;
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// Test structure converters
+// ═══════════════════════════════════════════════════════════════════════
+
+/**
+ * Convert Cypress/WDIO test structure (describe/it/hooks → test.describe/test).
+ */
+function convertCypressTestStructure(content) {
   let result = content;
 
   result = result.replace(/describe\.only\(/g, 'test.describe.only(');
@@ -329,6 +981,58 @@ function convertTestStructure(content) {
 
   return result;
 }
+
+/**
+ * Convert Puppeteer test structure (describe/it → test.describe/test).
+ */
+function convertPuppeteerTestStructure(content) {
+  let result = content;
+
+  // Same as Cypress structure conversion (Puppeteer uses Mocha/Jest runners)
+  result = result.replace(/describe\.only\(/g, 'test.describe.only(');
+  result = result.replace(/describe\.skip\(/g, 'test.describe.skip(');
+  result = result.replace(/describe\(/g, 'test.describe(');
+  result = result.replace(/it\.only\(/g, 'test.only(');
+  result = result.replace(/it\.skip\(/g, 'test.skip(');
+  result = result.replace(/it\(/g, 'test(');
+  result = result.replace(/beforeAll\(/g, 'test.beforeAll(');
+  result = result.replace(/afterAll\(/g, 'test.afterAll(');
+  result = result.replace(/beforeEach\(/g, 'test.beforeEach(');
+  result = result.replace(/afterEach\(/g, 'test.afterEach(');
+
+  return result;
+}
+
+/**
+ * Convert TestCafe test structure (fixture/test → test.describe/test).
+ */
+function convertTestCafeTestStructure(content) {
+  let result = content;
+
+  // fixture`name` -> test.describe('name', () => {
+  result = result.replace(
+    /fixture\s*`([^`]*)`/g,
+    "test.describe('$1', () => {"
+  );
+
+  // .page`url` -> test.beforeEach with page.goto
+  result = result.replace(
+    /\.page\s*`([^`]*)`\s*;?/g,
+    "\n  test.beforeEach(async ({ page }) => {\n    await page.goto('$1');\n  });"
+  );
+
+  // test('name', async t => { -> test('name', async ({ page }) => {
+  result = result.replace(
+    /test\(([^,]+),\s*async\s+t\s*=>\s*\{/g,
+    'test($1, async ({ page }) => {'
+  );
+
+  return result;
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// Shared helpers
+// ═══════════════════════════════════════════════════════════════════════
 
 /**
  * Transform test callbacks to async with { page } parameter.
@@ -357,7 +1061,7 @@ function transformTestCallbacks(content, testTypes) {
 }
 
 /**
- * Detect test types from Cypress source.
+ * Detect test types from source.
  */
 function detectTestTypes(content) {
   const types = [];

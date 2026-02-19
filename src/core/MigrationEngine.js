@@ -19,6 +19,7 @@ import { ImportRewriter } from './ImportRewriter.js';
 import { MigrationStateManager } from './MigrationStateManager.js';
 import { MigrationChecklistGenerator } from './MigrationChecklistGenerator.js';
 import { ConverterFactory } from './ConverterFactory.js';
+import { ConfigConverter } from './ConfigConverter.js';
 
 export class MigrationEngine {
   constructor() {
@@ -111,8 +112,8 @@ export class MigrationEngine {
       const file = files.find(f => f.path === filePath);
       if (!file) continue;
 
-      // Skip non-convertible types
-      if (file.classification.type === 'fixture' || file.classification.type === 'type-def') {
+      // Skip non-convertible types (config files handled separately below)
+      if (file.classification.type === 'fixture' || file.classification.type === 'type-def' || file.classification.type === 'config') {
         stateManager.markFileSkipped(file.relativePath, `Non-convertible type: ${file.classification.type}`);
         if (options.onProgress) options.onProgress(file.relativePath, 'skipped', 0);
         continue;
@@ -227,6 +228,56 @@ export class MigrationEngine {
       if (options.onProgress) options.onProgress(file.relativePath, 'converted', confidence);
     }
 
+    // 6b. Convert config files
+    const configConverter = new ConfigConverter();
+    const configFiles = files.filter(f => f.classification.type === 'config');
+    for (const configFile of configFiles) {
+      // Resume logic
+      if (isResume && !options.retryFailed && stateManager.isConverted(configFile.relativePath)) {
+        if (options.onProgress) options.onProgress(configFile.relativePath, 'skipped-converted', null);
+        continue;
+      }
+
+      if (isResume && options.retryFailed && !stateManager.isFailed(configFile.relativePath)) {
+        if (options.onProgress) options.onProgress(configFile.relativePath, 'skipped', null);
+        continue;
+      }
+
+      try {
+        const converted = configConverter.convert(configFile.content, from, to);
+
+        // Write output
+        const outputDir = options.output ? path.resolve(options.output) : resolvedRoot;
+        const newRelPath = this._computeConfigName(configFile.relativePath, from, to);
+        const outputPath = path.join(outputDir, newRelPath);
+        await fs.mkdir(path.dirname(outputPath), { recursive: true });
+        await fs.writeFile(outputPath, converted, 'utf8');
+
+        stateManager.markFileConverted(configFile.relativePath, { confidence: 80 });
+        results.push({
+          path: configFile.relativePath,
+          confidence: 80,
+          status: 'converted',
+          warnings: [],
+          todos: [],
+          type: 'config',
+        });
+        if (options.onProgress) options.onProgress(configFile.relativePath, 'converted', 80);
+      } catch (configError) {
+        stateManager.markFileConverted(configFile.relativePath, { confidence: 0, error: configError.message });
+        results.push({
+          path: configFile.relativePath,
+          confidence: 0,
+          status: 'failed',
+          error: configError.message,
+          warnings: [],
+          todos: [],
+          type: 'config',
+        });
+        if (options.onProgress) options.onProgress(configFile.relativePath, 'failed', 0);
+      }
+    }
+
     // 7. Rewrite imports in converted files
     if (renames.size > 0 && options.output) {
       const outputDir = path.resolve(options.output);
@@ -263,6 +314,34 @@ export class MigrationEngine {
    * @param {string} to
    * @returns {string}
    */
+  /**
+   * Compute target config filename based on framework conventions.
+   *
+   * @param {string} relativePath
+   * @param {string} from
+   * @param {string} to
+   * @returns {string}
+   */
+  _computeConfigName(relativePath, from, to) {
+    const CONFIG_NAMES = {
+      jest: 'jest.config.js',
+      vitest: 'vitest.config.ts',
+      playwright: 'playwright.config.ts',
+      cypress: 'cypress.config.js',
+      webdriverio: 'wdio.conf.js',
+      mocha: '.mocharc.yml',
+      jasmine: 'jasmine.json',
+      pytest: 'pytest.ini',
+      unittest: 'unittest.cfg',
+      testng: 'testng.xml',
+      junit5: 'junit-platform.properties',
+    };
+
+    const dir = path.dirname(relativePath);
+    const targetName = CONFIG_NAMES[to] || path.basename(relativePath);
+    return dir === '.' ? targetName : path.join(dir, targetName);
+  }
+
   _computeNewPath(relativePath, from, to) {
     let newPath = relativePath;
 
