@@ -7,7 +7,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, '../..');
 const cliPath = path.resolve(rootDir, 'bin/hamlet.js');
 const fixturesDir = path.resolve(__dirname, '../fixtures');
-const outputDir = path.resolve(__dirname, '../output');
+const outputDir = path.resolve(__dirname, '../output/cli');
 
 // Helper to run CLI commands safely without shell interpolation.
 // Uses spawnSync with an explicit timeout and no stdin pipe to avoid
@@ -112,7 +112,6 @@ describe('Sample Test', () => {
   afterAll(async () => {
     // Clean up output directory (recursive handles subdirs left by tests)
     await fs.rm(outputDir, { recursive: true, force: true }).catch(() => {});
-    await fs.mkdir(outputDir, { recursive: true });
 
     // Clean up fixture subdirectories created during tests
     await fs
