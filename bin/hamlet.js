@@ -1585,70 +1585,57 @@ program
 program
   .command('doctor')
   .description('Run diagnostics and check Hamlet setup')
-  .action(async () => {
+  .argument('[path]', 'Directory to diagnose', '.')
+  .option('--json', 'JSON output')
+  .option('--verbose', 'Show additional detail for each check')
+  .action(async (targetPath, options) => {
     try {
-      console.log(chalk.blue('\nHamlet Doctor\n'));
+      const { runDoctor } = await import('../src/cli/doctor.js');
+      const result = await runDoctor(targetPath);
 
-      // Node.js version
-      console.log(`  Node.js: ${chalk.cyan(process.version)}`);
-
-      // Hamlet version
-      console.log(`  Hamlet:  ${chalk.cyan('v' + version)}`);
-
-      // Supported conversions
-      const conversions = ConverterFactory.getSupportedConversions();
-      const frameworks = ConverterFactory.getFrameworks();
-      console.log(
-        `  Conversions: ${chalk.green(conversions.length)} directions across ${chalk.green(frameworks.length)} frameworks`
-      );
-
-      // Detect test framework in current directory
-      try {
-        const { Scanner } = await import('../src/core/Scanner.js');
-        const { FileClassifier } = await import(
-          '../src/core/FileClassifier.js'
+      if (options.json) {
+        const output = {
+          checks: result.checks.map((c) => {
+            const obj = {
+              id: c.id,
+              label: c.label,
+              status: c.status,
+              detail: c.detail,
+            };
+            if (c.remediation) obj.remediation = c.remediation;
+            if (options.verbose && c.verbose) obj.verbose = c.verbose;
+            return obj;
+          }),
+          summary: result.summary,
+        };
+        console.log(JSON.stringify(output, null, 2));
+      } else {
+        console.log(chalk.blue('\nHamlet Doctor\n'));
+        for (const check of result.checks) {
+          const tag =
+            check.status === 'PASS'
+              ? chalk.green('[PASS]')
+              : check.status === 'WARN'
+                ? chalk.yellow('[WARN]')
+                : chalk.red('[FAIL]');
+          console.log(`  ${tag} ${check.label}: ${check.detail}`);
+          if (options.verbose && check.verbose) {
+            console.log(`         ${chalk.dim(check.verbose)}`);
+          }
+          if (check.remediation) {
+            console.log(`         ${chalk.yellow('→')} ${check.remediation}`);
+          }
+        }
+        const { pass, warn, fail, total } = result.summary;
+        console.log(
+          `\n  ${total} checks: ${chalk.green(pass + ' passed')}` +
+            (warn ? `, ${chalk.yellow(warn + ' warnings')}` : '') +
+            (fail ? `, ${chalk.red(fail + ' failed')}` : '')
         );
-        const scanner = new Scanner();
-        const classifier = new FileClassifier();
-
-        const files = await scanner.scan('.');
-        const frameworks = {};
-        let testFileCount = 0;
-
-        for (const file of files.slice(0, 200)) {
-          try {
-            const content = await fs.readFile(file.path, 'utf8');
-            const classification = classifier.classify(file.path, content);
-            if (classification.type === 'test') {
-              testFileCount++;
-              if (classification.framework) {
-                frameworks[classification.framework] =
-                  (frameworks[classification.framework] || 0) + 1;
-              }
-            }
-          } catch (_e) {
-            // Skip
-          }
-        }
-
-        console.log(`  Test files found: ${chalk.cyan(testFileCount)}`);
-        if (Object.keys(frameworks).length > 0) {
-          console.log(`  Detected frameworks:`);
-          for (const [fw, count] of Object.entries(frameworks).sort(
-            (a, b) => b[1] - a[1]
-          )) {
-            console.log(`    ${chalk.green(fw)}: ${count} files`);
-          }
-        } else {
-          console.log(
-            chalk.yellow('  No test frameworks detected in current directory')
-          );
-        }
-      } catch (_e) {
-        console.log(chalk.yellow('  Could not scan current directory'));
+        console.log();
       }
 
-      console.log();
+      if (result.hasFail) process.exit(1);
     } catch (error) {
       console.error(chalk.red('Error:'), error.message);
       if (process.env.DEBUG) console.error(error.stack);
