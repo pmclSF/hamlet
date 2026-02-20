@@ -2,36 +2,62 @@
 
 ## Project Overview
 
-Hamlet is a bidirectional multi-framework test converter (Cypress, Playwright, Selenium). It is a Node.js CLI tool and library published to npm. The codebase is JavaScript ES modules with TypeScript type definitions.
+Hamlet is a multi-framework test converter — 25 conversion directions across 16 frameworks in JavaScript, Java, and Python. It is a Node.js CLI tool and library published to npm. The codebase is JavaScript ES modules with TypeScript type definitions.
 
 ## Quick Reference
 
 - **Language:** JavaScript (ES modules — `"type": "module"`)
-- **Node:** >= 16.0.0
+- **Node:** >= 16.0.0 (CI tests on 20.x and 22.x)
 - **Package manager:** npm (`package-lock.json`)
 - **Test runner:** Jest with `NODE_OPTIONS='--experimental-vm-modules'`
-- **Linter:** ESLint (airbnb-recommended base)
-- **Formatter:** Prettier (default config)
-- **Commit style:** Conventional Commits (enforced by commitlint + husky)
+- **Linter:** ESLint (`eslint:recommended` + `prettier`)
+- **Formatter:** Prettier (`.prettierrc`: single quotes, ES5 trailing commas)
+- **Commit style:** Conventional Commits (enforced by commitlint via `.husky/commit-msg`)
 
 ## Commands
 
 ```bash
 npm test                    # Run all tests
-npm run lint                # Lint source files
-npm run format              # Format source files with Prettier
+npm run lint                # Lint source files (src/**/*.js)
+npm run format              # Format source files with Prettier (src + bin)
+npm run format:check        # Check formatting without writing (used in CI)
 npm run test:staged         # Run tests related to staged files
-npm run validate            # Run validation scripts
 node bin/hamlet.js          # Run the CLI
 ```
+
+> **Note:** There is no `build` script — the project ships raw ES modules. There is no `validate` script.
+
+## CI Gates
+
+CI (`.github/workflows/ci.yml`) runs these checks in order on every push and PR to `main`/`develop`. **All three are hard gates — any failure blocks the build.**
+
+1. `npm run format:check` — Prettier formatting
+2. `npm run lint` — ESLint
+3. `npm test` — Jest test suite
+
+### CI-only test skip
+
+`jest.config.js` conditionally skips `test/index.test.js` when `process.env.CI` is set, due to a `cjs-module-lexer` bug with `signal-exit` on Node 18–20. The test runs and passes locally.
+
+### ESM worker-shutdown warning
+
+Jest 29 requires `--experimental-vm-modules` for ESM support. This flag leaves internal IPC Socket handles in every Jest worker, which can cause a "worker process has failed to exit gracefully" warning on suite shutdown. The warning is **not** indicative of a test-level leak — it is a systemic Jest 29 limitation that affects whichever worker happens to shut down last. See `docs/adr/004-jest-esm-strategy.md` for analysis and options.
 
 ## Architecture
 
 ```
 src/
-├── core/              # BaseConverter, ConverterFactory, PatternEngine, FrameworkDetector
-├── converters/        # 6 converter implementations (e.g. CypressToPlaywright)
+├── cli/               # shorthands.js — shorthand command definitions
+├── core/              # 25 modules: BaseConverter, ConverterFactory, PatternEngine,
+│                      #   FrameworkDetector, FrameworkRegistry, ConfigConverter,
+│                      #   MigrationEngine, Scanner, FileClassifier, ir.js, etc.
+├── converters/        # 6 E2E converter classes (Cypress/Playwright/Selenium pairs)
 ├── converter/         # Batch processing, orchestration, validation, TypeScript support
+├── languages/         # Framework definitions organized by language:
+│   ├── java/          #   junit4, junit5, testng
+│   ├── javascript/    #   cypress, jest, mocha, jasmine, playwright, vitest,
+│   │                  #   puppeteer, testcafe, webdriverio
+│   └── python/        #   pytest, unittest_fw, nose2
 ├── patterns/commands/ # Regex pattern definitions (assertions, navigation, selectors, etc.)
 ├── utils/             # helpers.js (fileUtils, stringUtils, codeUtils, etc.), reporter.js
 ├── types/             # TypeScript type definitions (index.d.ts)
@@ -48,16 +74,31 @@ src/
 
 ---
 
-## Code Style Rules (Enforced by ESLint + Prettier)
+## Code Style (Enforced by Prettier + ESLint)
 
-| Rule | Value |
-|------|-------|
-| Indentation | 2 spaces |
-| Quotes | Single quotes |
-| Semicolons | Always required |
-| Line endings | Unix (LF) |
-| Unused variables | Error, unless prefixed with `_` |
-| `console.log` | Allowed (used intentionally with chalk) |
+Prettier owns all formatting. ESLint catches logical errors only.
+
+| Concern | Tool | Config |
+|---------|------|--------|
+| Indentation (2 spaces) | Prettier | default |
+| Quotes (single) | Prettier | `.prettierrc` |
+| Semicolons (always) | Prettier | default |
+| Trailing commas (ES5) | Prettier | `.prettierrc` |
+| Print width (80) | Prettier | default |
+| Unused variables | ESLint | Error, unless prefixed with `_` |
+| `console.log` | ESLint | Allowed (`no-console: off`) |
+
+ESLint extends `eslint:recommended` and `prettier` (via `eslint-config-prettier`, which disables all formatting rules that conflict with Prettier). Do not add formatting rules back into `.eslintrc.json`.
+
+---
+
+## How to Make Changes Safely
+
+1. **Read before writing.** Understand existing code before modifying it.
+2. **Small diffs.** One concern per commit. Do not bundle unrelated changes.
+3. **Run checks before committing:** `npm run format:check && npm run lint && npm test`
+4. **No surprise refactors.** Do not rename, reorganize, or "improve" code outside the scope of the task.
+5. **Feature branches.** Never commit directly to `main`. Create a branch, open a PR.
 
 ---
 
@@ -125,7 +166,10 @@ import { PatternEngine } from '../core/PatternEngine.js';
 export class MyConverter extends BaseConverter { }
 ```
 
-**Exception:** `commitlint.config.js` uses `module.exports` because commitlint requires it. Do not change this.
+**Exceptions:**
+- `commitlint.config.cjs` uses `module.exports` because commitlint requires it.
+- `src/index.js` and `bin/hamlet.js` use `createRequire` to read `package.json` (the only supported way to import JSON in ESM without import assertions).
+- Converter output strings may contain `require()` / `module.exports` when generating CommonJS target code (e.g., Cypress configs). These are string literals, not module-system usage.
 
 ### 5. Use `import` for Node.js builtins — with correct module paths
 
@@ -243,7 +287,7 @@ throw new ConversionError('Failed');
 
 ### 11. Do not modify configuration files without explicit instruction
 
-Do not change: `jest.config.js`, `.eslintrc.json`, `tsconfig.json`, `playwright.config.js`, `commitlint.config.js`, `package.json` scripts, or `.husky/` hooks — unless the task specifically requires it.
+Do not change: `jest.config.js`, `.eslintrc.json`, `.prettierrc`, `tsconfig.json`, `playwright.config.js`, `commitlint.config.cjs`, `package.json` scripts, or `.husky/` hooks — unless the task specifically requires it.
 
 ### 12. Naming conventions
 
@@ -259,7 +303,7 @@ Do not change: `jest.config.js`, `.eslintrc.json`, `tsconfig.json`, `playwright.
 
 ### 13. Commit messages
 
-Commits are enforced by commitlint with conventional commit format:
+Commits are enforced by commitlint (`.husky/commit-msg`) with conventional commit format:
 
 ```
 type(scope): description
@@ -275,22 +319,25 @@ fix(pattern-engine): handle regex special characters in selectors
 test(factory): add edge case tests for unsupported frameworks
 ```
 
+> **Note:** Only the `commit-msg` hook is installed. There is no `pre-commit` hook, so `lint-staged` (configured in `package.json`) does not run automatically. Run `npm run format:check && npm run lint` manually before committing.
+
 ### 14. Do not introduce new dependencies without justification
 
-This project has a deliberately minimal dependency footprint. Do not add npm packages for functionality that can be implemented in a few lines. Especially avoid:
-- Lodash methods that have native equivalents (e.g., use `Array.prototype.map` not `_.map`)
+Do not add npm packages for functionality that can be implemented in a few lines. Especially avoid:
 - Testing utilities (no `@testing-library/*`, no `sinon`, no `nock`)
 - Type-checking libraries (the project uses JSDoc + `.d.ts` files)
+
+> **Note:** `lodash` is listed as a runtime dependency in `package.json` but is not currently imported by any source file. Do not add new lodash imports — use native equivalents.
 
 ### 15. PR readability checklist
 
 Before submitting any PR, verify:
-- [ ] All new/modified code passes `npm run lint` with zero warnings
-- [ ] All new/modified code is formatted with `npm run format`
-- [ ] All tests pass with `npm test`
+- [ ] `npm run format:check` passes (zero formatting issues)
+- [ ] `npm run lint` passes (zero errors)
+- [ ] `npm test` passes (all 705 suites, 1916 tests)
 - [ ] No `jest.mock()`, `jest.spyOn()`, or mock files were introduced
 - [ ] All imports include `.js` extensions
-- [ ] No `require()` or `module.exports` (except `commitlint.config.js`)
+- [ ] No `require()` or `module.exports` (except `commitlint.config.cjs` and `createRequire` for JSON)
 - [ ] New public functions/classes have corresponding tests
 - [ ] No unnecessary files were created
 - [ ] Commit messages follow conventional commit format
@@ -303,13 +350,21 @@ Before submitting any PR, verify:
 
 | File | Purpose | Key exports |
 |------|---------|-------------|
+| `src/index.js` | Main API entry point | `convertFile`, `convertRepository`, `VERSION`, etc. |
 | `src/core/BaseConverter.js` | Abstract base class | `BaseConverter` |
 | `src/core/ConverterFactory.js` | Factory + lazy loading | `ConverterFactory`, `FRAMEWORKS` |
 | `src/core/PatternEngine.js` | Regex pattern registry | `PatternEngine` |
 | `src/core/FrameworkDetector.js` | Auto-detect framework | `FrameworkDetector` |
-| `src/converters/*.js` | 6 converter implementations | One class each |
+| `src/core/FrameworkRegistry.js` | Framework metadata registry | `FrameworkRegistry` |
+| `src/core/ConfigConverter.js` | Config file conversion | `ConfigConverter` |
+| `src/core/MigrationEngine.js` | Full project migration | `MigrationEngine` |
+| `src/core/Scanner.js` | File discovery | `Scanner` |
+| `src/core/FileClassifier.js` | Classify file types | `FileClassifier` |
+| `src/core/ir.js` | Intermediate representation | IR node constructors |
+| `src/converters/*.js` | 6 E2E converter classes | One class each |
+| `src/languages/*/frameworks/*.js` | Framework pattern definitions | Pattern registrations |
+| `src/cli/shorthands.js` | CLI shorthand definitions | `SHORTHANDS`, `CONVERSION_CATEGORIES` |
 | `src/utils/helpers.js` | Utility namespaces | `fileUtils`, `stringUtils`, `codeUtils`, `testUtils`, `reportUtils`, `logUtils` |
-| `src/index.js` | Main API entry point | `convertFile`, `convertRepository`, `VERSION`, etc. |
 | `config/index.js` | Configuration defaults | Default configs for conversion, reporting, TypeScript |
 | `bin/hamlet.js` | CLI entry point | Commander.js CLI |
 
