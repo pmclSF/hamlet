@@ -8,6 +8,12 @@ Migrate your test suites between frameworks with confidence.
 
 **25 conversion directions** across **16 frameworks** in **4 languages** (JavaScript, Java, Python).
 
+## Node Support
+
+Hamlet supports **active and maintenance LTS** versions of Node.js. Currently: **Node 22** and **Node 24**.
+
+CI tests run on both. When a Node major reaches end-of-life, it is dropped in the next minor release.
+
 ## Quick Start
 
 ```bash
