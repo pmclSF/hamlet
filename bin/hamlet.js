@@ -92,7 +92,8 @@ async function convertAction(source, options) {
   const quiet = options.quiet || false;
   const verbose = options.verbose || false;
   const jsonOutput = options.json || false;
-  const dryRun = options.dryRun || false;
+  const plan = options.plan || false;
+  const dryRun = options.dryRun || plan;
   const onError = options.onError || 'skip';
 
   // Validate frameworks
@@ -356,13 +357,27 @@ async function convertAction(source, options) {
     process.exit(1);
   }
 
-  // ── Dry-run mode ─────────────────────────────────────────────────
+  // ── Dry-run / Plan mode ──────────────────────────────────────────
   if (dryRun) {
     if (isBatch) {
-      // Batch dry-run: show file counts and optionally confidence distribution
+      // Batch dry-run: compute per-file confidence
       const counts = { high: 0, medium: 0, low: 0 };
+      const fileDetails = [];
+      const outputDir = options.output ? path.resolve(options.output) : null;
 
       for (const file of sourceFiles) {
+        const relPath = file.relativePath || path.basename(file.path);
+        const newFilename = buildOutputFilename(
+          path.basename(file.path),
+          toFramework
+        );
+        const relDir = path.dirname(relPath);
+        const outputFilePath = outputDir
+          ? path.join(outputDir, relDir === '.' ? '' : relDir, newFilename)
+          : newFilename;
+
+        let conf = 0;
+        let level = 'low';
         try {
           const content = await fs.readFile(file.path, 'utf8');
           await converter.convert(content);
@@ -370,68 +385,83 @@ async function convertAction(source, options) {
             ? converter.getLastReport()
             : null;
           if (report) {
-            const conf = report.confidence || 0;
-            if (conf >= 80) counts.high++;
-            else if (conf >= 50) counts.medium++;
-            else counts.low++;
+            conf = report.confidence || 0;
           } else {
-            counts.high++;
+            conf = 95;
           }
         } catch (_e) {
+          conf = 0;
+        }
+
+        if (conf >= 80) {
+          level = 'high';
+          counts.high++;
+        } else if (conf >= 50) {
+          level = 'medium';
+          counts.medium++;
+        } else {
           counts.low++;
         }
+
+        fileDetails.push({
+          source: relPath,
+          sourceFull: file.path,
+          output: outputFilePath,
+          confidence: conf,
+          level,
+        });
       }
 
-      if (jsonOutput) {
-        console.log(
-          JSON.stringify({
-            success: true,
-            dryRun: true,
-            files: sourceFiles.map((f) => ({
-              source: f.relativePath || f.path,
-            })),
-            summary: {
-              converted: sourceFiles.length,
-              skipped: 0,
-              failed: 0,
-              confidence: counts,
-            },
-          })
-        );
-      } else if (!quiet) {
-        console.log(chalk.yellow('Dry run mode - no files will be modified\n'));
-        console.log(`  Files found: ${sourceFiles.length}`);
-        console.log(`  Would convert: ${sourceFiles.length}`);
-        console.log(`\n  Confidence distribution:`);
-        console.log(`    ${chalk.green('High:')}   ${counts.high}`);
-        console.log(`    ${chalk.yellow('Medium:')} ${counts.medium}`);
-        console.log(`    ${chalk.red('Low:')}    ${counts.low}`);
-      }
-    } else {
-      // Single file dry-run
-      const filePath = sourceFiles[0].path;
-      try {
-        const content = await fs.readFile(filePath, 'utf8');
-        await converter.convert(content);
-        const report = converter.getLastReport
-          ? converter.getLastReport()
-          : null;
-
+      if (plan) {
+        // ── Plan output (batch) ────────────────────────────────────
+        if (jsonOutput) {
+          console.log(
+            JSON.stringify({
+              plan: true,
+              direction: { from: fromFramework, to: toFramework },
+              files: fileDetails.map((f) => ({
+                source: f.source,
+                output: f.output,
+                confidence: f.confidence,
+              })),
+              summary: {
+                total: fileDetails.length,
+                confidence: counts,
+              },
+              warnings: [],
+            })
+          );
+        } else if (!quiet) {
+          console.log(
+            chalk.bold(
+              `Conversion Plan: ${fromFramework} \u2192 ${toFramework}`
+            )
+          );
+          console.log(`  ${fileDetails.length} files to convert\n`);
+          console.log(`  ${'Input'.padEnd(30)}    ${'Output'}`);
+          for (const f of fileDetails) {
+            console.log(`  ${f.source.padEnd(30)} \u2192  ${f.output}`);
+          }
+          console.log(
+            `\n  Confidence: ${counts.high} high, ${counts.medium} medium, ${counts.low} low`
+          );
+          console.log('  Warnings: (none)');
+        }
+      } else {
+        // ── Standard dry-run output (batch) ────────────────────────
         if (jsonOutput) {
           console.log(
             JSON.stringify({
               success: true,
               dryRun: true,
-              files: [
-                {
-                  source: filePath,
-                  confidence: report ? report.confidence : null,
-                },
-              ],
+              files: sourceFiles.map((f) => ({
+                source: f.relativePath || f.path,
+              })),
               summary: {
-                converted: 1,
+                converted: sourceFiles.length,
                 skipped: 0,
                 failed: 0,
+                confidence: counts,
               },
             })
           );
@@ -439,24 +469,120 @@ async function convertAction(source, options) {
           console.log(
             chalk.yellow('Dry run mode - no files will be modified\n')
           );
-          console.log(`  Would convert: ${filePath}`);
-          console.log(
-            `  Output: ${options.output || 'same directory with new extension'}`
+          console.log(`  Files found: ${sourceFiles.length}`);
+          console.log(`  Would convert: ${sourceFiles.length}`);
+          console.log(`\n  Confidence distribution:`);
+          console.log(`    ${chalk.green('High:')}   ${counts.high}`);
+          console.log(`    ${chalk.yellow('Medium:')} ${counts.medium}`);
+          console.log(`    ${chalk.red('Low:')}    ${counts.low}`);
+        }
+      }
+    } else {
+      // Single file dry-run / plan
+      const filePath = sourceFiles[0].path;
+      const relSource = sourceFiles[0].relativePath || path.basename(filePath);
+
+      // Compute output path
+      let outputPath = options.output;
+      if (outputPath) {
+        if (!path.extname(outputPath)) {
+          outputPath = path.join(
+            outputPath,
+            buildOutputFilename(path.basename(source), toFramework)
           );
-          if (report) {
-            const conf = report.confidence || 0;
-            const level =
-              report.level ||
-              (conf >= 80 ? 'high' : conf >= 50 ? 'medium' : 'low');
+        }
+      } else {
+        const ext = path.extname(source);
+        const base = path.basename(source, ext);
+        const dir = path.dirname(source);
+        const newExt = getTargetExtension(toFramework, ext);
+        outputPath = path.join(
+          dir,
+          base.replace(/\.(cy|spec|test)$/, '') + newExt
+        );
+      }
+
+      try {
+        const content = await fs.readFile(filePath, 'utf8');
+        await converter.convert(content);
+        const report = converter.getLastReport
+          ? converter.getLastReport()
+          : null;
+        const conf = report ? report.confidence || 0 : 0;
+        const level =
+          (report && report.level) ||
+          (conf >= 80 ? 'high' : conf >= 50 ? 'medium' : 'low');
+
+        if (plan) {
+          // ── Plan output (single) ──────────────────────────────
+          if (jsonOutput) {
+            console.log(
+              JSON.stringify({
+                plan: true,
+                direction: { from: fromFramework, to: toFramework },
+                files: [
+                  {
+                    source: relSource,
+                    output: outputPath,
+                    confidence: conf,
+                  },
+                ],
+                summary: {
+                  total: 1,
+                  confidence: {
+                    high: level === 'high' ? 1 : 0,
+                    medium: level === 'medium' ? 1 : 0,
+                    low: level === 'low' ? 1 : 0,
+                  },
+                },
+                warnings: [],
+              })
+            );
+          } else if (!quiet) {
+            console.log(chalk.bold('Conversion Plan:'));
+            console.log(`  ${relSource} \u2192 ${outputPath}`);
+            console.log(`  Direction: ${fromFramework} \u2192 ${toFramework}`);
             console.log(`  Confidence: ${conf}% (${level})`);
-            if (verbose) {
-              console.log(`\n  Details:`);
-              if (report.converted != null)
-                console.log(`    ${report.converted} patterns converted`);
-              if (report.warnings != null)
-                console.log(`    ${report.warnings} warnings`);
-              if (report.unconvertible != null)
-                console.log(`    ${report.unconvertible} unconvertible`);
+          }
+        } else {
+          // ── Standard dry-run output (single) ──────────────────
+          if (jsonOutput) {
+            console.log(
+              JSON.stringify({
+                success: true,
+                dryRun: true,
+                files: [
+                  {
+                    source: filePath,
+                    confidence: report ? report.confidence : null,
+                  },
+                ],
+                summary: {
+                  converted: 1,
+                  skipped: 0,
+                  failed: 0,
+                },
+              })
+            );
+          } else if (!quiet) {
+            console.log(
+              chalk.yellow('Dry run mode - no files will be modified\n')
+            );
+            console.log(`  Would convert: ${filePath}`);
+            console.log(
+              `  Output: ${options.output || 'same directory with new extension'}`
+            );
+            if (report) {
+              console.log(`  Confidence: ${conf}% (${level})`);
+              if (verbose) {
+                console.log(`\n  Details:`);
+                if (report.converted != null)
+                  console.log(`    ${report.converted} patterns converted`);
+                if (report.warnings != null)
+                  console.log(`    ${report.warnings} warnings`);
+                if (report.unconvertible != null)
+                  console.log(`    ${report.unconvertible} unconvertible`);
+              }
             }
           }
         }
@@ -817,6 +943,7 @@ program
   .option('--preserve-structure', 'Maintain original directory structure')
   .option('--batch-size <number>', 'Number of files per batch', '5')
   .option('--dry-run', 'Show what would be converted without making changes')
+  .option('--plan', 'Show structured conversion plan')
   .option('--auto-detect', 'Auto-detect source framework from file content')
   .option('-q, --quiet', 'Suppress non-error output')
   .option('--verbose', 'Detailed output')
@@ -846,6 +973,7 @@ for (const [alias, { from, to }] of Object.entries(SHORTHANDS)) {
     .option('-o, --output <path>', 'Output path')
     .option('-q, --quiet', 'Suppress output')
     .option('--dry-run', 'Preview without writing')
+    .option('--plan', 'Show structured conversion plan')
     .option(
       '--on-error <mode>',
       'Error handling: skip|fail|best-effort',
@@ -885,6 +1013,7 @@ program
     '-o, --output <path>',
     'Output file path (prints to stdout if omitted)'
   )
+  .option('--dry-run', 'Preview without writing')
   .action(async (source, options) => {
     try {
       const { FileClassifier } = await import('../src/core/FileClassifier.js');
@@ -925,6 +1054,15 @@ program
         fromFramework.toLowerCase(),
         toFramework.toLowerCase()
       );
+
+      if (options.dryRun) {
+        console.log(chalk.yellow('Dry run mode - no files will be modified\n'));
+        console.log(`  Source: ${source}`);
+        console.log(`  Detected framework: ${fromFramework}`);
+        console.log(`  Target framework: ${toFramework.toLowerCase()}`);
+        console.log(`  Output: ${options.output || '(stdout)'}`);
+        return;
+      }
 
       if (options.output) {
         await fs.mkdir(path.dirname(path.resolve(options.output)), {
@@ -1144,39 +1282,74 @@ program
   .option('--continue', 'Resume a previously started migration')
   .option('--retry-failed', 'Retry only previously failed files')
   .option('--dry-run', 'Preview migration without making changes')
+  .option('--plan', 'Show structured migration plan')
   .action(async (dir, options) => {
     try {
-      if (options.dryRun) {
-        // Migrate dry-run delegates to estimator
+      if (options.dryRun || options.plan) {
+        // Migrate dry-run / plan delegates to estimator
         const { MigrationEstimator } = await import(
           '../src/core/MigrationEstimator.js'
         );
         const estimator = new MigrationEstimator();
-
-        console.log(chalk.yellow('Dry run mode - no files will be modified\n'));
-        console.log(
-          chalk.blue(`Estimating migration for ${chalk.bold(dir)}...`)
-        );
 
         const result = await estimator.estimate(dir, {
           from: options.from,
           to: options.to,
         });
 
-        console.log(chalk.bold('\nEstimation Summary:'));
-        console.log(`  Total files: ${result.summary.totalFiles}`);
-        console.log(`  Test files: ${result.summary.testFiles}`);
-        console.log(`  Helper files: ${result.summary.helperFiles}`);
-        console.log(`  Config files: ${result.summary.configFiles}`);
-        console.log(
-          `  ${chalk.green('High confidence:')} ${result.summary.predictedHigh}`
-        );
-        console.log(
-          `  ${chalk.yellow('Medium confidence:')} ${result.summary.predictedMedium}`
-        );
-        console.log(
-          `  ${chalk.red('Low confidence:')} ${result.summary.predictedLow}`
-        );
+        if (options.plan) {
+          // ── Plan output (migrate) ──────────────────────────────
+          console.log(
+            chalk.bold(`Migration Plan: ${options.from} \u2192 ${options.to}`)
+          );
+          console.log(`  Directory: ${dir}\n`);
+
+          console.log('  Files:');
+          console.log(`    Test files:   ${result.summary.testFiles}`);
+          console.log(`    Config files: ${result.summary.configFiles}`);
+          console.log(`    Helper files: ${result.summary.helperFiles}`);
+
+          if (result.files && result.files.length > 0) {
+            console.log(
+              `\n  ${'Input'.padEnd(30)} ${'Type'.padEnd(12)} ${'Confidence'}`
+            );
+            for (const f of result.files) {
+              const conf = f.predictedConfidence || 0;
+              const level = conf >= 80 ? 'high' : conf >= 50 ? 'medium' : 'low';
+              console.log(
+                `  ${(f.path || '').padEnd(30)} ${(f.type || 'unknown').padEnd(12)} ${level}`
+              );
+            }
+          }
+
+          console.log(
+            `\n  Summary: ${result.summary.predictedHigh} high, ${result.summary.predictedMedium} medium, ${result.summary.predictedLow} low`
+          );
+          console.log('  Warnings: (none)');
+        } else {
+          // ── Standard dry-run output (migrate) ──────────────────
+          console.log(
+            chalk.yellow('Dry run mode - no files will be modified\n')
+          );
+          console.log(
+            chalk.blue(`Estimating migration for ${chalk.bold(dir)}...`)
+          );
+
+          console.log(chalk.bold('\nEstimation Summary:'));
+          console.log(`  Total files: ${result.summary.totalFiles}`);
+          console.log(`  Test files: ${result.summary.testFiles}`);
+          console.log(`  Helper files: ${result.summary.helperFiles}`);
+          console.log(`  Config files: ${result.summary.configFiles}`);
+          console.log(
+            `  ${chalk.green('High confidence:')} ${result.summary.predictedHigh}`
+          );
+          console.log(
+            `  ${chalk.yellow('Medium confidence:')} ${result.summary.predictedMedium}`
+          );
+          console.log(
+            `  ${chalk.red('Low confidence:')} ${result.summary.predictedLow}`
+          );
+        }
         return;
       }
 

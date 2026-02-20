@@ -192,4 +192,207 @@ describe('CLI Dry-Run Mode', () => {
       expect(parsed.dryRun).toBe(true);
     });
   });
+
+  describe('convert-config --dry-run', () => {
+    let configFixturesDir;
+    let jestConfigPath;
+
+    beforeAll(async () => {
+      configFixturesDir = path.resolve(outputDir, 'config-fixtures');
+      await fs.mkdir(configFixturesDir, { recursive: true });
+      jestConfigPath = path.join(configFixturesDir, 'jest.config.js');
+      await fs.writeFile(
+        jestConfigPath,
+        `module.exports = { testEnvironment: 'node', testTimeout: 30000 };`
+      );
+    });
+
+    test('should show preview without writing output file', async () => {
+      const outFile = path.resolve(
+        outputDir,
+        'config-dryrun-output.config.ts'
+      );
+      await fs.rm(outFile, { force: true }).catch(() => {});
+
+      const result = runCLI([
+        'convert-config',
+        jestConfigPath,
+        '--from',
+        'jest',
+        '--to',
+        'vitest',
+        '--output',
+        outFile,
+        '--dry-run',
+      ]);
+
+      expect(result).toContain('Dry run');
+      expect(result).toContain('jest');
+      expect(result).toContain('vitest');
+
+      const exists = await fs
+        .access(outFile)
+        .then(() => true)
+        .catch(() => false);
+      expect(exists).toBe(false);
+    });
+
+    test('should show stdout as output when no --output given', () => {
+      const result = runCLI([
+        'convert-config',
+        jestConfigPath,
+        '--from',
+        'jest',
+        '--to',
+        'vitest',
+        '--dry-run',
+      ]);
+
+      expect(result).toContain('Dry run');
+      expect(result).toContain('(stdout)');
+    });
+  });
+
+  describe('convert --plan', () => {
+    test('should show file mapping for single file', () => {
+      const inputFile = path.resolve(fixturesDir, 'sample.jest.js');
+
+      const result = runCLI([
+        'convert',
+        inputFile,
+        '--from',
+        'jest',
+        '--to',
+        'vitest',
+        '--plan',
+      ]);
+
+      expect(result).toContain('Conversion Plan');
+      expect(result).toContain('\u2192');
+      expect(result).toContain('Direction: jest');
+      expect(result).toContain('Confidence');
+    });
+
+    test('should show file mapping table for batch', () => {
+      const result = runCLI([
+        'convert',
+        dryRunFixtures,
+        '--from',
+        'jest',
+        '--to',
+        'vitest',
+        '-o',
+        path.resolve(outputDir, 'plan-batch-out'),
+        '--plan',
+      ]);
+
+      expect(result).toContain('Conversion Plan');
+      expect(result).toContain('files to convert');
+      expect(result).toContain('Input');
+      expect(result).toContain('Output');
+      expect(result).toContain('\u2192');
+      expect(result).toContain('Confidence');
+    });
+
+    test('should produce valid JSON with plan structure', () => {
+      const inputFile = path.resolve(fixturesDir, 'sample.jest.js');
+
+      const result = runCLI([
+        'convert',
+        inputFile,
+        '--from',
+        'jest',
+        '--to',
+        'vitest',
+        '--plan',
+        '--json',
+      ]);
+
+      const parsed = JSON.parse(result);
+      expect(parsed.plan).toBe(true);
+      expect(parsed.direction).toEqual({
+        from: 'jest',
+        to: 'vitest',
+      });
+      expect(parsed.files).toBeInstanceOf(Array);
+      expect(parsed.files.length).toBeGreaterThan(0);
+      expect(parsed.files[0]).toHaveProperty('source');
+      expect(parsed.files[0]).toHaveProperty('output');
+      expect(parsed.files[0]).toHaveProperty('confidence');
+      expect(parsed.summary).toHaveProperty('total');
+      expect(parsed.summary).toHaveProperty('confidence');
+      expect(parsed.warnings).toEqual([]);
+    });
+
+    test('should imply --dry-run (no files written)', async () => {
+      const inputFile = path.resolve(fixturesDir, 'sample.jest.js');
+      const outFile = path.resolve(
+        outputDir,
+        'plan-implies-dryrun.test.js'
+      );
+      await fs.rm(outFile, { force: true }).catch(() => {});
+
+      runCLI([
+        'convert',
+        inputFile,
+        '--from',
+        'jest',
+        '--to',
+        'vitest',
+        '-o',
+        outFile,
+        '--plan',
+      ]);
+
+      const exists = await fs
+        .access(outFile)
+        .then(() => true)
+        .catch(() => false);
+      expect(exists).toBe(false);
+    });
+
+    test('should work with shorthand commands', () => {
+      const inputFile = path.resolve(fixturesDir, 'sample.jest.js');
+
+      const result = runCLI(['jest2vt', inputFile, '--plan']);
+
+      expect(result).toContain('Conversion Plan');
+      expect(result).toContain('Confidence');
+    });
+  });
+
+  describe('migrate --plan', () => {
+    test('should show file-by-file mapping', async () => {
+      const migrateDir = path.resolve(outputDir, 'migrate-plan');
+      await fs.mkdir(migrateDir, { recursive: true });
+      await fs.writeFile(
+        path.join(migrateDir, 'test.test.js'),
+        `describe('t', () => { it('w', () => { expect(1).toBe(1); }); });`
+      );
+
+      const result = runCLI([
+        'migrate',
+        migrateDir,
+        '--from',
+        'jest',
+        '--to',
+        'vitest',
+        '--plan',
+      ]);
+
+      expect(result).toContain('Migration Plan');
+      expect(result).toContain('jest');
+      expect(result).toContain('vitest');
+      expect(result).toContain('Input');
+      expect(result).toContain('Confidence');
+      expect(result).toContain('Summary');
+
+      // .hamlet/ should NOT exist
+      const hamletExists = await fs
+        .access(path.join(migrateDir, '.hamlet'))
+        .then(() => true)
+        .catch(() => false);
+      expect(hamletExists).toBe(false);
+    });
+  });
 });
