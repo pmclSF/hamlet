@@ -85,7 +85,7 @@ export class ConversionOrchestrator {
 
       console.log(chalk.green('\n✓ Conversion completed successfully'));
       console.log(
-        `Converted ${this.stats.convertedFiles} files in ${this.getExecutionTime()}`,
+        `Converted ${this.stats.convertedFiles} files in ${this.getExecutionTime()}`
       );
 
       return report;
@@ -154,7 +154,7 @@ export class ConversionOrchestrator {
         if (playwrightConfig) {
           await fs.writeFile(
             path.join(outputPath, 'playwright.config.js'),
-            playwrightConfig,
+            playwrightConfig
           );
           console.log(chalk.green('✓ Configuration converted successfully'));
         }
@@ -162,7 +162,7 @@ export class ConversionOrchestrator {
     } catch (error) {
       console.warn(
         chalk.yellow('Warning: Could not convert configuration:'),
-        error.message,
+        error.message
       );
       this.stats.errors.push({
         type: 'config',
@@ -185,7 +185,7 @@ export class ConversionOrchestrator {
         const outputFile = path.join(
           outputPath,
           'tests',
-          relativePath.replace(/\.cy\.(js|ts)$/, '.spec.$1'),
+          relativePath.replace(/\.cy\.(js|ts)$/, '.spec.$1')
         );
 
         // Ensure output directory exists
@@ -212,7 +212,7 @@ export class ConversionOrchestrator {
         });
         console.error(
           chalk.red(`✗ Failed to convert ${testFile}:`),
-          error.message,
+          error.message
         );
       }
     }
@@ -240,7 +240,7 @@ export class ConversionOrchestrator {
         await fs.writeFile(outputFile, converted);
 
         console.log(
-          chalk.green(`✓ Converted support file ${path.basename(file)}`),
+          chalk.green(`✓ Converted support file ${path.basename(file)}`)
         );
       } catch (error) {
         this.stats.errors.push({
@@ -250,7 +250,7 @@ export class ConversionOrchestrator {
         });
         console.error(
           chalk.red(`✗ Failed to convert support file ${file}:`),
-          error.message,
+          error.message
         );
       }
     }
@@ -269,7 +269,7 @@ export class ConversionOrchestrator {
           const outputFile = path.join(
             outputPath,
             'plugins',
-            path.basename(plugin),
+            path.basename(plugin)
           );
           await fs.writeFile(outputFile, converted);
         }
@@ -305,7 +305,7 @@ export class ConversionOrchestrator {
 
     // Save test mappings
     await this.testMapper.saveMappings(
-      path.join(outputPath, 'test-mappings.json'),
+      path.join(outputPath, 'test-mappings.json')
     );
   }
 

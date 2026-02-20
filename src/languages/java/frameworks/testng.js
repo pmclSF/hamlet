@@ -41,7 +41,11 @@ function detect(source) {
   if (/@Test\s*\(\s*enabled\s*=\s*false/.test(source)) score += 15;
   if (/@Factory\b/.test(source)) score += 15;
   if (/@Listeners\b/.test(source)) score += 15;
-  if (/\bAssert\.assertEquals\b/.test(source) && /import\s+org\.testng/.test(source)) score += 10;
+  if (
+    /\bAssert\.assertEquals\b/.test(source) &&
+    /import\s+org\.testng/.test(source)
+  )
+    score += 10;
 
   // Weak signals
   if (/@Test\b/.test(source)) score += 5;
@@ -73,94 +77,139 @@ function parse(source) {
     if (!trimmed) continue;
 
     // Comments
-    if (trimmed.startsWith('//') || trimmed.startsWith('/*') || trimmed.startsWith('*')) {
-      const isLicense = /license|copyright|MIT|Apache|BSD/i.test(trimmed) && i < 5;
-      allNodes.push(new Comment({
-        text: line,
-        commentKind: isLicense ? 'license' : 'inline',
-        preserveExact: isLicense,
-        sourceLocation: loc,
-        originalSource: line,
-      }));
+    if (
+      trimmed.startsWith('//') ||
+      trimmed.startsWith('/*') ||
+      trimmed.startsWith('*')
+    ) {
+      const isLicense =
+        /license|copyright|MIT|Apache|BSD/i.test(trimmed) && i < 5;
+      allNodes.push(
+        new Comment({
+          text: line,
+          commentKind: isLicense ? 'license' : 'inline',
+          preserveExact: isLicense,
+          sourceLocation: loc,
+          originalSource: line,
+        })
+      );
       continue;
     }
 
     // Import statements
     if (/^import\s/.test(trimmed)) {
       const sourceMatch = trimmed.match(/import\s+(?:static\s+)?([^\s;]+)/);
-      allNodes.push(new ImportStatement({
-        kind: 'library',
-        source: sourceMatch ? sourceMatch[1] : '',
-        sourceLocation: loc,
-        originalSource: line,
-        confidence: 'converted',
-      }));
+      allNodes.push(
+        new ImportStatement({
+          kind: 'library',
+          source: sourceMatch ? sourceMatch[1] : '',
+          sourceLocation: loc,
+          originalSource: line,
+          confidence: 'converted',
+        })
+      );
       imports.push(allNodes[allNodes.length - 1]);
       continue;
     }
 
     // Class declaration
     if (/\bclass\s+\w+/.test(trimmed)) {
-      allNodes.push(new TestSuite({
-        name: (trimmed.match(/class\s+(\w+)/) || [])[1] || '',
-        modifiers: [],
-        sourceLocation: loc,
-        originalSource: line,
-        confidence: 'converted',
-      }));
+      allNodes.push(
+        new TestSuite({
+          name: (trimmed.match(/class\s+(\w+)/) || [])[1] || '',
+          modifiers: [],
+          sourceLocation: loc,
+          originalSource: line,
+          confidence: 'converted',
+        })
+      );
       continue;
     }
 
     // @Test annotation
     if (/@Test\b/.test(trimmed)) {
-      allNodes.push(new Modifier({
-        modifierType: 'test',
-        sourceLocation: loc,
-        originalSource: line,
-        confidence: 'converted',
-      }));
+      allNodes.push(
+        new Modifier({
+          modifierType: 'test',
+          sourceLocation: loc,
+          originalSource: line,
+          confidence: 'converted',
+        })
+      );
       continue;
     }
 
     // Lifecycle annotations
     if (/@BeforeMethod\b/.test(trimmed)) {
-      allNodes.push(new Hook({ hookType: 'beforeEach', sourceLocation: loc, originalSource: line, confidence: 'converted' }));
+      allNodes.push(
+        new Hook({
+          hookType: 'beforeEach',
+          sourceLocation: loc,
+          originalSource: line,
+          confidence: 'converted',
+        })
+      );
       continue;
     }
     if (/@AfterMethod\b/.test(trimmed)) {
-      allNodes.push(new Hook({ hookType: 'afterEach', sourceLocation: loc, originalSource: line, confidence: 'converted' }));
+      allNodes.push(
+        new Hook({
+          hookType: 'afterEach',
+          sourceLocation: loc,
+          originalSource: line,
+          confidence: 'converted',
+        })
+      );
       continue;
     }
     if (/@BeforeClass\b/.test(trimmed)) {
-      allNodes.push(new Hook({ hookType: 'beforeAll', sourceLocation: loc, originalSource: line, confidence: 'converted' }));
+      allNodes.push(
+        new Hook({
+          hookType: 'beforeAll',
+          sourceLocation: loc,
+          originalSource: line,
+          confidence: 'converted',
+        })
+      );
       continue;
     }
     if (/@AfterClass\b/.test(trimmed)) {
-      allNodes.push(new Hook({ hookType: 'afterAll', sourceLocation: loc, originalSource: line, confidence: 'converted' }));
+      allNodes.push(
+        new Hook({
+          hookType: 'afterAll',
+          sourceLocation: loc,
+          originalSource: line,
+          confidence: 'converted',
+        })
+      );
       continue;
     }
 
     // @DataProvider
     if (/@DataProvider\b/.test(trimmed)) {
-      allNodes.push(new Modifier({
-        modifierType: 'dataProvider',
-        sourceLocation: loc,
-        originalSource: line,
-        confidence: 'converted',
-      }));
+      allNodes.push(
+        new Modifier({
+          modifierType: 'dataProvider',
+          sourceLocation: loc,
+          originalSource: line,
+          confidence: 'converted',
+        })
+      );
       continue;
     }
 
     // Test methods
     if (/(?:public\s+|protected\s+|private\s+)?void\s+\w+\s*\(/.test(trimmed)) {
-      allNodes.push(new TestCase({
-        name: (trimmed.match(/void\s+(\w+)\s*\(/) || [])[1] || '',
-        isAsync: false,
-        modifiers: [],
-        sourceLocation: loc,
-        originalSource: line,
-        confidence: 'converted',
-      }));
+      allNodes.push(
+        new TestCase({
+          name: (trimmed.match(/void\s+(\w+)\s*\(/) || [])[1] || '',
+          isAsync: false,
+          modifiers: [],
+          sourceLocation: loc,
+          originalSource: line,
+          confidence: 'converted',
+        })
+      );
       continue;
     }
 
@@ -173,27 +222,31 @@ function parse(source) {
       else if (/assertNull/.test(trimmed)) kind = 'isNull';
       else if (/assertNotNull/.test(trimmed)) kind = 'isDefined';
 
-      allNodes.push(new Assertion({
-        kind,
-        sourceLocation: loc,
-        originalSource: line,
-        confidence: 'converted',
-      }));
+      allNodes.push(
+        new Assertion({
+          kind,
+          sourceLocation: loc,
+          originalSource: line,
+          confidence: 'converted',
+        })
+      );
       continue;
     }
 
     // Everything else
-    allNodes.push(new RawCode({
-      code: line,
-      sourceLocation: loc,
-      originalSource: line,
-    }));
+    allNodes.push(
+      new RawCode({
+        code: line,
+        sourceLocation: loc,
+        originalSource: line,
+      })
+    );
   }
 
   return new TestFile({
     language: 'java',
     imports,
-    body: allNodes.filter(n => !imports.includes(n)),
+    body: allNodes.filter((n) => !imports.includes(n)),
   });
 }
 
@@ -212,12 +265,16 @@ function splitArgs(argStr) {
 
     if (inString) {
       current += ch;
-      if (ch === '\\') { i++; current += argStr[i] || ''; continue; }
+      if (ch === '\\') {
+        i++;
+        current += argStr[i] || '';
+        continue;
+      }
       if (ch === stringChar) inString = false;
       continue;
     }
 
-    if (ch === '"' || ch === '\'') {
+    if (ch === '"' || ch === "'") {
       inString = true;
       stringChar = ch;
       current += ch;
@@ -263,12 +320,20 @@ function swapJUnit5AssertionArgs(source, methodName) {
     while (pos < source.length && depth > 0) {
       const ch = source[pos];
       if (inStr) {
-        if (ch === '\\') { pos++; }
-        else if (ch === strCh) { inStr = false; }
+        if (ch === '\\') {
+          pos++;
+        } else if (ch === strCh) {
+          inStr = false;
+        }
       } else {
-        if (ch === '"' || ch === '\'') { inStr = true; strCh = ch; }
-        else if (ch === '(') { depth++; }
-        else if (ch === ')') { depth--; }
+        if (ch === '"' || ch === "'") {
+          inStr = true;
+          strCh = ch;
+        } else if (ch === '(') {
+          depth++;
+        } else if (ch === ')') {
+          depth--;
+        }
       }
       if (depth > 0) pos++;
     }
@@ -312,13 +377,23 @@ function extractMethodBody(lines, startIdx) {
       if (inLineComment) break;
 
       if (inString) {
-        if (ch === '\\') { j++; continue; }
+        if (ch === '\\') {
+          j++;
+          continue;
+        }
         if (ch === stringChar) inString = false;
         continue;
       }
 
-      if (ch === '/' && next === '/') { inLineComment = true; continue; }
-      if (ch === '"' || ch === '\'') { inString = true; stringChar = ch; continue; }
+      if (ch === '/' && next === '/') {
+        inLineComment = true;
+        continue;
+      }
+      if (ch === '"' || ch === "'") {
+        inString = true;
+        stringChar = ch;
+        continue;
+      }
 
       if (ch === '{') {
         if (!foundOpen) {
@@ -330,7 +405,11 @@ function extractMethodBody(lines, startIdx) {
         depth--;
         if (depth === 0 && foundOpen) {
           bodyEnd = i;
-          return { bodyLines: lines.slice(bodyStart, bodyEnd + 1), startLine: bodyStart, endLine: bodyEnd };
+          return {
+            bodyLines: lines.slice(bodyStart, bodyEnd + 1),
+            startLine: bodyStart,
+            endLine: bodyEnd,
+          };
         }
       }
     }
@@ -352,7 +431,9 @@ function convertAssertThrowsToTestNG(source) {
     const line = lines[i];
     const trimmed = line.trim();
 
-    const throwsMatch = trimmed.match(/assertThrows\s*\(\s*([\w.]+)\.class\s*,\s*\(\)\s*->\s*\{/);
+    const throwsMatch = trimmed.match(
+      /assertThrows\s*\(\s*([\w.]+)\.class\s*,\s*\(\)\s*->\s*\{/
+    );
 
     if (throwsMatch) {
       const exceptionClass = throwsMatch[1];
@@ -367,8 +448,10 @@ function convertAssertThrowsToTestNG(source) {
         const l = lines[j];
         for (let k = 0; k < l.length; k++) {
           const ch = l[k];
-          if (ch === '{') { depth++; foundOpen = true; }
-          else if (ch === '}') {
+          if (ch === '{') {
+            depth++;
+            foundOpen = true;
+          } else if (ch === '}') {
             depth--;
             if (depth === 0 && foundOpen) {
               lambdaEnd = j;
@@ -399,10 +482,16 @@ function convertAssertThrowsToTestNG(source) {
         // Look backwards from the current assertion to find @Test
         for (let j = result.length - 1; j >= 0; j--) {
           if (result[j].trim() === '@Test') {
-            result[j] = result[j].replace('@Test', `@Test(expectedExceptions = ${exceptionClass}.class)`);
+            result[j] = result[j].replace(
+              '@Test',
+              `@Test(expectedExceptions = ${exceptionClass}.class)`
+            );
             break;
           } else if (/^\s*@Test\s*$/.test(result[j])) {
-            result[j] = result[j].replace(/@Test\s*$/, `@Test(expectedExceptions = ${exceptionClass}.class)`);
+            result[j] = result[j].replace(
+              /@Test\s*$/,
+              `@Test(expectedExceptions = ${exceptionClass}.class)`
+            );
             break;
           }
         }
@@ -466,32 +555,104 @@ function emit(_ir, source) {
 
   // --- Phase 4: Import rewrites ---
 
-  result = result.replace(/import\s+org\.junit\.jupiter\.api\.\*\s*;/g, 'import org.testng.annotations.*;');
-  result = result.replace(/import\s+org\.junit\.jupiter\.api\.Test\s*;/g, 'import org.testng.annotations.Test;');
-  result = result.replace(/import\s+org\.junit\.jupiter\.api\.BeforeEach\s*;/g, 'import org.testng.annotations.BeforeMethod;');
-  result = result.replace(/import\s+org\.junit\.jupiter\.api\.AfterEach\s*;/g, 'import org.testng.annotations.AfterMethod;');
-  result = result.replace(/import\s+org\.junit\.jupiter\.api\.BeforeAll\s*;/g, 'import org.testng.annotations.BeforeClass;');
-  result = result.replace(/import\s+org\.junit\.jupiter\.api\.AfterAll\s*;/g, 'import org.testng.annotations.AfterClass;');
-  result = result.replace(/import\s+org\.junit\.jupiter\.api\.Disabled\s*;\n?/g, '// TestNG uses @Test(enabled = false) instead of @Disabled\n');
-  result = result.replace(/import\s+org\.junit\.jupiter\.api\.Tag\s*;\n?/g, '// TestNG uses @Test(groups = {...}) instead of @Tag\n');
-  result = result.replace(/import\s+org\.junit\.jupiter\.api\.DisplayName\s*;\n?/g, '');
-  result = result.replace(/import\s+org\.junit\.jupiter\.api\.Nested\s*;\n?/g, '');
-  result = result.replace(/import\s+org\.junit\.jupiter\.api\.Assertions\s*;/g, 'import org.testng.Assert;');
-  result = result.replace(/import\s+static\s+org\.junit\.jupiter\.api\.Assertions\.\*\s*;/g, 'import static org.testng.Assert.*;');
-  result = result.replace(/import\s+static\s+org\.junit\.jupiter\.api\.Assertions\.assertThrows\s*;\n?/g, '');
-  result = result.replace(/import\s+static\s+org\.junit\.jupiter\.api\.Assertions\.assertTimeout\s*;\n?/g, '');
+  result = result.replace(
+    /import\s+org\.junit\.jupiter\.api\.\*\s*;/g,
+    'import org.testng.annotations.*;'
+  );
+  result = result.replace(
+    /import\s+org\.junit\.jupiter\.api\.Test\s*;/g,
+    'import org.testng.annotations.Test;'
+  );
+  result = result.replace(
+    /import\s+org\.junit\.jupiter\.api\.BeforeEach\s*;/g,
+    'import org.testng.annotations.BeforeMethod;'
+  );
+  result = result.replace(
+    /import\s+org\.junit\.jupiter\.api\.AfterEach\s*;/g,
+    'import org.testng.annotations.AfterMethod;'
+  );
+  result = result.replace(
+    /import\s+org\.junit\.jupiter\.api\.BeforeAll\s*;/g,
+    'import org.testng.annotations.BeforeClass;'
+  );
+  result = result.replace(
+    /import\s+org\.junit\.jupiter\.api\.AfterAll\s*;/g,
+    'import org.testng.annotations.AfterClass;'
+  );
+  result = result.replace(
+    /import\s+org\.junit\.jupiter\.api\.Disabled\s*;\n?/g,
+    '// TestNG uses @Test(enabled = false) instead of @Disabled\n'
+  );
+  result = result.replace(
+    /import\s+org\.junit\.jupiter\.api\.Tag\s*;\n?/g,
+    '// TestNG uses @Test(groups = {...}) instead of @Tag\n'
+  );
+  result = result.replace(
+    /import\s+org\.junit\.jupiter\.api\.DisplayName\s*;\n?/g,
+    ''
+  );
+  result = result.replace(
+    /import\s+org\.junit\.jupiter\.api\.Nested\s*;\n?/g,
+    ''
+  );
+  result = result.replace(
+    /import\s+org\.junit\.jupiter\.api\.Assertions\s*;/g,
+    'import org.testng.Assert;'
+  );
+  result = result.replace(
+    /import\s+static\s+org\.junit\.jupiter\.api\.Assertions\.\*\s*;/g,
+    'import static org.testng.Assert.*;'
+  );
+  result = result.replace(
+    /import\s+static\s+org\.junit\.jupiter\.api\.Assertions\.assertThrows\s*;\n?/g,
+    ''
+  );
+  result = result.replace(
+    /import\s+static\s+org\.junit\.jupiter\.api\.Assertions\.assertTimeout\s*;\n?/g,
+    ''
+  );
 
   // Remove JUnit 5 params imports (no direct TestNG equivalent)
-  result = result.replace(/import\s+org\.junit\.jupiter\.params\.ParameterizedTest\s*;\n?/g, '');
-  result = result.replace(/import\s+org\.junit\.jupiter\.params\.provider\.CsvSource\s*;\n?/g, '');
-  result = result.replace(/import\s+org\.junit\.jupiter\.params\.provider\.ValueSource\s*;\n?/g, '');
-  result = result.replace(/import\s+org\.junit\.jupiter\.params\.provider\.NullAndEmptySource\s*;\n?/g, '');
-  result = result.replace(/import\s+org\.junit\.jupiter\.params\.provider\.NullSource\s*;\n?/g, '');
-  result = result.replace(/import\s+org\.junit\.jupiter\.params\.provider\.EmptySource\s*;\n?/g, '');
-  result = result.replace(/import\s+org\.junit\.jupiter\.params\.provider\.EnumSource\s*;\n?/g, '');
-  result = result.replace(/import\s+org\.junit\.jupiter\.params\.provider\.MethodSource\s*;\n?/g, '');
-  result = result.replace(/import\s+org\.junit\.jupiter\.params\.provider\.\*\s*;\n?/g, '');
-  result = result.replace(/import\s+org\.junit\.jupiter\.params\.\*\s*;\n?/g, '');
+  result = result.replace(
+    /import\s+org\.junit\.jupiter\.params\.ParameterizedTest\s*;\n?/g,
+    ''
+  );
+  result = result.replace(
+    /import\s+org\.junit\.jupiter\.params\.provider\.CsvSource\s*;\n?/g,
+    ''
+  );
+  result = result.replace(
+    /import\s+org\.junit\.jupiter\.params\.provider\.ValueSource\s*;\n?/g,
+    ''
+  );
+  result = result.replace(
+    /import\s+org\.junit\.jupiter\.params\.provider\.NullAndEmptySource\s*;\n?/g,
+    ''
+  );
+  result = result.replace(
+    /import\s+org\.junit\.jupiter\.params\.provider\.NullSource\s*;\n?/g,
+    ''
+  );
+  result = result.replace(
+    /import\s+org\.junit\.jupiter\.params\.provider\.EmptySource\s*;\n?/g,
+    ''
+  );
+  result = result.replace(
+    /import\s+org\.junit\.jupiter\.params\.provider\.EnumSource\s*;\n?/g,
+    ''
+  );
+  result = result.replace(
+    /import\s+org\.junit\.jupiter\.params\.provider\.MethodSource\s*;\n?/g,
+    ''
+  );
+  result = result.replace(
+    /import\s+org\.junit\.jupiter\.params\.provider\.\*\s*;\n?/g,
+    ''
+  );
+  result = result.replace(
+    /import\s+org\.junit\.jupiter\.params\.\*\s*;\n?/g,
+    ''
+  );
 
   // --- Phase 5: Assertion argument order swap ---
   // JUnit 5: Assertions.assertEquals(expected, actual[, message]) — expected first
@@ -504,7 +665,10 @@ function emit(_ir, source) {
   result = result.replace(/\bAssertions\.assertTrue\b/g, 'Assert.assertTrue');
   result = result.replace(/\bAssertions\.assertFalse\b/g, 'Assert.assertFalse');
   result = result.replace(/\bAssertions\.assertNull\b/g, 'Assert.assertNull');
-  result = result.replace(/\bAssertions\.assertNotNull\b/g, 'Assert.assertNotNull');
+  result = result.replace(
+    /\bAssertions\.assertNotNull\b/g,
+    'Assert.assertNotNull'
+  );
   result = result.replace(/\bAssertions\.fail\b/g, 'Assert.fail');
 
   // --- Phase 6: assertThrows → @Test(expectedExceptions) ---
@@ -517,53 +681,77 @@ function emit(_ir, source) {
   result = result.replace(
     /^([ \t]*)@DisplayName\s*\(.*\)$/gm,
     (match, indent) => {
-      return formatter.formatTodo({
-        id: 'UNCONVERTIBLE-DISPLAY-NAME',
-        description: 'JUnit 5 @DisplayName has no TestNG equivalent',
-        original: match.trim(),
-        action: 'Use test method naming conventions or TestNG @Test(description = "...")',
-      }).split('\n').map(l => indent + l).join('\n') + '\n' + match;
+      return (
+        formatter
+          .formatTodo({
+            id: 'UNCONVERTIBLE-DISPLAY-NAME',
+            description: 'JUnit 5 @DisplayName has no TestNG equivalent',
+            original: match.trim(),
+            action:
+              'Use test method naming conventions or TestNG @Test(description = "...")',
+          })
+          .split('\n')
+          .map((l) => indent + l)
+          .join('\n') +
+        '\n' +
+        match
+      );
     }
   );
 
   // @Nested
-  result = result.replace(
-    /^([ \t]*)@Nested\b.*$/gm,
-    (match, indent) => {
-      return formatter.formatTodo({
-        id: 'UNCONVERTIBLE-NESTED',
-        description: 'JUnit 5 @Nested has no TestNG equivalent',
-        original: match.trim(),
-        action: 'Flatten nested test classes or use separate test classes',
-      }).split('\n').map(l => indent + l).join('\n') + '\n' + match;
-    }
-  );
+  result = result.replace(/^([ \t]*)@Nested\b.*$/gm, (match, indent) => {
+    return (
+      formatter
+        .formatTodo({
+          id: 'UNCONVERTIBLE-NESTED',
+          description: 'JUnit 5 @Nested has no TestNG equivalent',
+          original: match.trim(),
+          action: 'Flatten nested test classes or use separate test classes',
+        })
+        .split('\n')
+        .map((l) => indent + l)
+        .join('\n') +
+      '\n' +
+      match
+    );
+  });
 
   // @RepeatedTest
-  result = result.replace(
-    /^([ \t]*)@RepeatedTest\b.*$/gm,
-    (match, indent) => {
-      return formatter.formatTodo({
-        id: 'UNCONVERTIBLE-REPEATED-TEST',
-        description: 'JUnit 5 @RepeatedTest has no direct TestNG equivalent',
-        original: match.trim(),
-        action: 'Use @Test(invocationCount = N) in TestNG',
-      }).split('\n').map(l => indent + l).join('\n') + '\n' + match;
-    }
-  );
+  result = result.replace(/^([ \t]*)@RepeatedTest\b.*$/gm, (match, indent) => {
+    return (
+      formatter
+        .formatTodo({
+          id: 'UNCONVERTIBLE-REPEATED-TEST',
+          description: 'JUnit 5 @RepeatedTest has no direct TestNG equivalent',
+          original: match.trim(),
+          action: 'Use @Test(invocationCount = N) in TestNG',
+        })
+        .split('\n')
+        .map((l) => indent + l)
+        .join('\n') +
+      '\n' +
+      match
+    );
+  });
 
   // @TestFactory
-  result = result.replace(
-    /^([ \t]*)@TestFactory\b.*$/gm,
-    (match, indent) => {
-      return formatter.formatTodo({
-        id: 'UNCONVERTIBLE-TEST-FACTORY',
-        description: 'JUnit 5 @TestFactory has no TestNG equivalent',
-        original: match.trim(),
-        action: 'Use @DataProvider or @Factory in TestNG',
-      }).split('\n').map(l => indent + l).join('\n') + '\n' + match;
-    }
-  );
+  result = result.replace(/^([ \t]*)@TestFactory\b.*$/gm, (match, indent) => {
+    return (
+      formatter
+        .formatTodo({
+          id: 'UNCONVERTIBLE-TEST-FACTORY',
+          description: 'JUnit 5 @TestFactory has no TestNG equivalent',
+          original: match.trim(),
+          action: 'Use @DataProvider or @Factory in TestNG',
+        })
+        .split('\n')
+        .map((l) => indent + l)
+        .join('\n') +
+      '\n' +
+      match
+    );
+  });
 
   // --- Phase 8: @ParameterizedTest + source annotations → HAMLET-TODO ---
 
@@ -571,79 +759,121 @@ function emit(_ir, source) {
   result = result.replace(
     /^([ \t]*)@ParameterizedTest\b.*$/gm,
     (match, indent) => {
-      return formatter.formatTodo({
-        id: 'UNCONVERTIBLE-PARAMETERIZED-TEST',
-        description: 'JUnit 5 @ParameterizedTest requires manual conversion to TestNG @DataProvider',
-        original: match.trim(),
-        action: 'Create a @DataProvider method and reference it with @Test(dataProvider = "...")',
-      }).split('\n').map(l => indent + l).join('\n') + '\n' + match;
+      return (
+        formatter
+          .formatTodo({
+            id: 'UNCONVERTIBLE-PARAMETERIZED-TEST',
+            description:
+              'JUnit 5 @ParameterizedTest requires manual conversion to TestNG @DataProvider',
+            original: match.trim(),
+            action:
+              'Create a @DataProvider method and reference it with @Test(dataProvider = "...")',
+          })
+          .split('\n')
+          .map((l) => indent + l)
+          .join('\n') +
+        '\n' +
+        match
+      );
     }
   );
 
   // @CsvSource
-  result = result.replace(
-    /^([ \t]*)@CsvSource\b.*$/gm,
-    (match, indent) => {
-      return formatter.formatTodo({
-        id: 'UNCONVERTIBLE-CSV-SOURCE',
-        description: 'JUnit 5 @CsvSource has no direct TestNG equivalent',
-        original: match.trim(),
-        action: 'Convert CSV data into a @DataProvider method returning Object[][]',
-      }).split('\n').map(l => indent + l).join('\n') + '\n' + match;
-    }
-  );
+  result = result.replace(/^([ \t]*)@CsvSource\b.*$/gm, (match, indent) => {
+    return (
+      formatter
+        .formatTodo({
+          id: 'UNCONVERTIBLE-CSV-SOURCE',
+          description: 'JUnit 5 @CsvSource has no direct TestNG equivalent',
+          original: match.trim(),
+          action:
+            'Convert CSV data into a @DataProvider method returning Object[][]',
+        })
+        .split('\n')
+        .map((l) => indent + l)
+        .join('\n') +
+      '\n' +
+      match
+    );
+  });
 
   // @ValueSource
-  result = result.replace(
-    /^([ \t]*)@ValueSource\b.*$/gm,
-    (match, indent) => {
-      return formatter.formatTodo({
-        id: 'UNCONVERTIBLE-VALUE-SOURCE',
-        description: 'JUnit 5 @ValueSource has no direct TestNG equivalent',
-        original: match.trim(),
-        action: 'Convert values into a @DataProvider method returning Object[][]',
-      }).split('\n').map(l => indent + l).join('\n') + '\n' + match;
-    }
-  );
+  result = result.replace(/^([ \t]*)@ValueSource\b.*$/gm, (match, indent) => {
+    return (
+      formatter
+        .formatTodo({
+          id: 'UNCONVERTIBLE-VALUE-SOURCE',
+          description: 'JUnit 5 @ValueSource has no direct TestNG equivalent',
+          original: match.trim(),
+          action:
+            'Convert values into a @DataProvider method returning Object[][]',
+        })
+        .split('\n')
+        .map((l) => indent + l)
+        .join('\n') +
+      '\n' +
+      match
+    );
+  });
 
   // @NullAndEmptySource / @NullSource / @EmptySource
   result = result.replace(
     /^([ \t]*)@(?:NullAndEmpty|Null|Empty)Source\b.*$/gm,
     (match, indent) => {
-      return formatter.formatTodo({
-        id: 'UNCONVERTIBLE-NULL-EMPTY-SOURCE',
-        description: 'JUnit 5 @NullAndEmptySource/@NullSource/@EmptySource has no TestNG equivalent',
-        original: match.trim(),
-        action: 'Add null/empty values to the @DataProvider data set',
-      }).split('\n').map(l => indent + l).join('\n') + '\n' + match;
+      return (
+        formatter
+          .formatTodo({
+            id: 'UNCONVERTIBLE-NULL-EMPTY-SOURCE',
+            description:
+              'JUnit 5 @NullAndEmptySource/@NullSource/@EmptySource has no TestNG equivalent',
+            original: match.trim(),
+            action: 'Add null/empty values to the @DataProvider data set',
+          })
+          .split('\n')
+          .map((l) => indent + l)
+          .join('\n') +
+        '\n' +
+        match
+      );
     }
   );
 
   // @EnumSource
-  result = result.replace(
-    /^([ \t]*)@EnumSource\b.*$/gm,
-    (match, indent) => {
-      return formatter.formatTodo({
-        id: 'UNCONVERTIBLE-ENUM-SOURCE',
-        description: 'JUnit 5 @EnumSource has no direct TestNG equivalent',
-        original: match.trim(),
-        action: 'Create a @DataProvider method that returns enum values',
-      }).split('\n').map(l => indent + l).join('\n') + '\n' + match;
-    }
-  );
+  result = result.replace(/^([ \t]*)@EnumSource\b.*$/gm, (match, indent) => {
+    return (
+      formatter
+        .formatTodo({
+          id: 'UNCONVERTIBLE-ENUM-SOURCE',
+          description: 'JUnit 5 @EnumSource has no direct TestNG equivalent',
+          original: match.trim(),
+          action: 'Create a @DataProvider method that returns enum values',
+        })
+        .split('\n')
+        .map((l) => indent + l)
+        .join('\n') +
+      '\n' +
+      match
+    );
+  });
 
   // @MethodSource
-  result = result.replace(
-    /^([ \t]*)@MethodSource\b.*$/gm,
-    (match, indent) => {
-      return formatter.formatTodo({
-        id: 'UNCONVERTIBLE-METHOD-SOURCE',
-        description: 'JUnit 5 @MethodSource should be converted to TestNG @DataProvider',
-        original: match.trim(),
-        action: 'Rename the source method and annotate it with @DataProvider',
-      }).split('\n').map(l => indent + l).join('\n') + '\n' + match;
-    }
-  );
+  result = result.replace(/^([ \t]*)@MethodSource\b.*$/gm, (match, indent) => {
+    return (
+      formatter
+        .formatTodo({
+          id: 'UNCONVERTIBLE-METHOD-SOURCE',
+          description:
+            'JUnit 5 @MethodSource should be converted to TestNG @DataProvider',
+          original: match.trim(),
+          action: 'Rename the source method and annotate it with @DataProvider',
+        })
+        .split('\n')
+        .map((l) => indent + l)
+        .join('\n') +
+      '\n' +
+      match
+    );
+  });
 
   // --- Cleanup ---
 
@@ -661,6 +891,11 @@ export default {
   parse,
   emit,
   imports: {
-    packages: ['org.testng.annotations.Test', 'org.testng.Assert', 'org.testng.annotations.BeforeMethod', 'org.testng.annotations.AfterMethod'],
+    packages: [
+      'org.testng.annotations.Test',
+      'org.testng.Assert',
+      'org.testng.annotations.BeforeMethod',
+      'org.testng.annotations.AfterMethod',
+    ],
   },
 };

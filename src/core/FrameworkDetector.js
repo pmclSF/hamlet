@@ -9,24 +9,17 @@ export class FrameworkDetector {
    */
   static patterns = {
     [FRAMEWORKS.CYPRESS]: {
-      commands: [
-        /cy\./g,
-        /cypress\./gi,
-        /Cypress\./g
-      ],
+      commands: [/cy\./g, /cypress\./gi, /Cypress\./g],
       imports: [
         /from\s+['"]cypress['"]/,
-        /require\s*\(\s*['"]cypress['"]\s*\)/
+        /require\s*\(\s*['"]cypress['"]\s*\)/,
       ],
-      config: [
-        /cypress\.config\.(js|ts|mjs)/,
-        /cypress\.json/
-      ],
+      config: [/cypress\.config\.(js|ts|mjs)/, /cypress\.json/],
       filePatterns: [
         /\.cy\.(js|ts|jsx|tsx)$/,
         /cypress\/e2e\//,
         /cypress\/integration\//,
-        /cypress\/component\//
+        /cypress\/component\//,
       ],
       keywords: [
         /cy\.visit\(/,
@@ -35,27 +28,20 @@ export class FrameworkDetector {
         /cy\.intercept\(/,
         /cy\.request\(/,
         /\.should\(['"]be\./,
-        /\.should\(['"]have\./
-      ]
+        /\.should\(['"]have\./,
+      ],
     },
 
     [FRAMEWORKS.PLAYWRIGHT]: {
-      commands: [
-        /page\.(goto|locator|getBy)/g,
-        /test\.describe\(/g
-      ],
+      commands: [/page\.(goto|locator|getBy)/g, /test\.describe\(/g],
       imports: [
         /from\s+['"]@playwright\/test['"]/,
         /from\s+['"]playwright['"]/,
         /require\s*\(\s*['"]@playwright\/test['"]\s*\)/,
-        /require\s*\(\s*['"]playwright['"]\s*\)/
+        /require\s*\(\s*['"]playwright['"]\s*\)/,
       ],
-      config: [
-        /playwright\.config\.(js|ts|mjs)/
-      ],
-      filePatterns: [
-        /\.spec\.(js|ts|jsx|tsx)$/
-      ],
+      config: [/playwright\.config\.(js|ts|mjs)/],
+      filePatterns: [/\.spec\.(js|ts|jsx|tsx)$/],
       keywords: [
         /page\.goto\(/,
         /page\.locator\(/,
@@ -63,27 +49,19 @@ export class FrameworkDetector {
         /expect\([^)]+\)\.toBeVisible\(/,
         /expect\([^)]+\)\.toHaveText\(/,
         /test\.describe\(/,
-        /test\.beforeEach\(/
-      ]
+        /test\.beforeEach\(/,
+      ],
     },
 
     [FRAMEWORKS.SELENIUM]: {
-      commands: [
-        /driver\./g,
-        /webdriver\./gi,
-        /WebDriver\./g
-      ],
+      commands: [/driver\./g, /webdriver\./gi, /WebDriver\./g],
       imports: [
         /from\s+['"]selenium-webdriver['"]/,
         /require\s*\(\s*['"]selenium-webdriver['"]\s*\)/,
-        /from\s+['"]webdriver['"]/
+        /from\s+['"]webdriver['"]/,
       ],
-      config: [
-        /selenium\.config\.(js|ts)/
-      ],
-      filePatterns: [
-        /selenium/i
-      ],
+      config: [/selenium\.config\.(js|ts)/],
+      filePatterns: [/selenium/i],
       keywords: [
         /driver\.get\(/,
         /driver\.findElement\(/,
@@ -91,25 +69,15 @@ export class FrameworkDetector {
         /By\.(css|xpath|id|name|className)\(/,
         /\.sendKeys\(/,
         /driver\.wait\(/,
-        /until\.elementLocated\(/
-      ]
+        /until\.elementLocated\(/,
+      ],
     },
 
     [FRAMEWORKS.JEST]: {
-      commands: [
-        /jest\./g
-      ],
-      imports: [
-        /from\s+['"]@jest\/globals['"]/,
-        /from\s+['"]jest['"]/
-      ],
-      config: [
-        /jest\.config\.(js|ts|mjs|cjs)/
-      ],
-      filePatterns: [
-        /\.test\.(js|ts|jsx|tsx)$/,
-        /__tests__\//
-      ],
+      commands: [/jest\./g],
+      imports: [/from\s+['"]@jest\/globals['"]/, /from\s+['"]jest['"]/],
+      config: [/jest\.config\.(js|ts|mjs|cjs)/],
+      filePatterns: [/\.test\.(js|ts|jsx|tsx)$/, /__tests__\//],
       keywords: [
         /jest\.fn\(/,
         /jest\.mock\(/,
@@ -117,32 +85,22 @@ export class FrameworkDetector {
         /jest\.clearAllMocks/,
         /jest\.useFakeTimers/,
         /test\.each/,
-        /expect\([^)]*\)\.(toBe|toEqual|toContain|toThrow|toHaveBeenCalled)/
-      ]
+        /expect\([^)]*\)\.(toBe|toEqual|toContain|toThrow|toHaveBeenCalled)/,
+      ],
     },
 
     [FRAMEWORKS.VITEST]: {
-      commands: [
-        /vi\./g
-      ],
-      imports: [
-        /from\s+['"]vitest['"]/
-      ],
-      config: [
-        /vitest\.config\.(js|ts|mjs)/,
-        /vite\.config\.(js|ts|mjs)/
-      ],
-      filePatterns: [
-        /\.test\.(js|ts|jsx|tsx)$/,
-        /\.spec\.(js|ts|jsx|tsx)$/
-      ],
+      commands: [/vi\./g],
+      imports: [/from\s+['"]vitest['"]/],
+      config: [/vitest\.config\.(js|ts|mjs)/, /vite\.config\.(js|ts|mjs)/],
+      filePatterns: [/\.test\.(js|ts|jsx|tsx)$/, /\.spec\.(js|ts|jsx|tsx)$/],
       keywords: [
         /vi\.fn\(/,
         /vi\.mock\(/,
         /vi\.spyOn\(/,
         /vi\.useFakeTimers/,
-        /vi\.useRealTimers/
-      ]
+        /vi\.useRealTimers/,
+      ],
     },
 
     [FRAMEWORKS.MOCHA]: {
@@ -151,16 +109,10 @@ export class FrameworkDetector {
         /from\s+['"]mocha['"]/,
         /require\s*\(\s*['"]mocha['"]\s*\)/,
         /from\s+['"]chai['"]/,
-        /require\s*\(\s*['"]chai['"]\s*\)/
+        /require\s*\(\s*['"]chai['"]\s*\)/,
       ],
-      config: [
-        /\.mocharc\.(yml|yaml|json|js|cjs)/
-      ],
-      filePatterns: [
-        /\.test\.(js|ts)$/,
-        /\.spec\.(js|ts)$/,
-        /test\//
-      ],
+      config: [/\.mocharc\.(yml|yaml|json|js|cjs)/],
+      filePatterns: [/\.test\.(js|ts)$/, /\.spec\.(js|ts)$/, /test\//],
       keywords: [
         /\bcontext\s*\(/,
         /\bspecify\s*\(/,
@@ -169,26 +121,18 @@ export class FrameworkDetector {
         /\bsetup\s*\(/,
         /\bteardown\s*\(/,
         /expect\([^)]*\)\.to\.(be|have|equal|deep|include)/,
-        /assert\.(equal|deepEqual|strictEqual|ok|throws)/
-      ]
+        /assert\.(equal|deepEqual|strictEqual|ok|throws)/,
+      ],
     },
 
     [FRAMEWORKS.JASMINE]: {
-      commands: [
-        /jasmine\./g
-      ],
+      commands: [/jasmine\./g],
       imports: [
         /from\s+['"]jasmine['"]/,
-        /require\s*\(\s*['"]jasmine['"]\s*\)/
+        /require\s*\(\s*['"]jasmine['"]\s*\)/,
       ],
-      config: [
-        /jasmine\.json/,
-        /jasmine\.config/
-      ],
-      filePatterns: [
-        /\.spec\.(js|ts)$/,
-        /spec\//
-      ],
+      config: [/jasmine\.json/, /jasmine\.config/],
+      filePatterns: [/\.spec\.(js|ts)$/, /spec\//],
       keywords: [
         /jasmine\.createSpy/,
         /jasmine\.createSpyObj/,
@@ -198,29 +142,19 @@ export class FrameworkDetector {
         /\bfdescribe\s*\(/,
         /\bfit\s*\(/,
         /\bxdescribe\s*\(/,
-        /\bxit\s*\(/
-      ]
+        /\bxit\s*\(/,
+      ],
     },
 
     [FRAMEWORKS.WEBDRIVERIO]: {
-      commands: [
-        /browser\.(url|getUrl|pause|keys)\(/g,
-        /\$\(/g,
-        /\$\$\(/g
-      ],
+      commands: [/browser\.(url|getUrl|pause|keys)\(/g, /\$\(/g, /\$\$\(/g],
       imports: [
         /from\s+['"]webdriverio['"]/,
         /from\s+['"]@wdio\//,
-        /require\s*\(\s*['"]webdriverio['"]\s*\)/
+        /require\s*\(\s*['"]webdriverio['"]\s*\)/,
       ],
-      config: [
-        /wdio\.conf\.(js|ts|mjs)/
-      ],
-      filePatterns: [
-        /\.test\.(js|ts)$/,
-        /\.spec\.(js|ts)$/,
-        /wdio/i
-      ],
+      config: [/wdio\.conf\.(js|ts|mjs)/],
+      filePatterns: [/\.test\.(js|ts)$/, /\.spec\.(js|ts)$/, /wdio/i],
       keywords: [
         /browser\.url\(/,
         /\$\(['"][^'"]+['"]\)/,
@@ -229,22 +163,18 @@ export class FrameworkDetector {
         /\.waitForExist\(/,
         /\.setValue\(/,
         /\.getValue\(/,
-        /\.isDisplayed\(/
-      ]
+        /\.isDisplayed\(/,
+      ],
     },
 
     [FRAMEWORKS.PUPPETEER]: {
-      commands: [
-        /puppeteer\./g
-      ],
+      commands: [/puppeteer\./g],
       imports: [
         /from\s+['"]puppeteer['"]/,
-        /require\s*\(\s*['"]puppeteer['"]\s*\)/
+        /require\s*\(\s*['"]puppeteer['"]\s*\)/,
       ],
       config: [],
-      filePatterns: [
-        /puppeteer/i
-      ],
+      filePatterns: [/puppeteer/i],
       keywords: [
         /puppeteer\.launch\(/,
         /browser\.newPage\(/,
@@ -253,24 +183,18 @@ export class FrameworkDetector {
         /page\.\$\$eval\(/,
         /page\.waitForSelector\(/,
         /page\.evaluate\(/,
-        /page\.screenshot\(/
-      ]
+        /page\.screenshot\(/,
+      ],
     },
 
     [FRAMEWORKS.TESTCAFE]: {
-      commands: [
-        /\bt\./g
-      ],
+      commands: [/\bt\./g],
       imports: [
         /from\s+['"]testcafe['"]/,
-        /require\s*\(\s*['"]testcafe['"]\s*\)/
+        /require\s*\(\s*['"]testcafe['"]\s*\)/,
       ],
-      config: [
-        /\.testcaferc\.(json|js|cjs)/
-      ],
-      filePatterns: [
-        /testcafe/i
-      ],
+      config: [/\.testcaferc\.(json|js|cjs)/],
+      filePatterns: [/testcafe/i],
       keywords: [
         /\bfixture\s*\(/,
         /\bSelector\s*\(/,
@@ -278,8 +202,8 @@ export class FrameworkDetector {
         /t\.typeText\(/,
         /t\.click\(/,
         /t\.expect\(/,
-        /t\.navigateTo\(/
-      ]
+        /t\.navigateTo\(/,
+      ],
     },
 
     [FRAMEWORKS.JUNIT4]: {
@@ -290,13 +214,10 @@ export class FrameworkDetector {
         /import\s+org\.junit\.After/,
         /import\s+org\.junit\.Assert/,
         /import\s+static\s+org\.junit\.Assert\.\*/,
-        /import\s+org\.junit\.runner/
+        /import\s+org\.junit\.runner/,
       ],
       config: [],
-      filePatterns: [
-        /Test\.java$/,
-        /Tests\.java$/
-      ],
+      filePatterns: [/Test\.java$/, /Tests\.java$/],
       keywords: [
         /@Test\b/,
         /@Before\b(?!Each|All)/,
@@ -304,21 +225,18 @@ export class FrameworkDetector {
         /@RunWith\(/,
         /@Rule\b/,
         /Assert\.(assertEquals|assertTrue|assertFalse|assertNull|assertNotNull)/,
-        /@Test\s*\(\s*expected\s*=/
-      ]
+        /@Test\s*\(\s*expected\s*=/,
+      ],
     },
 
     [FRAMEWORKS.JUNIT5]: {
       commands: [],
       imports: [
         /import\s+org\.junit\.jupiter/,
-        /import\s+static\s+org\.junit\.jupiter\.api\.Assertions\.\*/
+        /import\s+static\s+org\.junit\.jupiter\.api\.Assertions\.\*/,
       ],
       config: [],
-      filePatterns: [
-        /Test\.java$/,
-        /Tests\.java$/
-      ],
+      filePatterns: [/Test\.java$/, /Tests\.java$/],
       keywords: [
         /@Test\b/,
         /@BeforeEach\b/,
@@ -331,22 +249,18 @@ export class FrameworkDetector {
         /@CsvSource\(/,
         /@ValueSource\(/,
         /Assertions\.(assertEquals|assertTrue|assertFalse|assertThrows|assertAll)/,
-        /assertThrows\(/
-      ]
+        /assertThrows\(/,
+      ],
     },
 
     [FRAMEWORKS.TESTNG]: {
       commands: [],
       imports: [
         /import\s+org\.testng/,
-        /import\s+static\s+org\.testng\.Assert\.\*/
+        /import\s+static\s+org\.testng\.Assert\.\*/,
       ],
-      config: [
-        /testng\.xml/
-      ],
-      filePatterns: [
-        /Test\.java$/
-      ],
+      config: [/testng\.xml/],
+      filePatterns: [/Test\.java$/],
       keywords: [
         /@Test\b/,
         /@BeforeMethod\b/,
@@ -356,29 +270,15 @@ export class FrameworkDetector {
         /@DataProvider\b/,
         /@Test\s*\(\s*dataProvider\s*=/,
         /@Test\s*\(\s*expectedExceptions\s*=/,
-        /Assert\.(assertEquals|assertTrue|assertFalse|assertNull|assertNotNull)/
-      ]
+        /Assert\.(assertEquals|assertTrue|assertFalse|assertNull|assertNotNull)/,
+      ],
     },
 
     [FRAMEWORKS.PYTEST]: {
-      commands: [
-        /pytest\./g
-      ],
-      imports: [
-        /import\s+pytest/,
-        /from\s+pytest\s+import/
-      ],
-      config: [
-        /pytest\.ini/,
-        /pyproject\.toml/,
-        /conftest\.py/,
-        /setup\.cfg/
-      ],
-      filePatterns: [
-        /test_.*\.py$/,
-        /.*_test\.py$/,
-        /conftest\.py$/
-      ],
+      commands: [/pytest\./g],
+      imports: [/import\s+pytest/, /from\s+pytest\s+import/],
+      config: [/pytest\.ini/, /pyproject\.toml/, /conftest\.py/, /setup\.cfg/],
+      filePatterns: [/test_.*\.py$/, /.*_test\.py$/, /conftest\.py$/],
       keywords: [
         /@pytest\.fixture/,
         /@pytest\.mark\./,
@@ -386,23 +286,15 @@ export class FrameworkDetector {
         /pytest\.raises\(/,
         /pytest\.skip\(/,
         /\bdef test_\w+/,
-        /\bassert\s+/
-      ]
+        /\bassert\s+/,
+      ],
     },
 
     [FRAMEWORKS.UNITTEST]: {
-      commands: [
-        /unittest\./g
-      ],
-      imports: [
-        /import\s+unittest/,
-        /from\s+unittest\s+import/
-      ],
+      commands: [/unittest\./g],
+      imports: [/import\s+unittest/, /from\s+unittest\s+import/],
       config: [],
-      filePatterns: [
-        /test_.*\.py$/,
-        /.*_test\.py$/
-      ],
+      filePatterns: [/test_.*\.py$/, /.*_test\.py$/],
       keywords: [
         /class\s+\w+\(unittest\.TestCase\)/,
         /self\.assert(Equal|True|False|Raises|In|NotIn|Is|IsNone|IsNotNone)/,
@@ -410,32 +302,21 @@ export class FrameworkDetector {
         /self\.tearDown\(/,
         /unittest\.main\(/,
         /self\.subTest\(/,
-        /unittest\.skip\(/
-      ]
+        /unittest\.skip\(/,
+      ],
     },
 
     [FRAMEWORKS.NOSE2]: {
-      commands: [
-        /nose2\./g
-      ],
+      commands: [/nose2\./g],
       imports: [
         /import\s+nose2/,
         /from\s+nose2/,
-        /from\s+nose2\.tools\s+import/
+        /from\s+nose2\.tools\s+import/,
       ],
-      config: [
-        /nose2\.cfg/,
-        /setup\.cfg/
-      ],
-      filePatterns: [
-        /test_.*\.py$/
-      ],
-      keywords: [
-        /@params\b/,
-        /nose2\.tools/,
-        /nose2\.discover/
-      ]
-    }
+      config: [/nose2\.cfg/, /setup\.cfg/],
+      filePatterns: [/test_.*\.py$/],
+      keywords: [/@params\b/, /nose2\.tools/, /nose2\.discover/],
+    },
   };
 
   /**
@@ -452,7 +333,7 @@ export class FrameworkDetector {
       const matches = {
         commands: 0,
         imports: 0,
-        keywords: 0
+        keywords: 0,
       };
 
       // Check commands (weight: 2)
@@ -503,7 +384,7 @@ export class FrameworkDetector {
       framework: detectedFramework,
       confidence: Math.round(confidence * 100) / 100,
       scores,
-      details
+      details,
     };
   }
 
@@ -519,7 +400,7 @@ export class FrameworkDetector {
           return {
             framework,
             confidence: 0.7, // Path-based detection is less certain
-            reason: `Matched file pattern: ${pattern.toString()}`
+            reason: `Matched file pattern: ${pattern.toString()}`,
           };
         }
       }
@@ -529,7 +410,7 @@ export class FrameworkDetector {
           return {
             framework,
             confidence: 0.9, // Config file is a strong indicator
-            reason: `Matched config pattern: ${pattern.toString()}`
+            reason: `Matched config pattern: ${pattern.toString()}`,
           };
         }
       }
@@ -538,7 +419,7 @@ export class FrameworkDetector {
     return {
       framework: null,
       confidence: 0,
-      reason: 'No matching patterns found'
+      reason: 'No matching patterns found',
     };
   }
 
@@ -553,13 +434,16 @@ export class FrameworkDetector {
     const pathResult = this.detectFromPath(filePath);
 
     // If both agree, increase confidence
-    if (contentResult.framework === pathResult.framework && contentResult.framework) {
+    if (
+      contentResult.framework === pathResult.framework &&
+      contentResult.framework
+    ) {
       return {
         framework: contentResult.framework,
         confidence: Math.min(1, contentResult.confidence + 0.2),
         method: 'combined',
         contentAnalysis: contentResult,
-        pathAnalysis: pathResult
+        pathAnalysis: pathResult,
       };
     }
 
@@ -570,7 +454,7 @@ export class FrameworkDetector {
         confidence: contentResult.confidence,
         method: 'content',
         contentAnalysis: contentResult,
-        pathAnalysis: pathResult
+        pathAnalysis: pathResult,
       };
     }
 
@@ -580,7 +464,7 @@ export class FrameworkDetector {
       confidence: pathResult.confidence,
       method: 'path',
       contentAnalysis: contentResult,
-      pathAnalysis: pathResult
+      pathAnalysis: pathResult,
     };
   }
 
@@ -608,9 +492,9 @@ export class FrameworkDetector {
       /@Test\b/,
       /def test_\w+/,
       /class\s+\w+\(unittest\.TestCase\)/,
-      /fixture\s*\(/
+      /fixture\s*\(/,
     ];
 
-    return testPatterns.some(pattern => pattern.test(content));
+    return testPatterns.some((pattern) => pattern.test(content));
   }
 }

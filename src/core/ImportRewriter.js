@@ -127,9 +127,11 @@ export class ImportRewriter {
    */
   _hasClosingQuote(buffer) {
     // Look for the pattern: from '...' or require('...') at the end
-    return /from\s+['"][^'"]*['"]\s*;?\s*(?:\/\/.*)?$/.test(buffer) ||
-           /require\s*\(\s*['"][^'"]*['"]\s*\)\s*;?\s*(?:\/\/.*)?$/.test(buffer) ||
-           /import\s*\(\s*['"][^'"]*['"]\s*\)\s*;?\s*(?:\/\/.*)?$/.test(buffer);
+    return (
+      /from\s+['"][^'"]*['"]\s*;?\s*(?:\/\/.*)?$/.test(buffer) ||
+      /require\s*\(\s*['"][^'"]*['"]\s*\)\s*;?\s*(?:\/\/.*)?$/.test(buffer) ||
+      /import\s*\(\s*['"][^'"]*['"]\s*\)\s*;?\s*(?:\/\/.*)?$/.test(buffer)
+    );
   }
 
   /**
@@ -221,7 +223,7 @@ export class ImportRewriter {
     }
 
     // If specifier has no extension, try with extensions
-    if (!extensions.some(ext => specifier.endsWith(ext))) {
+    if (!extensions.some((ext) => specifier.endsWith(ext))) {
       for (const ext of extensions) {
         const withExt = specifier + ext;
         if (renames.has(withExt)) {

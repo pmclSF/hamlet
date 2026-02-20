@@ -9,8 +9,8 @@ import { TodoFormatter } from './TodoFormatter.js';
 
 const JEST_TO_VITEST_KEYS = {
   testEnvironment: (value) => {
-    if (value === 'jsdom') return { key: 'environment', value: '\'jsdom\'' };
-    if (value === 'node') return { key: 'environment', value: '\'node\'' };
+    if (value === 'jsdom') return { key: 'environment', value: "'jsdom'" };
+    if (value === 'node') return { key: 'environment', value: "'node'" };
     return { key: 'environment', value: `'${value}'` };
   },
   setupFiles: (value) => ({ key: 'setupFiles', value }),
@@ -36,7 +36,10 @@ const CYPRESS_TO_PLAYWRIGHT_KEYS = {
   baseUrl: (value) => ({ key: 'use.baseURL', value }),
   viewportWidth: (value, allConfig) => {
     const height = allConfig.viewportHeight || 720;
-    return { key: 'use.viewport', value: `{ width: ${value}, height: ${height} }` };
+    return {
+      key: 'use.viewport',
+      value: `{ width: ${value}, height: ${height} }`,
+    };
   },
   viewportHeight: () => null, // Handled by viewportWidth
   retries: (value) => ({ key: 'retries', value }),
@@ -171,7 +174,11 @@ export class ConfigConverter {
     }
 
     const { keys } = parsed;
-    return this._renderPlaywrightConfig(keys, CYPRESS_TO_PLAYWRIGHT_KEYS, 'Cypress');
+    return this._renderPlaywrightConfig(
+      keys,
+      CYPRESS_TO_PLAYWRIGHT_KEYS,
+      'Cypress'
+    );
   }
 
   /**
@@ -185,7 +192,11 @@ export class ConfigConverter {
     }
 
     const { keys } = parsed;
-    return this._renderCypressConfig(keys, PLAYWRIGHT_TO_CYPRESS_KEYS, 'Playwright');
+    return this._renderCypressConfig(
+      keys,
+      PLAYWRIGHT_TO_CYPRESS_KEYS,
+      'Playwright'
+    );
   }
 
   /**
@@ -199,7 +210,11 @@ export class ConfigConverter {
     }
 
     const { keys } = parsed;
-    return this._renderPlaywrightConfig(keys, WDIO_TO_PLAYWRIGHT_KEYS, 'WebdriverIO');
+    return this._renderPlaywrightConfig(
+      keys,
+      WDIO_TO_PLAYWRIGHT_KEYS,
+      'WebdriverIO'
+    );
   }
 
   /**
@@ -249,7 +264,10 @@ export class ConfigConverter {
    * @returns {string}
    */
   _convertMochaToJest(content) {
-    const parsed = this._parseYamlSimple(content) || this._parseJsonSimple(content) || this._extractConfigObject(content);
+    const parsed =
+      this._parseYamlSimple(content) ||
+      this._parseJsonSimple(content) ||
+      this._extractConfigObject(content);
     if (!parsed) {
       return this._addTodoHeader(content, 'mocha', 'jest');
     }
@@ -263,7 +281,8 @@ export class ConfigConverter {
    * @returns {string}
    */
   _convertJasmineToJest(content) {
-    const parsed = this._parseJsonSimple(content) || this._extractConfigObject(content);
+    const parsed =
+      this._parseJsonSimple(content) || this._extractConfigObject(content);
     if (!parsed) {
       return this._addTodoHeader(content, 'jasmine', 'jest');
     }
@@ -280,12 +299,17 @@ export class ConfigConverter {
     const formatter = new TodoFormatter('python');
     const parsed = this._parseIniFile(content);
     if (!parsed) {
-      return formatter.formatTodo({
-        id: 'CONFIG-MANUAL',
-        description: 'Config conversion from pytest to unittest requires manual review',
-        original: 'Full config file (pytest)',
-        action: 'Rewrite this config for unittest',
-      }) + '\n\n' + content;
+      return (
+        formatter.formatTodo({
+          id: 'CONFIG-MANUAL',
+          description:
+            'Config conversion from pytest to unittest requires manual review',
+          original: 'Full config file (pytest)',
+          action: 'Rewrite this config for unittest',
+        }) +
+        '\n\n' +
+        content
+      );
     }
 
     const { keys } = parsed;
@@ -303,7 +327,9 @@ export class ConfigConverter {
 
     if (keys.python_files) {
       lines.push(`# File pattern: ${keys.python_files}`);
-      lines.push(`# Run with: python -m unittest discover -p "${keys.python_files}"`);
+      lines.push(
+        `# Run with: python -m unittest discover -p "${keys.python_files}"`
+      );
     }
 
     if (keys.python_classes) {
@@ -315,15 +341,22 @@ export class ConfigConverter {
     }
 
     // Add TODO for any remaining keys
-    const knownKeys = new Set(['testpaths', 'python_files', 'python_classes', 'python_functions']);
+    const knownKeys = new Set([
+      'testpaths',
+      'python_files',
+      'python_classes',
+      'python_functions',
+    ]);
     for (const [key, value] of Object.entries(keys)) {
       if (!knownKeys.has(key)) {
-        lines.push(formatter.formatTodo({
-          id: 'CONFIG-UNSUPPORTED',
-          description: `Unsupported pytest config key: ${key}`,
-          original: `${key} = ${value}`,
-          action: 'No direct unittest equivalent — handle manually',
-        }));
+        lines.push(
+          formatter.formatTodo({
+            id: 'CONFIG-UNSUPPORTED',
+            description: `Unsupported pytest config key: ${key}`,
+            original: `${key} = ${value}`,
+            action: 'No direct unittest equivalent — handle manually',
+          })
+        );
       }
     }
 
@@ -338,12 +371,17 @@ export class ConfigConverter {
     const formatter = new TodoFormatter('java');
     const parsed = this._parseTestngXml(content);
     if (!parsed) {
-      return formatter.formatTodo({
-        id: 'CONFIG-MANUAL',
-        description: 'Config conversion from TestNG to JUnit5 requires manual review',
-        original: 'Full config file (testng.xml)',
-        action: 'Rewrite this config for JUnit5',
-      }) + '\n\n' + content;
+      return (
+        formatter.formatTodo({
+          id: 'CONFIG-MANUAL',
+          description:
+            'Config conversion from TestNG to JUnit5 requires manual review',
+          original: 'Full config file (testng.xml)',
+          action: 'Rewrite this config for JUnit5',
+        }) +
+        '\n\n' +
+        content
+      );
     }
 
     const { classes, suiteName } = parsed;
@@ -356,12 +394,16 @@ export class ConfigConverter {
     lines.push(`@SuiteDisplayName("${suiteName || 'Converted Suite'}")`);
 
     if (classes.length > 0) {
-      const classRefs = classes.map(c => `${c}.class`).join(', ');
+      const classRefs = classes.map((c) => `${c}.class`).join(', ');
       lines.push(`@SelectClasses({${classRefs}})`);
     }
 
-    lines.push(`public class ${this._sanitizeClassName(suiteName || 'ConvertedSuite')}Test {`);
-    lines.push('  // JUnit5 Suite — test classes are selected via @SelectClasses');
+    lines.push(
+      `public class ${this._sanitizeClassName(suiteName || 'ConvertedSuite')}Test {`
+    );
+    lines.push(
+      '  // JUnit5 Suite — test classes are selected via @SelectClasses'
+    );
     lines.push('}');
 
     return lines.join('\n') + '\n';
@@ -379,11 +421,11 @@ export class ConfigConverter {
       let result = content;
       result = result.replace(
         /<groupId>junit<\/groupId>\s*\n\s*<artifactId>junit<\/artifactId>/g,
-        '<groupId>org.junit.jupiter</groupId>\n    <artifactId>junit-jupiter</artifactId>',
+        '<groupId>org.junit.jupiter</groupId>\n    <artifactId>junit-jupiter</artifactId>'
       );
       result = result.replace(
         /<version>4\.\d+(\.\d+)?<\/version>/g,
-        '<version>5.10.0</version>',
+        '<version>5.10.0</version>'
       );
       if (result !== content) {
         return result;
@@ -391,27 +433,35 @@ export class ConfigConverter {
     }
 
     // Gradle
-    if (content.includes('testImplementation') || content.includes('testCompile')) {
+    if (
+      content.includes('testImplementation') ||
+      content.includes('testCompile')
+    ) {
       let result = content;
       result = result.replace(
         /testImplementation\s+['"]junit:junit:4\.[^'"]+['"]/g,
-        'testImplementation \'org.junit.jupiter:junit-jupiter:5.10.0\'',
+        "testImplementation 'org.junit.jupiter:junit-jupiter:5.10.0'"
       );
       result = result.replace(
         /testCompile\s+['"]junit:junit:4\.[^'"]+['"]/g,
-        'testImplementation \'org.junit.jupiter:junit-jupiter:5.10.0\'',
+        "testImplementation 'org.junit.jupiter:junit-jupiter:5.10.0'"
       );
       if (result !== content) {
         return result;
       }
     }
 
-    return formatter.formatTodo({
-      id: 'CONFIG-MANUAL',
-      description: 'Config conversion from JUnit4 to JUnit5 requires manual review',
-      original: 'Full config file (JUnit4)',
-      action: 'Update dependencies to JUnit Jupiter 5.x',
-    }) + '\n\n' + content;
+    return (
+      formatter.formatTodo({
+        id: 'CONFIG-MANUAL',
+        description:
+          'Config conversion from JUnit4 to JUnit5 requires manual review',
+        original: 'Full config file (JUnit4)',
+        action: 'Update dependencies to JUnit Jupiter 5.x',
+      }) +
+      '\n\n' +
+      content
+    );
   }
 
   // --- Render helpers for common output formats ---
@@ -427,7 +477,7 @@ export class ConfigConverter {
     const converted = [];
     const todos = [];
 
-    converted.push('import { defineConfig } from \'vitest/config\';');
+    converted.push("import { defineConfig } from 'vitest/config';");
     converted.push('');
     converted.push('export default defineConfig({');
     converted.push('  test: {');
@@ -437,15 +487,19 @@ export class ConfigConverter {
       if (mapper) {
         const result = mapper(value, keys);
         if (result) {
-          converted.push(`    ${result.key}: ${this._formatValue(result.value)},`);
+          converted.push(
+            `    ${result.key}: ${this._formatValue(result.value)},`
+          );
         }
       } else {
-        todos.push(this.formatter.formatTodo({
-          id: 'CONFIG-UNSUPPORTED',
-          description: `Unsupported ${sourceName} config key: ${key}`,
-          original: `${key}: ${JSON.stringify(value)}`,
-          action: 'Manually convert this option to Vitest equivalent',
-        }));
+        todos.push(
+          this.formatter.formatTodo({
+            id: 'CONFIG-UNSUPPORTED',
+            description: `Unsupported ${sourceName} config key: ${key}`,
+            original: `${key}: ${JSON.stringify(value)}`,
+            action: 'Manually convert this option to Vitest equivalent',
+          })
+        );
       }
     }
 
@@ -480,15 +534,19 @@ export class ConfigConverter {
       if (mapper) {
         const result = mapper(value, keys);
         if (result) {
-          converted.push(`  ${result.key}: ${this._formatValue(result.value)},`);
+          converted.push(
+            `  ${result.key}: ${this._formatValue(result.value)},`
+          );
         }
       } else {
-        todos.push(this.formatter.formatTodo({
-          id: 'CONFIG-UNSUPPORTED',
-          description: `Unsupported ${sourceName} config key: ${key}`,
-          original: `${key}: ${JSON.stringify(value)}`,
-          action: 'Manually convert this option to Jest equivalent',
-        }));
+        todos.push(
+          this.formatter.formatTodo({
+            id: 'CONFIG-UNSUPPORTED',
+            description: `Unsupported ${sourceName} config key: ${key}`,
+            original: `${key}: ${JSON.stringify(value)}`,
+            action: 'Manually convert this option to Jest equivalent',
+          })
+        );
       }
     }
 
@@ -515,7 +573,7 @@ export class ConfigConverter {
     const converted = [];
     const todos = [];
 
-    converted.push('import { defineConfig, devices } from \'@playwright/test\';');
+    converted.push("import { defineConfig, devices } from '@playwright/test';");
     converted.push('');
     converted.push('export default defineConfig({');
 
@@ -524,15 +582,19 @@ export class ConfigConverter {
       if (mapper) {
         const result = mapper(value, keys);
         if (result) {
-          converted.push(`  ${result.key}: ${this._formatValue(result.value)},`);
+          converted.push(
+            `  ${result.key}: ${this._formatValue(result.value)},`
+          );
         }
       } else {
-        todos.push(this.formatter.formatTodo({
-          id: 'CONFIG-UNSUPPORTED',
-          description: `Unsupported ${sourceName} config key: ${key}`,
-          original: `${key}: ${JSON.stringify(value)}`,
-          action: 'Manually convert this option to Playwright equivalent',
-        }));
+        todos.push(
+          this.formatter.formatTodo({
+            id: 'CONFIG-UNSUPPORTED',
+            description: `Unsupported ${sourceName} config key: ${key}`,
+            original: `${key}: ${JSON.stringify(value)}`,
+            action: 'Manually convert this option to Playwright equivalent',
+          })
+        );
       }
     }
 
@@ -559,7 +621,7 @@ export class ConfigConverter {
     const converted = [];
     const todos = [];
 
-    converted.push('const { defineConfig } = require(\'cypress\');');
+    converted.push("const { defineConfig } = require('cypress');");
     converted.push('');
     converted.push('module.exports = defineConfig({');
     converted.push('  e2e: {');
@@ -569,15 +631,19 @@ export class ConfigConverter {
       if (mapper) {
         const result = mapper(value, keys);
         if (result) {
-          converted.push(`    ${result.key}: ${this._formatValue(result.value)},`);
+          converted.push(
+            `    ${result.key}: ${this._formatValue(result.value)},`
+          );
         }
       } else {
-        todos.push(this.formatter.formatTodo({
-          id: 'CONFIG-UNSUPPORTED',
-          description: `Unsupported ${sourceName} config key: ${key}`,
-          original: `${key}: ${JSON.stringify(value)}`,
-          action: 'Manually convert this option to Cypress equivalent',
-        }));
+        todos.push(
+          this.formatter.formatTodo({
+            id: 'CONFIG-UNSUPPORTED',
+            description: `Unsupported ${sourceName} config key: ${key}`,
+            original: `${key}: ${JSON.stringify(value)}`,
+            action: 'Manually convert this option to Cypress equivalent',
+          })
+        );
       }
     }
 
@@ -612,15 +678,19 @@ export class ConfigConverter {
       if (mapper) {
         const result = mapper(value, keys);
         if (result) {
-          converted.push(`  ${result.key}: ${this._formatValue(result.value)},`);
+          converted.push(
+            `  ${result.key}: ${this._formatValue(result.value)},`
+          );
         }
       } else {
-        todos.push(this.formatter.formatTodo({
-          id: 'CONFIG-UNSUPPORTED',
-          description: `Unsupported ${sourceName} config key: ${key}`,
-          original: `${key}: ${JSON.stringify(value)}`,
-          action: 'Manually convert this option to WebdriverIO equivalent',
-        }));
+        todos.push(
+          this.formatter.formatTodo({
+            id: 'CONFIG-UNSUPPORTED',
+            description: `Unsupported ${sourceName} config key: ${key}`,
+            original: `${key}: ${JSON.stringify(value)}`,
+            action: 'Manually convert this option to WebdriverIO equivalent',
+          })
+        );
       }
     }
 
@@ -671,7 +741,11 @@ export class ConfigConverter {
     if (jsonResult) return jsonResult;
 
     // Check for JS logic (conditional, function calls, etc.)
-    if (/\bif\s*\(/.test(content) || /\bfunction\s/.test(content) || /=>\s*\{/.test(content)) {
+    if (
+      /\bif\s*\(/.test(content) ||
+      /\bfunction\s/.test(content) ||
+      /=>\s*\{/.test(content)
+    ) {
       return null; // Too complex — will get HAMLET-TODO
     }
 
@@ -688,14 +762,18 @@ export class ConfigConverter {
   _parseSimpleObject(body) {
     const keys = {};
     // Match key: value patterns (simple values only)
-    const keyValuePattern = /(\w+)\s*:\s*(?:'([^']*)'|"([^"]*)"|(\d+)|(\btrue\b|\bfalse\b)|\[([^\]]*)\])/g;
+    const keyValuePattern =
+      /(\w+)\s*:\s*(?:'([^']*)'|"([^"]*)"|(\d+)|(\btrue\b|\bfalse\b)|\[([^\]]*)\])/g;
 
     let match;
     while ((match = keyValuePattern.exec(body)) !== null) {
       const key = match[1];
-      const value = match[2] ?? match[3] ?? (match[4] ? Number(match[4]) : null) ??
-                    (match[5] === 'true' ? true : match[5] === 'false' ? false : null) ??
-                    (match[6] ? match[6] : null);
+      const value =
+        match[2] ??
+        match[3] ??
+        (match[4] ? Number(match[4]) : null) ??
+        (match[5] === 'true' ? true : match[5] === 'false' ? false : null) ??
+        (match[6] ? match[6] : null);
       if (value !== null) {
         keys[key] = value;
       }
@@ -714,7 +792,8 @@ export class ConfigConverter {
       const trimmed = content.trim();
       if (!trimmed.startsWith('{')) return null;
       const obj = JSON.parse(trimmed);
-      if (typeof obj !== 'object' || obj === null || Array.isArray(obj)) return null;
+      if (typeof obj !== 'object' || obj === null || Array.isArray(obj))
+        return null;
       return { keys: obj, raw: trimmed };
     } catch {
       return null;
@@ -730,7 +809,11 @@ export class ConfigConverter {
   _parseYamlSimple(content) {
     const trimmed = content.trim();
     // Quick check: YAML files typically don't start with { or module
-    if (trimmed.startsWith('{') || trimmed.startsWith('module') || trimmed.startsWith('export')) {
+    if (
+      trimmed.startsWith('{') ||
+      trimmed.startsWith('module') ||
+      trimmed.startsWith('export')
+    ) {
       return null;
     }
 
@@ -750,8 +833,10 @@ export class ConfigConverter {
         if (value === 'true') value = true;
         else if (value === 'false') value = false;
         else if (/^\d+$/.test(value)) value = Number(value);
-        else if ((value.startsWith('"') && value.endsWith('"')) ||
-                 (value.startsWith('\'') && value.endsWith('\''))) {
+        else if (
+          (value.startsWith('"') && value.endsWith('"')) ||
+          (value.startsWith("'") && value.endsWith("'"))
+        ) {
           value = value.slice(1, -1);
         }
 
@@ -777,7 +862,8 @@ export class ConfigConverter {
 
     for (const line of trimmed.split('\n')) {
       const stripped = line.trim();
-      if (!stripped || stripped.startsWith('#') || stripped.startsWith(';')) continue;
+      if (!stripped || stripped.startsWith('#') || stripped.startsWith(';'))
+        continue;
 
       // Section header
       if (stripped.startsWith('[')) {
@@ -837,7 +923,12 @@ export class ConfigConverter {
   _formatValue(value) {
     if (typeof value === 'string') {
       // Already formatted string (with quotes)
-      if (value.startsWith('\'') || value.startsWith('"') || value.startsWith('{') || value.startsWith('[')) {
+      if (
+        value.startsWith("'") ||
+        value.startsWith('"') ||
+        value.startsWith('{') ||
+        value.startsWith('[')
+      ) {
         return value;
       }
       return `'${value}'`;

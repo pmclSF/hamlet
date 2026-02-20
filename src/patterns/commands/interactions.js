@@ -14,7 +14,8 @@ export const interactionPatterns = {
 
       // Input
       '\\.type\\(([^)]+)\\)': '.TYPE($1)',
-      '\\.type\\(([^,]+),\\s*\\{[^}]*delay:\\s*(\\d+)[^}]*\\}\\)': '.TYPE_SLOW($1, $2)',
+      '\\.type\\(([^,]+),\\s*\\{[^}]*delay:\\s*(\\d+)[^}]*\\}\\)':
+        '.TYPE_SLOW($1, $2)',
       '\\.clear\\(\\)': '.CLEAR()',
       '\\.focus\\(\\)': '.FOCUS()',
       '\\.blur\\(\\)': '.BLUR()',
@@ -42,33 +43,33 @@ export const interactionPatterns = {
 
       // File upload
       '\\.selectFile\\(([^)]+)\\)': '.UPLOAD_FILE($1)',
-      '\\.attachFile\\(([^)]+)\\)': '.UPLOAD_FILE($1)'
+      '\\.attachFile\\(([^)]+)\\)': '.UPLOAD_FILE($1)',
     },
 
     generators: {
-      'CLICK': () => '.click()',
-      'CLICK_FORCE': () => '.click({ force: true })',
-      'DOUBLE_CLICK': () => '.dblclick()',
-      'RIGHT_CLICK': () => '.rightclick()',
-      'TYPE': (text) => `.type(${text})`,
-      'TYPE_SLOW': (text, delay) => `.type(${text}, { delay: ${delay} })`,
-      'CLEAR': () => '.clear()',
-      'FOCUS': () => '.focus()',
-      'BLUR': () => '.blur()',
-      'CHECK': () => '.check()',
-      'UNCHECK': () => '.uncheck()',
-      'SELECT_OPTION': (value) => `.select(${value})`,
-      'HOVER': () => '.trigger("mouseover")',
-      'MOUSE_LEAVE': () => '.trigger("mouseleave")',
-      'MOUSE_DOWN': () => '.trigger("mousedown")',
-      'MOUSE_UP': () => '.trigger("mouseup")',
-      'SCROLL_TO': (pos) => `.scrollTo(${pos})`,
-      'SCROLL_INTO_VIEW': () => '.scrollIntoView()',
-      'DRAG': (target) => `.drag(${target})`,
-      'DRAG_START': () => '.trigger("dragstart")',
-      'DROP': () => '.trigger("drop")',
-      'UPLOAD_FILE': (file) => `.selectFile(${file})`
-    }
+      CLICK: () => '.click()',
+      CLICK_FORCE: () => '.click({ force: true })',
+      DOUBLE_CLICK: () => '.dblclick()',
+      RIGHT_CLICK: () => '.rightclick()',
+      TYPE: (text) => `.type(${text})`,
+      TYPE_SLOW: (text, delay) => `.type(${text}, { delay: ${delay} })`,
+      CLEAR: () => '.clear()',
+      FOCUS: () => '.focus()',
+      BLUR: () => '.blur()',
+      CHECK: () => '.check()',
+      UNCHECK: () => '.uncheck()',
+      SELECT_OPTION: (value) => `.select(${value})`,
+      HOVER: () => '.trigger("mouseover")',
+      MOUSE_LEAVE: () => '.trigger("mouseleave")',
+      MOUSE_DOWN: () => '.trigger("mousedown")',
+      MOUSE_UP: () => '.trigger("mouseup")',
+      SCROLL_TO: (pos) => `.scrollTo(${pos})`,
+      SCROLL_INTO_VIEW: () => '.scrollIntoView()',
+      DRAG: (target) => `.drag(${target})`,
+      DRAG_START: () => '.trigger("dragstart")',
+      DROP: () => '.trigger("drop")',
+      UPLOAD_FILE: (file) => `.selectFile(${file})`,
+    },
   },
 
   playwright: {
@@ -77,7 +78,8 @@ export const interactionPatterns = {
       '\\.click\\(\\)': '.CLICK()',
       '\\.click\\(\\{\\s*force:\\s*true\\s*\\}\\)': '.CLICK_FORCE()',
       '\\.dblclick\\(\\)': '.DOUBLE_CLICK()',
-      '\\.click\\(\\{\\s*button:\\s*[\'"]right[\'"]\\s*\\}\\)': '.RIGHT_CLICK()',
+      '\\.click\\(\\{\\s*button:\\s*[\'"]right[\'"]\\s*\\}\\)':
+        '.RIGHT_CLICK()',
 
       // Input
       '\\.fill\\(([^)]+)\\)': '.TYPE($1)',
@@ -101,34 +103,34 @@ export const interactionPatterns = {
       '\\.dragTo\\(([^)]+)\\)': '.DRAG($1)',
 
       // File upload
-      '\\.setInputFiles\\(([^)]+)\\)': '.UPLOAD_FILE($1)'
+      '\\.setInputFiles\\(([^)]+)\\)': '.UPLOAD_FILE($1)',
     },
 
     generators: {
-      'CLICK': () => '.click()',
-      'CLICK_FORCE': () => '.click({ force: true })',
-      'DOUBLE_CLICK': () => '.dblclick()',
-      'RIGHT_CLICK': () => '.click({ button: "right" })',
-      'TYPE': (text) => `.fill(${text})`,
-      'TYPE_CHAR': (text) => `.type(${text})`,
-      'TYPE_SLOW': (text, delay) => `.type(${text}, { delay: ${delay} })`,
-      'CLEAR': () => '.clear()',
-      'FOCUS': () => '.focus()',
-      'BLUR': () => '.blur()',
-      'CHECK': () => '.check()',
-      'UNCHECK': () => '.uncheck()',
-      'SELECT_OPTION': (value) => `.selectOption(${value})`,
-      'HOVER': () => '.hover()',
-      'MOUSE_LEAVE': () => '.dispatchEvent("mouseleave")',
-      'MOUSE_DOWN': () => '.dispatchEvent("mousedown")',
-      'MOUSE_UP': () => '.dispatchEvent("mouseup")',
-      'SCROLL_TO': (pos) => `.evaluate((el, p) => el.scrollTo(p), ${pos})`,
-      'SCROLL_INTO_VIEW': () => '.scrollIntoViewIfNeeded()',
-      'DRAG': (target) => `.dragTo(${target})`,
-      'DRAG_START': () => '.dispatchEvent("dragstart")',
-      'DROP': () => '.dispatchEvent("drop")',
-      'UPLOAD_FILE': (file) => `.setInputFiles(${file})`
-    }
+      CLICK: () => '.click()',
+      CLICK_FORCE: () => '.click({ force: true })',
+      DOUBLE_CLICK: () => '.dblclick()',
+      RIGHT_CLICK: () => '.click({ button: "right" })',
+      TYPE: (text) => `.fill(${text})`,
+      TYPE_CHAR: (text) => `.type(${text})`,
+      TYPE_SLOW: (text, delay) => `.type(${text}, { delay: ${delay} })`,
+      CLEAR: () => '.clear()',
+      FOCUS: () => '.focus()',
+      BLUR: () => '.blur()',
+      CHECK: () => '.check()',
+      UNCHECK: () => '.uncheck()',
+      SELECT_OPTION: (value) => `.selectOption(${value})`,
+      HOVER: () => '.hover()',
+      MOUSE_LEAVE: () => '.dispatchEvent("mouseleave")',
+      MOUSE_DOWN: () => '.dispatchEvent("mousedown")',
+      MOUSE_UP: () => '.dispatchEvent("mouseup")',
+      SCROLL_TO: (pos) => `.evaluate((el, p) => el.scrollTo(p), ${pos})`,
+      SCROLL_INTO_VIEW: () => '.scrollIntoViewIfNeeded()',
+      DRAG: (target) => `.dragTo(${target})`,
+      DRAG_START: () => '.dispatchEvent("dragstart")',
+      DROP: () => '.dispatchEvent("drop")',
+      UPLOAD_FILE: (file) => `.setInputFiles(${file})`,
+    },
   },
 
   selenium: {
@@ -141,36 +143,50 @@ export const interactionPatterns = {
       '\\.clear\\(\\)': '.CLEAR()',
 
       // Form (Select class)
-      'new Select\\(([^)]+)\\)\\.selectByVisibleText\\(([^)]+)\\)': 'SELECT_OPTION_IN($1, $2)',
-      'new Select\\(([^)]+)\\)\\.selectByValue\\(([^)]+)\\)': 'SELECT_BY_VALUE_IN($1, $2)'
+      'new Select\\(([^)]+)\\)\\.selectByVisibleText\\(([^)]+)\\)':
+        'SELECT_OPTION_IN($1, $2)',
+      'new Select\\(([^)]+)\\)\\.selectByValue\\(([^)]+)\\)':
+        'SELECT_BY_VALUE_IN($1, $2)',
     },
 
     generators: {
-      'CLICK': () => '.click()',
-      'CLICK_FORCE': () => '.click()', // Selenium doesn't have force option
-      'DOUBLE_CLICK': (context) => `await driver.actions().doubleClick(${context || 'element'}).perform()`,
-      'RIGHT_CLICK': (context) => `await driver.actions().contextClick(${context || 'element'}).perform()`,
-      'TYPE': (text) => `.sendKeys(${text})`,
-      'TYPE_CHAR': (text) => `.sendKeys(${text})`,
-      'TYPE_SLOW': (text) => `.sendKeys(${text})`, // Selenium doesn't have built-in delay
-      'CLEAR': () => '.clear()',
-      'FOCUS': () => '.click()', // Selenium focuses by clicking
-      'BLUR': () => '; await driver.executeScript("arguments[0].blur()", element)',
-      'CHECK': () => '.click()', // Selenium uses click for checkbox
-      'UNCHECK': () => '.click()',
-      'SELECT_OPTION': (value) => `; await new Select(element).selectByVisibleText(${value})`,
-      'HOVER': (context) => `await driver.actions().move({ origin: ${context || 'element'} }).perform()`,
-      'MOUSE_LEAVE': () => 'await driver.actions().move({ x: 0, y: 0 }).perform()',
-      'MOUSE_DOWN': (context) => `await driver.actions().press(${context || 'element'}).perform()`,
-      'MOUSE_UP': () => 'await driver.actions().release().perform()',
-      'SCROLL_TO': (pos) => `await driver.executeScript("window.scrollTo(${pos})")`,
-      'SCROLL_INTO_VIEW': () => 'await driver.executeScript("arguments[0].scrollIntoView(true)", element)',
-      'DRAG': (target) => `await driver.actions().dragAndDrop(element, ${target}).perform()`,
-      'DRAG_START': () => 'await driver.executeScript("arguments[0].dispatchEvent(new DragEvent(\'dragstart\'))", element)',
-      'DROP': () => 'await driver.executeScript("arguments[0].dispatchEvent(new DragEvent(\'drop\'))", element)',
-      'UPLOAD_FILE': (file) => `.sendKeys(${file})`
-    }
-  }
+      CLICK: () => '.click()',
+      CLICK_FORCE: () => '.click()', // Selenium doesn't have force option
+      DOUBLE_CLICK: (context) =>
+        `await driver.actions().doubleClick(${context || 'element'}).perform()`,
+      RIGHT_CLICK: (context) =>
+        `await driver.actions().contextClick(${context || 'element'}).perform()`,
+      TYPE: (text) => `.sendKeys(${text})`,
+      TYPE_CHAR: (text) => `.sendKeys(${text})`,
+      TYPE_SLOW: (text) => `.sendKeys(${text})`, // Selenium doesn't have built-in delay
+      CLEAR: () => '.clear()',
+      FOCUS: () => '.click()', // Selenium focuses by clicking
+      BLUR: () =>
+        '; await driver.executeScript("arguments[0].blur()", element)',
+      CHECK: () => '.click()', // Selenium uses click for checkbox
+      UNCHECK: () => '.click()',
+      SELECT_OPTION: (value) =>
+        `; await new Select(element).selectByVisibleText(${value})`,
+      HOVER: (context) =>
+        `await driver.actions().move({ origin: ${context || 'element'} }).perform()`,
+      MOUSE_LEAVE: () =>
+        'await driver.actions().move({ x: 0, y: 0 }).perform()',
+      MOUSE_DOWN: (context) =>
+        `await driver.actions().press(${context || 'element'}).perform()`,
+      MOUSE_UP: () => 'await driver.actions().release().perform()',
+      SCROLL_TO: (pos) =>
+        `await driver.executeScript("window.scrollTo(${pos})")`,
+      SCROLL_INTO_VIEW: () =>
+        'await driver.executeScript("arguments[0].scrollIntoView(true)", element)',
+      DRAG: (target) =>
+        `await driver.actions().dragAndDrop(element, ${target}).perform()`,
+      DRAG_START: () =>
+        'await driver.executeScript("arguments[0].dispatchEvent(new DragEvent(\'dragstart\'))", element)',
+      DROP: () =>
+        'await driver.executeScript("arguments[0].dispatchEvent(new DragEvent(\'drop\'))", element)',
+      UPLOAD_FILE: (file) => `.sendKeys(${file})`,
+    },
+  },
 };
 
 /**
@@ -192,7 +208,7 @@ export const directMappings = {
     '\\.trigger\\([\'"]mouseenter[\'"]\\)': '.hover()',
     '\\.scrollIntoView\\(\\)': '.scrollIntoViewIfNeeded()',
     '\\.selectFile\\(([^)]+)\\)': '.setInputFiles($1)',
-    '\\.attachFile\\(([^)]+)\\)': '.setInputFiles($1)'
+    '\\.attachFile\\(([^)]+)\\)': '.setInputFiles($1)',
   },
 
   'cypress-selenium': {
@@ -201,7 +217,8 @@ export const directMappings = {
     '\\.clear\\(\\)': '.clear()',
     '\\.check\\(\\)': '.click()',
     '\\.uncheck\\(\\)': '.click()',
-    '\\.scrollIntoView\\(\\)': '; await driver.executeScript("arguments[0].scrollIntoView(true)", element)'
+    '\\.scrollIntoView\\(\\)':
+      '; await driver.executeScript("arguments[0].scrollIntoView(true)", element)',
   },
 
   'playwright-cypress': {
@@ -217,7 +234,7 @@ export const directMappings = {
     '\\.selectOption\\(([^)]+)\\)': '.select($1)',
     '\\.hover\\(\\)': '.trigger("mouseover")',
     '\\.scrollIntoViewIfNeeded\\(\\)': '.scrollIntoView()',
-    '\\.setInputFiles\\(([^)]+)\\)': '.selectFile($1)'
+    '\\.setInputFiles\\(([^)]+)\\)': '.selectFile($1)',
   },
 
   'playwright-selenium': {
@@ -226,18 +243,18 @@ export const directMappings = {
     '\\.clear\\(\\)': '.clear()',
     '\\.check\\(\\)': '.click()',
     '\\.uncheck\\(\\)': '.click()',
-    '\\.setInputFiles\\(([^)]+)\\)': '.sendKeys($1)'
+    '\\.setInputFiles\\(([^)]+)\\)': '.sendKeys($1)',
   },
 
   'selenium-cypress': {
     '\\.click\\(\\)': '.click()',
     '\\.sendKeys\\(([^)]+)\\)': '.type($1)',
-    '\\.clear\\(\\)': '.clear()'
+    '\\.clear\\(\\)': '.clear()',
   },
 
   'selenium-playwright': {
     '\\.click\\(\\)': '.click()',
     '\\.sendKeys\\(([^)]+)\\)': '.fill($1)',
-    '\\.clear\\(\\)': '.clear()'
-  }
+    '\\.clear\\(\\)': '.clear()',
+  },
 };

@@ -50,7 +50,8 @@ function detect(source) {
   // Negative: Cypress
   if (/\bcy\./.test(source)) score -= 30;
   // Negative: TestCafe
-  if (/\bSelector\s*\(/.test(source) && /\bfixture\s*`/.test(source)) score -= 20;
+  if (/\bSelector\s*\(/.test(source) && /\bfixture\s*`/.test(source))
+    score -= 20;
   // Negative: WDIO
   if (/\bbrowser\.url\s*\(/.test(source)) score -= 10;
 
@@ -69,42 +70,95 @@ function parse(source) {
 
     if (!trimmed) continue;
 
-    if (trimmed.startsWith('//') || trimmed.startsWith('/*') || trimmed.startsWith('*')) {
-      body.push(new Comment({ text: line, sourceLocation: loc, originalSource: line }));
+    if (
+      trimmed.startsWith('//') ||
+      trimmed.startsWith('/*') ||
+      trimmed.startsWith('*')
+    ) {
+      body.push(
+        new Comment({ text: line, sourceLocation: loc, originalSource: line })
+      );
       continue;
     }
 
     if (/^import\s/.test(trimmed) || /^const\s.*=\s*require\(/.test(trimmed)) {
-      imports.push(new ImportStatement({ source: trimmed, sourceLocation: loc, originalSource: line, confidence: 'converted' }));
+      imports.push(
+        new ImportStatement({
+          source: trimmed,
+          sourceLocation: loc,
+          originalSource: line,
+          confidence: 'converted',
+        })
+      );
       continue;
     }
 
     if (/\bdescribe\s*\(/.test(trimmed)) {
-      body.push(new TestSuite({ name: '', sourceLocation: loc, originalSource: line, confidence: 'converted' }));
+      body.push(
+        new TestSuite({
+          name: '',
+          sourceLocation: loc,
+          originalSource: line,
+          confidence: 'converted',
+        })
+      );
       continue;
     }
 
     if (/\b(?:it|test)\s*\(/.test(trimmed)) {
-      body.push(new TestCase({ name: '', isAsync: /async/.test(trimmed), sourceLocation: loc, originalSource: line, confidence: 'converted' }));
+      body.push(
+        new TestCase({
+          name: '',
+          isAsync: /async/.test(trimmed),
+          sourceLocation: loc,
+          originalSource: line,
+          confidence: 'converted',
+        })
+      );
       continue;
     }
 
-    if (/\b(?:beforeEach|afterEach|beforeAll|afterAll|before|after)\s*\(/.test(trimmed)) {
-      body.push(new Hook({ sourceLocation: loc, originalSource: line, confidence: 'converted' }));
+    if (
+      /\b(?:beforeEach|afterEach|beforeAll|afterAll|before|after)\s*\(/.test(
+        trimmed
+      )
+    ) {
+      body.push(
+        new Hook({
+          sourceLocation: loc,
+          originalSource: line,
+          confidence: 'converted',
+        })
+      );
       continue;
     }
 
     if (/\bexpect\s*\(/.test(trimmed)) {
-      body.push(new Assertion({ sourceLocation: loc, originalSource: line, confidence: 'converted' }));
+      body.push(
+        new Assertion({
+          sourceLocation: loc,
+          originalSource: line,
+          confidence: 'converted',
+        })
+      );
       continue;
     }
 
     if (/\bpage\./.test(trimmed) || /\bpuppeteer\./.test(trimmed)) {
-      body.push(new RawCode({ code: line, sourceLocation: loc, originalSource: line, confidence: 'converted' }));
+      body.push(
+        new RawCode({
+          code: line,
+          sourceLocation: loc,
+          originalSource: line,
+          confidence: 'converted',
+        })
+      );
       continue;
     }
 
-    body.push(new RawCode({ code: line, sourceLocation: loc, originalSource: line }));
+    body.push(
+      new RawCode({ code: line, sourceLocation: loc, originalSource: line })
+    );
   }
 
   return new TestFile({ language: 'javascript', imports, body });
@@ -120,14 +174,19 @@ function parse(source) {
 function emit(_ir, source) {
   let result = source;
 
-  const isPlaywrightSource = /from\s+['"]@playwright\/test['"]/.test(source) || /\bpage\.locator\s*\(/.test(source);
+  const isPlaywrightSource =
+    /from\s+['"]@playwright\/test['"]/.test(source) ||
+    /\bpage\.locator\s*\(/.test(source);
 
   if (!isPlaywrightSource) {
     return source;
   }
 
   // Phase 1: Remove Playwright imports
-  result = result.replace(/import\s+\{[^}]*\}\s+from\s+['"]@playwright\/test['"];?\n?/g, '');
+  result = result.replace(
+    /import\s+\{[^}]*\}\s+from\s+['"]@playwright\/test['"];?\n?/g,
+    ''
+  );
 
   // Phase 2: Convert Playwright assertions to Jest-style manual assertions
   result = convertPlaywrightAssertions(result);
@@ -154,10 +213,11 @@ function emit(_ir, source) {
   result = "const puppeteer = require('puppeteer');\n\n" + result;
 
   // Phase 9: Cleanup
-  result = result
-    .replace(/await\s+await/g, 'await')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim() + '\n';
+  result =
+    result
+      .replace(/await\s+await/g, 'await')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim() + '\n';
 
   return result;
 }
@@ -290,7 +350,7 @@ function convertPlaywrightActions(content) {
   // await page.locator(sel).clear() -> await page.click(sel, { clickCount: 3 }); await page.keyboard.press('Backspace')
   result = result.replace(
     /await page\.locator\(([^)]+)\)\.clear\(\)/g,
-    'await page.click($1, { clickCount: 3 });\n    await page.keyboard.press(\'Backspace\')'
+    "await page.click($1, { clickCount: 3 });\n    await page.keyboard.press('Backspace')"
   );
 
   // Standalone page.locator -> page.$ (catch remaining)
@@ -343,12 +403,17 @@ function convertPlaywrightBrowserApi(content) {
   // Unconvertible: page.route -> HAMLET-TODO
   result = result.replace(
     /await page\.route\([^)]+,\s*[^)]+\)/g,
-    (match) => formatter.formatTodo({
-      id: 'UNCONVERTIBLE-ROUTE',
-      description: 'Playwright page.route() requires Puppeteer page.setRequestInterception()',
-      original: match.trim(),
-      action: 'Use page.setRequestInterception(true) and page.on(\'request\', ...) pattern',
-    }) + '\n// ' + match.trim()
+    (match) =>
+      formatter.formatTodo({
+        id: 'UNCONVERTIBLE-ROUTE',
+        description:
+          'Playwright page.route() requires Puppeteer page.setRequestInterception()',
+        original: match.trim(),
+        action:
+          "Use page.setRequestInterception(true) and page.on('request', ...) pattern",
+      }) +
+      '\n// ' +
+      match.trim()
   );
 
   return result;

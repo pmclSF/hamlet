@@ -128,7 +128,7 @@ export class ConversionReporter {
 
       const reportPath = path.join(
         this.options.outputDir,
-        `conversion-report-${Date.now()}.${this.options.format}`,
+        `conversion-report-${Date.now()}.${this.options.format}`
       );
 
       let content;
@@ -155,7 +155,7 @@ export class ConversionReporter {
    */
   generateHtmlReport() {
     const duration = reportUtils.formatDuration(
-      this.data.summary.endTime - this.data.summary.startTime,
+      this.data.summary.endTime - this.data.summary.startTime
     );
 
     return `
@@ -277,27 +277,27 @@ export class ConversionReporter {
         <th>Details</th>
       </tr>
       ${this.data.validationResults.passed
-    .map(
-      (result) => `
+        .map(
+          (result) => `
         <tr class="success">
           <td>${result.check}</td>
           <td>Passed</td>
           <td>${result.details || ''}</td>
         </tr>
-      `,
-    )
-    .join('')}
+      `
+        )
+        .join('')}
       ${this.data.validationResults.failed
-    .map(
-      (result) => `
+        .map(
+          (result) => `
         <tr class="error">
           <td>${result.check}</td>
           <td>Failed</td>
           <td>${result.details || ''}</td>
         </tr>
-      `,
-    )
-    .join('')}
+      `
+        )
+        .join('')}
     </table>
   </div>
 
@@ -310,88 +310,88 @@ export class ConversionReporter {
         <th>Difference</th>
       </tr>
       ${this.data.visualResults.matches
-    .map(
-      (result) => `
+        .map(
+          (result) => `
         <tr class="success">
           <td>${result.test}</td>
           <td>Match</td>
           <td>${result.difference || '0%'}</td>
         </tr>
-      `,
-    )
-    .join('')}
+      `
+        )
+        .join('')}
       ${this.data.visualResults.mismatches
-    .map(
-      (result) => `
+        .map(
+          (result) => `
         <tr class="error">
           <td>${result.test}</td>
           <td>Mismatch</td>
           <td>${result.difference}</td>
         </tr>
-      `,
-    )
-    .join('')}
+      `
+        )
+        .join('')}
     </table>
   </div>
 
   <div class="section">
     <h2>Conversion Steps</h2>
     ${this.data.conversionSteps
-    .map(
-      (step) => `
+      .map(
+        (step) => `
       <div class="step ${step.status}">
         <h3>${step.step}</h3>
         <p>Status: ${step.status}</p>
         ${
-  step.details
-    ? `
+          step.details
+            ? `
           <div class="details">
             <pre>${JSON.stringify(step.details, null, 2)}</pre>
           </div>
         `
-    : ''
-}
+            : ''
+        }
         ${
-  this.options.includeTimestamps
-    ? `
+          this.options.includeTimestamps
+            ? `
           <small>Timestamp: ${new Date(step.timestamp).toLocaleString()}</small>
         `
-    : ''
-}
+            : ''
+        }
       </div>
-    `,
-    )
-    .join('')}
+    `
+      )
+      .join('')}
   </div>
 
   ${
-  this.data.summary.errors.length > 0
-    ? `
+    this.data.summary.errors.length > 0
+      ? `
     <div class="section">
       <h2>Errors</h2>
       ${this.data.summary.errors
-    .map(
-      (error) => `
+        .map(
+          (error) => `
         <div class="step error">
           <h3>${error.type} Error</h3>
           <p>${error.message}</p>
           ${
-  error.stack
-    ? `
+            error.stack
+              ? `
             <div class="details">
               <pre>${error.stack}</pre>
             </div>
           `
-    : ''
-}
+              : ''
+          }
         </div>
-      `,
-    )
-    .join('')}
+      `
+        )
+        .join('')}
     </div>
   `
-    : ''
-}
+      : ''
+  }
 </body>
 </html>`;
   }
@@ -402,7 +402,7 @@ export class ConversionReporter {
    */
   generateMarkdownReport() {
     const duration = reportUtils.formatDuration(
-      this.data.summary.endTime - this.data.summary.startTime,
+      this.data.summary.endTime - this.data.summary.startTime
     );
 
     return `
@@ -426,69 +426,69 @@ Duration: ${duration}
 
 ## Validation Results
 ${this.data.validationResults.passed
-    .map(
-      (result) => `
+  .map(
+    (result) => `
 ### ✅ ${result.check}
 ${result.details || 'No details provided'}
-`,
-    )
-    .join('\n')}
+`
+  )
+  .join('\n')}
 
 ${this.data.validationResults.failed
-    .map(
-      (result) => `
+  .map(
+    (result) => `
 ### ❌ ${result.check}
 ${result.details || 'No details provided'}
-`,
-    )
-    .join('\n')}
+`
+  )
+  .join('\n')}
 
 ## Visual Comparison Results
 ${this.data.visualResults.matches
-    .map(
-      (result) => `
+  .map(
+    (result) => `
 ### ✅ ${result.test}
 - Status: Match
 - Difference: ${result.difference || '0%'}
-`,
-    )
-    .join('\n')}
+`
+  )
+  .join('\n')}
 
 ${this.data.visualResults.mismatches
-    .map(
-      (result) => `
+  .map(
+    (result) => `
 ### ❌ ${result.test}
 - Status: Mismatch
 - Difference: ${result.difference}
-`,
-    )
-    .join('\n')}
+`
+  )
+  .join('\n')}
 
 ## Conversion Steps
 ${this.data.conversionSteps
-    .map(
-      (step) => `
+  .map(
+    (step) => `
 ### ${step.step}
 - Status: ${step.status}
 ${step.details ? `- Details:\n\`\`\`json\n${JSON.stringify(step.details, null, 2)}\n\`\`\`` : ''}
 ${this.options.includeTimestamps ? `- Timestamp: ${new Date(step.timestamp).toLocaleString()}` : ''}
-`,
-    )
-    .join('\n')}
+`
+  )
+  .join('\n')}
 
 ${
   this.data.summary.errors.length > 0
     ? `
 ## Errors
 ${this.data.summary.errors
-    .map(
-      (error) => `
+  .map(
+    (error) => `
 ### ${error.type} Error
 ${error.message}
 ${error.stack ? `\`\`\`\n${error.stack}\n\`\`\`` : ''}
-`,
-    )
-    .join('\n')}
+`
+  )
+  .join('\n')}
 `
     : ''
 }`;

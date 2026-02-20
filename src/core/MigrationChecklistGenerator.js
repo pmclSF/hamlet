@@ -19,25 +19,31 @@ export class MigrationChecklistGenerator {
     sections.push(this._generateSummary(conversionResults));
 
     // Fully converted (>= 90% confidence)
-    const fullyConverted = conversionResults.filter(r => r.confidence >= 90);
+    const fullyConverted = conversionResults.filter((r) => r.confidence >= 90);
     if (fullyConverted.length > 0) {
-      sections.push(this._generateSection('Fully Converted', fullyConverted, true));
+      sections.push(
+        this._generateSection('Fully Converted', fullyConverted, true)
+      );
     }
 
     // Needs review (< 90% confidence, > 0%)
-    const needsReview = conversionResults.filter(r => r.confidence > 0 && r.confidence < 90);
+    const needsReview = conversionResults.filter(
+      (r) => r.confidence > 0 && r.confidence < 90
+    );
     if (needsReview.length > 0) {
       sections.push(this._generateSection('Needs Review', needsReview, false));
     }
 
     // Manual steps (0% or failed)
-    const manual = conversionResults.filter(r => r.confidence === 0 || r.status === 'failed');
+    const manual = conversionResults.filter(
+      (r) => r.confidence === 0 || r.status === 'failed'
+    );
     if (manual.length > 0) {
       sections.push(this._generateManualSection(manual));
     }
 
     // Config changes
-    const configs = conversionResults.filter(r => r.type === 'config');
+    const configs = conversionResults.filter((r) => r.type === 'config');
     if (configs.length > 0) {
       sections.push(this._generateConfigSection(configs));
     }
@@ -51,10 +57,16 @@ export class MigrationChecklistGenerator {
    */
   _generateSummary(results) {
     const total = results.length;
-    const high = results.filter(r => r.confidence >= 90).length;
-    const medium = results.filter(r => r.confidence >= 70 && r.confidence < 90).length;
-    const low = results.filter(r => r.confidence > 0 && r.confidence < 70).length;
-    const failed = results.filter(r => r.confidence === 0 || r.status === 'failed').length;
+    const high = results.filter((r) => r.confidence >= 90).length;
+    const medium = results.filter(
+      (r) => r.confidence >= 70 && r.confidence < 90
+    ).length;
+    const low = results.filter(
+      (r) => r.confidence > 0 && r.confidence < 70
+    ).length;
+    const failed = results.filter(
+      (r) => r.confidence === 0 || r.status === 'failed'
+    ).length;
 
     const lines = [
       '# Migration Checklist',

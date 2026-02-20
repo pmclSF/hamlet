@@ -27,8 +27,8 @@ export class ErrorRecovery {
         // Handle async functions
         if (result && typeof result.then === 'function') {
           return result
-            .then(r => ({ result: r, error: null }))
-            .catch(err => ({ result: fallbackValue, error: err }));
+            .then((r) => ({ result: r, error: null }))
+            .catch((err) => ({ result: fallbackValue, error: err }));
         }
         return { result, error: null };
       } catch (err) {

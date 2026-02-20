@@ -17,7 +17,7 @@ export class SeleniumToPlaywright extends BaseConverter {
     // Test structure patterns
     this.engine.registerPatterns('structure', {
       'describe\\(': 'test.describe(',
-      'it\\(': 'test('
+      'it\\(': 'test(',
     });
 
     // Navigation patterns
@@ -28,21 +28,30 @@ export class SeleniumToPlaywright extends BaseConverter {
       'await driver\\.navigate\\(\\)\\.forward\\(\\)': 'await page.goForward()',
       'await driver\\.navigate\\(\\)\\.refresh\\(\\)': 'await page.reload()',
       'await driver\\.getCurrentUrl\\(\\)': 'page.url()',
-      'await driver\\.getTitle\\(\\)': 'await page.title()'
+      'await driver\\.getTitle\\(\\)': 'await page.title()',
     });
 
     // Selector patterns
     this.engine.registerPatterns('selectors', {
-      'await driver\\.findElement\\(By\\.css\\(([^)]+)\\)\\)': 'page.locator($1)',
-      'await driver\\.findElement\\(By\\.id\\(([^)]+)\\)\\)': 'page.locator(`#${$1}`)',
-      'await driver\\.findElement\\(By\\.name\\(([^)]+)\\)\\)': 'page.locator(`[name=${$1}]`)',
-      'await driver\\.findElement\\(By\\.className\\(([^)]+)\\)\\)': 'page.locator(`.${$1}`)',
-      'await driver\\.findElement\\(By\\.tagName\\(([^)]+)\\)\\)': 'page.locator($1)',
-      'await driver\\.findElement\\(By\\.xpath\\(([^)]+)\\)\\)': 'page.locator($1)',
-      'await driver\\.findElement\\(By\\.linkText\\(([^)]+)\\)\\)': 'page.getByText($1)',
-      'await driver\\.findElements\\(By\\.css\\(([^)]+)\\)\\)': 'page.locator($1)',
+      'await driver\\.findElement\\(By\\.css\\(([^)]+)\\)\\)':
+        'page.locator($1)',
+      'await driver\\.findElement\\(By\\.id\\(([^)]+)\\)\\)':
+        'page.locator(`#${$1}`)',
+      'await driver\\.findElement\\(By\\.name\\(([^)]+)\\)\\)':
+        'page.locator(`[name=${$1}]`)',
+      'await driver\\.findElement\\(By\\.className\\(([^)]+)\\)\\)':
+        'page.locator(`.${$1}`)',
+      'await driver\\.findElement\\(By\\.tagName\\(([^)]+)\\)\\)':
+        'page.locator($1)',
+      'await driver\\.findElement\\(By\\.xpath\\(([^)]+)\\)\\)':
+        'page.locator($1)',
+      'await driver\\.findElement\\(By\\.linkText\\(([^)]+)\\)\\)':
+        'page.getByText($1)',
+      'await driver\\.findElements\\(By\\.css\\(([^)]+)\\)\\)':
+        'page.locator($1)',
       '\\.findElement\\(By\\.css\\(([^)]+)\\)\\)': '.locator($1)',
-      'await driver\\.switchTo\\(\\)\\.activeElement\\(\\)': 'page.locator(":focus")'
+      'await driver\\.switchTo\\(\\)\\.activeElement\\(\\)':
+        'page.locator(":focus")',
     });
 
     // Interaction patterns
@@ -50,38 +59,55 @@ export class SeleniumToPlaywright extends BaseConverter {
       '\\.sendKeys\\(([^)]+)\\)': '.fill($1)',
       '\\.click\\(\\)': '.click()',
       '\\.clear\\(\\)': '.clear()',
-      '\\.submit\\(\\)': '.press("Enter")'
+      '\\.submit\\(\\)': '.press("Enter")',
     });
 
     // Assertion patterns
     this.engine.registerPatterns('assertions', {
-      'expect\\(await ([^.]+)\\.isDisplayed\\(\\)\\)\\.toBe\\(true\\)': 'await expect($1).toBeVisible()',
-      'expect\\(await ([^.]+)\\.isDisplayed\\(\\)\\)\\.toBe\\(false\\)': 'await expect($1).toBeHidden()',
-      'expect\\(await ([^.]+)\\.getText\\(\\)\\)\\.toBe\\(([^)]+)\\)': 'await expect($1).toHaveText($2)',
-      'expect\\(await ([^.]+)\\.getText\\(\\)\\)\\.toContain\\(([^)]+)\\)': 'await expect($1).toContainText($2)',
-      'expect\\(await ([^.]+)\\.getAttribute\\([\'"]value[\'"]\\)\\)\\.toBe\\(([^)]+)\\)': 'await expect($1).toHaveValue($2)',
-      'expect\\(await ([^.]+)\\.getAttribute\\(([^)]+)\\)\\)\\.toBe\\(([^)]+)\\)': 'await expect($1).toHaveAttribute($2, $3)',
-      'expect\\(await ([^.]+)\\.isSelected\\(\\)\\)\\.toBe\\(true\\)': 'await expect($1).toBeChecked()',
-      'expect\\(await ([^.]+)\\.isSelected\\(\\)\\)\\.toBe\\(false\\)': 'await expect($1).not.toBeChecked()',
-      'expect\\(await ([^.]+)\\.isEnabled\\(\\)\\)\\.toBe\\(false\\)': 'await expect($1).toBeDisabled()',
-      'expect\\(await ([^.]+)\\.isEnabled\\(\\)\\)\\.toBe\\(true\\)': 'await expect($1).toBeEnabled()'
+      'expect\\(await ([^.]+)\\.isDisplayed\\(\\)\\)\\.toBe\\(true\\)':
+        'await expect($1).toBeVisible()',
+      'expect\\(await ([^.]+)\\.isDisplayed\\(\\)\\)\\.toBe\\(false\\)':
+        'await expect($1).toBeHidden()',
+      'expect\\(await ([^.]+)\\.getText\\(\\)\\)\\.toBe\\(([^)]+)\\)':
+        'await expect($1).toHaveText($2)',
+      'expect\\(await ([^.]+)\\.getText\\(\\)\\)\\.toContain\\(([^)]+)\\)':
+        'await expect($1).toContainText($2)',
+      'expect\\(await ([^.]+)\\.getAttribute\\([\'"]value[\'"]\\)\\)\\.toBe\\(([^)]+)\\)':
+        'await expect($1).toHaveValue($2)',
+      'expect\\(await ([^.]+)\\.getAttribute\\(([^)]+)\\)\\)\\.toBe\\(([^)]+)\\)':
+        'await expect($1).toHaveAttribute($2, $3)',
+      'expect\\(await ([^.]+)\\.isSelected\\(\\)\\)\\.toBe\\(true\\)':
+        'await expect($1).toBeChecked()',
+      'expect\\(await ([^.]+)\\.isSelected\\(\\)\\)\\.toBe\\(false\\)':
+        'await expect($1).not.toBeChecked()',
+      'expect\\(await ([^.]+)\\.isEnabled\\(\\)\\)\\.toBe\\(false\\)':
+        'await expect($1).toBeDisabled()',
+      'expect\\(await ([^.]+)\\.isEnabled\\(\\)\\)\\.toBe\\(true\\)':
+        'await expect($1).toBeEnabled()',
     });
 
     // Wait patterns
     this.engine.registerPatterns('waits', {
       'await driver\\.sleep\\((\\d+)\\)': 'await page.waitForTimeout($1)',
-      'await driver\\.wait\\(until\\.elementLocated\\(By\\.css\\(([^)]+)\\)\\),\\s*(\\d+)\\)': 'await page.waitForSelector($1, { timeout: $2 })',
-      'await driver\\.wait\\(until\\.elementIsVisible\\(([^)]+)\\),\\s*(\\d+)\\)': 'await page.waitForSelector($1, { state: "visible", timeout: $2 })',
-      'await driver\\.wait\\(until\\.urlContains\\(([^)]+)\\),\\s*(\\d+)\\)': 'await page.waitForURL($1)'
+      'await driver\\.wait\\(until\\.elementLocated\\(By\\.css\\(([^)]+)\\)\\),\\s*(\\d+)\\)':
+        'await page.waitForSelector($1, { timeout: $2 })',
+      'await driver\\.wait\\(until\\.elementIsVisible\\(([^)]+)\\),\\s*(\\d+)\\)':
+        'await page.waitForSelector($1, { state: "visible", timeout: $2 })',
+      'await driver\\.wait\\(until\\.urlContains\\(([^)]+)\\),\\s*(\\d+)\\)':
+        'await page.waitForURL($1)',
     });
 
     // Remove Selenium imports and setup
     this.engine.registerPatterns('cleanup', {
-      'const\\s*\\{[^{}\n]*Builder[^{}\n]*\\}\\s*=\\s*require\\([\'"]selenium-webdriver[\'"]\\);?\\n?': '',
-      'const\\s*\\{[^{}\n]*expect[^{}\n]*\\}\\s*=\\s*require\\([\'"]@jest/globals[\'"]\\);?\\n?': '',
+      'const\\s*\\{[^{}\n]*Builder[^{}\n]*\\}\\s*=\\s*require\\([\'"]selenium-webdriver[\'"]\\);?\\n?':
+        '',
+      'const\\s*\\{[^{}\n]*expect[^{}\n]*\\}\\s*=\\s*require\\([\'"]@jest/globals[\'"]\\);?\\n?':
+        '',
       'let\\s+driver;?\\n?': '',
-      'beforeAll\\s*\\([^)]*\\)\\s*\\{[\\s\\S]*?new\\s+Builder[\\s\\S]*?\\};?\\n?': '',
-      'afterAll\\s*\\([^)]*\\)\\s*\\{[\\s\\S]*?driver\\.quit[\\s\\S]*?\\};?\\n?': ''
+      'beforeAll\\s*\\([^)]*\\)\\s*\\{[\\s\\S]*?new\\s+Builder[\\s\\S]*?\\};?\\n?':
+        '',
+      'afterAll\\s*\\([^)]*\\)\\s*\\{[\\s\\S]*?driver\\.quit[\\s\\S]*?\\};?\\n?':
+        '',
     });
   }
 
@@ -121,17 +147,29 @@ export class SeleniumToPlaywright extends BaseConverter {
 
     // Remove Selenium imports
     // Note: Using [^{}\n]* to prevent ReDoS (already safe, just documenting)
-    result = result.replace(/const\s*\{\s*Builder[^{}\n]*\}\s*=\s*require\(['"]selenium-webdriver['"]\);?\n?/g, '');
-    result = result.replace(/const\s*\{\s*expect[^{}\n]*\}\s*=\s*require\(['"]@jest\/globals['"]\);?\n?/g, '');
+    result = result.replace(
+      /const\s*\{\s*Builder[^{}\n]*\}\s*=\s*require\(['"]selenium-webdriver['"]\);?\n?/g,
+      ''
+    );
+    result = result.replace(
+      /const\s*\{\s*expect[^{}\n]*\}\s*=\s*require\(['"]@jest\/globals['"]\);?\n?/g,
+      ''
+    );
 
     // Remove driver variable declaration
     result = result.replace(/let\s+driver;?\n?/g, '');
 
     // Remove beforeAll with driver setup
-    result = result.replace(/beforeAll\s*\(\s*async\s*\(\)\s*=>\s*\{[^{}\n]*new\s+Builder[^{}\n]*\}\s*\);?\n?/g, '');
+    result = result.replace(
+      /beforeAll\s*\(\s*async\s*\(\)\s*=>\s*\{[^{}\n]*new\s+Builder[^{}\n]*\}\s*\);?\n?/g,
+      ''
+    );
 
     // Remove afterAll with driver quit
-    result = result.replace(/afterAll\s*\(\s*async\s*\(\)\s*=>\s*\{[^{}\n]*driver\.quit[^{}\n]*\}\s*\);?\n?/g, '');
+    result = result.replace(
+      /afterAll\s*\(\s*async\s*\(\)\s*=>\s*\{[^{}\n]*driver\.quit[^{}\n]*\}\s*\);?\n?/g,
+      ''
+    );
 
     return result;
   }
@@ -223,9 +261,18 @@ export class SeleniumToPlaywright extends BaseConverter {
       'await page.goto($1)'
     );
 
-    result = result.replace(/await\s+driver\.navigate\s*\(\s*\)\.refresh\s*\(\s*\)/g, 'await page.reload()');
-    result = result.replace(/await\s+driver\.navigate\s*\(\s*\)\.back\s*\(\s*\)/g, 'await page.goBack()');
-    result = result.replace(/await\s+driver\.navigate\s*\(\s*\)\.forward\s*\(\s*\)/g, 'await page.goForward()');
+    result = result.replace(
+      /await\s+driver\.navigate\s*\(\s*\)\.refresh\s*\(\s*\)/g,
+      'await page.reload()'
+    );
+    result = result.replace(
+      /await\s+driver\.navigate\s*\(\s*\)\.back\s*\(\s*\)/g,
+      'await page.goBack()'
+    );
+    result = result.replace(
+      /await\s+driver\.navigate\s*\(\s*\)\.forward\s*\(\s*\)/g,
+      'await page.goForward()'
+    );
 
     // Convert URL assertions
     result = result.replace(
@@ -364,9 +411,7 @@ export class SeleniumToPlaywright extends BaseConverter {
   }
 
   getImports(_testTypes) {
-    return [
-      'import { test, expect } from \'@playwright/test\';'
-    ];
+    return ["import { test, expect } from '@playwright/test';"];
   }
 
   async convertConfig(configPath, _options = {}) {

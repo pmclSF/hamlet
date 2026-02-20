@@ -116,10 +116,19 @@ function emit(ir, source) {
   result = result.replace(/\bjest\.spyOn\b/g, 'vi.spyOn');
   result = result.replace(/\bjest\.useFakeTimers\b/g, 'vi.useFakeTimers');
   result = result.replace(/\bjest\.useRealTimers\b/g, 'vi.useRealTimers');
-  result = result.replace(/\bjest\.advanceTimersByTime\b/g, 'vi.advanceTimersByTime');
-  result = result.replace(/\bjest\.advanceTimersToNextTimer\b/g, 'vi.advanceTimersToNextTimer');
+  result = result.replace(
+    /\bjest\.advanceTimersByTime\b/g,
+    'vi.advanceTimersByTime'
+  );
+  result = result.replace(
+    /\bjest\.advanceTimersToNextTimer\b/g,
+    'vi.advanceTimersToNextTimer'
+  );
   result = result.replace(/\bjest\.runAllTimers\b/g, 'vi.runAllTimers');
-  result = result.replace(/\bjest\.runOnlyPendingTimers\b/g, 'vi.runOnlyPendingTimers');
+  result = result.replace(
+    /\bjest\.runOnlyPendingTimers\b/g,
+    'vi.runOnlyPendingTimers'
+  );
   result = result.replace(/\bjest\.clearAllTimers\b/g, 'vi.clearAllTimers');
   result = result.replace(/\bjest\.clearAllMocks\b/g, 'vi.clearAllMocks');
   result = result.replace(/\bjest\.resetAllMocks\b/g, 'vi.resetAllMocks');
@@ -145,20 +154,28 @@ function emit(ir, source) {
 
   // Warn about __mocks__ directory
   if (ir && hasAutomockPattern(ir)) {
-    warnings.push('__mocks__ directory convention: verify mock file resolution in Vitest');
+    warnings.push(
+      '__mocks__ directory convention: verify mock file resolution in Vitest'
+    );
   }
 
   // --- Phase 4: Generate and add import statement ---
 
   // Remove any existing jest-related imports (e.g., @jest/globals)
-  result = result.replace(/import\s+\{[^}]*\}\s+from\s+['"]@jest\/globals['"];?\n?/g, '');
+  result = result.replace(
+    /import\s+\{[^}]*\}\s+from\s+['"]@jest\/globals['"];?\n?/g,
+    ''
+  );
 
   const vitestImport = generateVitestImport(result);
   result = prependImport(result, vitestImport);
 
   // --- Phase 5: Insert TODO comments ---
   for (const todo of todos) {
-    result = result.replace(todo.marker, todo.comment + '\n' + todo.replacement);
+    result = result.replace(
+      todo.marker,
+      todo.comment + '\n' + todo.replacement
+    );
   }
 
   // Clean up multiple blank lines
@@ -180,10 +197,7 @@ function convertRequireActual(source) {
   let result = source;
 
   // First, handle standalone jest.requireActual references
-  result = result.replace(
-    /\bjest\.requireActual\b/g,
-    'await vi.importActual'
-  );
+  result = result.replace(/\bjest\.requireActual\b/g, 'await vi.importActual');
 
   // If we converted any requireActual, the containing jest.mock factory
   // must become async. Look for vi.mock (already converted) with non-async factory.
@@ -208,16 +222,24 @@ function convertRequireActual(source) {
  */
 function convertVirtualMocks(source, todos) {
   // Match jest.mock('module', factory, { virtual: true })
-  const virtualPattern = /jest\.mock\s*\(\s*(['"][^'"]+['"]),\s*\(\)\s*=>\s*\([^)]*\),\s*\{\s*virtual:\s*true\s*\}\s*\)/g;
+  const virtualPattern =
+    /jest\.mock\s*\(\s*(['"][^'"]+['"]),\s*\(\)\s*=>\s*\([^)]*\),\s*\{\s*virtual:\s*true\s*\}\s*\)/g;
 
   return source.replace(virtualPattern, (match, modulePath) => {
     const todoComment = formatter.formatTodo({
       id: 'UNCONVERTIBLE-VIRTUAL-MOCK',
-      description: 'Vitest does not support { virtual: true } option in vi.mock()',
+      description:
+        'Vitest does not support { virtual: true } option in vi.mock()',
       original: match,
       action: 'Create the module file or use vi.mock with a manual factory',
     });
-    return todoComment + '\n' + match.replace('jest.mock', 'vi.mock').replace(/,\s*\{\s*virtual:\s*true\s*\}/, '');
+    return (
+      todoComment +
+      '\n' +
+      match
+        .replace('jest.mock', 'vi.mock')
+        .replace(/,\s*\{\s*virtual:\s*true\s*\}/, '')
+    );
   });
 }
 
@@ -229,8 +251,11 @@ function convertRetryTimes(source, todos) {
     /jest\.retryTimes\s*\(\s*(\d+)\s*\)\s*;?/g,
     (match, count) => {
       const todoComment = formatter.formatWarning({
-        description: `Vitest uses \`retry\` in config or per-describe options instead of jest.retryTimes(${count}). ` +
-          'Configure retry in vitest.config.ts or use describe("suite", () => {}, { retry: ' + count + ' }).',
+        description:
+          `Vitest uses \`retry\` in config or per-describe options instead of jest.retryTimes(${count}). ` +
+          'Configure retry in vitest.config.ts or use describe("suite", () => {}, { retry: ' +
+          count +
+          ' }).',
         original: match,
       });
       return todoComment + '\n// ' + match;
@@ -245,12 +270,18 @@ function convertSnapshotSerializer(source, todos) {
   return source.replace(
     /expect\.addSnapshotSerializer\s*\([^)]*\)\s*;?/g,
     (match) => {
-      return formatter.formatTodo({
-        id: 'UNCONVERTIBLE-SNAPSHOT-SERIALIZER',
-        description: 'Vitest snapshot serializers are configured in vitest.config.ts, not in test files',
-        original: match,
-        action: 'Move serializer config to vitest.config.ts snapshotSerializers option',
-      }) + '\n// ' + match;
+      return (
+        formatter.formatTodo({
+          id: 'UNCONVERTIBLE-SNAPSHOT-SERIALIZER',
+          description:
+            'Vitest snapshot serializers are configured in vitest.config.ts, not in test files',
+          original: match,
+          action:
+            'Move serializer config to vitest.config.ts snapshotSerializers option',
+        }) +
+        '\n// ' +
+        match
+      );
     }
   );
 }
@@ -275,7 +306,8 @@ function addMockHostingWarning(source, warnings) {
 
   if (mockLine >= 0 && !source.includes('HAMLET-WARNING')) {
     const warning = formatter.formatWarning({
-      description: 'vi.mock is hoisted like jest.mock, but factory function scoping ' +
+      description:
+        'vi.mock is hoisted like jest.mock, but factory function scoping ' +
         'differs. Variables defined above vi.mock() are not accessible inside the factory. ' +
         'Verify this mock works correctly.',
       original: lines[mockLine].trim(),
@@ -298,12 +330,19 @@ function addSnapshotWarning(source, warnings) {
 
   const lines = source.split('\n');
   for (let i = 0; i < lines.length; i++) {
-    if (/\.toMatchSnapshot\s*\(/.test(lines[i]) && !lines[i].includes('HAMLET')) {
-      const warning = '// HAMLET-WARNING: Snapshot file location and format may differ between\n' +
+    if (
+      /\.toMatchSnapshot\s*\(/.test(lines[i]) &&
+      !lines[i].includes('HAMLET')
+    ) {
+      const warning =
+        '// HAMLET-WARNING: Snapshot file location and format may differ between\n' +
         '// Jest (__snapshots__/*.snap) and Vitest. Re-run tests to regenerate snapshots.';
       // Insert warning before the first snapshot assertion only
       const describeIdx = findPrecedingDescribe(lines, i);
-      if (describeIdx >= 0 && !lines.slice(describeIdx, i).some(l => l.includes('HAMLET-WARNING'))) {
+      if (
+        describeIdx >= 0 &&
+        !lines.slice(describeIdx, i).some((l) => l.includes('HAMLET-WARNING'))
+      ) {
         lines.splice(describeIdx, 0, warning);
       }
       warnings.push('Snapshot files need regeneration');
@@ -332,7 +371,10 @@ function hasAutomockPattern(ir) {
   for (const node of ir.body) {
     if (node instanceof MockCall && node.kind === 'mockModule') {
       // Simple jest.mock('path') without factory suggests __mocks__ usage
-      if (node.originalSource && !/jest\.mock\s*\([^,]+,/.test(node.originalSource)) {
+      if (
+        node.originalSource &&
+        !/jest\.mock\s*\([^,]+,/.test(node.originalSource)
+      ) {
         return true;
       }
     }
@@ -363,8 +405,18 @@ function generateVitestImport(source) {
   if (used.size === 0) return '';
 
   // Sort for consistent output: describe, it, test, expect, vi, hooks
-  const order = ['describe', 'it', 'test', 'expect', 'vi', 'beforeEach', 'afterEach', 'beforeAll', 'afterAll'];
-  const sorted = order.filter(name => used.has(name));
+  const order = [
+    'describe',
+    'it',
+    'test',
+    'expect',
+    'vi',
+    'beforeEach',
+    'afterEach',
+    'beforeAll',
+    'afterAll',
+  ];
+  const sorted = order.filter((name) => used.has(name));
 
   return `import { ${sorted.join(', ')} } from 'vitest';`;
 }
@@ -385,7 +437,12 @@ function prependImport(source, vitestImport) {
     const trimmed = lines[i].trim();
 
     // Skip leading comments (license headers, directives)
-    if (trimmed.startsWith('//') || trimmed.startsWith('/*') || trimmed.startsWith('*') || trimmed === '*/') {
+    if (
+      trimmed.startsWith('//') ||
+      trimmed.startsWith('/*') ||
+      trimmed.startsWith('*') ||
+      trimmed === '*/'
+    ) {
       insertIdx = i + 1;
       continue;
     }
@@ -402,8 +459,11 @@ function prependImport(source, vitestImport) {
   lines.splice(insertIdx, 0, vitestImport);
 
   // Ensure blank line after imports
-  if (insertIdx + 1 < lines.length && lines[insertIdx + 1].trim() !== '' &&
-      !lines[insertIdx + 1].trim().startsWith('import')) {
+  if (
+    insertIdx + 1 < lines.length &&
+    lines[insertIdx + 1].trim() !== '' &&
+    !lines[insertIdx + 1].trim().startsWith('import')
+  ) {
     lines.splice(insertIdx + 1, 0, '');
   }
 
@@ -418,7 +478,17 @@ export default {
   parse,
   emit,
   imports: {
-    explicit: ['describe', 'it', 'test', 'expect', 'vi', 'beforeEach', 'afterEach', 'beforeAll', 'afterAll'],
+    explicit: [
+      'describe',
+      'it',
+      'test',
+      'expect',
+      'vi',
+      'beforeEach',
+      'afterEach',
+      'beforeAll',
+      'afterAll',
+    ],
     from: 'vitest',
     mockNamespace: 'vi',
   },

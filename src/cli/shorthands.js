@@ -100,46 +100,146 @@ export const CONVERSION_CATEGORIES = [
   {
     name: 'JavaScript E2E / Browser',
     directions: [
-      { from: 'cypress', to: 'playwright', shorthands: buildAliasArray('cypress', 'playwright') },
-      { from: 'cypress', to: 'selenium', shorthands: buildAliasArray('cypress', 'selenium') },
-      { from: 'playwright', to: 'cypress', shorthands: buildAliasArray('playwright', 'cypress') },
-      { from: 'playwright', to: 'selenium', shorthands: buildAliasArray('playwright', 'selenium') },
-      { from: 'selenium', to: 'cypress', shorthands: buildAliasArray('selenium', 'cypress') },
-      { from: 'selenium', to: 'playwright', shorthands: buildAliasArray('selenium', 'playwright') },
-      { from: 'cypress', to: 'webdriverio', shorthands: buildAliasArray('cypress', 'webdriverio') },
-      { from: 'webdriverio', to: 'cypress', shorthands: buildAliasArray('webdriverio', 'cypress') },
-      { from: 'webdriverio', to: 'playwright', shorthands: buildAliasArray('webdriverio', 'playwright') },
-      { from: 'playwright', to: 'webdriverio', shorthands: buildAliasArray('playwright', 'webdriverio') },
-      { from: 'puppeteer', to: 'playwright', shorthands: buildAliasArray('puppeteer', 'playwright') },
-      { from: 'playwright', to: 'puppeteer', shorthands: buildAliasArray('playwright', 'puppeteer') },
-      { from: 'testcafe', to: 'playwright', shorthands: buildAliasArray('testcafe', 'playwright') },
-      { from: 'testcafe', to: 'cypress', shorthands: buildAliasArray('testcafe', 'cypress') },
+      {
+        from: 'cypress',
+        to: 'playwright',
+        shorthands: buildAliasArray('cypress', 'playwright'),
+      },
+      {
+        from: 'cypress',
+        to: 'selenium',
+        shorthands: buildAliasArray('cypress', 'selenium'),
+      },
+      {
+        from: 'playwright',
+        to: 'cypress',
+        shorthands: buildAliasArray('playwright', 'cypress'),
+      },
+      {
+        from: 'playwright',
+        to: 'selenium',
+        shorthands: buildAliasArray('playwright', 'selenium'),
+      },
+      {
+        from: 'selenium',
+        to: 'cypress',
+        shorthands: buildAliasArray('selenium', 'cypress'),
+      },
+      {
+        from: 'selenium',
+        to: 'playwright',
+        shorthands: buildAliasArray('selenium', 'playwright'),
+      },
+      {
+        from: 'cypress',
+        to: 'webdriverio',
+        shorthands: buildAliasArray('cypress', 'webdriverio'),
+      },
+      {
+        from: 'webdriverio',
+        to: 'cypress',
+        shorthands: buildAliasArray('webdriverio', 'cypress'),
+      },
+      {
+        from: 'webdriverio',
+        to: 'playwright',
+        shorthands: buildAliasArray('webdriverio', 'playwright'),
+      },
+      {
+        from: 'playwright',
+        to: 'webdriverio',
+        shorthands: buildAliasArray('playwright', 'webdriverio'),
+      },
+      {
+        from: 'puppeteer',
+        to: 'playwright',
+        shorthands: buildAliasArray('puppeteer', 'playwright'),
+      },
+      {
+        from: 'playwright',
+        to: 'puppeteer',
+        shorthands: buildAliasArray('playwright', 'puppeteer'),
+      },
+      {
+        from: 'testcafe',
+        to: 'playwright',
+        shorthands: buildAliasArray('testcafe', 'playwright'),
+      },
+      {
+        from: 'testcafe',
+        to: 'cypress',
+        shorthands: buildAliasArray('testcafe', 'cypress'),
+      },
     ],
   },
   {
     name: 'JavaScript Unit Testing',
     directions: [
-      { from: 'jest', to: 'vitest', shorthands: buildAliasArray('jest', 'vitest') },
-      { from: 'mocha', to: 'jest', shorthands: buildAliasArray('mocha', 'jest') },
-      { from: 'jasmine', to: 'jest', shorthands: buildAliasArray('jasmine', 'jest') },
-      { from: 'jest', to: 'mocha', shorthands: buildAliasArray('jest', 'mocha') },
-      { from: 'jest', to: 'jasmine', shorthands: buildAliasArray('jest', 'jasmine') },
+      {
+        from: 'jest',
+        to: 'vitest',
+        shorthands: buildAliasArray('jest', 'vitest'),
+      },
+      {
+        from: 'mocha',
+        to: 'jest',
+        shorthands: buildAliasArray('mocha', 'jest'),
+      },
+      {
+        from: 'jasmine',
+        to: 'jest',
+        shorthands: buildAliasArray('jasmine', 'jest'),
+      },
+      {
+        from: 'jest',
+        to: 'mocha',
+        shorthands: buildAliasArray('jest', 'mocha'),
+      },
+      {
+        from: 'jest',
+        to: 'jasmine',
+        shorthands: buildAliasArray('jest', 'jasmine'),
+      },
     ],
   },
   {
     name: 'Java',
     directions: [
-      { from: 'junit4', to: 'junit5', shorthands: buildAliasArray('junit4', 'junit5') },
-      { from: 'junit5', to: 'testng', shorthands: buildAliasArray('junit5', 'testng') },
-      { from: 'testng', to: 'junit5', shorthands: buildAliasArray('testng', 'junit5') },
+      {
+        from: 'junit4',
+        to: 'junit5',
+        shorthands: buildAliasArray('junit4', 'junit5'),
+      },
+      {
+        from: 'junit5',
+        to: 'testng',
+        shorthands: buildAliasArray('junit5', 'testng'),
+      },
+      {
+        from: 'testng',
+        to: 'junit5',
+        shorthands: buildAliasArray('testng', 'junit5'),
+      },
     ],
   },
   {
     name: 'Python',
     directions: [
-      { from: 'pytest', to: 'unittest', shorthands: buildAliasArray('pytest', 'unittest') },
-      { from: 'unittest', to: 'pytest', shorthands: buildAliasArray('unittest', 'pytest') },
-      { from: 'nose2', to: 'pytest', shorthands: buildAliasArray('nose2', 'pytest') },
+      {
+        from: 'pytest',
+        to: 'unittest',
+        shorthands: buildAliasArray('pytest', 'unittest'),
+      },
+      {
+        from: 'unittest',
+        to: 'pytest',
+        shorthands: buildAliasArray('unittest', 'pytest'),
+      },
+      {
+        from: 'nose2',
+        to: 'pytest',
+        shorthands: buildAliasArray('nose2', 'pytest'),
+      },
     ],
   },
 ];

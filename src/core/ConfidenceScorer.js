@@ -66,9 +66,8 @@ export class ConfidenceScorer {
       }
     });
 
-    const confidence = totalWeight > 0
-      ? Math.round((convertedWeight / totalWeight) * 100)
-      : 100;
+    const confidence =
+      totalWeight > 0 ? Math.round((convertedWeight / totalWeight) * 100) : 100;
 
     return {
       confidence,
