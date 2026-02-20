@@ -1,15 +1,17 @@
-name: Publish to npm
+name: Verify Release
 
+# Safety net: if a GitHub Release is created manually (not via release.yml),
+# run the test suite to surface any issues. Does NOT publish — release.yml
+# handles npm publish on tag push.
 on:
   release:
     types: [created]
 
 permissions:
   contents: read
-  id-token: write
 
 jobs:
-  publish:
+  verify:
     runs-on: ubuntu-latest
 
     steps:
@@ -20,15 +22,16 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22.x
-          registry-url: https://registry.npmjs.org/
+          cache: npm
 
       - name: Install dependencies
         run: npm ci
 
+      - name: Check formatting
+        run: npm run format:check
+
+      - name: Run linter
+        run: npm run lint
+
       - name: Run tests
         run: npm test
-
-      - name: Publish to npm
-        run: npm publish
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

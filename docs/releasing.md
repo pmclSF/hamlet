@@ -7,16 +7,24 @@ git tag v2.x.x && git push origin v2.x.x
          │
          ▼
   release.yml (trigger: tag push v*)
-    ├── npm ci
-    ├── npm test
-    ├── Create GitHub Release (auto-generated notes)
-    └── npm publish (NPM_TOKEN secret)
+    ├── verify job:
+    │     ├── npm ci
+    │     ├── format:check
+    │     ├── lint
+    │     └── test
+    └── release job (needs: verify):
+          ├── npm ci
+          ├── Create GitHub Release (auto-generated notes)
+          └── npm publish (NPM_TOKEN secret)
 ```
 
-A single workflow (`release.yml`) handles both the GitHub Release and npm publish.
-`publish.yml` exists as a fallback — it triggers on `release: created` events and
-runs the same publish step. If `release.yml` already published successfully,
-`publish.yml` will no-op (npm rejects duplicate version publishes).
+A single workflow (`release.yml`) handles the full pipeline: verify → release →
+publish. The release job only runs if verify passes.
+
+`publish.yml` (renamed "Verify Release") is a safety net that triggers on
+`release: created` events. It runs format:check + lint + tests but does NOT
+publish — this catches issues if a release is created manually outside the
+tag-push flow.
 
 ### Required Secrets
 
@@ -29,7 +37,7 @@ runs the same publish step. If `release.yml` already published successfully,
 | Workflow | Permission | Why |
 |----------|-----------|-----|
 | `release.yml` | `contents: write` | Create GitHub Release |
-| `publish.yml` | `contents: read`, `id-token: write` | Read repo, npm provenance (future) |
+| `publish.yml` | `contents: read` | Read repo (verify only, no publish) |
 
 ## Dry-Run Checklist
 
