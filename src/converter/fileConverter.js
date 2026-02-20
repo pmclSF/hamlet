@@ -1,3 +1,14 @@
+/**
+ * Standalone file conversion module.
+ *
+ * This is a self-contained Cypress→Playwright converter that uses hardcoded
+ * regex patterns applied sequentially. It does NOT use the IR pipeline
+ * (ConversionPipeline / PipelineConverter), ConverterFactory, or PatternEngine.
+ *
+ * The pipeline-based path (20 directions, IR + scoring) lives in:
+ *   ConverterFactory → PipelineConverter → ConversionPipeline
+ *   → framework parse()/emit() in src/languages/
+ */
 import fs from 'fs/promises';
 import path from 'path';
 

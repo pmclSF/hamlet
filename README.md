@@ -160,13 +160,16 @@ hamlet jest2vt auth.test.js -o converted/ --json
 
 ## How It Works
 
-1. **Scan** &mdash; discover test files in the source directory
-2. **Classify** &mdash; identify file types (test, helper, config, fixture)
-3. **Detect** &mdash; determine source framework from content
-4. **Parse** &mdash; convert source code into framework-neutral IR (intermediate representation)
-5. **Convert** &mdash; emit target framework code from the IR
-6. **Score** &mdash; calculate confidence based on converted vs. unconvertible patterns
-7. **Report** &mdash; generate HAMLET-TODO markers for patterns that need manual review
+1. **Detect** &mdash; determine source framework from content (regex heuristics per framework)
+2. **Parse** &mdash; classify source lines into IR nodes (suites, tests, hooks, assertions, raw code)
+3. **Transform** &mdash; apply regex-based pattern substitutions to convert API calls and test structure
+4. **Score** &mdash; walk the IR tree to calculate confidence (converted vs. unconvertible nodes)
+5. **Report** &mdash; generate HAMLET-TODO markers for patterns that need manual review
+
+> **Architecture note:** Conversion is currently regex-based string transformation.
+> The IR (intermediate representation) captures test structure for confidence scoring
+> but emitters operate on the source string, not the IR tree.
+> See [DESIGN.md](DESIGN.md) §1 for the hybrid IR + PatternEngine design rationale.
 
 ## Confidence Scores
 
