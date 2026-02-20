@@ -20,10 +20,10 @@ import {
   RawCode,
   Comment,
   Modifier,
-} from "../../../core/ir.js";
-import { TodoFormatter } from "../../../core/TodoFormatter.js";
+} from '../../../core/ir.js';
+import { TodoFormatter } from '../../../core/TodoFormatter.js';
 
-const formatter = new TodoFormatter("python");
+const formatter = new TodoFormatter('python');
 
 /**
  * Detect whether source code is unittest.
@@ -78,7 +78,7 @@ function detect(source) {
  * Parse unittest source code into an IR tree.
  */
 function parse(source) {
-  const lines = source.split("\n");
+  const lines = source.split('\n');
   const imports = [];
   const allNodes = [];
 
@@ -90,17 +90,17 @@ function parse(source) {
     if (!trimmed) continue;
 
     // Comments
-    if (trimmed.startsWith("#")) {
+    if (trimmed.startsWith('#')) {
       const isLicense =
         /license|copyright|MIT|Apache|BSD/i.test(trimmed) && i < 5;
       allNodes.push(
         new Comment({
           text: line,
-          commentKind: isLicense ? "license" : "inline",
+          commentKind: isLicense ? 'license' : 'inline',
           preserveExact: isLicense,
           sourceLocation: loc,
           originalSource: line,
-        }),
+        })
       );
       continue;
     }
@@ -108,16 +108,16 @@ function parse(source) {
     // Import statements
     if (/^(?:import|from)\s/.test(trimmed)) {
       const sourceMatch = trimmed.match(
-        /(?:from\s+(\S+)\s+import|import\s+(\S+))/,
+        /(?:from\s+(\S+)\s+import|import\s+(\S+))/
       );
       allNodes.push(
         new ImportStatement({
-          kind: "library",
-          source: sourceMatch ? sourceMatch[1] || sourceMatch[2] : "",
+          kind: 'library',
+          source: sourceMatch ? sourceMatch[1] || sourceMatch[2] : '',
           sourceLocation: loc,
           originalSource: line,
-          confidence: "converted",
-        }),
+          confidence: 'converted',
+        })
       );
       imports.push(allNodes[allNodes.length - 1]);
       continue;
@@ -127,12 +127,12 @@ function parse(source) {
     if (/^\s*class\s+\w+/.test(trimmed)) {
       allNodes.push(
         new TestSuite({
-          name: (trimmed.match(/class\s+(\w+)/) || [])[1] || "",
+          name: (trimmed.match(/class\s+(\w+)/) || [])[1] || '',
           modifiers: [],
           sourceLocation: loc,
           originalSource: line,
-          confidence: "converted",
-        }),
+          confidence: 'converted',
+        })
       );
       continue;
     }
@@ -141,44 +141,44 @@ function parse(source) {
     if (/def\s+setUp\s*\(/.test(trimmed)) {
       allNodes.push(
         new Hook({
-          hookType: "beforeEach",
+          hookType: 'beforeEach',
           sourceLocation: loc,
           originalSource: line,
-          confidence: "converted",
-        }),
+          confidence: 'converted',
+        })
       );
       continue;
     }
     if (/def\s+tearDown\s*\(\s*self/.test(trimmed)) {
       allNodes.push(
         new Hook({
-          hookType: "afterEach",
+          hookType: 'afterEach',
           sourceLocation: loc,
           originalSource: line,
-          confidence: "converted",
-        }),
+          confidence: 'converted',
+        })
       );
       continue;
     }
     if (/def\s+setUpClass\s*\(/.test(trimmed)) {
       allNodes.push(
         new Hook({
-          hookType: "beforeAll",
+          hookType: 'beforeAll',
           sourceLocation: loc,
           originalSource: line,
-          confidence: "converted",
-        }),
+          confidence: 'converted',
+        })
       );
       continue;
     }
     if (/def\s+tearDownClass\s*\(/.test(trimmed)) {
       allNodes.push(
         new Hook({
-          hookType: "afterAll",
+          hookType: 'afterAll',
           sourceLocation: loc,
           originalSource: line,
-          confidence: "converted",
-        }),
+          confidence: 'converted',
+        })
       );
       continue;
     }
@@ -187,44 +187,44 @@ function parse(source) {
     if (/@unittest\.skip\b/.test(trimmed)) {
       allNodes.push(
         new Modifier({
-          modifierType: "skip",
+          modifierType: 'skip',
           sourceLocation: loc,
           originalSource: line,
-          confidence: "converted",
-        }),
+          confidence: 'converted',
+        })
       );
       continue;
     }
     if (/@unittest\.skipIf\b/.test(trimmed)) {
       allNodes.push(
         new Modifier({
-          modifierType: "skip",
+          modifierType: 'skip',
           sourceLocation: loc,
           originalSource: line,
-          confidence: "converted",
-        }),
+          confidence: 'converted',
+        })
       );
       continue;
     }
     if (/@unittest\.skipUnless\b/.test(trimmed)) {
       allNodes.push(
         new Modifier({
-          modifierType: "skip",
+          modifierType: 'skip',
           sourceLocation: loc,
           originalSource: line,
-          confidence: "converted",
-        }),
+          confidence: 'converted',
+        })
       );
       continue;
     }
     if (/@unittest\.expectedFailure\b/.test(trimmed)) {
       allNodes.push(
         new Modifier({
-          modifierType: "expectedFailure",
+          modifierType: 'expectedFailure',
           sourceLocation: loc,
           originalSource: line,
-          confidence: "converted",
-        }),
+          confidence: 'converted',
+        })
       );
       continue;
     }
@@ -233,44 +233,44 @@ function parse(source) {
     if (/def\s+test_\w+\s*\(/.test(trimmed)) {
       allNodes.push(
         new TestCase({
-          name: (trimmed.match(/def\s+(test_\w+)\s*\(/) || [])[1] || "",
+          name: (trimmed.match(/def\s+(test_\w+)\s*\(/) || [])[1] || '',
           isAsync: /async\s+def/.test(trimmed),
           modifiers: [],
           sourceLocation: loc,
           originalSource: line,
-          confidence: "converted",
-        }),
+          confidence: 'converted',
+        })
       );
       continue;
     }
 
     // unittest assertions
     if (/self\.assert\w+\s*\(/.test(trimmed)) {
-      let kind = "equal";
-      if (/self\.assertEqual/.test(trimmed)) kind = "equal";
-      else if (/self\.assertNotEqual/.test(trimmed)) kind = "notEqual";
-      else if (/self\.assertTrue/.test(trimmed)) kind = "truthy";
-      else if (/self\.assertFalse/.test(trimmed)) kind = "falsy";
-      else if (/self\.assertIsNone/.test(trimmed)) kind = "isNull";
-      else if (/self\.assertIsNotNone/.test(trimmed)) kind = "isDefined";
-      else if (/self\.assertIn/.test(trimmed)) kind = "contains";
-      else if (/self\.assertNotIn/.test(trimmed)) kind = "notContains";
-      else if (/self\.assertRaises/.test(trimmed)) kind = "throws";
-      else if (/self\.assertIsInstance/.test(trimmed)) kind = "isInstance";
-      else if (/self\.assertGreater\b/.test(trimmed)) kind = "greaterThan";
+      let kind = 'equal';
+      if (/self\.assertEqual/.test(trimmed)) kind = 'equal';
+      else if (/self\.assertNotEqual/.test(trimmed)) kind = 'notEqual';
+      else if (/self\.assertTrue/.test(trimmed)) kind = 'truthy';
+      else if (/self\.assertFalse/.test(trimmed)) kind = 'falsy';
+      else if (/self\.assertIsNone/.test(trimmed)) kind = 'isNull';
+      else if (/self\.assertIsNotNone/.test(trimmed)) kind = 'isDefined';
+      else if (/self\.assertIn/.test(trimmed)) kind = 'contains';
+      else if (/self\.assertNotIn/.test(trimmed)) kind = 'notContains';
+      else if (/self\.assertRaises/.test(trimmed)) kind = 'throws';
+      else if (/self\.assertIsInstance/.test(trimmed)) kind = 'isInstance';
+      else if (/self\.assertGreater\b/.test(trimmed)) kind = 'greaterThan';
       else if (/self\.assertGreaterEqual/.test(trimmed))
-        kind = "greaterThanOrEqual";
-      else if (/self\.assertLess\b/.test(trimmed)) kind = "lessThan";
-      else if (/self\.assertLessEqual/.test(trimmed)) kind = "lessThanOrEqual";
-      else if (/self\.assertAlmostEqual/.test(trimmed)) kind = "closeTo";
+        kind = 'greaterThanOrEqual';
+      else if (/self\.assertLess\b/.test(trimmed)) kind = 'lessThan';
+      else if (/self\.assertLessEqual/.test(trimmed)) kind = 'lessThanOrEqual';
+      else if (/self\.assertAlmostEqual/.test(trimmed)) kind = 'closeTo';
 
       allNodes.push(
         new Assertion({
           kind,
           sourceLocation: loc,
           originalSource: line,
-          confidence: "converted",
-        }),
+          confidence: 'converted',
+        })
       );
       continue;
     }
@@ -279,11 +279,11 @@ function parse(source) {
     if (/self\.fail\s*\(/.test(trimmed)) {
       allNodes.push(
         new Assertion({
-          kind: "fail",
+          kind: 'fail',
           sourceLocation: loc,
           originalSource: line,
-          confidence: "converted",
-        }),
+          confidence: 'converted',
+        })
       );
       continue;
     }
@@ -294,12 +294,12 @@ function parse(source) {
         code: line,
         sourceLocation: loc,
         originalSource: line,
-      }),
+      })
     );
   }
 
   return new TestFile({
-    language: "python",
+    language: 'python',
     imports,
     body: allNodes.filter((n) => !imports.includes(n)),
   });
@@ -315,16 +315,16 @@ function parse(source) {
 function splitArgs(argsStr) {
   const args = [];
   let depth = 0;
-  let current = "";
+  let current = '';
   let inString = null;
 
   for (let i = 0; i < argsStr.length; i++) {
     const ch = argsStr[i];
-    const prev = i > 0 ? argsStr[i - 1] : "";
+    const prev = i > 0 ? argsStr[i - 1] : '';
 
     if (inString) {
       current += ch;
-      if (ch === inString && prev !== "\\") inString = null;
+      if (ch === inString && prev !== '\\') inString = null;
       continue;
     }
 
@@ -334,21 +334,21 @@ function splitArgs(argsStr) {
       continue;
     }
 
-    if (ch === "(" || ch === "[" || ch === "{") {
+    if (ch === '(' || ch === '[' || ch === '{') {
       depth++;
       current += ch;
       continue;
     }
 
-    if (ch === ")" || ch === "]" || ch === "}") {
+    if (ch === ')' || ch === ']' || ch === '}') {
       depth--;
       current += ch;
       continue;
     }
 
-    if (ch === "," && depth === 0) {
+    if (ch === ',' && depth === 0) {
       args.push(current.trim());
-      current = "";
+      current = '';
       continue;
     }
 
@@ -367,10 +367,10 @@ function extractParenContent(str, startIndex) {
   let start = -1;
 
   for (let i = startIndex; i < str.length; i++) {
-    if (str[i] === "(") {
+    if (str[i] === '(') {
       if (depth === 0) start = i + 1;
       depth++;
-    } else if (str[i] === ")") {
+    } else if (str[i] === ')') {
       depth--;
       if (depth === 0) {
         return { content: str.substring(start, i), end: i };
@@ -400,17 +400,17 @@ function isPytestSource(source) {
  * Convert pytest assertions to unittest self.assert* calls.
  */
 function convertAssertions(result) {
-  const lines = result.split("\n");
+  const lines = result.split('\n');
   const converted = [];
 
   for (const line of lines) {
     const trimmed = line.trim();
 
     // Skip non-assert lines
-    if (!trimmed.startsWith("assert ") && !trimmed.startsWith("assert(")) {
+    if (!trimmed.startsWith('assert ') && !trimmed.startsWith('assert(')) {
       // Handle pytest.raises context manager
       if (/with\s+pytest\.raises\s*\(/.test(trimmed)) {
-        converted.push(line.replace(/pytest\.raises/, "self.assertRaises"));
+        converted.push(line.replace(/pytest\.raises/, 'self.assertRaises'));
         continue;
       }
       converted.push(line);
@@ -418,7 +418,7 @@ function convertAssertions(result) {
     }
 
     const indent = line.match(/^(\s*)/)[1];
-    let expr = trimmed.replace(/^assert\s+/, "");
+    let expr = trimmed.replace(/^assert\s+/, '');
 
     // Order matters: most specific patterns first
 
@@ -454,7 +454,7 @@ function convertAssertions(result) {
     const notInMatch = expr.match(/^(.+?)\s+not\s+in\s+(.+)$/);
     if (notInMatch) {
       converted.push(
-        `${indent}self.assertNotIn(${notInMatch[1]}, ${notInMatch[2]})`,
+        `${indent}self.assertNotIn(${notInMatch[1]}, ${notInMatch[2]})`
       );
       continue;
     }
@@ -470,7 +470,7 @@ function convertAssertions(result) {
     const eqMatch = expr.match(/^(.+?)\s*==\s*(.+)$/);
     if (eqMatch) {
       converted.push(
-        `${indent}self.assertEqual(${eqMatch[1].trim()}, ${eqMatch[2].trim()})`,
+        `${indent}self.assertEqual(${eqMatch[1].trim()}, ${eqMatch[2].trim()})`
       );
       continue;
     }
@@ -479,7 +479,7 @@ function convertAssertions(result) {
     const neqMatch = expr.match(/^(.+?)\s*!=\s*(.+)$/);
     if (neqMatch) {
       converted.push(
-        `${indent}self.assertNotEqual(${neqMatch[1].trim()}, ${neqMatch[2].trim()})`,
+        `${indent}self.assertNotEqual(${neqMatch[1].trim()}, ${neqMatch[2].trim()})`
       );
       continue;
     }
@@ -488,7 +488,7 @@ function convertAssertions(result) {
     const gteMatch = expr.match(/^(.+?)\s*>=\s*(.+)$/);
     if (gteMatch) {
       converted.push(
-        `${indent}self.assertGreaterEqual(${gteMatch[1].trim()}, ${gteMatch[2].trim()})`,
+        `${indent}self.assertGreaterEqual(${gteMatch[1].trim()}, ${gteMatch[2].trim()})`
       );
       continue;
     }
@@ -497,7 +497,7 @@ function convertAssertions(result) {
     const lteMatch = expr.match(/^(.+?)\s*<=\s*(.+)$/);
     if (lteMatch) {
       converted.push(
-        `${indent}self.assertLessEqual(${lteMatch[1].trim()}, ${lteMatch[2].trim()})`,
+        `${indent}self.assertLessEqual(${lteMatch[1].trim()}, ${lteMatch[2].trim()})`
       );
       continue;
     }
@@ -506,7 +506,7 @@ function convertAssertions(result) {
     const gtMatch = expr.match(/^(.+?)\s*>\s*(.+)$/);
     if (gtMatch) {
       converted.push(
-        `${indent}self.assertGreater(${gtMatch[1].trim()}, ${gtMatch[2].trim()})`,
+        `${indent}self.assertGreater(${gtMatch[1].trim()}, ${gtMatch[2].trim()})`
       );
       continue;
     }
@@ -515,7 +515,7 @@ function convertAssertions(result) {
     const ltMatch = expr.match(/^(.+?)\s*<\s*(.+)$/);
     if (ltMatch) {
       converted.push(
-        `${indent}self.assertLess(${ltMatch[1].trim()}, ${ltMatch[2].trim()})`,
+        `${indent}self.assertLess(${ltMatch[1].trim()}, ${ltMatch[2].trim()})`
       );
       continue;
     }
@@ -524,14 +524,14 @@ function convertAssertions(result) {
     converted.push(`${indent}self.assertTrue(${expr})`);
   }
 
-  return converted.join("\n");
+  return converted.join('\n');
 }
 
 /**
  * Wrap bare test functions in a unittest.TestCase class.
  */
 function wrapInClass(result) {
-  const lines = result.split("\n");
+  const lines = result.split('\n');
   const output = [];
   let inBareFunction = false;
   let funcIndent = 0;
@@ -548,14 +548,14 @@ function wrapInClass(result) {
   if (hasClass) return result;
 
   // Derive class name from first test function
-  let className = "TestConversion";
+  let className = 'TestConversion';
   for (const line of lines) {
     const testMatch = line.match(/^def\s+(test_\w+)\s*\(/);
     if (testMatch) {
-      const parts = testMatch[1].replace(/^test_/, "").split("_");
+      const parts = testMatch[1].replace(/^test_/, '').split('_');
       className =
-        "Test" +
-        parts.map((p) => p.charAt(0).toUpperCase() + p.slice(1)).join("");
+        'Test' +
+        parts.map((p) => p.charAt(0).toUpperCase() + p.slice(1)).join('');
       break;
     }
   }
@@ -592,37 +592,37 @@ function wrapInClass(result) {
   // Add blank line before class if needed
   if (
     preContent.length > 0 &&
-    preContent[preContent.length - 1].trim() !== ""
+    preContent[preContent.length - 1].trim() !== ''
   ) {
-    output.push("");
+    output.push('');
   }
-  output.push("");
+  output.push('');
   output.push(`class ${className}(unittest.TestCase):`);
 
   // Indent all function content by 4 spaces and add self parameter
   for (const line of functions) {
     if (!line.trim()) {
-      output.push("");
+      output.push('');
       continue;
     }
 
-    let indented = "    " + line;
+    let indented = '    ' + line;
 
     // Add self parameter to function definitions
     const defMatch = indented.match(/^(\s*def\s+\w+\s*)\(\s*\)/);
     if (defMatch) {
-      indented = indented.replace(/\(\s*\)/, "(self)");
+      indented = indented.replace(/\(\s*\)/, '(self)');
     } else {
       const defParamMatch = indented.match(/^(\s*def\s+\w+\s*)\((.+)\)/);
       if (defParamMatch && !/\bself\b/.test(defParamMatch[2])) {
-        indented = indented.replace(/\((.+)\)/, "(self, $1)");
+        indented = indented.replace(/\((.+)\)/, '(self, $1)');
       }
     }
 
     output.push(indented);
   }
 
-  return output.join("\n");
+  return output.join('\n');
 }
 
 /**
@@ -630,30 +630,30 @@ function wrapInClass(result) {
  */
 function convertMarkers(result) {
   // @pytest.mark.skip -> @unittest.skip
-  result = result.replace(/@pytest\.mark\.skip\b(?!\s*\()/g, "@unittest.skip");
+  result = result.replace(/@pytest\.mark\.skip\b(?!\s*\()/g, '@unittest.skip');
 
   // @pytest.mark.skip(reason="...") -> @unittest.skip("...")
   result = result.replace(
     /@pytest\.mark\.skip\(\s*reason\s*=\s*("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')\s*\)/g,
-    "@unittest.skip($1)",
+    '@unittest.skip($1)'
   );
 
   // @pytest.mark.skip("...") -> @unittest.skip("...")
   result = result.replace(
     /@pytest\.mark\.skip\(("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')\)/g,
-    "@unittest.skip($1)",
+    '@unittest.skip($1)'
   );
 
   // @pytest.mark.skipif(cond, reason="...") -> @unittest.skipIf(cond, "...")
   result = result.replace(
     /@pytest\.mark\.skipif\(([^,]+),\s*reason\s*=\s*("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')\s*\)/g,
-    "@unittest.skipIf($1, $2)",
+    '@unittest.skipIf($1, $2)'
   );
 
   // @pytest.mark.xfail -> @unittest.expectedFailure
   result = result.replace(
     /@pytest\.mark\.xfail\b(?:\s*\([^)]*\))?/g,
-    "@unittest.expectedFailure",
+    '@unittest.expectedFailure'
   );
 
   return result;
@@ -663,7 +663,7 @@ function convertMarkers(result) {
  * Convert pytest fixtures to setUp/tearDown.
  */
 function convertFixtures(result) {
-  const lines = result.split("\n");
+  const lines = result.split('\n');
   const output = [];
   let i = 0;
 
@@ -683,22 +683,22 @@ function convertFixtures(result) {
 
         // Collect the function body
         const bodyLines = [];
-        const funcIndent = indent + "    ";
+        const funcIndent = indent + '    ';
         while (i < lines.length) {
           const bodyLine = lines[i];
           if (
-            bodyLine.trim() === "" ||
+            bodyLine.trim() === '' ||
             bodyLine.startsWith(funcIndent) ||
             /^\s+/.test(bodyLine)
           ) {
             if (
-              bodyLine.trim() !== "" &&
+              bodyLine.trim() !== '' &&
               !bodyLine.startsWith(funcIndent) &&
               bodyLine.trim().length > 0
             ) {
               // Check if this line is at a lesser indent (end of function)
               const lineIndent = bodyLine.match(/^(\s*)/)[1];
-              if (lineIndent.length <= indent.length && bodyLine.trim() !== "")
+              if (lineIndent.length <= indent.length && bodyLine.trim() !== '')
                 break;
             }
             bodyLines.push(bodyLine);
@@ -710,7 +710,7 @@ function convertFixtures(result) {
 
         // Check for yield in body
         const yieldIdx = bodyLines.findIndex(
-          (l) => l.trim() === "yield" || l.trim().startsWith("yield "),
+          (l) => l.trim() === 'yield' || l.trim().startsWith('yield ')
         );
 
         if (yieldIdx >= 0) {
@@ -718,12 +718,12 @@ function convertFixtures(result) {
           const setUpBody = bodyLines.slice(0, yieldIdx);
           const tearDownBody = bodyLines
             .slice(yieldIdx + 1)
-            .filter((l) => l.trim() !== "");
+            .filter((l) => l.trim() !== '');
 
           output.push(`${indent}def setUp(self):`);
           if (
             setUpBody.length === 0 ||
-            setUpBody.every((l) => l.trim() === "")
+            setUpBody.every((l) => l.trim() === '')
           ) {
             output.push(`${indent}    pass`);
           } else {
@@ -733,7 +733,7 @@ function convertFixtures(result) {
           }
 
           if (tearDownBody.length > 0) {
-            output.push("");
+            output.push('');
             output.push(`${indent}def tearDown(self):`);
             for (const bl of tearDownBody) {
               output.push(bl);
@@ -744,7 +744,7 @@ function convertFixtures(result) {
           output.push(`${indent}def setUp(self):`);
           if (
             bodyLines.length === 0 ||
-            bodyLines.every((l) => l.trim() === "")
+            bodyLines.every((l) => l.trim() === '')
           ) {
             output.push(`${indent}    pass`);
           } else {
@@ -766,15 +766,15 @@ function convertFixtures(result) {
       output.push(
         `${indent}${formatter
           .formatTodo({
-            id: "UNCONVERTIBLE-FIXTURE",
+            id: 'UNCONVERTIBLE-FIXTURE',
             description:
-              "pytest fixture without autouse=True has no direct unittest equivalent",
+              'pytest fixture without autouse=True has no direct unittest equivalent',
             original: trimmed,
             action:
-              "Manually convert this fixture to setUp/tearDown or pass the value directly",
+              'Manually convert this fixture to setUp/tearDown or pass the value directly',
           })
-          .split("\n")
-          .join(`\n${indent}`)}`,
+          .split('\n')
+          .join(`\n${indent}`)}`
       );
       output.push(line);
       i++;
@@ -785,7 +785,7 @@ function convertFixtures(result) {
     i++;
   }
 
-  return output.join("\n");
+  return output.join('\n');
 }
 
 /**
@@ -796,53 +796,53 @@ function markUnconvertible(result) {
   result = result.replace(
     /^(\s*)(.*\bmonkeypatch\b.*)$/gm,
     (match, indent, code) => {
-      if (code.trim().startsWith("#")) return match;
+      if (code.trim().startsWith('#')) return match;
       return `${indent}${formatter
         .formatTodo({
-          id: "UNCONVERTIBLE-MONKEYPATCH",
-          description: "monkeypatch fixture has no direct unittest equivalent",
+          id: 'UNCONVERTIBLE-MONKEYPATCH',
+          description: 'monkeypatch fixture has no direct unittest equivalent',
           original: code.trim(),
-          action: "Use unittest.mock.patch() or similar mocking approach",
+          action: 'Use unittest.mock.patch() or similar mocking approach',
         })
-        .split("\n")
+        .split('\n')
         .join(`\n${indent}`)}\n${match}`;
-    },
+    }
   );
 
   // capfd/capsys/caplog fixture usage
   result = result.replace(
     /^(\s*)(.*\b(?:capfd|capsys|caplog)\b.*)$/gm,
     (match, indent, code) => {
-      if (code.trim().startsWith("#")) return match;
+      if (code.trim().startsWith('#')) return match;
       return `${indent}${formatter
         .formatTodo({
-          id: "UNCONVERTIBLE-CAPTURE",
+          id: 'UNCONVERTIBLE-CAPTURE',
           description:
-            "pytest capture fixtures have no direct unittest equivalent",
+            'pytest capture fixtures have no direct unittest equivalent',
           original: code.trim(),
           action:
-            "Use contextlib.redirect_stdout or unittest.mock to capture output",
+            'Use contextlib.redirect_stdout or unittest.mock to capture output',
         })
-        .split("\n")
+        .split('\n')
         .join(`\n${indent}`)}\n${match}`;
-    },
+    }
   );
 
   // tmp_path fixture usage
   result = result.replace(
     /^(\s*)(.*\btmp_path\b.*)$/gm,
     (match, indent, code) => {
-      if (code.trim().startsWith("#")) return match;
+      if (code.trim().startsWith('#')) return match;
       return `${indent}${formatter
         .formatTodo({
-          id: "UNCONVERTIBLE-TMPPATH",
-          description: "tmp_path fixture has no direct unittest equivalent",
+          id: 'UNCONVERTIBLE-TMPPATH',
+          description: 'tmp_path fixture has no direct unittest equivalent',
           original: code.trim(),
-          action: "Use tempfile.mkdtemp() in setUp/tearDown",
+          action: 'Use tempfile.mkdtemp() in setUp/tearDown',
         })
-        .split("\n")
+        .split('\n')
         .join(`\n${indent}`)}\n${match}`;
-    },
+    }
   );
 
   return result;
@@ -867,10 +867,10 @@ function emit(_ir, source) {
       const lastImportEnd = importMatch.index + importMatch[0].length;
       result =
         result.substring(0, lastImportEnd) +
-        "import unittest\n" +
+        'import unittest\n' +
         result.substring(lastImportEnd);
     } else {
-      result = "import unittest\n\n" + result;
+      result = 'import unittest\n\n' + result;
     }
   }
 
@@ -892,30 +892,30 @@ function emit(_ir, source) {
     (match, indent, args) => {
       return `${indent}${formatter
         .formatTodo({
-          id: "UNCONVERTIBLE-PARAMETRIZE",
+          id: 'UNCONVERTIBLE-PARAMETRIZE',
           description:
-            "@pytest.mark.parametrize has no direct unittest equivalent",
+            '@pytest.mark.parametrize has no direct unittest equivalent',
           original: match.trim(),
           action:
-            "Use subTest() or create individual test methods for each parameter set",
+            'Use subTest() or create individual test methods for each parameter set',
         })
-        .split("\n")
+        .split('\n')
         .join(`\n${indent}`)}\n${match}`;
-    },
+    }
   );
 
   // Phase 7: Remove import pytest (if no remaining references)
-  if (!/pytest\./.test(result.replace(/#.*$/gm, ""))) {
-    result = result.replace(/^import\s+pytest\s*\n/gm, "");
+  if (!/pytest\./.test(result.replace(/#.*$/gm, ''))) {
+    result = result.replace(/^import\s+pytest\s*\n/gm, '');
   }
 
   // Phase 8: Cleanup
   // Remove multiple consecutive blank lines (max 2)
-  result = result.replace(/\n{4,}/g, "\n\n\n");
+  result = result.replace(/\n{4,}/g, '\n\n\n');
 
   // Ensure file ends with newline
-  if (!result.endsWith("\n")) {
-    result += "\n";
+  if (!result.endsWith('\n')) {
+    result += '\n';
   }
 
   // Phase 9: Mark unconvertible patterns
@@ -925,13 +925,13 @@ function emit(_ir, source) {
 }
 
 export default {
-  name: "unittest",
-  language: "python",
-  paradigm: "xunit",
+  name: 'unittest',
+  language: 'python',
+  paradigm: 'xunit',
   detect,
   parse,
   emit,
   imports: {
-    packages: ["unittest"],
+    packages: ['unittest'],
   },
 };

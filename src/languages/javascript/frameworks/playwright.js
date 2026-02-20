@@ -67,28 +67,45 @@ function emit(ir, source) {
 
   // Detect source framework
   const isCypressSource = /\bcy\./.test(source);
-  const isWdioSource = /\bbrowser\.url\s*\(/.test(source) ||
+  const isWdioSource =
+    /\bbrowser\.url\s*\(/.test(source) ||
     (/\$\(/.test(source) && /\.setValue\s*\(/.test(source));
-  const isPuppeteerSource = /puppeteer\.launch/.test(source) ||
+  const isPuppeteerSource =
+    /puppeteer\.launch/.test(source) ||
     /require\(['"]puppeteer['"]\)/.test(source) ||
     /from\s+['"]puppeteer['"]/.test(source);
-  const isTestCafeSource = /\bfixture\s*`/.test(source) ||
-    /from\s+['"]testcafe['"]/.test(source);
+  const isTestCafeSource =
+    /\bfixture\s*`/.test(source) || /from\s+['"]testcafe['"]/.test(source);
 
   // Phase 1: Remove source-framework imports
   if (isCypressSource) {
     // Cypress uses globals — no imports to remove
   }
   if (isWdioSource) {
-    result = result.replace(/import\s+\{[^}]*\}\s+from\s+['"]@wdio\/globals['"];?\n?/g, '');
-    result = result.replace(/import\s+\{[^}]*\}\s+from\s+['"]webdriverio['"];?\n?/g, '');
+    result = result.replace(
+      /import\s+\{[^}]*\}\s+from\s+['"]@wdio\/globals['"];?\n?/g,
+      ''
+    );
+    result = result.replace(
+      /import\s+\{[^}]*\}\s+from\s+['"]webdriverio['"];?\n?/g,
+      ''
+    );
   }
   if (isPuppeteerSource) {
-    result = result.replace(/const\s+puppeteer\s*=\s*require\(['"]puppeteer['"]\)\s*;?\n?/g, '');
-    result = result.replace(/import\s+puppeteer\s+from\s+['"]puppeteer['"];?\n?/g, '');
+    result = result.replace(
+      /const\s+puppeteer\s*=\s*require\(['"]puppeteer['"]\)\s*;?\n?/g,
+      ''
+    );
+    result = result.replace(
+      /import\s+puppeteer\s+from\s+['"]puppeteer['"];?\n?/g,
+      ''
+    );
   }
   if (isTestCafeSource) {
-    result = result.replace(/import\s+\{[^}]*\}\s+from\s+['"]testcafe['"];?\n?/g, '');
+    result = result.replace(
+      /import\s+\{[^}]*\}\s+from\s+['"]testcafe['"];?\n?/g,
+      ''
+    );
   }
 
   // Phase 2: Convert source commands (each only matches its own patterns)
@@ -281,17 +298,11 @@ function convertCypressCommands(content) {
     /cy\.contains\(([^)]+)\)\.click\(\)/g,
     'await page.getByText($1).click()'
   );
-  result = result.replace(
-    /cy\.contains\(([^)]+)\)/g,
-    'page.getByText($1)'
-  );
+  result = result.replace(/cy\.contains\(([^)]+)\)/g, 'page.getByText($1)');
 
   // --- Navigation ---
 
-  result = result.replace(
-    /cy\.visit\(([^)]+)\)/g,
-    'await page.goto($1)'
-  );
+  result = result.replace(/cy\.visit\(([^)]+)\)/g, 'await page.goto($1)');
   result = result.replace(
     /cy\.url\(\)\.should\(['"]include['"],\s*([^)]+)\)/g,
     'await expect(page).toHaveURL(new RegExp($1))'
@@ -324,7 +335,10 @@ function convertCypressCommands(content) {
 
   result = result.replace(/cy\.reload\(\)/g, 'await page.reload()');
   result = result.replace(/cy\.go\(['"]back['"]\)/g, 'await page.goBack()');
-  result = result.replace(/cy\.go\(['"]forward['"]\)/g, 'await page.goForward()');
+  result = result.replace(
+    /cy\.go\(['"]forward['"]\)/g,
+    'await page.goForward()'
+  );
   result = result.replace(
     /cy\.viewport\((\d+),\s*(\d+)\)/g,
     'await page.setViewportSize({ width: $1, height: $2 })'
@@ -333,10 +347,13 @@ function convertCypressCommands(content) {
     /cy\.screenshot\(([^)]*)\)/g,
     'await page.screenshot({ path: $1 })'
   );
-  result = result.replace(/cy\.clearCookies\(\)/g, 'await context.clearCookies()');
+  result = result.replace(
+    /cy\.clearCookies\(\)/g,
+    'await context.clearCookies()'
+  );
   result = result.replace(
     /cy\.clearLocalStorage\(\)/g,
-    "await page.evaluate(() => localStorage.clear())"
+    'await page.evaluate(() => localStorage.clear())'
   );
   result = result.replace(/cy\.log\(([^)]+)\)/g, 'console.log($1)');
 
@@ -346,10 +363,7 @@ function convertCypressCommands(content) {
     /cy\.getCookie\(([^)]+)\)/g,
     'await context.cookies().then(cookies => cookies.find(c => c.name === $1))'
   );
-  result = result.replace(
-    /cy\.getCookies\(\)/g,
-    'await context.cookies()'
-  );
+  result = result.replace(/cy\.getCookies\(\)/g, 'await context.cookies()');
   result = result.replace(
     /cy\.setCookie\(([^,]+),\s*([^)]+)\)/g,
     'await context.addCookies([{ name: $1, value: $2, url: page.url() }])'
@@ -365,10 +379,7 @@ function convertCypressCommands(content) {
     /cy\.location\(['"]([^'"]+)['"]\)/g,
     'new URL(page.url()).$1'
   );
-  result = result.replace(
-    /cy\.location\(\)/g,
-    'new URL(page.url())'
-  );
+  result = result.replace(/cy\.location\(\)/g, 'new URL(page.url())');
 
   // --- Visual snapshot ---
 
@@ -406,10 +417,7 @@ function convertCypressCommands(content) {
   // --- Custom Cypress commands → HAMLET-TODO ---
 
   // cy.getBySel(selector) → page.getByTestId(selector) (common pattern in Cypress RWA)
-  result = result.replace(
-    /cy\.getBySel\(([^)]+)\)/g,
-    'page.getByTestId($1)'
-  );
+  result = result.replace(/cy\.getBySel\(([^)]+)\)/g, 'page.getByTestId($1)');
 
   // cy.getBySelLike(selector) → page.locator with data-test*= selector
   result = result.replace(
@@ -423,27 +431,25 @@ function convertCypressCommands(content) {
     /cy\.go\((-?\d+)\)/g,
     'await page.goBack() /* go($1) */'
   );
-  result = result.replace(
-    /cy\.reload\([^)]+\)/g,
-    'await page.reload()'
-  );
+  result = result.replace(/cy\.reload\([^)]+\)/g, 'await page.reload()');
 
   // Clean up empty screenshot args
   result = result.replace(/screenshot\(\{ path: \s*\}\)/g, 'screenshot()');
 
   // --- Catch-all: remaining cy.* custom commands → HAMLET-TODO ---
-  result = result.replace(
-    /cy\.(\w+)\(([^)]*)\)/g,
-    (match, method, args) => {
-      // Skip if it's already been converted (shouldn't start with cy. anymore)
-      return formatter.formatTodo({
+  result = result.replace(/cy\.(\w+)\(([^)]*)\)/g, (match, method, args) => {
+    // Skip if it's already been converted (shouldn't start with cy. anymore)
+    return (
+      formatter.formatTodo({
         id: 'UNCONVERTIBLE-CUSTOM-COMMAND',
         description: `Cypress custom command cy.${method}() has no Playwright equivalent`,
         original: match.trim(),
         action: 'Rewrite as a Playwright helper function or page object method',
-      }) + '\n// ' + match.trim();
-    }
-  );
+      }) +
+      '\n// ' +
+      match.trim()
+    );
+  });
 
   return result;
 }
@@ -524,10 +530,7 @@ function convertWdioCommands(content) {
   // --- WDIO text selectors (before composite patterns to avoid $() catch-all) ---
 
   // $('=text') -> page.getByText('text')  (link text)
-  result = result.replace(
-    /\$\(['"]=([\w\s]+)['"]\)/g,
-    "page.getByText('$1')"
-  );
+  result = result.replace(/\$\(['"]=([\w\s]+)['"]\)/g, "page.getByText('$1')");
   // $('*=text') -> page.getByText('text')  (partial link text)
   result = result.replace(
     /\$\(['"]\*=([\w\s]+)['"]\)/g,
@@ -570,7 +573,7 @@ function convertWdioCommands(content) {
   );
   result = result.replace(
     /await \$\(([^)]+)\)\.waitForDisplayed\(\)/g,
-    'await page.locator($1).waitFor({ state: \'visible\' })'
+    "await page.locator($1).waitFor({ state: 'visible' })"
   );
   result = result.replace(
     /await \$\(([^)]+)\)\.waitForExist\(\)/g,
@@ -591,14 +594,8 @@ function convertWdioCommands(content) {
 
   // --- Standalone $() / $$() -> page.locator() ---
 
-  result = result.replace(
-    /\$\$\(([^)]+)\)/g,
-    'page.locator($1)'
-  );
-  result = result.replace(
-    /\$\(([^)]+)\)/g,
-    'page.locator($1)'
-  );
+  result = result.replace(/\$\$\(([^)]+)\)/g, 'page.locator($1)');
+  result = result.replace(/\$\(([^)]+)\)/g, 'page.locator($1)');
 
   // --- Navigation ---
 
@@ -613,30 +610,15 @@ function convertWdioCommands(content) {
     /await browser\.pause\(([^)]+)\)/g,
     'await page.waitForTimeout($1)'
   );
-  result = result.replace(
-    /await browser\.execute\(/g,
-    'await page.evaluate('
-  );
-  result = result.replace(
-    /await browser\.refresh\(\)/g,
-    'await page.reload()'
-  );
-  result = result.replace(
-    /await browser\.back\(\)/g,
-    'await page.goBack()'
-  );
+  result = result.replace(/await browser\.execute\(/g, 'await page.evaluate(');
+  result = result.replace(/await browser\.refresh\(\)/g, 'await page.reload()');
+  result = result.replace(/await browser\.back\(\)/g, 'await page.goBack()');
   result = result.replace(
     /await browser\.forward\(\)/g,
     'await page.goForward()'
   );
-  result = result.replace(
-    /await browser\.getTitle\(\)/g,
-    'await page.title()'
-  );
-  result = result.replace(
-    /await browser\.getUrl\(\)/g,
-    'page.url()'
-  );
+  result = result.replace(/await browser\.getTitle\(\)/g, 'await page.title()');
+  result = result.replace(/await browser\.getUrl\(\)/g, 'page.url()');
   result = result.replace(
     /await browser\.keys\(\[([^\]]+)\]\)/g,
     'await page.keyboard.press($1)'
@@ -661,12 +643,15 @@ function convertWdioCommands(content) {
 
   result = result.replace(
     /await browser\.mock\([^)]+(?:,\s*[^)]+)?\)/g,
-    (match) => formatter.formatTodo({
-      id: 'UNCONVERTIBLE-MOCK',
-      description: 'WDIO browser.mock() has no direct Playwright equivalent',
-      original: match.trim(),
-      action: 'Use page.route() for network interception in Playwright',
-    }) + '\n// ' + match.trim()
+    (match) =>
+      formatter.formatTodo({
+        id: 'UNCONVERTIBLE-MOCK',
+        description: 'WDIO browser.mock() has no direct Playwright equivalent',
+        original: match.trim(),
+        action: 'Use page.route() for network interception in Playwright',
+      }) +
+      '\n// ' +
+      match.trim()
   );
 
   return result;
@@ -700,8 +685,14 @@ function convertPuppeteerCommands(content) {
   );
 
   // Remove standalone lifecycle lines that weren't caught by the block pattern
-  result = result.replace(/^\s*browser\s*=\s*await\s+puppeteer\.launch\([^)]*\)\s*;?\s*$/gm, '');
-  result = result.replace(/^\s*page\s*=\s*await\s+browser\.newPage\(\)\s*;?\s*$/gm, '');
+  result = result.replace(
+    /^\s*browser\s*=\s*await\s+puppeteer\.launch\([^)]*\)\s*;?\s*$/gm,
+    ''
+  );
+  result = result.replace(
+    /^\s*page\s*=\s*await\s+browser\.newPage\(\)\s*;?\s*$/gm,
+    ''
+  );
   result = result.replace(/^\s*await\s+browser\.close\(\)\s*;?\s*$/gm, '');
 
   // --- Puppeteer assertions → Playwright assertions ---
@@ -776,14 +767,8 @@ function convertPuppeteerCommands(content) {
     /await page\.\$\$eval\(([^,]+),\s*/g,
     'await page.locator($1).evaluateAll('
   );
-  result = result.replace(
-    /await page\.\$\$\(([^)]+)\)/g,
-    'page.locator($1)'
-  );
-  result = result.replace(
-    /await page\.\$\(([^)]+)\)/g,
-    'page.locator($1)'
-  );
+  result = result.replace(/await page\.\$\$\(([^)]+)\)/g, 'page.locator($1)');
+  result = result.replace(/await page\.\$\(([^)]+)\)/g, 'page.locator($1)');
 
   // --- Waits ---
 
@@ -791,10 +776,7 @@ function convertPuppeteerCommands(content) {
     /await page\.waitForSelector\(([^)]+)\)/g,
     'await page.locator($1).waitFor()'
   );
-  result = result.replace(
-    /await page\.waitForNavigation\(\)/g,
-    ''
-  );
+  result = result.replace(/await page\.waitForNavigation\(\)/g, '');
 
   // --- Browser API ---
 
@@ -818,10 +800,7 @@ function convertPuppeteerCommands(content) {
   );
 
   // Standalone page.$ catch-all (after all specific patterns)
-  result = result.replace(
-    /page\.\$\(([^)]+)\)/g,
-    'page.locator($1)'
-  );
+  result = result.replace(/page\.\$\(([^)]+)\)/g, 'page.locator($1)');
 
   return result;
 }
@@ -938,7 +917,7 @@ function convertTestCafeCommands(content) {
   );
   result = result.replace(
     /await\s+t\.rightClick\(([^)]+)\)/g,
-    'await page.locator($1).click({ button: \'right\' })'
+    "await page.locator($1).click({ button: 'right' })"
   );
   result = result.replace(
     /await\s+t\.hover\(([^)]+)\)/g,
@@ -1000,41 +979,49 @@ function convertTestCafeCommands(content) {
   );
 
   // Standalone Selector() -> page.locator()
-  result = result.replace(
-    /Selector\(([^)]+)\)/g,
-    'page.locator($1)'
-  );
+  result = result.replace(/Selector\(([^)]+)\)/g, 'page.locator($1)');
 
   // --- Unconvertible: Role, RequestMock, ClientFunction ---
 
   result = result.replace(
     /const\s+\w+\s*=\s*Role\([^)]+(?:,\s*async\s+t\s*=>\s*\{[\s\S]*?\})\s*\)\s*;?/g,
-    (match) => formatter.formatTodo({
-      id: 'UNCONVERTIBLE-ROLE',
-      description: 'TestCafe Role() has no direct Playwright equivalent',
-      original: match.trim(),
-      action: 'Use storageState or page.context().addCookies() for auth state in Playwright',
-    }) + '\n// ' + match.trim()
+    (match) =>
+      formatter.formatTodo({
+        id: 'UNCONVERTIBLE-ROLE',
+        description: 'TestCafe Role() has no direct Playwright equivalent',
+        original: match.trim(),
+        action:
+          'Use storageState or page.context().addCookies() for auth state in Playwright',
+      }) +
+      '\n// ' +
+      match.trim()
   );
 
   result = result.replace(
     /await\s+t\.useRole\([^)]+\)/g,
-    (match) => formatter.formatTodo({
-      id: 'UNCONVERTIBLE-USE-ROLE',
-      description: 'TestCafe t.useRole() has no direct Playwright equivalent',
-      original: match.trim(),
-      action: 'Use storageState or page.context().addCookies() for auth state in Playwright',
-    }) + '\n// ' + match.trim()
+    (match) =>
+      formatter.formatTodo({
+        id: 'UNCONVERTIBLE-USE-ROLE',
+        description: 'TestCafe t.useRole() has no direct Playwright equivalent',
+        original: match.trim(),
+        action:
+          'Use storageState or page.context().addCookies() for auth state in Playwright',
+      }) +
+      '\n// ' +
+      match.trim()
   );
 
   result = result.replace(
     /RequestMock\(\)/g,
-    (match) => '/* ' + formatter.formatTodo({
-      id: 'UNCONVERTIBLE-REQUEST-MOCK',
-      description: 'TestCafe RequestMock() — use page.route() in Playwright',
-      original: match.trim(),
-      action: 'Rewrite using page.route() for network mocking',
-    }) + ' */'
+    (match) =>
+      '/* ' +
+      formatter.formatTodo({
+        id: 'UNCONVERTIBLE-REQUEST-MOCK',
+        description: 'TestCafe RequestMock() — use page.route() in Playwright',
+        original: match.trim(),
+        action: 'Rewrite using page.route() for network mocking',
+      }) +
+      ' */'
   );
 
   return result;
@@ -1161,9 +1148,7 @@ function detectTestTypes(content) {
  * Generate Playwright import statements.
  */
 function getImports(testTypes) {
-  const imports = new Set([
-    "import { test, expect } from '@playwright/test';"
-  ]);
+  const imports = new Set(["import { test, expect } from '@playwright/test';"]);
   if (testTypes.includes('api')) {
     imports.add("import { request } from '@playwright/test';");
   }
@@ -1180,11 +1165,13 @@ function getImports(testTypes) {
  * Clean up output.
  */
 function cleanupOutput(content) {
-  return content
-    .replace(/await\s+await/g, 'await')
-    .replace(/screenshot\(\{ path: \s*\}\)/g, 'screenshot()')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim() + '\n';
+  return (
+    content
+      .replace(/await\s+await/g, 'await')
+      .replace(/screenshot\(\{ path: \s*\}\)/g, 'screenshot()')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim() + '\n'
+  );
 }
 
 export default {

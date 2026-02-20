@@ -39,7 +39,9 @@ export class OutputValidator {
   _checkBalancedBrackets(output, issues) {
     const pairs = { '(': ')', '[': ']', '{': '}' };
     const openers = new Set(Object.keys(pairs));
-    const closerToOpener = new Map(Object.entries(pairs).map(([k, v]) => [v, k]));
+    const closerToOpener = new Map(
+      Object.entries(pairs).map(([k, v]) => [v, k])
+    );
     const stack = [];
     let inString = false;
     let stringChar = '';
@@ -48,7 +50,11 @@ export class OutputValidator {
       const ch = output[i];
       const prev = i > 0 ? output[i - 1] : '';
 
-      if (!inString && (ch === '\'' || ch === '"' || ch === '`') && prev !== '\\') {
+      if (
+        !inString &&
+        (ch === "'" || ch === '"' || ch === '`') &&
+        prev !== '\\'
+      ) {
         inString = true;
         stringChar = ch;
         continue;
@@ -62,19 +68,30 @@ export class OutputValidator {
       // Skip comments
       if (ch === '/' && i + 1 < output.length && output[i + 1] === '/') {
         const nlIndex = output.indexOf('\n', i);
-        if (nlIndex !== -1) { i = nlIndex; } else { break; }
+        if (nlIndex !== -1) {
+          i = nlIndex;
+        } else {
+          break;
+        }
         continue;
       }
       if (ch === '/' && i + 1 < output.length && output[i + 1] === '*') {
         const endIndex = output.indexOf('*/', i + 2);
-        if (endIndex !== -1) { i = endIndex + 1; } else { break; }
+        if (endIndex !== -1) {
+          i = endIndex + 1;
+        } else {
+          break;
+        }
         continue;
       }
 
       if (openers.has(ch)) {
         stack.push(ch);
       } else if (closerToOpener.has(ch)) {
-        if (stack.length === 0 || stack[stack.length - 1] !== closerToOpener.get(ch)) {
+        if (
+          stack.length === 0 ||
+          stack[stack.length - 1] !== closerToOpener.get(ch)
+        ) {
           issues.push({
             type: 'bracket',
             message: `Unmatched '${ch}' at position ${i}`,
@@ -116,7 +133,7 @@ export class OutputValidator {
       // Skip comments
       if (line.trim().startsWith('//') || line.trim().startsWith('*')) continue;
       // Skip string literals containing these references
-      if (line.trim().startsWith('\'') || line.trim().startsWith('"')) continue;
+      if (line.trim().startsWith("'") || line.trim().startsWith('"')) continue;
 
       for (const pattern of patterns) {
         const regex = new RegExp(pattern.source, pattern.flags);
@@ -172,7 +189,8 @@ export class OutputValidator {
    */
   _checkEmptyTestBodies(output, issues) {
     // Match test/it calls followed by empty function bodies
-    const emptyTestPattern = /(?:it|test)\s*\(\s*['"][^'"]*['"]\s*,\s*(?:async\s*)?\(\s*\)\s*=>\s*\{\s*\}\s*\)/g;
+    const emptyTestPattern =
+      /(?:it|test)\s*\(\s*['"][^'"]*['"]\s*,\s*(?:async\s*)?\(\s*\)\s*=>\s*\{\s*\}\s*\)/g;
     let match;
 
     while ((match = emptyTestPattern.exec(output)) !== null) {

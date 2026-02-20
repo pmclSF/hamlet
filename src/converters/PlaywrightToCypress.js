@@ -25,17 +25,17 @@ export class PlaywrightToCypress extends BaseConverter {
       'test\\.beforeAll\\(': 'before(',
       'test\\.afterAll\\(': 'after(',
       'test\\.beforeEach\\(': 'beforeEach(',
-      'test\\.afterEach\\(': 'afterEach('
+      'test\\.afterEach\\(': 'afterEach(',
     });
 
     // Navigation patterns
     this.engine.registerPatterns('navigation', {
       'await page\\.goto\\(([^)]+)\\)': 'cy.visit($1)',
-      'await page\\.goBack\\(\\)': 'cy.go(\'back\')',
-      'await page\\.goForward\\(\\)': 'cy.go(\'forward\')',
+      'await page\\.goBack\\(\\)': "cy.go('back')",
+      'await page\\.goForward\\(\\)': "cy.go('forward')",
       'await page\\.reload\\(\\)': 'cy.reload()',
       'page\\.url\\(\\)': 'cy.url()',
-      'await page\\.title\\(\\)': 'cy.title()'
+      'await page\\.title\\(\\)': 'cy.title()',
     });
 
     // Selector patterns
@@ -49,7 +49,7 @@ export class PlaywrightToCypress extends BaseConverter {
       '\\.locator\\(([^)]+)\\)': '.find($1)',
       '\\.first\\(\\)': '.first()',
       '\\.last\\(\\)': '.last()',
-      '\\.nth\\((\\d+)\\)': '.eq($1)'
+      '\\.nth\\((\\d+)\\)': '.eq($1)',
     });
 
     // Interaction patterns
@@ -66,26 +66,40 @@ export class PlaywrightToCypress extends BaseConverter {
       '\\.blur\\(\\)': '.blur()',
       '\\.hover\\(\\)': '.trigger("mouseover")',
       '\\.scrollIntoViewIfNeeded\\(\\)': '.scrollIntoView()',
-      '\\.setInputFiles\\(([^)]+)\\)': '.selectFile($1)'
+      '\\.setInputFiles\\(([^)]+)\\)': '.selectFile($1)',
     });
 
     // Assertion patterns
     this.engine.registerPatterns('assertions', {
-      'await expect\\(([^)]+)\\)\\.toBeVisible\\(\\)': '$1.should("be.visible")',
-      'await expect\\(([^)]+)\\)\\.toBeHidden\\(\\)': '$1.should("not.be.visible")',
+      'await expect\\(([^)]+)\\)\\.toBeVisible\\(\\)':
+        '$1.should("be.visible")',
+      'await expect\\(([^)]+)\\)\\.toBeHidden\\(\\)':
+        '$1.should("not.be.visible")',
       'await expect\\(([^)]+)\\)\\.toBeAttached\\(\\)': '$1.should("exist")',
-      'await expect\\(([^)]+)\\)\\.not\\.toBeAttached\\(\\)': '$1.should("not.exist")',
-      'await expect\\(([^)]+)\\)\\.toHaveText\\(([^)]+)\\)': '$1.should("have.text", $2)',
-      'await expect\\(([^)]+)\\)\\.toContainText\\(([^)]+)\\)': '$1.should("contain", $2)',
-      'await expect\\(([^)]+)\\)\\.toHaveValue\\(([^)]+)\\)': '$1.should("have.value", $2)',
-      'await expect\\(([^)]+)\\)\\.toHaveAttribute\\(([^,\n]+),\\s*([^)]+)\\)': '$1.should("have.attr", $2, $3)',
-      'await expect\\(([^)]+)\\)\\.toHaveClass\\(([^)]+)\\)': '$1.should("have.class", $2)',
-      'await expect\\(([^)]+)\\)\\.toBeChecked\\(\\)': '$1.should("be.checked")',
-      'await expect\\(([^)]+)\\)\\.toBeDisabled\\(\\)': '$1.should("be.disabled")',
-      'await expect\\(([^)]+)\\)\\.toBeEnabled\\(\\)': '$1.should("be.enabled")',
-      'await expect\\(([^)]+)\\)\\.toHaveCount\\(([^)]+)\\)': '$1.should("have.length", $2)',
-      'await expect\\(page\\)\\.toHaveURL\\(([^)]+)\\)': 'cy.url().should("include", $1)',
-      'await expect\\(page\\)\\.toHaveTitle\\(([^)]+)\\)': 'cy.title().should("eq", $1)'
+      'await expect\\(([^)]+)\\)\\.not\\.toBeAttached\\(\\)':
+        '$1.should("not.exist")',
+      'await expect\\(([^)]+)\\)\\.toHaveText\\(([^)]+)\\)':
+        '$1.should("have.text", $2)',
+      'await expect\\(([^)]+)\\)\\.toContainText\\(([^)]+)\\)':
+        '$1.should("contain", $2)',
+      'await expect\\(([^)]+)\\)\\.toHaveValue\\(([^)]+)\\)':
+        '$1.should("have.value", $2)',
+      'await expect\\(([^)]+)\\)\\.toHaveAttribute\\(([^,\n]+),\\s*([^)]+)\\)':
+        '$1.should("have.attr", $2, $3)',
+      'await expect\\(([^)]+)\\)\\.toHaveClass\\(([^)]+)\\)':
+        '$1.should("have.class", $2)',
+      'await expect\\(([^)]+)\\)\\.toBeChecked\\(\\)':
+        '$1.should("be.checked")',
+      'await expect\\(([^)]+)\\)\\.toBeDisabled\\(\\)':
+        '$1.should("be.disabled")',
+      'await expect\\(([^)]+)\\)\\.toBeEnabled\\(\\)':
+        '$1.should("be.enabled")',
+      'await expect\\(([^)]+)\\)\\.toHaveCount\\(([^)]+)\\)':
+        '$1.should("have.length", $2)',
+      'await expect\\(page\\)\\.toHaveURL\\(([^)]+)\\)':
+        'cy.url().should("include", $1)',
+      'await expect\\(page\\)\\.toHaveTitle\\(([^)]+)\\)':
+        'cy.title().should("eq", $1)',
     });
 
     // Wait patterns
@@ -93,13 +107,14 @@ export class PlaywrightToCypress extends BaseConverter {
       'await page\\.waitForTimeout\\((\\d+)\\)': 'cy.wait($1)',
       'await page\\.waitForSelector\\(([^)]+)\\)': 'cy.get($1)',
       'await page\\.waitForURL\\(([^)]+)\\)': 'cy.url().should("include", $1)',
-      'await page\\.waitForLoadState\\([\'"]networkidle[\'"]\\)': 'cy.wait(1000)'
+      'await page\\.waitForLoadState\\([\'"]networkidle[\'"]\\)':
+        'cy.wait(1000)',
     });
 
     // Network patterns
     this.engine.registerPatterns('network', {
       'await page\\.route\\(([^,\n]+),': 'cy.intercept($1,',
-      'await request\\.fetch\\(': 'cy.request('
+      'await request\\.fetch\\(': 'cy.request(',
     });
   }
 
@@ -107,7 +122,10 @@ export class PlaywrightToCypress extends BaseConverter {
     let result = content;
 
     // Remove Playwright imports
-    result = result.replace(/import\s*\{[^{}\n]*\}\s*from\s*['"]@playwright\/test['"];?\n?/g, '');
+    result = result.replace(
+      /import\s*\{[^{}\n]*\}\s*from\s*['"]@playwright\/test['"];?\n?/g,
+      ''
+    );
 
     // Convert commands using explicit patterns (before removing await)
     result = this.convertPlaywrightCommands(result);
@@ -145,78 +163,78 @@ export class PlaywrightToCypress extends BaseConverter {
     // await expect(page.locator(selector)).toBeVisible()
     result = result.replace(
       /await expect\(page\.locator\(([^()\n]+)\)\)\.toBeVisible\(\)/g,
-      'cy.get($1).should(\'be.visible\')'
+      "cy.get($1).should('be.visible')"
     );
 
     result = result.replace(
       /await expect\(page\.locator\(([^()\n]+)\)\)\.toBeHidden\(\)/g,
-      'cy.get($1).should(\'not.be.visible\')'
+      "cy.get($1).should('not.be.visible')"
     );
 
     result = result.replace(
       /await expect\(page\.locator\(([^()\n]+)\)\)\.toBeAttached\(\)/g,
-      'cy.get($1).should(\'exist\')'
+      "cy.get($1).should('exist')"
     );
 
     result = result.replace(
       /await expect\(page\.locator\(([^()\n]+)\)\)\.not\.toBeAttached\(\)/g,
-      'cy.get($1).should(\'not.exist\')'
+      "cy.get($1).should('not.exist')"
     );
 
     result = result.replace(
       /await expect\(page\.locator\(([^()\n]+)\)\)\.toHaveText\(([^()\n]+)\)/g,
-      'cy.get($1).should(\'have.text\', $2)'
+      "cy.get($1).should('have.text', $2)"
     );
 
     result = result.replace(
       /await expect\(page\.locator\(([^()\n]+)\)\)\.toContainText\(([^()\n]+)\)/g,
-      'cy.get($1).should(\'contain\', $2)'
+      "cy.get($1).should('contain', $2)"
     );
 
     result = result.replace(
       /await expect\(page\.locator\(([^()\n]+)\)\)\.toHaveValue\(([^()\n]+)\)/g,
-      'cy.get($1).should(\'have.value\', $2)'
+      "cy.get($1).should('have.value', $2)"
     );
 
     result = result.replace(
       /await expect\(page\.locator\(([^()\n]+)\)\)\.toHaveClass\(([^()\n]+)\)/g,
-      'cy.get($1).should(\'have.class\', $2)'
+      "cy.get($1).should('have.class', $2)"
     );
 
     result = result.replace(
       /await expect\(page\.locator\(([^()\n]+)\)\)\.toBeChecked\(\)/g,
-      'cy.get($1).should(\'be.checked\')'
+      "cy.get($1).should('be.checked')"
     );
 
     result = result.replace(
       /await expect\(page\.locator\(([^()\n]+)\)\)\.toBeDisabled\(\)/g,
-      'cy.get($1).should(\'be.disabled\')'
+      "cy.get($1).should('be.disabled')"
     );
 
     result = result.replace(
       /await expect\(page\.locator\(([^()\n]+)\)\)\.toBeEnabled\(\)/g,
-      'cy.get($1).should(\'be.enabled\')'
+      "cy.get($1).should('be.enabled')"
     );
 
     result = result.replace(
       /await expect\(page\.locator\(([^()\n]+)\)\)\.toHaveCount\((\d+)\)/g,
-      'cy.get($1).should(\'have.length\', $2)'
+      "cy.get($1).should('have.length', $2)"
     );
 
     result = result.replace(
       /await expect\(page\.locator\(([^()\n]+)\)\)\.toHaveAttribute\(([^,()\n]+),\s*([^()\n]+)\)/g,
-      'cy.get($1).should(\'have.attr\', $2, $3)'
+      "cy.get($1).should('have.attr', $2, $3)"
     );
 
     // Convert page URL/title assertions
     result = result.replace(
       /await expect\(page\)\.toHaveURL\(([^()\n]+)\)/g,
-      'cy.url().should(\'include\', $1)'
+      "cy.url().should('include', $1)"
     );
 
     result = result.replace(
       /await expect\(page\)\.toHaveTitle\(([^()\n]+)\)/g,
-      'cy.title().should(\'eq\', $1)'
+      "cy.title().should('eq', $1)"
     );
 
     // Convert interactions
@@ -261,14 +279,11 @@ export class PlaywrightToCypress extends BaseConverter {
     );
 
     // Convert navigation
-    result = result.replace(
-      /await page\.goto\(([^)]+)\)/g,
-      'cy.visit($1)'
-    );
+    result = result.replace(/await page\.goto\(([^)]+)\)/g, 'cy.visit($1)');
 
     result = result.replace(/await page\.reload\(\)/g, 'cy.reload()');
-    result = result.replace(/await page\.goBack\(\)/g, 'cy.go(\'back\')');
-    result = result.replace(/await page\.goForward\(\)/g, 'cy.go(\'forward\')');
+    result = result.replace(/await page\.goBack\(\)/g, "cy.go('back')");
+    result = result.replace(/await page\.goForward\(\)/g, "cy.go('forward')");
 
     // Convert viewport
     result = result.replace(
@@ -373,11 +388,13 @@ export class PlaywrightToCypress extends BaseConverter {
    * @returns {string}
    */
   cleanupOutput(content) {
-    return content
-      // Remove empty lines
-      .replace(/\n{3,}/g, '\n\n')
-      // Trim
-      .trim() + '\n';
+    return (
+      content
+        // Remove empty lines
+        .replace(/\n{3,}/g, '\n\n')
+        // Trim
+        .trim() + '\n'
+    );
   }
 
   removeAsyncAwait(content) {
@@ -438,13 +455,18 @@ export class PlaywrightToCypress extends BaseConverter {
       const widthMatch = content.match(/width\s*:\s*(\d+)/);
       const heightMatch = content.match(/height\s*:\s*(\d+)/);
       if (widthMatch && heightMatch) {
-        pwConfig.use.viewport = { width: parseInt(widthMatch[1]), height: parseInt(heightMatch[1]) };
+        pwConfig.use.viewport = {
+          width: parseInt(widthMatch[1]),
+          height: parseInt(heightMatch[1]),
+        };
       }
 
       const videoMatch = content.match(/video\s*:\s*['"]([^'"]+)['"]/);
       if (videoMatch) pwConfig.use.video = videoMatch[1];
 
-      const screenshotMatch = content.match(/screenshot\s*:\s*['"]([^'"]+)['"]/);
+      const screenshotMatch = content.match(
+        /screenshot\s*:\s*['"]([^'"]+)['"]/
+      );
       if (screenshotMatch) pwConfig.use.screenshot = screenshotMatch[1];
 
       const timeoutMatch = content.match(/timeout\s*:\s*(\d+)/);
@@ -460,8 +482,8 @@ export class PlaywrightToCypress extends BaseConverter {
         viewportHeight: pwConfig.use?.viewport?.height || 720,
         video: pwConfig.use?.video === 'on',
         screenshotOnRunFailure: pwConfig.use?.screenshot !== 'off',
-        defaultCommandTimeout: pwConfig.timeout || 4000
-      }
+        defaultCommandTimeout: pwConfig.timeout || 4000,
+      },
     };
 
     return `const { defineConfig } = require('cypress');

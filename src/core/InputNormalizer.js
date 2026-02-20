@@ -31,7 +31,7 @@ export class InputNormalizer {
     let normalized = content;
 
     // Fix encoding issues — remove BOM
-    if (normalized.charCodeAt(0) === 0xFEFF) {
+    if (normalized.charCodeAt(0) === 0xfeff) {
       normalized = normalized.slice(1);
       issues.push({ type: 'encoding', message: 'Removed BOM character' });
     }
@@ -39,7 +39,10 @@ export class InputNormalizer {
     // Normalize line endings to LF
     if (normalized.includes('\r\n') || normalized.includes('\r')) {
       normalized = normalized.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-      issues.push({ type: 'encoding', message: 'Normalized line endings to LF' });
+      issues.push({
+        type: 'encoding',
+        message: 'Normalized line endings to LF',
+      });
     }
 
     // Fix mismatched quotes
@@ -88,14 +91,22 @@ export class InputNormalizer {
 
       let fixedLine = line;
 
-      if (counts.single % 2 !== 0 && counts.double % 2 === 0 && counts.backtick % 2 === 0) {
-        fixedLine = fixedLine + '\'';
+      if (
+        counts.single % 2 !== 0 &&
+        counts.double % 2 === 0 &&
+        counts.backtick % 2 === 0
+      ) {
+        fixedLine = fixedLine + "'";
         issues.push({
           type: 'quote',
           message: `Mismatched single quote on line ${i + 1}`,
           line: i + 1,
         });
-      } else if (counts.double % 2 !== 0 && counts.single % 2 === 0 && counts.backtick % 2 === 0) {
+      } else if (
+        counts.double % 2 !== 0 &&
+        counts.single % 2 === 0 &&
+        counts.backtick % 2 === 0
+      ) {
         fixedLine = fixedLine + '"';
         issues.push({
           type: 'quote',
@@ -129,11 +140,21 @@ export class InputNormalizer {
       if (escaped) continue;
 
       if (!inString) {
-        if (ch === '\'') { single++; inString = true; stringChar = '\''; }
-        else if (ch === '"') { double++; inString = true; stringChar = '"'; }
-        else if (ch === '`') { backtick++; inString = true; stringChar = '`'; }
+        if (ch === "'") {
+          single++;
+          inString = true;
+          stringChar = "'";
+        } else if (ch === '"') {
+          double++;
+          inString = true;
+          stringChar = '"';
+        } else if (ch === '`') {
+          backtick++;
+          inString = true;
+          stringChar = '`';
+        }
       } else if (ch === stringChar) {
-        if (ch === '\'') single++;
+        if (ch === "'") single++;
         else if (ch === '"') double++;
         else if (ch === '`') backtick++;
         inString = false;
@@ -162,7 +183,11 @@ export class InputNormalizer {
       const prev = i > 0 ? content[i - 1] : '';
 
       // Handle string boundaries
-      if (!inString && (ch === '\'' || ch === '"' || ch === '`') && prev !== '\\') {
+      if (
+        !inString &&
+        (ch === "'" || ch === '"' || ch === '`') &&
+        prev !== '\\'
+      ) {
         inString = true;
         stringChar = ch;
         continue;
@@ -198,7 +223,10 @@ export class InputNormalizer {
       if (openers.has(ch)) {
         stack.push({ char: ch, line: content.slice(0, i).split('\n').length });
       } else if (closers.has(ch)) {
-        if (stack.length > 0 && stack[stack.length - 1].char === closers.get(ch)) {
+        if (
+          stack.length > 0 &&
+          stack[stack.length - 1].char === closers.get(ch)
+        ) {
           stack.pop();
         }
       }

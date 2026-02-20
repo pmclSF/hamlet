@@ -156,7 +156,7 @@ export const stringUtils = {
         matrix[j][i] = Math.min(
           matrix[j - 1][i] + 1,
           matrix[j][i - 1] + 1,
-          substitute,
+          substitute
         );
       }
     }

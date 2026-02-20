@@ -99,7 +99,7 @@ export class TestValidator {
 
       // Run all validation rules
       for (const [ruleName, validator] of Object.entries(
-        this.validationRules,
+        this.validationRules
       )) {
         try {
           const result = await validator(content, testFile);
@@ -129,7 +129,7 @@ export class TestValidator {
       });
       console.error(
         chalk.red(`✗ Validation failed for ${path.basename(testFile)}:`),
-        error,
+        error
       );
     }
   }
@@ -163,7 +163,7 @@ export class TestValidator {
     const missingImports = requiredImports.filter(
       (imp) =>
         !content.includes(`from '${imp}'`) &&
-        !content.includes(`require('${imp}')`),
+        !content.includes(`require('${imp}')`)
     );
 
     return {
@@ -222,7 +222,7 @@ export class TestValidator {
     const selectorPattern = /locator\s*\(\s*['"`]([^'"`\n]*)['"`]\s*\)/g;
     const selectors = Array.from(
       content.matchAll(selectorPattern),
-      (m) => m[1],
+      (m) => m[1]
     );
 
     const invalidSelectors = selectors.filter((selector) => {
@@ -306,7 +306,7 @@ export class TestValidator {
     const properUsage = hooks.every(
       (hook) =>
         content.includes(`${hook.split('.')[1]}(async`) &&
-        content.includes('await'),
+        content.includes('await')
     );
 
     return {
@@ -358,7 +358,7 @@ export class TestValidator {
         results: results,
       });
       console.log(
-        chalk.green(`✓ ${path.basename(testFile)} passed validation`),
+        chalk.green(`✓ ${path.basename(testFile)} passed validation`)
       );
     } else {
       this.results.failed.push({

@@ -82,7 +82,10 @@ export class MigrationEngine {
         continue;
       }
 
-      const classification = this.classifier.classify(entry.relativePath, content);
+      const classification = this.classifier.classify(
+        entry.relativePath,
+        content
+      );
       files.push({
         ...entry,
         content,
@@ -101,7 +104,9 @@ export class MigrationEngine {
     try {
       converter = await ConverterFactory.createConverter(from, to);
     } catch (error) {
-      throw new Error(`Failed to create converter for ${from}→${to}: ${error.message}`);
+      throw new Error(
+        `Failed to create converter for ${from}→${to}: ${error.message}`
+      );
     }
 
     // 6. Convert files in order
@@ -109,31 +114,51 @@ export class MigrationEngine {
     const renames = new Map();
 
     for (const filePath of sortedPaths) {
-      const file = files.find(f => f.path === filePath);
+      const file = files.find((f) => f.path === filePath);
       if (!file) continue;
 
       // Skip non-convertible types (config files handled separately below)
-      if (file.classification.type === 'fixture' || file.classification.type === 'type-def' || file.classification.type === 'config') {
-        stateManager.markFileSkipped(file.relativePath, `Non-convertible type: ${file.classification.type}`);
-        if (options.onProgress) options.onProgress(file.relativePath, 'skipped', 0);
+      if (
+        file.classification.type === 'fixture' ||
+        file.classification.type === 'type-def' ||
+        file.classification.type === 'config'
+      ) {
+        stateManager.markFileSkipped(
+          file.relativePath,
+          `Non-convertible type: ${file.classification.type}`
+        );
+        if (options.onProgress)
+          options.onProgress(file.relativePath, 'skipped', 0);
         continue;
       }
 
       // Resume logic
-      if (isResume && !options.retryFailed && stateManager.isConverted(file.relativePath)) {
-        if (options.onProgress) options.onProgress(file.relativePath, 'skipped-converted', null);
+      if (
+        isResume &&
+        !options.retryFailed &&
+        stateManager.isConverted(file.relativePath)
+      ) {
+        if (options.onProgress)
+          options.onProgress(file.relativePath, 'skipped-converted', null);
         continue;
       }
 
-      if (isResume && options.retryFailed && !stateManager.isFailed(file.relativePath)) {
-        if (options.onProgress) options.onProgress(file.relativePath, 'skipped', null);
+      if (
+        isResume &&
+        options.retryFailed &&
+        !stateManager.isFailed(file.relativePath)
+      ) {
+        if (options.onProgress)
+          options.onProgress(file.relativePath, 'skipped', null);
         continue;
       }
 
       // Normalize input
-      const { normalized, issues: normIssues } = this.normalizer.normalize(file.content);
+      const { normalized, issues: normIssues } = this.normalizer.normalize(
+        file.content
+      );
 
-      if (normIssues.some(i => i.type === 'binary')) {
+      if (normIssues.some((i) => i.type === 'binary')) {
         stateManager.markFileSkipped(file.relativePath, 'Binary file');
         results.push({
           path: file.relativePath,
@@ -143,14 +168,15 @@ export class MigrationEngine {
           todos: [],
           type: file.classification.type,
         });
-        if (options.onProgress) options.onProgress(file.relativePath, 'skipped', 0);
+        if (options.onProgress)
+          options.onProgress(file.relativePath, 'skipped', 0);
         continue;
       }
 
       // Convert
       let converted;
       let confidence = 0;
-      const warnings = normIssues.map(i => i.message);
+      const warnings = normIssues.map((i) => i.message);
       const todos = [];
 
       try {
@@ -167,16 +193,20 @@ export class MigrationEngine {
       } catch (convError) {
         // Try error recovery
         try {
-          const { recovered, warnings: recWarnings } = this.errorRecovery.recoverFromParseError(
-            normalized,
-            convError,
-            (line) => line
-          );
+          const { recovered, warnings: recWarnings } =
+            this.errorRecovery.recoverFromParseError(
+              normalized,
+              convError,
+              (line) => line
+            );
           converted = recovered;
           warnings.push(...recWarnings);
           confidence = 30;
         } catch {
-          stateManager.markFileConverted(file.relativePath, { confidence: 0, error: convError.message });
+          stateManager.markFileConverted(file.relativePath, {
+            confidence: 0,
+            error: convError.message,
+          });
           results.push({
             path: file.relativePath,
             confidence: 0,
@@ -186,7 +216,8 @@ export class MigrationEngine {
             todos: [],
             type: file.classification.type,
           });
-          if (options.onProgress) options.onProgress(file.relativePath, 'failed', 0);
+          if (options.onProgress)
+            options.onProgress(file.relativePath, 'failed', 0);
           continue;
         }
       }
@@ -202,15 +233,23 @@ export class MigrationEngine {
       }
 
       // Track renames for import rewriting
-      if (file.relativePath !== this._computeNewPath(file.relativePath, from, to)) {
+      if (
+        file.relativePath !== this._computeNewPath(file.relativePath, from, to)
+      ) {
         renames.set(
           './' + file.relativePath.replace(/\\/g, '/'),
-          './' + this._computeNewPath(file.relativePath, from, to).replace(/\\/g, '/')
+          './' +
+            this._computeNewPath(file.relativePath, from, to).replace(
+              /\\/g,
+              '/'
+            )
         );
       }
 
       // Write output
-      const outputDir = options.output ? path.resolve(options.output) : resolvedRoot;
+      const outputDir = options.output
+        ? path.resolve(options.output)
+        : resolvedRoot;
       const newRelPath = this._computeNewPath(file.relativePath, from, to);
       const outputPath = path.join(outputDir, newRelPath);
       await fs.mkdir(path.dirname(outputPath), { recursive: true });
@@ -225,21 +264,36 @@ export class MigrationEngine {
         todos,
         type: file.classification.type,
       });
-      if (options.onProgress) options.onProgress(file.relativePath, 'converted', confidence);
+      if (options.onProgress)
+        options.onProgress(file.relativePath, 'converted', confidence);
     }
 
     // 6b. Convert config files
     const configConverter = new ConfigConverter();
-    const configFiles = files.filter(f => f.classification.type === 'config');
+    const configFiles = files.filter((f) => f.classification.type === 'config');
     for (const configFile of configFiles) {
       // Resume logic
-      if (isResume && !options.retryFailed && stateManager.isConverted(configFile.relativePath)) {
-        if (options.onProgress) options.onProgress(configFile.relativePath, 'skipped-converted', null);
+      if (
+        isResume &&
+        !options.retryFailed &&
+        stateManager.isConverted(configFile.relativePath)
+      ) {
+        if (options.onProgress)
+          options.onProgress(
+            configFile.relativePath,
+            'skipped-converted',
+            null
+          );
         continue;
       }
 
-      if (isResume && options.retryFailed && !stateManager.isFailed(configFile.relativePath)) {
-        if (options.onProgress) options.onProgress(configFile.relativePath, 'skipped', null);
+      if (
+        isResume &&
+        options.retryFailed &&
+        !stateManager.isFailed(configFile.relativePath)
+      ) {
+        if (options.onProgress)
+          options.onProgress(configFile.relativePath, 'skipped', null);
         continue;
       }
 
@@ -247,13 +301,21 @@ export class MigrationEngine {
         const converted = configConverter.convert(configFile.content, from, to);
 
         // Write output
-        const outputDir = options.output ? path.resolve(options.output) : resolvedRoot;
-        const newRelPath = this._computeConfigName(configFile.relativePath, from, to);
+        const outputDir = options.output
+          ? path.resolve(options.output)
+          : resolvedRoot;
+        const newRelPath = this._computeConfigName(
+          configFile.relativePath,
+          from,
+          to
+        );
         const outputPath = path.join(outputDir, newRelPath);
         await fs.mkdir(path.dirname(outputPath), { recursive: true });
         await fs.writeFile(outputPath, converted, 'utf8');
 
-        stateManager.markFileConverted(configFile.relativePath, { confidence: 80 });
+        stateManager.markFileConverted(configFile.relativePath, {
+          confidence: 80,
+        });
         results.push({
           path: configFile.relativePath,
           confidence: 80,
@@ -262,9 +324,13 @@ export class MigrationEngine {
           todos: [],
           type: 'config',
         });
-        if (options.onProgress) options.onProgress(configFile.relativePath, 'converted', 80);
+        if (options.onProgress)
+          options.onProgress(configFile.relativePath, 'converted', 80);
       } catch (configError) {
-        stateManager.markFileConverted(configFile.relativePath, { confidence: 0, error: configError.message });
+        stateManager.markFileConverted(configFile.relativePath, {
+          confidence: 0,
+          error: configError.message,
+        });
         results.push({
           path: configFile.relativePath,
           confidence: 0,
@@ -274,7 +340,8 @@ export class MigrationEngine {
           todos: [],
           type: 'config',
         });
-        if (options.onProgress) options.onProgress(configFile.relativePath, 'failed', 0);
+        if (options.onProgress)
+          options.onProgress(configFile.relativePath, 'failed', 0);
       }
     }
 

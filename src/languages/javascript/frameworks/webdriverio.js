@@ -37,7 +37,8 @@ function detect(source) {
   if (/\bbrowser\.keys\s*\(/.test(source)) score += 5;
 
   // WDIO element selectors
-  if (/\$\(\s*['"`]/.test(source) && /\.setValue\s*\(/.test(source)) score += 20;
+  if (/\$\(\s*['"`]/.test(source) && /\.setValue\s*\(/.test(source))
+    score += 20;
   if (/\$\$\s*\(/.test(source)) score += 10;
 
   // WDIO element actions
@@ -59,7 +60,8 @@ function detect(source) {
   if (/from\s+['"]@playwright\/test['"]/.test(source)) score -= 30;
   if (/\bpage\.locator\s*\(/.test(source)) score -= 20;
   // Negative: TestCafe
-  if (/\bSelector\s*\(/.test(source) && /\bfixture\s*`/.test(source)) score -= 20;
+  if (/\bSelector\s*\(/.test(source) && /\bfixture\s*`/.test(source))
+    score -= 20;
   // Negative: Puppeteer
   if (/\bpuppeteer\.launch/.test(source)) score -= 20;
 
@@ -78,47 +80,107 @@ function parse(source) {
 
     if (!trimmed) continue;
 
-    if (trimmed.startsWith('//') || trimmed.startsWith('/*') || trimmed.startsWith('*')) {
-      body.push(new Comment({ text: line, sourceLocation: loc, originalSource: line }));
+    if (
+      trimmed.startsWith('//') ||
+      trimmed.startsWith('/*') ||
+      trimmed.startsWith('*')
+    ) {
+      body.push(
+        new Comment({ text: line, sourceLocation: loc, originalSource: line })
+      );
       continue;
     }
 
     if (/^import\s/.test(trimmed) || /^const\s.*=\s*require\(/.test(trimmed)) {
-      imports.push(new ImportStatement({ source: trimmed, sourceLocation: loc, originalSource: line, confidence: 'converted' }));
+      imports.push(
+        new ImportStatement({
+          source: trimmed,
+          sourceLocation: loc,
+          originalSource: line,
+          confidence: 'converted',
+        })
+      );
       continue;
     }
 
     if (/\bdescribe\s*\(/.test(trimmed)) {
-      body.push(new TestSuite({ name: '', sourceLocation: loc, originalSource: line, confidence: 'converted' }));
+      body.push(
+        new TestSuite({
+          name: '',
+          sourceLocation: loc,
+          originalSource: line,
+          confidence: 'converted',
+        })
+      );
       continue;
     }
 
     if (/\b(?:it|test)\s*\(/.test(trimmed)) {
-      body.push(new TestCase({ name: '', isAsync: /async/.test(trimmed), sourceLocation: loc, originalSource: line, confidence: 'converted' }));
+      body.push(
+        new TestCase({
+          name: '',
+          isAsync: /async/.test(trimmed),
+          sourceLocation: loc,
+          originalSource: line,
+          confidence: 'converted',
+        })
+      );
       continue;
     }
 
-    if (/\b(?:beforeEach|afterEach|beforeAll|afterAll|before|after)\s*\(/.test(trimmed)) {
-      body.push(new Hook({ sourceLocation: loc, originalSource: line, confidence: 'converted' }));
+    if (
+      /\b(?:beforeEach|afterEach|beforeAll|afterAll|before|after)\s*\(/.test(
+        trimmed
+      )
+    ) {
+      body.push(
+        new Hook({
+          sourceLocation: loc,
+          originalSource: line,
+          confidence: 'converted',
+        })
+      );
       continue;
     }
 
     if (/\bexpect\s*\(/.test(trimmed)) {
-      body.push(new Assertion({ sourceLocation: loc, originalSource: line, confidence: 'converted' }));
+      body.push(
+        new Assertion({
+          sourceLocation: loc,
+          originalSource: line,
+          confidence: 'converted',
+        })
+      );
       continue;
     }
 
     if (/\bbrowser\./.test(trimmed)) {
-      body.push(new RawCode({ code: line, sourceLocation: loc, originalSource: line, confidence: 'converted' }));
+      body.push(
+        new RawCode({
+          code: line,
+          sourceLocation: loc,
+          originalSource: line,
+          confidence: 'converted',
+        })
+      );
       continue;
     }
 
     if (/\$\$?\s*\(/.test(trimmed)) {
-      body.push(new RawCode({ code: line, sourceLocation: loc, originalSource: line, confidence: 'converted' }));
+      body.push(
+        new RawCode({
+          code: line,
+          sourceLocation: loc,
+          originalSource: line,
+          confidence: 'converted',
+        })
+      );
       continue;
     }
 
-    body.push(new RawCode({ code: line, sourceLocation: loc, originalSource: line }));
+    body.push(
+      new RawCode({ code: line, sourceLocation: loc, originalSource: line })
+    );
   }
 
   return new TestFile({ language: 'javascript', imports, body });
@@ -136,7 +198,9 @@ function parse(source) {
 function emit(_ir, source) {
   let result = source;
 
-  const isPlaywrightSource = /from\s+['"]@playwright\/test['"]/.test(source) || /\bpage\.goto\s*\(/.test(source);
+  const isPlaywrightSource =
+    /from\s+['"]@playwright\/test['"]/.test(source) ||
+    /\bpage\.goto\s*\(/.test(source);
   const isCypressSource = /\bcy\./.test(source);
 
   // Phase 1: Remove source imports
@@ -169,11 +233,17 @@ function removeSourceImports(content, isPlaywright, isCypress) {
   let result = content;
 
   if (isPlaywright) {
-    result = result.replace(/import\s+\{[^}]*\}\s+from\s+['"]@playwright\/test['"];?\n?/g, '');
+    result = result.replace(
+      /import\s+\{[^}]*\}\s+from\s+['"]@playwright\/test['"];?\n?/g,
+      ''
+    );
   }
 
   if (isCypress) {
-    result = result.replace(/\/\/\/\s*<reference\s+types=["']cypress["']\s*\/>\n?/g, '');
+    result = result.replace(
+      /\/\/\/\s*<reference\s+types=["']cypress["']\s*\/>\n?/g,
+      ''
+    );
   }
 
   return result;
@@ -300,25 +370,49 @@ function convertPlaywrightToWdio(content) {
 
   // --- Navigation ---
 
-  result = result.replace(/await page\.goto\(([^)]+)\)/g, 'await browser.url($1)');
+  result = result.replace(
+    /await page\.goto\(([^)]+)\)/g,
+    'await browser.url($1)'
+  );
 
   // --- Browser API ---
 
-  result = result.replace(/await page\.waitForTimeout\(([^)]+)\)/g, 'await browser.pause($1)');
+  result = result.replace(
+    /await page\.waitForTimeout\(([^)]+)\)/g,
+    'await browser.pause($1)'
+  );
   result = result.replace(/await page\.evaluate\(/g, 'await browser.execute(');
   result = result.replace(/await page\.title\(\)/g, 'await browser.getTitle()');
   result = result.replace(/await page\.url\(\)/g, 'await browser.getUrl()');
   result = result.replace(/await page\.reload\(\)/g, 'await browser.refresh()');
   result = result.replace(/await page\.goBack\(\)/g, 'await browser.back()');
-  result = result.replace(/await page\.goForward\(\)/g, 'await browser.forward()');
-  result = result.replace(/await page\.keyboard\.press\(([^)]+)\)/g, 'await browser.keys([$1])');
-  result = result.replace(/await page\.setViewportSize\(([^)]+)\)/g, 'await browser.setWindowSize($1)');
+  result = result.replace(
+    /await page\.goForward\(\)/g,
+    'await browser.forward()'
+  );
+  result = result.replace(
+    /await page\.keyboard\.press\(([^)]+)\)/g,
+    'await browser.keys([$1])'
+  );
+  result = result.replace(
+    /await page\.setViewportSize\(([^)]+)\)/g,
+    'await browser.setWindowSize($1)'
+  );
 
   // --- Cookies ---
 
-  result = result.replace(/await context\.addCookies\(/g, 'await browser.setCookies(');
-  result = result.replace(/await context\.cookies\(\)/g, 'await browser.getCookies()');
-  result = result.replace(/await context\.clearCookies\(\)/g, 'await browser.deleteCookies()');
+  result = result.replace(
+    /await context\.addCookies\(/g,
+    'await browser.setCookies('
+  );
+  result = result.replace(
+    /await context\.cookies\(\)/g,
+    'await browser.getCookies()'
+  );
+  result = result.replace(
+    /await context\.clearCookies\(\)/g,
+    'await browser.deleteCookies()'
+  );
 
   // --- getByText ---
 
@@ -331,12 +425,16 @@ function convertPlaywrightToWdio(content) {
 
   result = result.replace(
     /await page\.route\([^)]+,\s*[^)]+\)/g,
-    (match) => formatter.formatTodo({
-      id: 'UNCONVERTIBLE-ROUTE',
-      description: 'Playwright page.route() has no direct WDIO equivalent',
-      original: match.trim(),
-      action: 'Use a mock server (e.g., msw or wiremock) for network interception',
-    }) + '\n// ' + match.trim()
+    (match) =>
+      formatter.formatTodo({
+        id: 'UNCONVERTIBLE-ROUTE',
+        description: 'Playwright page.route() has no direct WDIO equivalent',
+        original: match.trim(),
+        action:
+          'Use a mock server (e.g., msw or wiremock) for network interception',
+      }) +
+      '\n// ' +
+      match.trim()
   );
 
   return result;
@@ -428,27 +526,24 @@ function convertCypressToWdio(content) {
 
   // --- cy.contains ---
 
-  result = result.replace(
-    /cy\.contains\(([^)]+)\)\.click\(\)/g,
-    (_, arg) => {
-      const text = arg.replace(/^['"]|['"]$/g, '');
-      return `await $(\`*=${text}\`).click()`;
-    }
-  );
-  result = result.replace(
-    /cy\.contains\(([^)]+)\)/g,
-    (_, arg) => {
-      const text = arg.replace(/^['"]|['"]$/g, '');
-      return `$(\`*=${text}\`)`;
-    }
-  );
+  result = result.replace(/cy\.contains\(([^)]+)\)\.click\(\)/g, (_, arg) => {
+    const text = arg.replace(/^['"]|['"]$/g, '');
+    return `await $(\`*=${text}\`).click()`;
+  });
+  result = result.replace(/cy\.contains\(([^)]+)\)/g, (_, arg) => {
+    const text = arg.replace(/^['"]|['"]$/g, '');
+    return `$(\`*=${text}\`)`;
+  });
 
   // --- Navigation ---
 
   result = result.replace(/cy\.visit\(([^)]+)\)/g, 'await browser.url($1)');
   result = result.replace(/cy\.reload\(\)/g, 'await browser.refresh()');
   result = result.replace(/cy\.go\(['"]back['"]\)/g, 'await browser.back()');
-  result = result.replace(/cy\.go\(['"]forward['"]\)/g, 'await browser.forward()');
+  result = result.replace(
+    /cy\.go\(['"]forward['"]\)/g,
+    'await browser.forward()'
+  );
 
   // --- URL/Title assertions ---
 
@@ -467,14 +562,14 @@ function convertCypressToWdio(content) {
 
   // --- Waits ---
 
-  result = result.replace(
-    /cy\.wait\((\d+)\)/g,
-    'await browser.pause($1)'
-  );
+  result = result.replace(/cy\.wait\((\d+)\)/g, 'await browser.pause($1)');
 
   // --- Simple commands ---
 
-  result = result.replace(/cy\.clearCookies\(\)/g, 'await browser.deleteCookies()');
+  result = result.replace(
+    /cy\.clearCookies\(\)/g,
+    'await browser.deleteCookies()'
+  );
   result = result.replace(
     /cy\.clearLocalStorage\(\)/g,
     'await browser.execute(() => localStorage.clear())'
@@ -492,12 +587,16 @@ function convertCypressToWdio(content) {
 
   result = result.replace(
     /cy\.intercept\([^)]+(?:,[^)]+)?\)(?:\.as\(['"][^'"]+['"]\))?/g,
-    (match) => formatter.formatTodo({
-      id: 'UNCONVERTIBLE-INTERCEPT',
-      description: 'Cypress cy.intercept() has no direct WDIO equivalent',
-      original: match.trim(),
-      action: 'Use a mock server (e.g., msw or wiremock) for network interception',
-    }) + '\n// ' + match.trim()
+    (match) =>
+      formatter.formatTodo({
+        id: 'UNCONVERTIBLE-INTERCEPT',
+        description: 'Cypress cy.intercept() has no direct WDIO equivalent',
+        original: match.trim(),
+        action:
+          'Use a mock server (e.g., msw or wiremock) for network interception',
+      }) +
+      '\n// ' +
+      match.trim()
   );
 
   return result;
@@ -557,10 +656,12 @@ function addAsyncAwait(content) {
  * Clean up output.
  */
 function cleanupOutput(content) {
-  return content
-    .replace(/await\s+await/g, 'await')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim() + '\n';
+  return (
+    content
+      .replace(/await\s+await/g, 'await')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim() + '\n'
+  );
 }
 
 export default {
@@ -571,7 +672,18 @@ export default {
   parse,
   emit,
   imports: {
-    globals: ['describe', 'it', 'before', 'after', 'beforeEach', 'afterEach', '$', '$$', 'browser', 'expect'],
+    globals: [
+      'describe',
+      'it',
+      'before',
+      'after',
+      'beforeEach',
+      'afterEach',
+      '$',
+      '$$',
+      'browser',
+      'expect',
+    ],
     from: '@wdio/globals',
     mockNamespace: null,
   },
