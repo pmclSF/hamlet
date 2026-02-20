@@ -7,7 +7,7 @@ Hamlet is a multi-framework test converter — 25 conversion directions across 1
 ## Quick Reference
 
 - **Language:** JavaScript (ES modules — `"type": "module"`)
-- **Node:** >= 16.0.0 (CI tests on 20.x and 22.x)
+- **Node:** >= 22.0.0 (CI tests on 22.x and 24.x)
 - **Package manager:** npm (`package-lock.json`)
 - **Test runner:** Jest with `NODE_OPTIONS='--experimental-vm-modules'`
 - **Linter:** ESLint (`eslint:recommended` + `prettier`)

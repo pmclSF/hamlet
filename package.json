@@ -41,7 +41,8 @@
     "format:check": "prettier --check \"src/**/*.js\" \"bin/**/*.js\"",
     "start": "node bin/hamlet.js",
     "lint-staged": "lint-staged",
-    "test:staged": "jest --findRelatedTests"
+    "test:staged": "jest --findRelatedTests",
+    "release:verify": "npm run format:check && npm run lint && npm test && node scripts/verify-pack.js"
   },
   "keywords": [
     "playwright",
@@ -89,7 +90,7 @@
     ]
   },
   "engines": {
-    "node": ">=16.0.0"
+    "node": ">=22.0.0"
   },
   "overrides": {
     "signal-exit": "3.0.7"

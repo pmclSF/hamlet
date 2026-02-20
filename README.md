@@ -8,6 +8,12 @@ Migrate your test suites between frameworks with confidence.
 
 **25 conversion directions** across **16 frameworks** in **4 languages** (JavaScript, Java, Python).
 
+## Node Support
+
+Hamlet supports **active and maintenance LTS** versions of Node.js. Currently: **Node 22** and **Node 24**.
+
+CI tests run on both. When a Node major reaches end-of-life, it is dropped in the next minor release.
+
 ## Quick Start
 
 ```bash
@@ -202,7 +208,7 @@ hamlet convert-config cypress.config.js --to playwright -o playwright.config.ts
 ## Programmatic API
 
 ```javascript
-import { ConverterFactory, FRAMEWORKS } from 'hamlet-converter';
+import { ConverterFactory, FRAMEWORKS } from 'hamlet-converter/core';
 
 const converter = await ConverterFactory.createConverter('jest', 'vitest');
 const output = await converter.convert(jestCode);
@@ -211,6 +217,16 @@ const output = await converter.convert(jestCode);
 const report = converter.getLastReport();
 console.log(`Confidence: ${report.confidence}%`);
 ```
+
+### Entry Points
+
+| Import path | Stability | Contents |
+|-------------|-----------|----------|
+| `hamlet-converter` | **Stable** | Public API: `convertFile`, `convertRepository`, `processTestFiles`, `validateTests`, `generateReport`, `VERSION`, `DEFAULT_OPTIONS`, `SUPPORTED_TEST_TYPES`, plus re-exported classes and utilities |
+| `hamlet-converter/core` | Internal | `ConverterFactory`, `BaseConverter`, `PatternEngine`, `MigrationEngine`, and other core classes. May change between minor versions. |
+| `hamlet-converter/converters` | Internal | Legacy E2E converter classes (`CypressToPlaywright`, etc.). May change between minor versions. |
+
+The `hamlet-converter` (main) entry point is the stable public API. Exports from `/core` and `/converters` are available for advanced use but are not covered by semver stability guarantees.
 
 ## Exit Codes
 
