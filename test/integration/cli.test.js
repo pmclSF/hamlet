@@ -652,4 +652,16 @@ describe('Test 2', () => {
       expect(result).toContain('reset');
     });
   });
+
+  describe('List / List-Conversions Aliases', () => {
+    test('list should exit 0 and show conversions', () => {
+      const result = runCLI(['list']);
+      expect(result).toContain('conversion');
+    });
+
+    test('list-conversions should exit 0 and show conversions', () => {
+      const result = runCLI(['list-conversions']);
+      expect(result).toContain('conversion');
+    });
+  });
 });
