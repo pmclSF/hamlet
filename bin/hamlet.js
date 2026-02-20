@@ -350,8 +350,9 @@ async function convertAction(source, options) {
     if (jsonOutput) {
       console.log(JSON.stringify({ success: false, error: error.message }));
     } else {
-      console.error(chalk.red('Error during conversion:'), error.message);
+      console.error(chalk.red('Error:'), error.message);
     }
+    if (process.env.DEBUG) console.error(error.stack);
     process.exit(1);
   }
 
@@ -470,7 +471,7 @@ async function convertAction(source, options) {
             })
           );
         } else {
-          console.error(chalk.red('Dry run error:'), error.message);
+          console.error(chalk.red('Error:'), error.message);
         }
         process.exit(1);
       }
@@ -781,6 +782,21 @@ program
   .version(version)
   .description(
     'Hamlet: Multi-framework test converter — 25 directions across JavaScript, Java, and Python.'
+  )
+  .addHelpText(
+    'after',
+    `
+Shorthands:
+  50 shorthand aliases are available (e.g. cy2pw, jest2vt, pyt2ut).
+  Run ${chalk.cyan('hamlet shorthands')} to see them all.
+
+Examples:
+  $ hamlet convert src/tests/ --from jest --to vitest -o converted/
+  $ hamlet jest2vt auth.test.js -o converted/
+  $ hamlet migrate tests/ --from jest --to vitest -o out/
+  $ hamlet estimate tests/ --from mocha --to jest
+  $ hamlet detect src/auth.test.js
+  $ hamlet doctor`
   );
 
 // ── Main convert command ─────────────────────────────────────────────
@@ -814,22 +830,18 @@ program
       if (opts.json) {
         console.log(JSON.stringify({ success: false, error: error.message }));
       } else {
-        console.error(chalk.red('Error during conversion:'), error.message);
+        console.error(chalk.red('Error:'), error.message);
       }
-      if (process.env.DEBUG) {
-        console.error(error.stack);
-      }
+      if (process.env.DEBUG) console.error(error.stack);
       process.exit(1);
     }
   });
 
 // ── Register shorthand commands dynamically ──────────────────────────
-const registeredDirections = new Set();
+// Hidden from top-level help to keep it readable. Use `hamlet shorthands` to see them.
 for (const [alias, { from, to }] of Object.entries(SHORTHANDS)) {
-  const key = `${from}-${to}`;
-  // Register all aliases as separate commands
   program
-    .command(`${alias} <source>`)
+    .command(`${alias} <source>`, { hidden: true })
     .description(`Convert ${from} \u2192 ${to}`)
     .option('-o, --output <path>', 'Output path')
     .option('-q, --quiet', 'Suppress output')
@@ -849,7 +861,7 @@ for (const [alias, { from, to }] of Object.entries(SHORTHANDS)) {
         if (opts.json) {
           console.log(JSON.stringify({ success: false, error: error.message }));
         } else {
-          console.error(chalk.red('Error during conversion:'), error.message);
+          console.error(chalk.red('Error:'), error.message);
         }
         if (process.env.DEBUG) {
           console.error(error.stack);
@@ -882,8 +894,8 @@ program
 
       const toFramework = options.to;
       if (!toFramework) {
-        console.error(chalk.red('--to <framework> is required'));
-        process.exit(1);
+        console.error(chalk.red('Error: --to <framework> is required'));
+        process.exit(2);
       }
 
       const content = await fs.readFile(source, 'utf8');
@@ -926,7 +938,7 @@ program
         process.stdout.write(result);
       }
     } catch (error) {
-      console.error(chalk.red('Config conversion error:'), error.message);
+      console.error(chalk.red('Error:'), error.message);
       if (process.env.DEBUG) console.error(error.stack);
       process.exit(1);
     }
@@ -1033,7 +1045,8 @@ program
       }
       console.log();
     } catch (error) {
-      console.error(chalk.red('Error detecting framework:'), error.message);
+      console.error(chalk.red('Error:'), error.message);
+      if (process.env.DEBUG) console.error(error.stack);
       process.exit(1);
     }
   });
@@ -1061,7 +1074,8 @@ program
 
       console.log(chalk.green('Validation completed!'));
     } catch (error) {
-      console.error(chalk.red('Validation error:'), error.message);
+      console.error(chalk.red('Error:'), error.message);
+      if (process.env.DEBUG) console.error(error.stack);
       process.exit(1);
     }
   });
@@ -1085,7 +1099,7 @@ program
               'Configuration file already exists. Use --force to overwrite.'
             )
           );
-          process.exit(1);
+          process.exit(2);
         } catch {
           // File doesn't exist, continue
         }
@@ -1105,7 +1119,8 @@ program
       await fs.writeFile(configPath, JSON.stringify(config, null, 2));
       console.log(chalk.green(`Configuration saved to ${configPath}`));
     } catch (error) {
-      console.error(chalk.red('Initialization error:'), error.message);
+      console.error(chalk.red('Error:'), error.message);
+      if (process.env.DEBUG) console.error(error.stack);
       process.exit(1);
     }
   });
@@ -1202,7 +1217,7 @@ program
         )
       );
     } catch (error) {
-      console.error(chalk.red('Migration error:'), error.message);
+      console.error(chalk.red('Error:'), error.message);
       if (process.env.DEBUG) console.error(error.stack);
       process.exit(1);
     }
@@ -1261,7 +1276,7 @@ program
         );
       }
     } catch (error) {
-      console.error(chalk.red('Estimation error:'), error.message);
+      console.error(chalk.red('Error:'), error.message);
       if (process.env.DEBUG) console.error(error.stack);
       process.exit(1);
     }
@@ -1300,7 +1315,8 @@ program
       console.log(`  Skipped: ${chalk.yellow(status.skipped)}`);
       console.log(`  Total tracked: ${status.total}`);
     } catch (error) {
-      console.error(chalk.red('Status error:'), error.message);
+      console.error(chalk.red('Error:'), error.message);
+      if (process.env.DEBUG) console.error(error.stack);
       process.exit(1);
     }
   });
@@ -1349,7 +1365,8 @@ program
       );
       console.log(checklist);
     } catch (error) {
-      console.error(chalk.red('Checklist error:'), error.message);
+      console.error(chalk.red('Error:'), error.message);
+      if (process.env.DEBUG) console.error(error.stack);
       process.exit(1);
     }
   });
@@ -1385,7 +1402,8 @@ program
       await stateManager.reset();
       console.log(chalk.green('Migration state cleared.'));
     } catch (error) {
-      console.error(chalk.red('Reset error:'), error.message);
+      console.error(chalk.red('Error:'), error.message);
+      if (process.env.DEBUG) console.error(error.stack);
       process.exit(1);
     }
   });
@@ -1459,7 +1477,8 @@ program
 
       console.log();
     } catch (error) {
-      console.error(chalk.red('Doctor error:'), error.message);
+      console.error(chalk.red('Error:'), error.message);
+      if (process.env.DEBUG) console.error(error.stack);
       process.exit(1);
     }
   });
