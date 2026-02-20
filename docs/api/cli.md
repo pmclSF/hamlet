@@ -3,6 +3,7 @@
 ## Commands
 
 ### `convert`
+
 Convert Cypress tests to Playwright format.
 
 ```bash
@@ -10,9 +11,11 @@ hamlet convert <source> [options]
 ```
 
 #### Arguments
+
 - `source`: Path to Cypress test file or directory
 
 #### Options
+
 - `-o, --output <path>`: Output path for converted tests
 - `-c, --config <path>`: Custom configuration file path
 - `-t, --test-type <type>`: Specify test type (e2e, component, api, etc.)
@@ -40,11 +43,24 @@ hamlet convert cypress/e2e --validate --report html
 hamlet convert https://github.com/user/repo.git
 ```
 
-### Error Handling
+### Exit Codes
 
-The CLI will provide detailed error messages in case of issues:
-```bash
-✗ Error converting file: syntax error in login.cy.js
-  - Line 15: Unexpected token
-  - Suggestion: Check for missing brackets or semicolons
-```
+| Code | Meaning                  | Example                                                     |
+| ---- | ------------------------ | ----------------------------------------------------------- |
+| 0    | Success                  | Conversion completed                                        |
+| 1    | Runtime error            | Converter failed, unexpected exception                      |
+| 2    | Usage / validation error | Invalid framework, file not found, missing flags            |
+| 3    | Partial success          | Batch conversion where some files converted and some failed |
+
+### Global Options
+
+| Flag         | Description                                              |
+| ------------ | -------------------------------------------------------- |
+| `--verbose`  | Show per-file detail and diagnostics                     |
+| `--debug`    | Show stack traces on error (also respects `DEBUG=1` env) |
+| `--no-color` | Disable colored output (also respects `NO_COLOR=1` env)  |
+
+### Error Output
+
+All errors are prefixed with `Error:` and written to stderr. Common errors include a
+`Next steps:` hint. Use `--debug` to see full stack traces.

@@ -87,10 +87,14 @@ function clearProgress() {
   process.stdout.write('\r' + ' '.repeat(80) + '\r');
 }
 
+function shouldShowStack() {
+  return program.opts().debug || !!process.env.DEBUG;
+}
+
 // ── Extracted convertAction ──────────────────────────────────────────
 async function convertAction(source, options) {
   const quiet = options.quiet || false;
-  const verbose = options.verbose || false;
+  const verbose = options.verbose || program.opts().verbose || false;
   const jsonOutput = options.json || false;
   const plan = options.plan || false;
   const dryRun = options.dryRun || plan;
@@ -107,7 +111,10 @@ async function convertAction(source, options) {
     if (jsonOutput) {
       console.log(JSON.stringify({ success: false, error: msg }));
     } else {
-      console.error(chalk.red(msg));
+      console.error(chalk.red('Error:'), msg);
+      console.error(
+        chalk.gray('Next steps: Run `hamlet list` to see supported frameworks.')
+      );
     }
     process.exit(2);
   }
@@ -117,7 +124,10 @@ async function convertAction(source, options) {
     if (jsonOutput) {
       console.log(JSON.stringify({ success: false, error: msg }));
     } else {
-      console.error(chalk.red(msg));
+      console.error(chalk.red('Error:'), msg);
+      console.error(
+        chalk.gray('Next steps: Run `hamlet list` to see supported frameworks.')
+      );
     }
     process.exit(2);
   }
@@ -127,7 +137,10 @@ async function convertAction(source, options) {
     if (jsonOutput) {
       console.log(JSON.stringify({ success: false, error: msg }));
     } else {
-      console.error(chalk.red(msg));
+      console.error(chalk.red('Error:'), msg);
+      console.error(
+        chalk.gray('Next steps: Specify different --from and --to frameworks.')
+      );
     }
     process.exit(2);
   }
@@ -140,7 +153,12 @@ async function convertAction(source, options) {
     if (jsonOutput) {
       console.log(JSON.stringify({ success: false, error: msg }));
     } else {
-      console.error(chalk.red(msg));
+      console.error(chalk.red('Error:'), msg);
+      console.error(
+        chalk.gray(
+          'Next steps: Hamlet converts within the same language. See `hamlet list` for valid directions.'
+        )
+      );
     }
     process.exit(2);
   }
@@ -157,7 +175,10 @@ async function convertAction(source, options) {
     if (jsonOutput) {
       console.log(JSON.stringify({ success: false, error: msg }));
     } else {
-      console.error(chalk.red(msg));
+      console.error(chalk.red('Error:'), msg);
+      console.error(
+        chalk.gray('Next steps: Run `hamlet list` to see supported frameworks.')
+      );
     }
     process.exit(2);
   }
@@ -251,21 +272,31 @@ async function convertAction(source, options) {
               JSON.stringify({ success: false, error: msg + suggestion })
             );
           } else {
-            console.error(chalk.red(msg));
+            console.error(chalk.red('Error:'), msg);
             console.error(chalk.yellow(suggestion));
           }
         } else {
           if (jsonOutput) {
             console.log(JSON.stringify({ success: false, error: msg }));
           } else {
-            console.error(chalk.red(msg));
+            console.error(chalk.red('Error:'), msg);
+            console.error(
+              chalk.gray(
+                'Next steps: Check the file path and ensure the file exists.'
+              )
+            );
           }
         }
       } catch (_readErr) {
         if (jsonOutput) {
           console.log(JSON.stringify({ success: false, error: msg }));
         } else {
-          console.error(chalk.red(msg));
+          console.error(chalk.red('Error:'), msg);
+          console.error(
+            chalk.gray(
+              'Next steps: Check the file path and ensure the file exists.'
+            )
+          );
         }
       }
       process.exit(2);
@@ -278,7 +309,12 @@ async function convertAction(source, options) {
         if (jsonOutput) {
           console.log(JSON.stringify({ success: false, error: msg }));
         } else {
-          console.error(chalk.red(msg));
+          console.error(chalk.red('Error:'), msg);
+          console.error(
+            chalk.gray(
+              'Next steps: Specify an output directory with -o <path>.'
+            )
+          );
         }
         process.exit(2);
       }
@@ -331,7 +367,10 @@ async function convertAction(source, options) {
     if (jsonOutput) {
       console.log(JSON.stringify({ success: false, error: msg }));
     } else {
-      console.error(chalk.red(msg));
+      console.error(chalk.red('Error:'), msg);
+      console.error(
+        chalk.gray('Next steps: Specify an output directory with -o <path>.')
+      );
     }
     process.exit(2);
   }
@@ -353,7 +392,7 @@ async function convertAction(source, options) {
     } else {
       console.error(chalk.red('Error:'), error.message);
     }
-    if (process.env.DEBUG) console.error(error.stack);
+    if (shouldShowStack()) console.error(error.stack);
     process.exit(1);
   }
 
@@ -769,8 +808,8 @@ async function convertAction(source, options) {
       );
     }
 
-    if (results.failed > 0 && onError !== 'best-effort') {
-      process.exit(1);
+    if (results.failed > 0) {
+      process.exit(results.converted > 0 ? 3 : 1);
     }
   } else {
     // ── Single file conversion ─────────────────────────────────────
@@ -923,7 +962,9 @@ Examples:
   $ hamlet estimate tests/ --from mocha --to jest
   $ hamlet detect src/auth.test.js
   $ hamlet doctor`
-  );
+  )
+  .option('--verbose', 'Show detailed output for all commands')
+  .option('--debug', 'Show stack traces and internal debug info');
 
 // ── Main convert command ─────────────────────────────────────────────
 program
@@ -959,7 +1000,7 @@ program
       } else {
         console.error(chalk.red('Error:'), error.message);
       }
-      if (process.env.DEBUG) console.error(error.stack);
+      if (shouldShowStack()) console.error(error.stack);
       process.exit(1);
     }
   });
@@ -991,7 +1032,7 @@ for (const [alias, { from, to }] of Object.entries(SHORTHANDS)) {
         } else {
           console.error(chalk.red('Error:'), error.message);
         }
-        if (process.env.DEBUG) {
+        if (shouldShowStack()) {
           console.error(error.stack);
         }
         process.exit(1);
@@ -1041,11 +1082,13 @@ program
           );
         } else {
           console.error(
-            chalk.red(
-              'Could not auto-detect source framework. Use --from <framework>.'
-            )
+            chalk.red('Error:'),
+            'Could not auto-detect source framework. Use --from <framework>.'
           );
-          process.exit(1);
+          console.error(
+            chalk.gray('Next steps: Specify --from <framework> explicitly.')
+          );
+          process.exit(2);
         }
       }
       const converter = new ConfigConverter();
@@ -1077,7 +1120,7 @@ program
       }
     } catch (error) {
       console.error(chalk.red('Error:'), error.message);
-      if (process.env.DEBUG) console.error(error.stack);
+      if (shouldShowStack()) console.error(error.stack);
       process.exit(1);
     }
   });
@@ -1184,7 +1227,7 @@ program
       console.log();
     } catch (error) {
       console.error(chalk.red('Error:'), error.message);
-      if (process.env.DEBUG) console.error(error.stack);
+      if (shouldShowStack()) console.error(error.stack);
       process.exit(1);
     }
   });
@@ -1213,7 +1256,7 @@ program
       console.log(chalk.green('Validation completed!'));
     } catch (error) {
       console.error(chalk.red('Error:'), error.message);
-      if (process.env.DEBUG) console.error(error.stack);
+      if (shouldShowStack()) console.error(error.stack);
       process.exit(1);
     }
   });
@@ -1233,8 +1276,12 @@ program
         try {
           await fs.access(configPath);
           console.error(
-            chalk.yellow(
-              'Configuration file already exists. Use --force to overwrite.'
+            chalk.red('Error:'),
+            'Configuration file already exists. Use --force to overwrite.'
+          );
+          console.error(
+            chalk.gray(
+              'Next steps: Use --force to overwrite, or edit the existing file.'
             )
           );
           process.exit(2);
@@ -1258,7 +1305,7 @@ program
       console.log(chalk.green(`Configuration saved to ${configPath}`));
     } catch (error) {
       console.error(chalk.red('Error:'), error.message);
-      if (process.env.DEBUG) console.error(error.stack);
+      if (shouldShowStack()) console.error(error.stack);
       process.exit(1);
     }
   });
@@ -1389,9 +1436,13 @@ program
           `\nMigration complete: ${state.converted} converted, ${state.failed} failed, ${state.skipped || 0} skipped`
         )
       );
+
+      if (state.failed > 0) {
+        process.exit(state.converted > 0 ? 3 : 1);
+      }
     } catch (error) {
       console.error(chalk.red('Error:'), error.message);
-      if (process.env.DEBUG) console.error(error.stack);
+      if (shouldShowStack()) console.error(error.stack);
       process.exit(1);
     }
   });
@@ -1450,7 +1501,7 @@ program
       }
     } catch (error) {
       console.error(chalk.red('Error:'), error.message);
-      if (process.env.DEBUG) console.error(error.stack);
+      if (shouldShowStack()) console.error(error.stack);
       process.exit(1);
     }
   });
@@ -1489,7 +1540,7 @@ program
       console.log(`  Total tracked: ${status.total}`);
     } catch (error) {
       console.error(chalk.red('Error:'), error.message);
-      if (process.env.DEBUG) console.error(error.stack);
+      if (shouldShowStack()) console.error(error.stack);
       process.exit(1);
     }
   });
@@ -1539,7 +1590,7 @@ program
       console.log(checklist);
     } catch (error) {
       console.error(chalk.red('Error:'), error.message);
-      if (process.env.DEBUG) console.error(error.stack);
+      if (shouldShowStack()) console.error(error.stack);
       process.exit(1);
     }
   });
@@ -1576,7 +1627,7 @@ program
       console.log(chalk.green('Migration state cleared.'));
     } catch (error) {
       console.error(chalk.red('Error:'), error.message);
-      if (process.env.DEBUG) console.error(error.stack);
+      if (shouldShowStack()) console.error(error.stack);
       process.exit(1);
     }
   });
@@ -1592,6 +1643,7 @@ program
     try {
       const { runDoctor } = await import('../src/cli/doctor.js');
       const result = await runDoctor(targetPath);
+      const isVerbose = options.verbose || program.opts().verbose;
 
       if (options.json) {
         const output = {
@@ -1603,7 +1655,7 @@ program
               detail: c.detail,
             };
             if (c.remediation) obj.remediation = c.remediation;
-            if (options.verbose && c.verbose) obj.verbose = c.verbose;
+            if (isVerbose && c.verbose) obj.verbose = c.verbose;
             return obj;
           }),
           summary: result.summary,
@@ -1619,7 +1671,7 @@ program
                 ? chalk.yellow('[WARN]')
                 : chalk.red('[FAIL]');
           console.log(`  ${tag} ${check.label}: ${check.detail}`);
-          if (options.verbose && check.verbose) {
+          if (isVerbose && check.verbose) {
             console.log(`         ${chalk.dim(check.verbose)}`);
           }
           if (check.remediation) {
@@ -1638,7 +1690,7 @@ program
       if (result.hasFail) process.exit(1);
     } catch (error) {
       console.error(chalk.red('Error:'), error.message);
-      if (process.env.DEBUG) console.error(error.stack);
+      if (shouldShowStack()) console.error(error.stack);
       process.exit(1);
     }
   });
