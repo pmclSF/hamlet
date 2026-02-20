@@ -3,7 +3,8 @@
  *
  * Provides detect, parse, and emit for the Cypress E2E testing framework.
  * emit() handles conversions from WebdriverIO and TestCafe into Cypress code.
- * parse() builds an IR tree from Cypress source code for scoring.
+ * parse() builds a flat IR tree (one node per line, no nesting) from Cypress
+ * source code. The IR is consumed by ConfidenceScorer for scoring.
  */
 
 import {
@@ -158,7 +159,11 @@ function parse(source) {
  * Each source framework's patterns are isolated in a separate function
  * and gated by source detection to prevent phase interference.
  *
- * @param {TestFile} _ir - Parsed IR tree (for scoring metadata)
+ * Note: _ir is currently unused — conversion operates on the source string
+ * via regex. The IR is consumed by ConfidenceScorer for scoring only.
+ * Future work: reconstruct output from the IR tree.
+ *
+ * @param {TestFile} _ir - Parsed IR tree (used by ConfidenceScorer, not here)
  * @param {string} source - Original source code
  * @returns {string} Converted Cypress source code
  */
