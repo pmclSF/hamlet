@@ -94,7 +94,7 @@ export class TypeScriptConverter {
     const configPath = ts.findConfigFile(
       sourcePath,
       ts.sys.fileExists,
-      'tsconfig.json',
+      'tsconfig.json'
     );
 
     if (!configPath) {
@@ -105,7 +105,7 @@ export class TypeScriptConverter {
     const { options, fileNames } = ts.parseJsonConfigFileContent(
       config,
       ts.sys,
-      path.dirname(configPath),
+      path.dirname(configPath)
     );
 
     return ts.createProgram(fileNames, options);
@@ -130,12 +130,12 @@ export class TypeScriptConverter {
       await fs.writeFile(outputFile, result);
 
       console.log(
-        chalk.green(`✓ Converted ${path.basename(sourceFile.fileName)}`),
+        chalk.green(`✓ Converted ${path.basename(sourceFile.fileName)}`)
       );
     } catch (error) {
       console.error(
         chalk.red(`✗ Failed to convert ${sourceFile.fileName}:`),
-        error,
+        error
       );
       throw error;
     }
@@ -214,7 +214,7 @@ export class TypeScriptConverter {
         mappedInterface,
         node.typeParameters,
         node.heritageClauses,
-        node.members,
+        node.members
       );
     }
 
@@ -239,7 +239,7 @@ export class TypeScriptConverter {
           return ts.factory.createCallExpression(
             ts.factory.createIdentifier(transformedName),
             node.typeArguments,
-            node.arguments,
+            node.arguments
           );
         }
       }
@@ -261,7 +261,7 @@ export class TypeScriptConverter {
         node.decorators,
         node.modifiers,
         node.importClause,
-        ts.factory.createStringLiteral('@playwright/test'),
+        ts.factory.createStringLiteral('@playwright/test')
       );
     }
 
@@ -285,11 +285,11 @@ export class TypeScriptConverter {
       first: 'first',
       last: 'last',
       eq: 'nth',
-      parent: 'locator(\'..\')',
-      children: 'locator(\'>*\')',
-      siblings: 'locator(\'~\')',
-      next: 'locator(\'+\')',
-      prev: 'locator(\'-\')',
+      parent: "locator('..')",
+      children: "locator('>*')",
+      siblings: "locator('~')",
+      next: "locator('+')",
+      prev: "locator('-')",
     };
 
     return methodMap[methodName] || methodName;
@@ -340,7 +340,8 @@ export class TypeScriptConverter {
    */
   generateDefinitionFileContent(typeDefinitions) {
     let content = '// Generated type definitions for Playwright tests\n\n';
-    content += 'import { test, expect, Page, Locator } from \'@playwright/test\';\n\n';
+    content +=
+      "import { test, expect, Page, Locator } from '@playwright/test';\n\n";
 
     for (const [name, { kind, type }] of typeDefinitions) {
       if (kind === ts.SyntaxKind.InterfaceDeclaration) {

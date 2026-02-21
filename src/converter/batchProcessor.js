@@ -1,4 +1,5 @@
 import path from 'path';
+import { convertFile } from './fileConverter.js';
 import { logUtils } from '../utils/helpers.js';
 
 const logger = logUtils.createLogger('BatchProcessor');
@@ -11,14 +12,14 @@ export class BatchProcessor {
     this.options = {
       batchSize: 5,
       concurrency: 3,
-      ...options
+      ...options,
     };
 
     this.stats = {
       total: 0,
       processed: 0,
       failed: 0,
-      skipped: 0
+      skipped: 0,
     };
   }
 
@@ -31,11 +32,11 @@ export class BatchProcessor {
   async processBatch(files, processor) {
     this.stats.total = files.length;
     const batches = this.createBatches(files);
-    
+
     for (const batch of batches) {
       try {
         await Promise.all(
-          batch.map(file => this.processFile(file, processor))
+          batch.map((file) => this.processFile(file, processor))
         );
       } catch (error) {
         logger.error('Batch processing error:', error);
@@ -82,7 +83,39 @@ export class BatchProcessor {
     return {
       ...this.stats,
       success: this.stats.processed - this.stats.failed,
-      successRate: `${((this.stats.processed - this.stats.failed) / this.stats.total * 100).toFixed(2)}%`
+      successRate: `${(((this.stats.processed - this.stats.failed) / this.stats.total) * 100).toFixed(2)}%`,
     };
   }
+}
+
+/**
+ * Process multiple test files in parallel
+ * @param {string[]} files - Array of file paths
+ * @param {Object} options - Processing options
+ * @returns {Promise<Object>} - Processing results
+ */
+export async function processTestFiles(files, options = {}) {
+  const batchProcessor = new BatchProcessor(options);
+  const results = await batchProcessor.processBatch(files, async (file) => {
+    try {
+      const outputPath =
+        options.getOutputPath?.(file) ||
+        file.replace(/\.cy\.(js|ts)$/, '.spec.$1');
+
+      return await convertFile(file, outputPath, options);
+    } catch (error) {
+      return {
+        file,
+        error: error.message,
+        status: 'error',
+      };
+    }
+  });
+
+  return {
+    total: files.length,
+    successful: results.filter((r) => r.status === 'success').length,
+    failed: results.filter((r) => r.status === 'error').length,
+    results,
+  };
 }

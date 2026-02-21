@@ -142,12 +142,12 @@ export class ConverterFactory {
     const validFrameworks = Object.values(FRAMEWORKS);
     if (!validFrameworks.includes(fromLower)) {
       throw new Error(
-        `Invalid source framework: ${from}. Valid options: ${validFrameworks.join(", ")}`,
+        `Invalid source framework: ${from}. Valid options: ${validFrameworks.join(', ')}`,
       );
     }
     if (!validFrameworks.includes(toLower)) {
       throw new Error(
-        `Invalid target framework: ${to}. Valid options: ${validFrameworks.join(", ")}`,
+        `Invalid target framework: ${to}. Valid options: ${validFrameworks.join(', ')}`,
       );
     }
     if (fromLower === toLower) {
@@ -166,7 +166,7 @@ export class ConverterFactory {
     if (!loader) {
       throw new Error(
         `Unsupported conversion: ${from} to ${to}. ` +
-          `Supported conversions: ${this.getSupportedConversions().join(", ")}`,
+          `Supported conversions: ${this.getSupportedConversions().join(', ')}`,
       );
     }
 
@@ -176,7 +176,7 @@ export class ConverterFactory {
       return new ConverterClass(options);
     } catch (error) {
       throw new Error(
-        `Failed to load converter for ${from} to ${to}: ${error.message}`,
+        `Failed to load converter for ${from} to ${to}: ${error.message}`
       );
     }
   }

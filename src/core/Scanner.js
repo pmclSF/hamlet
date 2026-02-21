@@ -60,7 +60,14 @@ export class Scanner {
     const exclude = options.exclude || [];
     const results = [];
 
-    await this._walk(resolvedRoot, resolvedRoot, ignoreSet, include, exclude, results);
+    await this._walk(
+      resolvedRoot,
+      resolvedRoot,
+      ignoreSet,
+      include,
+      exclude,
+      results
+    );
     return results;
   }
 
@@ -87,7 +94,14 @@ export class Scanner {
       if (ignoreSet.has(entry.name)) continue;
 
       if (entry.isDirectory()) {
-        await this._walk(fullPath, rootDir, ignoreSet, include, exclude, results);
+        await this._walk(
+          fullPath,
+          rootDir,
+          ignoreSet,
+          include,
+          exclude,
+          results
+        );
       } else if (entry.isFile()) {
         if (exclude.length > 0 && matchesAny(entry.name, exclude)) continue;
         if (include.length > 0 && !matchesAny(entry.name, include)) continue;

@@ -1,7 +1,7 @@
 {
   "name": "hamlet-converter",
-  "version": "1.0.0",
-  "description": "Hamlet: Bidirectional multi-framework test converter for Cypress, Playwright, and Selenium.",
+  "version": "2.0.0",
+  "description": "Hamlet: Multi-framework test converter — 25 directions across JavaScript, Java, and Python.",
   "type": "module",
   "main": "src/index.js",
   "types": "src/types/index.d.ts",
@@ -37,10 +37,12 @@
   "scripts": {
     "test": "NODE_OPTIONS='--experimental-vm-modules' jest",
     "lint": "eslint src/**/*.js",
-    "format": "prettier --write \"src/**/*.js\"",
+    "format": "prettier --write \"src/**/*.js\" \"bin/**/*.js\"",
+    "format:check": "prettier --check \"src/**/*.js\" \"bin/**/*.js\"",
     "start": "node bin/hamlet.js",
     "lint-staged": "lint-staged",
-    "test:staged": "jest --findRelatedTests"
+    "test:staged": "jest --findRelatedTests",
+    "release:verify": "npm run format:check && npm run lint && npm test && node scripts/verify-pack.js"
   },
   "keywords": [
     "playwright",
@@ -63,7 +65,6 @@
     "commander": "^14.0.3",
     "fast-glob": "^3.3.3",
     "glob": "^13.0.3",
-    "lodash": "^4.17.21",
     "papaparse": "^5.4.1",
     "pixelmatch": "^7.1.0",
     "pngjs": "^7.0.0",
@@ -74,7 +75,6 @@
     "@commitlint/cli": "^19.6.1",
     "@commitlint/config-conventional": "^19.6.0",
     "@types/jest": "^29.5.3",
-    "@types/lodash": "^4.17.23",
     "eslint": "^8.57.1",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-jest": "^29.15.0",
@@ -90,7 +90,7 @@
     ]
   },
   "engines": {
-    "node": ">=16.0.0"
+    "node": ">=22.0.0"
   },
   "overrides": {
     "signal-exit": "3.0.7"

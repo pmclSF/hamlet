@@ -101,7 +101,8 @@ export class MockCall extends IRNode {
     this.kind = props.kind || 'createMock';
     this.target = props.target || '';
     this.args = props.args || [];
-    this.returnValue = props.returnValue !== undefined ? props.returnValue : null;
+    this.returnValue =
+      props.returnValue !== undefined ? props.returnValue : null;
   }
 }
 

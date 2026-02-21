@@ -34,7 +34,7 @@ export class TestMapper {
       for (const cypressTest of cypressTests) {
         const matchingTest = await this.findMatchingTest(
           cypressTest,
-          playwrightTests,
+          playwrightTests
         );
         if (matchingTest) {
           this.addMapping(cypressTest, matchingTest);
@@ -83,13 +83,13 @@ export class TestMapper {
     for (const playwrightTest of playwrightTests) {
       const playwrightName = path.basename(
         playwrightTest,
-        path.extname(playwrightTest),
+        path.extname(playwrightTest)
       );
 
       // Check name similarity
       const nameSimilarity = this.calculateNameSimilarity(
         cypressName,
-        playwrightName,
+        playwrightName
       );
 
       // If names are very similar, check content
@@ -97,7 +97,7 @@ export class TestMapper {
         const playwrightContent = await fs.readFile(playwrightTest, 'utf8');
         const contentSimilarity = this.calculateContentSimilarity(
           cypressContent,
-          playwrightContent,
+          playwrightContent
         );
 
         const totalSimilarity = (nameSimilarity + contentSimilarity) / 2;
@@ -144,7 +144,7 @@ export class TestMapper {
     for (const desc1 of descriptions1) {
       if (
         descriptions2.some(
-          (desc2) => this.calculateNameSimilarity(desc1, desc2) > 0.8,
+          (desc2) => this.calculateNameSimilarity(desc1, desc2) > 0.8
         )
       ) {
         matchingDescriptions++;
@@ -182,7 +182,7 @@ export class TestMapper {
         matrix[j][i] = Math.min(
           matrix[j - 1][i] + 1,
           matrix[j][i - 1] + 1,
-          substitute,
+          substitute
         );
       }
     }
@@ -244,10 +244,10 @@ export class TestMapper {
     this.metaData.statistics = {
       totalMappings: this.mappings.size,
       activeMappings: Array.from(this.mappings.values()).filter(
-        (m) => m.status === 'active',
+        (m) => m.status === 'active'
       ).length,
       pendingSync: Array.from(this.mappings.values()).filter(
-        (m) => m.syncStatus === 'pending',
+        (m) => m.syncStatus === 'pending'
       ).length,
     };
     this.metaData.lastUpdated = new Date().toISOString();
@@ -282,7 +282,7 @@ export class TestMapper {
           ([cypress, data]) => ({
             cypressTest: cypress,
             ...data,
-          }),
+          })
         ),
       };
 

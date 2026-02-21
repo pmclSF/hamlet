@@ -26,9 +26,18 @@ export class CypressToPlaywright extends BaseConverter {
 
     // Register all pattern categories
     this.engine.registerPatterns('navigation', navMappings[direction] || {});
-    this.engine.registerPatterns('selectors', selectorMappings[direction] || {});
-    this.engine.registerPatterns('interactions', interactionMappings[direction] || {});
-    this.engine.registerPatterns('assertions', assertionMappings[direction] || {});
+    this.engine.registerPatterns(
+      'selectors',
+      selectorMappings[direction] || {}
+    );
+    this.engine.registerPatterns(
+      'interactions',
+      interactionMappings[direction] || {}
+    );
+    this.engine.registerPatterns(
+      'assertions',
+      assertionMappings[direction] || {}
+    );
     this.engine.registerPatterns('waits', waitMappings[direction] || {});
 
     // Test structure patterns
@@ -44,7 +53,7 @@ export class CypressToPlaywright extends BaseConverter {
       'it\\.only\\(': 'test.only(',
       'it\\.skip\\(': 'test.skip(',
       'describe\\.only\\(': 'test.describe.only(',
-      'describe\\.skip\\(': 'test.describe.skip('
+      'describe\\.skip\\(': 'test.describe.skip(',
     });
 
     // Core command patterns
@@ -65,10 +74,11 @@ export class CypressToPlaywright extends BaseConverter {
       'cy\\.url\\(\\)': 'page.url()',
       'cy\\.title\\(\\)': 'await page.title()',
       'cy\\.clearCookies\\(\\)': 'await context.clearCookies()',
-      'cy\\.clearLocalStorage\\(\\)': 'await page.evaluate(() => localStorage.clear())',
+      'cy\\.clearLocalStorage\\(\\)':
+        'await page.evaluate(() => localStorage.clear())',
       'cy\\.log\\(': 'console.log(',
       'cy\\.pause\\(\\)': '// await page.pause() // Uncomment for debugging',
-      'cy\\.debug\\(\\)': '// debugger; // Uncomment for debugging'
+      'cy\\.debug\\(\\)': '// debugger; // Uncomment for debugging',
     });
 
     // Interaction patterns
@@ -87,24 +97,37 @@ export class CypressToPlaywright extends BaseConverter {
       '\\.trigger\\([\'"]mouseenter[\'"]\\)': '.hover()',
       '\\.scrollIntoView\\(\\)': '.scrollIntoViewIfNeeded()',
       '\\.selectFile\\(': '.setInputFiles(',
-      '\\.attachFile\\(': '.setInputFiles('
+      '\\.attachFile\\(': '.setInputFiles(',
     });
 
     // Assertion patterns
     this.engine.registerPatterns('assertions', {
-      '\\.should\\([\'"]be\\.visible[\'"]\\)': '); await expect(element).toBeVisible()',
-      '\\.should\\([\'"]not\\.be\\.visible[\'"]\\)': '); await expect(element).toBeHidden()',
-      '\\.should\\([\'"]exist[\'"]\\)': '); await expect(element).toBeAttached()',
-      '\\.should\\([\'"]not\\.exist[\'"]\\)': '); await expect(element).not.toBeAttached()',
-      '\\.should\\([\'"]have\\.text[\'"],\\s*([^)]+)\\)': '); await expect(element).toHaveText($1)',
-      '\\.should\\([\'"]contain[\'"],\\s*([^)]+)\\)': '); await expect(element).toContainText($1)',
-      '\\.should\\([\'"]have\\.value[\'"],\\s*([^)]+)\\)': '); await expect(element).toHaveValue($1)',
-      '\\.should\\([\'"]have\\.attr[\'"],\\s*([^,\n]+),?\\s*([^)]*)\\)': '); await expect(element).toHaveAttribute($1, $2)',
-      '\\.should\\([\'"]have\\.class[\'"],\\s*([^)]+)\\)': '); await expect(element).toHaveClass($1)',
-      '\\.should\\([\'"]be\\.checked[\'"]\\)': '); await expect(element).toBeChecked()',
-      '\\.should\\([\'"]be\\.disabled[\'"]\\)': '); await expect(element).toBeDisabled()',
-      '\\.should\\([\'"]be\\.enabled[\'"]\\)': '); await expect(element).toBeEnabled()',
-      '\\.should\\([\'"]have\\.length[\'"],\\s*([^)]+)\\)': '); await expect(element).toHaveCount($1)'
+      '\\.should\\([\'"]be\\.visible[\'"]\\)':
+        '); await expect(element).toBeVisible()',
+      '\\.should\\([\'"]not\\.be\\.visible[\'"]\\)':
+        '); await expect(element).toBeHidden()',
+      '\\.should\\([\'"]exist[\'"]\\)':
+        '); await expect(element).toBeAttached()',
+      '\\.should\\([\'"]not\\.exist[\'"]\\)':
+        '); await expect(element).not.toBeAttached()',
+      '\\.should\\([\'"]have\\.text[\'"],\\s*([^)]+)\\)':
+        '); await expect(element).toHaveText($1)',
+      '\\.should\\([\'"]contain[\'"],\\s*([^)]+)\\)':
+        '); await expect(element).toContainText($1)',
+      '\\.should\\([\'"]have\\.value[\'"],\\s*([^)]+)\\)':
+        '); await expect(element).toHaveValue($1)',
+      '\\.should\\([\'"]have\\.attr[\'"],\\s*([^,\n]+),?\\s*([^)]*)\\)':
+        '); await expect(element).toHaveAttribute($1, $2)',
+      '\\.should\\([\'"]have\\.class[\'"],\\s*([^)]+)\\)':
+        '); await expect(element).toHaveClass($1)',
+      '\\.should\\([\'"]be\\.checked[\'"]\\)':
+        '); await expect(element).toBeChecked()',
+      '\\.should\\([\'"]be\\.disabled[\'"]\\)':
+        '); await expect(element).toBeDisabled()',
+      '\\.should\\([\'"]be\\.enabled[\'"]\\)':
+        '); await expect(element).toBeEnabled()',
+      '\\.should\\([\'"]have\\.length[\'"],\\s*([^)]+)\\)':
+        '); await expect(element).toHaveCount($1)',
     });
 
     // Traversal patterns
@@ -116,14 +139,15 @@ export class CypressToPlaywright extends BaseConverter {
       '\\.children\\(\\)': '.locator("> *")',
       '\\.siblings\\(\\)': '.locator("~ *")',
       '\\.next\\(\\)': '.locator("+ *")',
-      '\\.prev\\(\\)': '.locator(":prev")'
+      '\\.prev\\(\\)': '.locator(":prev")',
     });
 
     // Network patterns
     this.engine.registerPatterns('network', {
       'cy\\.intercept\\(': 'await page.route(',
       'cy\\.request\\(': 'await request.fetch(',
-      'cy\\.wait\\([\'"]@': 'await page.waitForResponse(response => response.url().includes("'
+      'cy\\.wait\\([\'"]@':
+        'await page.waitForResponse(response => response.url().includes("',
     });
   }
 
@@ -309,16 +333,10 @@ export class CypressToPlaywright extends BaseConverter {
       'await page.getByText($1).click()'
     );
 
-    result = result.replace(
-      /cy\.contains\(([^)]+)\)/g,
-      'page.getByText($1)'
-    );
+    result = result.replace(/cy\.contains\(([^)]+)\)/g, 'page.getByText($1)');
 
     // Convert cy.visit()
-    result = result.replace(
-      /cy\.visit\(([^)]+)\)/g,
-      'await page.goto($1)'
-    );
+    result = result.replace(/cy\.visit\(([^)]+)\)/g, 'await page.goto($1)');
 
     // Convert cy.url()
     result = result.replace(
@@ -361,7 +379,10 @@ export class CypressToPlaywright extends BaseConverter {
     result = result.replace(/cy\.go\(['"]back['"]\)/g, 'await page.goBack()');
 
     // Convert cy.go('forward')
-    result = result.replace(/cy\.go\(['"]forward['"]\)/g, 'await page.goForward()');
+    result = result.replace(
+      /cy\.go\(['"]forward['"]\)/g,
+      'await page.goForward()'
+    );
 
     // Convert cy.viewport()
     result = result.replace(
@@ -376,7 +397,10 @@ export class CypressToPlaywright extends BaseConverter {
     );
 
     // Convert cy.clearCookies()
-    result = result.replace(/cy\.clearCookies\(\)/g, 'await context.clearCookies()');
+    result = result.replace(
+      /cy\.clearCookies\(\)/g,
+      'await context.clearCookies()'
+    );
 
     // Convert cy.clearLocalStorage()
     result = result.replace(
@@ -392,10 +416,7 @@ export class CypressToPlaywright extends BaseConverter {
       /cy\.getCookie\(([^)]+)\)/g,
       'await context.cookies().then(cookies => cookies.find(c => c.name === $1))'
     );
-    result = result.replace(
-      /cy\.getCookies\(\)/g,
-      'await context.cookies()'
-    );
+    result = result.replace(/cy\.getCookies\(\)/g, 'await context.cookies()');
     result = result.replace(
       /cy\.setCookie\(([^,]+),\s*([^)]+)\)/g,
       'await context.addCookies([{ name: $1, value: $2, url: page.url() }])'
@@ -410,10 +431,7 @@ export class CypressToPlaywright extends BaseConverter {
       /cy\.location\(['"]([^'"]+)['"]\)/g,
       'new URL(page.url()).$1'
     );
-    result = result.replace(
-      /cy\.location\(\)/g,
-      'new URL(page.url())'
-    );
+    result = result.replace(/cy\.location\(\)/g, 'new URL(page.url())');
 
     // Convert cy.visualSnapshot()
     result = result.replace(
@@ -422,10 +440,7 @@ export class CypressToPlaywright extends BaseConverter {
     );
 
     // Convert cy.getBySel() — common custom command in Cypress RWA
-    result = result.replace(
-      /cy\.getBySel\(([^)]+)\)/g,
-      'page.getByTestId($1)'
-    );
+    result = result.replace(/cy\.getBySel\(([^)]+)\)/g, 'page.getByTestId($1)');
 
     // Convert cy.getBySelLike()
     result = result.replace(
@@ -470,10 +485,7 @@ export class CypressToPlaywright extends BaseConverter {
     );
 
     // Convert cy.reload() with arguments
-    result = result.replace(
-      /cy\.reload\([^)]+\)/g,
-      'await page.reload()'
-    );
+    result = result.replace(/cy\.reload\([^)]+\)/g, 'await page.reload()');
 
     // Convert cy.get().first().click() chains
     result = result.replace(
@@ -583,15 +595,17 @@ export class CypressToPlaywright extends BaseConverter {
    * @returns {string}
    */
   cleanupOutput(content) {
-    return content
-      // Remove double awaits
-      .replace(/await\s+await/g, 'await')
-      // Fix any empty screenshot path args
-      .replace(/screenshot\(\{ path: \s*\}\)/g, 'screenshot()')
-      // Clean up empty lines
-      .replace(/\n{3,}/g, '\n\n')
-      // Ensure proper line endings
-      .trim() + '\n';
+    return (
+      content
+        // Remove double awaits
+        .replace(/await\s+await/g, 'await')
+        // Fix any empty screenshot path args
+        .replace(/screenshot\(\{ path: \s*\}\)/g, 'screenshot()')
+        // Clean up empty lines
+        .replace(/\n{3,}/g, '\n\n')
+        // Ensure proper line endings
+        .trim() + '\n'
+    );
   }
 
   /**
@@ -604,7 +618,8 @@ export class CypressToPlaywright extends BaseConverter {
 
     if (/cy\.request|cy\.intercept/.test(content)) types.push('api');
     if (/cy\.mount/.test(content)) types.push('component');
-    if (/cy\.injectAxe|cy\.checkA11y/.test(content)) types.push('accessibility');
+    if (/cy\.injectAxe|cy\.checkA11y/.test(content))
+      types.push('accessibility');
     if (/cy\.screenshot|matchImageSnapshot/.test(content)) types.push('visual');
     if (/cy\.lighthouse|performance\./.test(content)) types.push('performance');
     if (/viewport|mobile/.test(content)) types.push('mobile');
@@ -621,19 +636,19 @@ export class CypressToPlaywright extends BaseConverter {
    */
   getImports(testTypes) {
     const imports = new Set([
-      'import { test, expect } from \'@playwright/test\';'
+      "import { test, expect } from '@playwright/test';",
     ]);
 
     if (testTypes.includes('api')) {
-      imports.add('import { request } from \'@playwright/test\';');
+      imports.add("import { request } from '@playwright/test';");
     }
 
     if (testTypes.includes('component')) {
-      imports.add('import { mount } from \'@playwright/experimental-ct-react\';');
+      imports.add("import { mount } from '@playwright/experimental-ct-react';");
     }
 
     if (testTypes.includes('accessibility')) {
-      imports.add('import { injectAxe, checkA11y } from \'axe-playwright\';');
+      imports.add("import { injectAxe, checkA11y } from 'axe-playwright';");
     }
 
     return Array.from(imports);
@@ -659,37 +674,49 @@ export class CypressToPlaywright extends BaseConverter {
       const viewportWidthMatch = content.match(/viewportWidth:\s*(\d+)/);
       const viewportHeightMatch = content.match(/viewportHeight:\s*(\d+)/);
       const videoMatch = content.match(/video:\s*(true|false)/);
-      const screenshotMatch = content.match(/screenshotOnRunFailure:\s*(true|false)/);
+      const screenshotMatch = content.match(
+        /screenshotOnRunFailure:\s*(true|false)/
+      );
       const timeoutMatch = content.match(/defaultCommandTimeout:\s*(\d+)/);
 
       if (baseUrlMatch) cypressConfig.baseUrl = baseUrlMatch[1];
-      if (viewportWidthMatch) cypressConfig.viewportWidth = parseInt(viewportWidthMatch[1]);
-      if (viewportHeightMatch) cypressConfig.viewportHeight = parseInt(viewportHeightMatch[1]);
+      if (viewportWidthMatch)
+        cypressConfig.viewportWidth = parseInt(viewportWidthMatch[1]);
+      if (viewportHeightMatch)
+        cypressConfig.viewportHeight = parseInt(viewportHeightMatch[1]);
       if (videoMatch) cypressConfig.video = videoMatch[1] === 'true';
-      if (screenshotMatch) cypressConfig.screenshotOnFailure = screenshotMatch[1] === 'true';
-      if (timeoutMatch) cypressConfig.defaultCommandTimeout = parseInt(timeoutMatch[1]);
+      if (screenshotMatch)
+        cypressConfig.screenshotOnFailure = screenshotMatch[1] === 'true';
+      if (timeoutMatch)
+        cypressConfig.defaultCommandTimeout = parseInt(timeoutMatch[1]);
     }
 
     const playwrightConfig = {
       testDir: './tests',
       timeout: cypressConfig.defaultCommandTimeout || 30000,
       expect: {
-        timeout: cypressConfig.defaultCommandTimeout || 5000
+        timeout: cypressConfig.defaultCommandTimeout || 5000,
       },
       use: {
         baseURL: cypressConfig.baseUrl,
-        viewport: cypressConfig.viewportWidth && cypressConfig.viewportHeight
-          ? { width: cypressConfig.viewportWidth, height: cypressConfig.viewportHeight }
-          : { width: 1280, height: 720 },
+        viewport:
+          cypressConfig.viewportWidth && cypressConfig.viewportHeight
+            ? {
+                width: cypressConfig.viewportWidth,
+                height: cypressConfig.viewportHeight,
+              }
+            : { width: 1280, height: 720 },
         video: cypressConfig.video ? 'on' : 'off',
-        screenshot: cypressConfig.screenshotOnFailure ? 'only-on-failure' : 'off',
-        trace: 'retain-on-failure'
+        screenshot: cypressConfig.screenshotOnFailure
+          ? 'only-on-failure'
+          : 'off',
+        trace: 'retain-on-failure',
       },
       projects: [
         { name: 'chromium', use: { browserName: 'chromium' } },
         { name: 'firefox', use: { browserName: 'firefox' } },
-        { name: 'webkit', use: { browserName: 'webkit' } }
-      ]
+        { name: 'webkit', use: { browserName: 'webkit' } },
+      ],
     };
 
     return `import { defineConfig } from '@playwright/test';

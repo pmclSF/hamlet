@@ -1,4 +1,9 @@
 /** @type {import('jest').Config} */
+// NOTE: This project requires NODE_OPTIONS='--experimental-vm-modules' for
+// Jest ESM support.  That flag leaves internal IPC handles in Jest workers
+// which can emit a "worker process has failed to exit gracefully" warning on
+// shutdown.  This is a known Jest 29 limitation, not a test-level leak.
+// See docs/adr/004-jest-esm-strategy.md for details.
 export default {
   testEnvironment: 'node',
   testTimeout: 30000,

@@ -21,7 +21,7 @@ export class PlaywrightToSelenium extends BaseConverter {
       'test\\.beforeAll\\(': 'beforeAll(',
       'test\\.afterAll\\(': 'afterAll(',
       'test\\.beforeEach\\(': 'beforeEach(',
-      'test\\.afterEach\\(': 'afterEach('
+      'test\\.afterEach\\(': 'afterEach(',
     });
 
     // Navigation patterns
@@ -31,19 +31,22 @@ export class PlaywrightToSelenium extends BaseConverter {
       'await page\\.goForward\\(\\)': 'await driver.navigate().forward()',
       'await page\\.reload\\(\\)': 'await driver.navigate().refresh()',
       'page\\.url\\(\\)': 'await driver.getCurrentUrl()',
-      'await page\\.title\\(\\)': 'await driver.getTitle()'
+      'await page\\.title\\(\\)': 'await driver.getTitle()',
     });
 
     // Selector patterns
     this.engine.registerPatterns('selectors', {
       'page\\.locator\\(([^)]+)\\)': 'await driver.findElement(By.css($1))',
-      'page\\.getByText\\(([^)]+)\\)': 'await driver.findElement(By.xpath(`//*[contains(text(),$1)]`))',
-      'page\\.getByTestId\\(([^)]+)\\)': 'await driver.findElement(By.css(`[data-testid=$1]`))',
-      'page\\.getByRole\\(([^,\n]+),?\\s*\\{?\\s*name:\\s*([^}]+)\\}?\\)': 'await driver.findElement(By.css(`[$1][name=$2]`))',
+      'page\\.getByText\\(([^)]+)\\)':
+        'await driver.findElement(By.xpath(`//*[contains(text(),$1)]`))',
+      'page\\.getByTestId\\(([^)]+)\\)':
+        'await driver.findElement(By.css(`[data-testid=$1]`))',
+      'page\\.getByRole\\(([^,\n]+),?\\s*\\{?\\s*name:\\s*([^}]+)\\}?\\)':
+        'await driver.findElement(By.css(`[$1][name=$2]`))',
       '\\.locator\\(([^)]+)\\)': '.findElement(By.css($1))',
       '\\.first\\(\\)': '[0]',
       '\\.last\\(\\)': '.slice(-1)[0]',
-      '\\.nth\\((\\d+)\\)': '[$1]'
+      '\\.nth\\((\\d+)\\)': '[$1]',
     });
 
     // Interaction patterns
@@ -52,26 +55,36 @@ export class PlaywrightToSelenium extends BaseConverter {
       '\\.click\\(\\)': '.click()',
       '\\.clear\\(\\)': '.clear()',
       '\\.check\\(\\)': '.click()',
-      '\\.uncheck\\(\\)': '.click()'
+      '\\.uncheck\\(\\)': '.click()',
     });
 
     // Assertion patterns
     this.engine.registerPatterns('assertions', {
-      'await expect\\(([^)]+)\\)\\.toBeVisible\\(\\)': 'expect(await $1.isDisplayed()).toBe(true)',
-      'await expect\\(([^)]+)\\)\\.toBeHidden\\(\\)': 'expect(await $1.isDisplayed()).toBe(false)',
-      'await expect\\(([^)]+)\\)\\.toHaveText\\(([^)]+)\\)': 'expect(await $1.getText()).toBe($2)',
-      'await expect\\(([^)]+)\\)\\.toContainText\\(([^)]+)\\)': 'expect(await $1.getText()).toContain($2)',
-      'await expect\\(([^)]+)\\)\\.toHaveValue\\(([^)]+)\\)': 'expect(await $1.getAttribute("value")).toBe($2)',
-      'await expect\\(([^)]+)\\)\\.toBeChecked\\(\\)': 'expect(await $1.isSelected()).toBe(true)',
-      'await expect\\(([^)]+)\\)\\.toBeDisabled\\(\\)': 'expect(await $1.isEnabled()).toBe(false)',
-      'await expect\\(([^)]+)\\)\\.toBeEnabled\\(\\)': 'expect(await $1.isEnabled()).toBe(true)'
+      'await expect\\(([^)]+)\\)\\.toBeVisible\\(\\)':
+        'expect(await $1.isDisplayed()).toBe(true)',
+      'await expect\\(([^)]+)\\)\\.toBeHidden\\(\\)':
+        'expect(await $1.isDisplayed()).toBe(false)',
+      'await expect\\(([^)]+)\\)\\.toHaveText\\(([^)]+)\\)':
+        'expect(await $1.getText()).toBe($2)',
+      'await expect\\(([^)]+)\\)\\.toContainText\\(([^)]+)\\)':
+        'expect(await $1.getText()).toContain($2)',
+      'await expect\\(([^)]+)\\)\\.toHaveValue\\(([^)]+)\\)':
+        'expect(await $1.getAttribute("value")).toBe($2)',
+      'await expect\\(([^)]+)\\)\\.toBeChecked\\(\\)':
+        'expect(await $1.isSelected()).toBe(true)',
+      'await expect\\(([^)]+)\\)\\.toBeDisabled\\(\\)':
+        'expect(await $1.isEnabled()).toBe(false)',
+      'await expect\\(([^)]+)\\)\\.toBeEnabled\\(\\)':
+        'expect(await $1.isEnabled()).toBe(true)',
     });
 
     // Wait patterns
     this.engine.registerPatterns('waits', {
       'await page\\.waitForTimeout\\((\\d+)\\)': 'await driver.sleep($1)',
-      'await page\\.waitForSelector\\(([^)]+)\\)': 'await driver.wait(until.elementLocated(By.css($1)), 10000)',
-      'await page\\.waitForURL\\(([^)]+)\\)': 'await driver.wait(until.urlContains($1), 10000)'
+      'await page\\.waitForSelector\\(([^)]+)\\)':
+        'await driver.wait(until.elementLocated(By.css($1)), 10000)',
+      'await page\\.waitForURL\\(([^)]+)\\)':
+        'await driver.wait(until.urlContains($1), 10000)',
     });
   }
 
@@ -79,7 +92,10 @@ export class PlaywrightToSelenium extends BaseConverter {
     let result = content;
 
     // Remove Playwright imports
-    result = result.replace(/import\s*\{[^{}\n]*\}\s*from\s*['"]@playwright\/test['"];?\n?/g, '');
+    result = result.replace(
+      /import\s*\{[^{}\n]*\}\s*from\s*['"]@playwright\/test['"];?\n?/g,
+      ''
+    );
 
     // Convert Playwright commands to Selenium
     result = this.convertPlaywrightCommands(result);
@@ -224,9 +240,18 @@ export class PlaywrightToSelenium extends BaseConverter {
       'await driver.get($1)'
     );
 
-    result = result.replace(/await page\.reload\(\)/g, 'await driver.navigate().refresh()');
-    result = result.replace(/await page\.goBack\(\)/g, 'await driver.navigate().back()');
-    result = result.replace(/await page\.goForward\(\)/g, 'await driver.navigate().forward()');
+    result = result.replace(
+      /await page\.reload\(\)/g,
+      'await driver.navigate().refresh()'
+    );
+    result = result.replace(
+      /await page\.goBack\(\)/g,
+      'await driver.navigate().back()'
+    );
+    result = result.replace(
+      /await page\.goForward\(\)/g,
+      'await driver.navigate().forward()'
+    );
 
     // Convert viewport
     result = result.replace(
@@ -330,13 +355,15 @@ export class PlaywrightToSelenium extends BaseConverter {
    * @returns {string}
    */
   cleanupOutput(content) {
-    return content
-      // Remove double awaits
-      .replace(/await\s+await/g, 'await')
-      // Remove empty lines
-      .replace(/\n{3,}/g, '\n\n')
-      // Trim
-      .trim() + '\n';
+    return (
+      content
+        // Remove double awaits
+        .replace(/await\s+await/g, 'await')
+        // Remove empty lines
+        .replace(/\n{3,}/g, '\n\n')
+        // Trim
+        .trim() + '\n'
+    );
   }
 
   getSetupTeardown() {
@@ -359,8 +386,8 @@ afterAll(async () => {
 
   getImports(_testTypes) {
     return [
-      'const { Builder, By, Key, until } = require(\'selenium-webdriver\');',
-      'const { expect } = require(\'@jest/globals\');'
+      "const { Builder, By, Key, until } = require('selenium-webdriver');",
+      "const { expect } = require('@jest/globals');",
     ];
   }
 
