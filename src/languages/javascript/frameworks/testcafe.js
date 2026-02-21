@@ -23,8 +23,10 @@ function detect(source) {
   let score = 0;
 
   // TestCafe imports (strong signals)
-  if (/import\s+\{[^}]*Selector[^}]*\}\s+from\s+['"]testcafe['"]/.test(source)) score += 30;
-  if (/import\s+\{[^}]*Role[^}]*\}\s+from\s+['"]testcafe['"]/.test(source)) score += 15;
+  if (/import\s+\{[^}]*Selector[^}]*\}\s+from\s+['"]testcafe['"]/.test(source))
+    score += 30;
+  if (/import\s+\{[^}]*Role[^}]*\}\s+from\s+['"]testcafe['"]/.test(source))
+    score += 15;
   if (/from\s+['"]testcafe['"]/.test(source)) score += 25;
 
   // fixture backtick syntax (strong signals)
@@ -72,47 +74,97 @@ function parse(source) {
 
     if (!trimmed) continue;
 
-    if (trimmed.startsWith('//') || trimmed.startsWith('/*') || trimmed.startsWith('*')) {
-      body.push(new Comment({ text: line, sourceLocation: loc, originalSource: line }));
+    if (
+      trimmed.startsWith('//') ||
+      trimmed.startsWith('/*') ||
+      trimmed.startsWith('*')
+    ) {
+      body.push(
+        new Comment({ text: line, sourceLocation: loc, originalSource: line })
+      );
       continue;
     }
 
     if (/^import\s/.test(trimmed)) {
-      imports.push(new ImportStatement({ source: trimmed, sourceLocation: loc, originalSource: line, confidence: 'converted' }));
+      imports.push(
+        new ImportStatement({
+          source: trimmed,
+          sourceLocation: loc,
+          originalSource: line,
+          confidence: 'converted',
+        })
+      );
       continue;
     }
 
     // fixture`name` -> TestSuite
     if (/\bfixture\s*`/.test(trimmed)) {
-      body.push(new TestSuite({ name: '', sourceLocation: loc, originalSource: line, confidence: 'converted' }));
+      body.push(
+        new TestSuite({
+          name: '',
+          sourceLocation: loc,
+          originalSource: line,
+          confidence: 'converted',
+        })
+      );
       continue;
     }
 
     // test('name', async t => { -> TestCase
     if (/\btest\s*\(/.test(trimmed)) {
-      body.push(new TestCase({ name: '', isAsync: true, sourceLocation: loc, originalSource: line, confidence: 'converted' }));
+      body.push(
+        new TestCase({
+          name: '',
+          isAsync: true,
+          sourceLocation: loc,
+          originalSource: line,
+          confidence: 'converted',
+        })
+      );
       continue;
     }
 
     // t.expect(...) -> Assertion
     if (/\bt\.expect\s*\(/.test(trimmed)) {
-      body.push(new Assertion({ sourceLocation: loc, originalSource: line, confidence: 'converted' }));
+      body.push(
+        new Assertion({
+          sourceLocation: loc,
+          originalSource: line,
+          confidence: 'converted',
+        })
+      );
       continue;
     }
 
     // Selector() -> RawCode (converted)
     if (/\bSelector\s*\(/.test(trimmed)) {
-      body.push(new RawCode({ code: line, sourceLocation: loc, originalSource: line, confidence: 'converted' }));
+      body.push(
+        new RawCode({
+          code: line,
+          sourceLocation: loc,
+          originalSource: line,
+          confidence: 'converted',
+        })
+      );
       continue;
     }
 
     // t.* actions -> RawCode (converted)
     if (/\bt\./.test(trimmed)) {
-      body.push(new RawCode({ code: line, sourceLocation: loc, originalSource: line, confidence: 'converted' }));
+      body.push(
+        new RawCode({
+          code: line,
+          sourceLocation: loc,
+          originalSource: line,
+          confidence: 'converted',
+        })
+      );
       continue;
     }
 
-    body.push(new RawCode({ code: line, sourceLocation: loc, originalSource: line }));
+    body.push(
+      new RawCode({ code: line, sourceLocation: loc, originalSource: line })
+    );
   }
 
   return new TestFile({ language: 'javascript', imports, body });

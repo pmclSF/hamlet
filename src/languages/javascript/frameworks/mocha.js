@@ -65,8 +65,18 @@ function detect(source) {
   if (/\bspecify\s*\(/.test(source)) score += 10;
 
   // Mocha hooks (weak — shared names but before/after are Mocha-specific without All/Each)
-  if (/\bbefore\s*\(/.test(source) && !/\bbeforeAll\s*\(/.test(source) && !/\bbeforeEach\s*\(/.test(source)) score += 5;
-  if (/\bafter\s*\(/.test(source) && !/\bafterAll\s*\(/.test(source) && !/\bafterEach\s*\(/.test(source)) score += 5;
+  if (
+    /\bbefore\s*\(/.test(source) &&
+    !/\bbeforeAll\s*\(/.test(source) &&
+    !/\bbeforeEach\s*\(/.test(source)
+  )
+    score += 5;
+  if (
+    /\bafter\s*\(/.test(source) &&
+    !/\bafterAll\s*\(/.test(source) &&
+    !/\bafterEach\s*\(/.test(source)
+  )
+    score += 5;
 
   // Test structure (weak — shared with Jest, Vitest, Jasmine)
   if (/\bdescribe\s*\(/.test(source)) score += 3;
@@ -103,32 +113,51 @@ function parse(source) {
     if (!trimmed) continue;
 
     // Comments
-    if (trimmed.startsWith('//') || trimmed.startsWith('/*') || trimmed.startsWith('*')) {
-      const isDirective = /eslint-disable|noinspection|@ts-|type:\s*ignore/.test(trimmed);
-      const isLicense = /license|copyright|MIT|Apache|BSD/i.test(trimmed) && i < 5;
-      allNodes.push(new Comment({
-        text: line,
-        commentKind: isLicense ? 'license' : isDirective ? 'directive' : 'inline',
-        preserveExact: isDirective || isLicense,
-        sourceLocation: loc,
-        originalSource: line,
-      }));
+    if (
+      trimmed.startsWith('//') ||
+      trimmed.startsWith('/*') ||
+      trimmed.startsWith('*')
+    ) {
+      const isDirective =
+        /eslint-disable|noinspection|@ts-|type:\s*ignore/.test(trimmed);
+      const isLicense =
+        /license|copyright|MIT|Apache|BSD/i.test(trimmed) && i < 5;
+      allNodes.push(
+        new Comment({
+          text: line,
+          commentKind: isLicense
+            ? 'license'
+            : isDirective
+              ? 'directive'
+              : 'inline',
+          preserveExact: isDirective || isLicense,
+          sourceLocation: loc,
+          originalSource: line,
+        })
+      );
       continue;
     }
 
     // Import/require statements
-    if (/^import\s/.test(trimmed) || /^const\s.*=\s*require\(/.test(trimmed) || /^var\s.*=\s*require\(/.test(trimmed)) {
-      const sourceMatch = trimmed.match(/from\s+['"]([^'"]+)['"]/) ||
-                          trimmed.match(/require\s*\(\s*['"]([^'"]+)['"]\s*\)/);
+    if (
+      /^import\s/.test(trimmed) ||
+      /^const\s.*=\s*require\(/.test(trimmed) ||
+      /^var\s.*=\s*require\(/.test(trimmed)
+    ) {
+      const sourceMatch =
+        trimmed.match(/from\s+['"]([^'"]+)['"]/) ||
+        trimmed.match(/require\s*\(\s*['"]([^'"]+)['"]\s*\)/);
       const isChai = sourceMatch && /^chai/.test(sourceMatch[1]);
       const isSinon = sourceMatch && sourceMatch[1] === 'sinon';
-      allNodes.push(new ImportStatement({
-        kind: isChai || isSinon ? 'library' : 'library',
-        source: sourceMatch ? sourceMatch[1] : '',
-        sourceLocation: loc,
-        originalSource: line,
-        confidence: 'converted',
-      }));
+      allNodes.push(
+        new ImportStatement({
+          kind: isChai || isSinon ? 'library' : 'library',
+          source: sourceMatch ? sourceMatch[1] : '',
+          sourceLocation: loc,
+          originalSource: line,
+          confidence: 'converted',
+        })
+      );
       imports.push(allNodes[allNodes.length - 1]);
       continue;
     }
@@ -138,83 +167,139 @@ function parse(source) {
       const hasSkip = /\.skip/.test(trimmed);
       const hasOnly = /\.only/.test(trimmed);
       const modifiers = [];
-      if (hasSkip) modifiers.push(new Modifier({ modifierType: 'skip', sourceLocation: loc }));
-      if (hasOnly) modifiers.push(new Modifier({ modifierType: 'only', sourceLocation: loc }));
-      allNodes.push(new TestSuite({
-        name: (trimmed.match(/(?:describe|context)(?:\.\w+)*\s*\(\s*['"`]([^'"`]*)['"`]/) || [])[1] || '',
-        modifiers,
-        sourceLocation: loc,
-        originalSource: line,
-        confidence: 'converted',
-      }));
+      if (hasSkip)
+        modifiers.push(
+          new Modifier({ modifierType: 'skip', sourceLocation: loc })
+        );
+      if (hasOnly)
+        modifiers.push(
+          new Modifier({ modifierType: 'only', sourceLocation: loc })
+        );
+      allNodes.push(
+        new TestSuite({
+          name:
+            (trimmed.match(
+              /(?:describe|context)(?:\.\w+)*\s*\(\s*['"`]([^'"`]*)['"`]/
+            ) || [])[1] || '',
+          modifiers,
+          sourceLocation: loc,
+          originalSource: line,
+          confidence: 'converted',
+        })
+      );
       continue;
     }
 
     // it / specify / test
-    if (/\b(?:it|specify|test)\s*\(/.test(trimmed) || /\b(?:it|specify|test)\.(?:only|skip)\s*\(/.test(trimmed)) {
+    if (
+      /\b(?:it|specify|test)\s*\(/.test(trimmed) ||
+      /\b(?:it|specify|test)\.(?:only|skip)\s*\(/.test(trimmed)
+    ) {
       const hasSkip = /\.skip/.test(trimmed);
       const hasOnly = /\.only/.test(trimmed);
       const isAsync = /async/.test(trimmed);
-      const hasDone = /function\s*\(\s*done\s*\)/.test(trimmed) || /\(\s*done\s*\)\s*=>/.test(trimmed);
+      const hasDone =
+        /function\s*\(\s*done\s*\)/.test(trimmed) ||
+        /\(\s*done\s*\)\s*=>/.test(trimmed);
       const modifiers = [];
-      if (hasSkip) modifiers.push(new Modifier({ modifierType: 'skip', sourceLocation: loc }));
-      if (hasOnly) modifiers.push(new Modifier({ modifierType: 'only', sourceLocation: loc }));
-      allNodes.push(new TestCase({
-        name: (trimmed.match(/(?:it|specify|test)(?:\.\w+)*\s*\(\s*['"`]([^'"`]*)['"`]/) || [])[1] || '',
-        isAsync: isAsync || hasDone,
-        modifiers,
-        sourceLocation: loc,
-        originalSource: line,
-        confidence: 'converted',
-      }));
+      if (hasSkip)
+        modifiers.push(
+          new Modifier({ modifierType: 'skip', sourceLocation: loc })
+        );
+      if (hasOnly)
+        modifiers.push(
+          new Modifier({ modifierType: 'only', sourceLocation: loc })
+        );
+      allNodes.push(
+        new TestCase({
+          name:
+            (trimmed.match(
+              /(?:it|specify|test)(?:\.\w+)*\s*\(\s*['"`]([^'"`]*)['"`]/
+            ) || [])[1] || '',
+          isAsync: isAsync || hasDone,
+          modifiers,
+          sourceLocation: loc,
+          originalSource: line,
+          confidence: 'converted',
+        })
+      );
       continue;
     }
 
     // Hooks: before, after, beforeEach, afterEach
-    if (/\b(?:before|after|beforeEach|afterEach)\s*\(/.test(trimmed) && !/\b(?:beforeAll|afterAll)\s*\(/.test(trimmed)) {
-      const hookMatch = trimmed.match(/\b(before|after|beforeEach|afterEach)\s*\(/);
+    if (
+      /\b(?:before|after|beforeEach|afterEach)\s*\(/.test(trimmed) &&
+      !/\b(?:beforeAll|afterAll)\s*\(/.test(trimmed)
+    ) {
+      const hookMatch = trimmed.match(
+        /\b(before|after|beforeEach|afterEach)\s*\(/
+      );
       const hookType = hookMatch ? hookMatch[1] : 'beforeEach';
-      allNodes.push(new Hook({
-        hookType,
-        isAsync: /async/.test(trimmed),
-        sourceLocation: loc,
-        originalSource: line,
-        confidence: 'converted',
-      }));
+      allNodes.push(
+        new Hook({
+          hookType,
+          isAsync: /async/.test(trimmed),
+          sourceLocation: loc,
+          originalSource: line,
+          confidence: 'converted',
+        })
+      );
       continue;
     }
 
     // Chai expect assertions
     if (/\bexpect\s*\(/.test(trimmed) && /\.to\./.test(trimmed)) {
-      const isNegated = /\.to\.not\./.test(trimmed) || /\.not\.to\./.test(trimmed);
+      const isNegated =
+        /\.to\.not\./.test(trimmed) || /\.not\.to\./.test(trimmed);
       let kind = 'equal';
-      if (/\.to(?:\.not)?\.deep\.equal\s*\(/.test(trimmed) || /\.not\.to\.deep\.equal\s*\(/.test(trimmed)) kind = 'deepEqual';
-      else if (/\.to(?:\.not)?\.equal\s*\(/.test(trimmed) || /\.not\.to\.equal\s*\(/.test(trimmed)) kind = 'strictEqual';
+      if (
+        /\.to(?:\.not)?\.deep\.equal\s*\(/.test(trimmed) ||
+        /\.not\.to\.deep\.equal\s*\(/.test(trimmed)
+      )
+        kind = 'deepEqual';
+      else if (
+        /\.to(?:\.not)?\.equal\s*\(/.test(trimmed) ||
+        /\.not\.to\.equal\s*\(/.test(trimmed)
+      )
+        kind = 'strictEqual';
       else if (/\.to(?:\.not)?\.be\.true/.test(trimmed)) kind = 'truthy';
       else if (/\.to(?:\.not)?\.be\.false/.test(trimmed)) kind = 'falsy';
       else if (/\.to(?:\.not)?\.be\.null/.test(trimmed)) kind = 'isNull';
-      else if (/\.to(?:\.not)?\.be\.undefined/.test(trimmed)) kind = 'isUndefined';
+      else if (/\.to(?:\.not)?\.be\.undefined/.test(trimmed))
+        kind = 'isUndefined';
       else if (/\.to(?:\.not)?\.be\.a\s*\(/.test(trimmed)) kind = 'typeCheck';
-      else if (/\.to(?:\.not)?\.have\.lengthOf\s*\(/.test(trimmed)) kind = 'hasLength';
-      else if (/\.to(?:\.not)?\.include\s*\(/.test(trimmed) || /\.to(?:\.not)?\.contain\s*\(/.test(trimmed)) kind = 'contains';
-      else if (/\.to(?:\.not)?\.have\.property\s*\(/.test(trimmed)) kind = 'hasProperty';
-      else if (/\.to(?:\.not)?\.be\.above\s*\(/.test(trimmed)) kind = 'greaterThan';
-      else if (/\.to(?:\.not)?\.be\.below\s*\(/.test(trimmed)) kind = 'lessThan';
-      else if (/\.to(?:\.not)?\.be\.closeTo\s*\(/.test(trimmed)) kind = 'closeTo';
+      else if (/\.to(?:\.not)?\.have\.lengthOf\s*\(/.test(trimmed))
+        kind = 'hasLength';
+      else if (
+        /\.to(?:\.not)?\.include\s*\(/.test(trimmed) ||
+        /\.to(?:\.not)?\.contain\s*\(/.test(trimmed)
+      )
+        kind = 'contains';
+      else if (/\.to(?:\.not)?\.have\.property\s*\(/.test(trimmed))
+        kind = 'hasProperty';
+      else if (/\.to(?:\.not)?\.be\.above\s*\(/.test(trimmed))
+        kind = 'greaterThan';
+      else if (/\.to(?:\.not)?\.be\.below\s*\(/.test(trimmed))
+        kind = 'lessThan';
+      else if (/\.to(?:\.not)?\.be\.closeTo\s*\(/.test(trimmed))
+        kind = 'closeTo';
       else if (/\.to(?:\.not)?\.throw/.test(trimmed)) kind = 'throws';
       else if (/\.to(?:\.not)?\.match\s*\(/.test(trimmed)) kind = 'matches';
-      else if (/\.to(?:\.not)?\.be\.an?\.instanceOf\s*\(/.test(trimmed)) kind = 'instanceOf';
+      else if (/\.to(?:\.not)?\.be\.an?\.instanceOf\s*\(/.test(trimmed))
+        kind = 'instanceOf';
       else if (/\.to(?:\.not)?\.exist/.test(trimmed)) kind = 'isDefined';
       else if (/\.to(?:\.not)?\.be\.ok/.test(trimmed)) kind = 'truthy';
       else if (/\.to(?:\.not)?\.be\.NaN/.test(trimmed)) kind = 'isNaN';
 
-      allNodes.push(new Assertion({
-        kind,
-        isNegated,
-        sourceLocation: loc,
-        originalSource: line,
-        confidence: 'converted',
-      }));
+      allNodes.push(
+        new Assertion({
+          kind,
+          isNegated,
+          sourceLocation: loc,
+          originalSource: line,
+          confidence: 'converted',
+        })
+      );
       continue;
     }
 
@@ -238,13 +323,15 @@ function parse(source) {
       else if (/assert\.lengthOf\s*\(/.test(trimmed)) kind = 'hasLength';
       else if (/assert\.property\s*\(/.test(trimmed)) kind = 'hasProperty';
 
-      allNodes.push(new Assertion({
-        kind,
-        isNegated: false,
-        sourceLocation: loc,
-        originalSource: line,
-        confidence: 'converted',
-      }));
+      allNodes.push(
+        new Assertion({
+          kind,
+          isNegated: false,
+          sourceLocation: loc,
+          originalSource: line,
+          confidence: 'converted',
+        })
+      );
       continue;
     }
 
@@ -259,94 +346,112 @@ function parse(source) {
       else if (/sinon\.createSandbox/.test(trimmed)) kind = 'createMock';
       else if (/sinon\.fakeServer/.test(trimmed)) kind = 'fakeTimers';
 
-      allNodes.push(new MockCall({
-        kind,
-        sourceLocation: loc,
-        originalSource: line,
-        confidence: /sinon\.fakeServer/.test(trimmed) ? 'unconvertible' : 'converted',
-      }));
+      allNodes.push(
+        new MockCall({
+          kind,
+          sourceLocation: loc,
+          originalSource: line,
+          confidence: /sinon\.fakeServer/.test(trimmed)
+            ? 'unconvertible'
+            : 'converted',
+        })
+      );
       continue;
     }
 
     // Chai-sinon assertions (expect(fn).to.have.been.calledOnce etc.)
     if (/\bexpect\s*\(/.test(trimmed) && /\.to\.have\.been\./.test(trimmed)) {
-      allNodes.push(new Assertion({
-        kind: 'called',
-        isNegated: /\.not\./.test(trimmed),
-        sourceLocation: loc,
-        originalSource: line,
-        confidence: 'converted',
-      }));
+      allNodes.push(
+        new Assertion({
+          kind: 'called',
+          isNegated: /\.not\./.test(trimmed),
+          sourceLocation: loc,
+          originalSource: line,
+          confidence: 'converted',
+        })
+      );
       continue;
     }
 
     // Regular expect without Chai chains (pass-through)
     if (/\bexpect\s*\(/.test(trimmed)) {
-      allNodes.push(new Assertion({
-        kind: 'equal',
-        isNegated: /\.not\./.test(trimmed),
-        sourceLocation: loc,
-        originalSource: line,
-        confidence: 'converted',
-      }));
+      allNodes.push(
+        new Assertion({
+          kind: 'equal',
+          isNegated: /\.not\./.test(trimmed),
+          sourceLocation: loc,
+          originalSource: line,
+          confidence: 'converted',
+        })
+      );
       continue;
     }
 
     // this.timeout / this.retries / this.slow
     if (/this\.timeout\s*\(/.test(trimmed)) {
-      allNodes.push(new MockCall({
-        kind: 'fakeTimers',
-        target: 'timeout',
-        sourceLocation: loc,
-        originalSource: line,
-        confidence: 'warning',
-      }));
+      allNodes.push(
+        new MockCall({
+          kind: 'fakeTimers',
+          target: 'timeout',
+          sourceLocation: loc,
+          originalSource: line,
+          confidence: 'warning',
+        })
+      );
       continue;
     }
     if (/this\.retries\s*\(/.test(trimmed)) {
-      allNodes.push(new MockCall({
-        kind: 'fakeTimers',
-        target: 'retries',
-        sourceLocation: loc,
-        originalSource: line,
-        confidence: 'warning',
-      }));
+      allNodes.push(
+        new MockCall({
+          kind: 'fakeTimers',
+          target: 'retries',
+          sourceLocation: loc,
+          originalSource: line,
+          confidence: 'warning',
+        })
+      );
       continue;
     }
     if (/this\.slow\s*\(/.test(trimmed)) {
-      allNodes.push(new MockCall({
-        kind: 'fakeTimers',
-        target: 'slow',
-        sourceLocation: loc,
-        originalSource: line,
-        confidence: 'warning',
-      }));
+      allNodes.push(
+        new MockCall({
+          kind: 'fakeTimers',
+          target: 'slow',
+          sourceLocation: loc,
+          originalSource: line,
+          confidence: 'warning',
+        })
+      );
       continue;
     }
 
     // chai.use
     if (/chai\.use\s*\(/.test(trimmed)) {
-      allNodes.push(new RawCode({
-        code: line,
-        sourceLocation: loc,
-        originalSource: line,
-        confidence: 'unconvertible',
-      }));
+      allNodes.push(
+        new RawCode({
+          code: line,
+          sourceLocation: loc,
+          originalSource: line,
+          confidence: 'unconvertible',
+        })
+      );
       continue;
     }
 
     // Everything else
-    allNodes.push(new RawCode({
-      code: line,
-      sourceLocation: loc,
-      originalSource: line,
-    }));
+    allNodes.push(
+      new RawCode({
+        code: line,
+        sourceLocation: loc,
+        originalSource: line,
+      })
+    );
   }
 
   return new TestFile({
     language: 'javascript',
     imports,
-    body: allNodes.filter(n => !imports.includes(n)),
+    body: allNodes.filter((n) => !imports.includes(n)),
   });
 }
 
@@ -381,11 +486,20 @@ function emit(_ir, source) {
   result = result.replace(/\)\.not\.toThrow\(\)/g, ').to.not.throw()');
   result = result.replace(/\)\.not\.toThrow\(/g, ').to.not.throw(');
   result = result.replace(/\)\.not\.toBeNull\(\)/g, ').to.not.be.null');
-  result = result.replace(/\)\.not\.toBeUndefined\(\)/g, ').to.not.be.undefined');
+  result = result.replace(
+    /\)\.not\.toBeUndefined\(\)/g,
+    ').to.not.be.undefined'
+  );
   result = result.replace(/\)\.not\.toBeDefined\(\)/g, ').to.not.exist');
   result = result.replace(/\)\.not\.toContain\(/g, ').to.not.include(');
-  result = result.replace(/\)\.not\.toHaveLength\(/g, ').to.not.have.lengthOf(');
-  result = result.replace(/\)\.not\.toHaveBeenCalled\(\)/g, ').to.not.have.been.called');
+  result = result.replace(
+    /\)\.not\.toHaveLength\(/g,
+    ').to.not.have.lengthOf('
+  );
+  result = result.replace(
+    /\)\.not\.toHaveBeenCalled\(\)/g,
+    ').to.not.have.been.called'
+  );
 
   // General positive assertion forms
   result = result.replace(/\)\.toEqual\(/g, ').to.deep.equal(');
@@ -411,13 +525,17 @@ function emit(_ir, source) {
   result = result.replace(/\)\.toThrow\(/g, ').to.throw(');
 
   // Mock assertion chain-suffix replacements
-  result = result.replace(/\)\.toHaveBeenCalledWith\(/g, ').to.have.been.calledWith(');
+  result = result.replace(
+    /\)\.toHaveBeenCalledWith\(/g,
+    ').to.have.been.calledWith('
+  );
   result = result.replace(/\)\.toHaveBeenCalled\(\)/g, ').to.have.been.called');
 
   // toHaveBeenCalledTimes needs subject restructuring — use paren-safe regex
   const SUBJ = '([^)]*(?:\\([^)]*\\)[^)]*)*)';
   const calledTimesRe = new RegExp(
-    'expect\\(' + SUBJ + '\\)\\.toHaveBeenCalledTimes\\(([^)]+)\\)', 'g'
+    'expect\\(' + SUBJ + '\\)\\.toHaveBeenCalledTimes\\(([^)]+)\\)',
+    'g'
   );
   result = result.replace(calledTimesRe, 'expect($1.callCount).to.equal($2)');
 
@@ -442,7 +560,10 @@ function emit(_ir, source) {
   result = result.replace(/\.mockReturnValue\(([^)]+)\)/g, '.returns($1)');
 
   // .mockReturnValueOnce(val) → .onFirstCall().returns(val) (simplified)
-  result = result.replace(/\.mockReturnValueOnce\(([^)]+)\)/g, '.onFirstCall().returns($1)');
+  result = result.replace(
+    /\.mockReturnValueOnce\(([^)]+)\)/g,
+    '.onFirstCall().returns($1)'
+  );
 
   // .mockImplementation(fn) → .callsFake(fn)
   result = result.replace(/\.mockImplementation\(([^)]*)\)/g, '.callsFake($1)');
@@ -469,13 +590,19 @@ function emit(_ir, source) {
   result = result.replace(/\bjest\.restoreAllMocks\(\)/g, 'sinon.restore()');
 
   // jest.useFakeTimers() → sinon.useFakeTimers() (clock returned)
-  result = result.replace(/\bjest\.useFakeTimers\(\)/g, 'sinon.useFakeTimers()');
+  result = result.replace(
+    /\bjest\.useFakeTimers\(\)/g,
+    'sinon.useFakeTimers()'
+  );
 
   // jest.useRealTimers() → clock.restore()
   result = result.replace(/\bjest\.useRealTimers\(\)/g, 'clock.restore()');
 
   // jest.advanceTimersByTime(ms) → clock.tick(ms)
-  result = result.replace(/\bjest\.advanceTimersByTime\(([^)]+)\)/g, 'clock.tick($1)');
+  result = result.replace(
+    /\bjest\.advanceTimersByTime\(([^)]+)\)/g,
+    'clock.tick($1)'
+  );
 
   // --- Phase 3: Convert hooks ---
 
@@ -488,7 +615,10 @@ function emit(_ir, source) {
   // --- Phase 4: Add chai/sinon imports ---
 
   // Remove any existing jest-related imports
-  result = result.replace(/import\s+\{[^}]*\}\s+from\s+['"]@jest\/globals['"];?\n?/g, '');
+  result = result.replace(
+    /import\s+\{[^}]*\}\s+from\s+['"]@jest\/globals['"];?\n?/g,
+    ''
+  );
 
   // Determine import needs from result content (Chai chains and Sinon namespace
   // are never present in Jest source, so their presence means we introduced them)
@@ -510,28 +640,34 @@ function emit(_ir, source) {
   // --- Phase 5: Unconvertible patterns ---
 
   // jest.mock(module) → HAMLET-TODO
-  result = result.replace(
-    /\bjest\.mock\s*\(([^)]+)\)\s*;?/g,
-    (match) => {
-      return formatter.formatTodo({
+  result = result.replace(/\bjest\.mock\s*\(([^)]+)\)\s*;?/g, (match) => {
+    return (
+      formatter.formatTodo({
         id: 'UNCONVERTIBLE-MODULE-MOCK',
-        description: 'Mocha does not have a built-in module mocking system like jest.mock()',
+        description:
+          'Mocha does not have a built-in module mocking system like jest.mock()',
         original: match.trim(),
         action: 'Use proxyquire, rewire, or manual dependency injection',
-      }) + '\n// ' + match.trim();
-    }
-  );
+      }) +
+      '\n// ' +
+      match.trim()
+    );
+  });
 
   // toMatchSnapshot → HAMLET-TODO
   result = result.replace(
     /expect\([^)]+\)\.toMatchSnapshot\(\)\s*;?/g,
     (match) => {
-      return formatter.formatTodo({
-        id: 'UNCONVERTIBLE-SNAPSHOT',
-        description: 'Mocha does not have built-in snapshot testing',
-        original: match.trim(),
-        action: 'Use chai-jest-snapshot or snap-shot-it package',
-      }) + '\n// ' + match.trim();
+      return (
+        formatter.formatTodo({
+          id: 'UNCONVERTIBLE-SNAPSHOT',
+          description: 'Mocha does not have built-in snapshot testing',
+          original: match.trim(),
+          action: 'Use chai-jest-snapshot or snap-shot-it package',
+        }) +
+        '\n// ' +
+        match.trim()
+      );
     }
   );
 
@@ -539,12 +675,16 @@ function emit(_ir, source) {
   result = result.replace(
     /expect\([^)]+\)\.toMatchInlineSnapshot\([^)]*\)\s*;?/g,
     (match) => {
-      return formatter.formatTodo({
-        id: 'UNCONVERTIBLE-INLINE-SNAPSHOT',
-        description: 'Mocha does not support inline snapshots',
-        original: match.trim(),
-        action: 'Convert to explicit assertion',
-      }) + '\n// ' + match.trim();
+      return (
+        formatter.formatTodo({
+          id: 'UNCONVERTIBLE-INLINE-SNAPSHOT',
+          description: 'Mocha does not support inline snapshots',
+          original: match.trim(),
+          action: 'Convert to explicit assertion',
+        }) +
+        '\n// ' +
+        match.trim()
+      );
     }
   );
 
@@ -567,7 +707,12 @@ function prependMochaImports(source, importLines) {
   // Skip leading comments
   for (let i = 0; i < lines.length; i++) {
     const trimmed = lines[i].trim();
-    if (trimmed.startsWith('//') || trimmed.startsWith('/*') || trimmed.startsWith('*') || trimmed === '*/') {
+    if (
+      trimmed.startsWith('//') ||
+      trimmed.startsWith('/*') ||
+      trimmed.startsWith('*') ||
+      trimmed === '*/'
+    ) {
       insertIdx = i + 1;
       continue;
     }
@@ -582,8 +727,12 @@ function prependMochaImports(source, importLines) {
 
   // Ensure blank line after imports
   const afterImports = insertIdx + importLines.length;
-  if (afterImports < lines.length && lines[afterImports].trim() !== '' &&
-      !lines[afterImports].trim().startsWith('const') && !lines[afterImports].trim().startsWith('import')) {
+  if (
+    afterImports < lines.length &&
+    lines[afterImports].trim() !== '' &&
+    !lines[afterImports].trim().startsWith('const') &&
+    !lines[afterImports].trim().startsWith('import')
+  ) {
     lines.splice(afterImports, 0, '');
   }
 
@@ -598,7 +747,16 @@ export default {
   parse,
   emit,
   imports: {
-    globals: ['describe', 'it', 'context', 'specify', 'before', 'after', 'beforeEach', 'afterEach'],
+    globals: [
+      'describe',
+      'it',
+      'context',
+      'specify',
+      'before',
+      'after',
+      'beforeEach',
+      'afterEach',
+    ],
     externalLibs: ['chai', 'sinon'],
     mockNamespace: 'sinon',
   },

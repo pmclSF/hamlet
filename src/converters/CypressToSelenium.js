@@ -17,11 +17,12 @@ export class CypressToSelenium extends BaseConverter {
     // Test structure patterns
     this.engine.registerPatterns('structure', {
       'describe\\(([^,\n]+),': 'describe($1,',
-      'it\\(([^,\n]+),\\s*(?:async\\s*)?\\(\\)\\s*=>': 'it($1, async function()',
+      'it\\(([^,\n]+),\\s*(?:async\\s*)?\\(\\)\\s*=>':
+        'it($1, async function()',
       'before\\(': 'beforeAll(',
       'after\\(': 'afterAll(',
       'beforeEach\\(': 'beforeEach(',
-      'afterEach\\(': 'afterEach('
+      'afterEach\\(': 'afterEach(',
     });
 
     // Navigation patterns
@@ -31,18 +32,20 @@ export class CypressToSelenium extends BaseConverter {
       'cy\\.go\\([\'"]forward[\'"]\\)': 'await driver.navigate().forward()',
       'cy\\.reload\\(\\)': 'await driver.navigate().refresh()',
       'cy\\.url\\(\\)': 'await driver.getCurrentUrl()',
-      'cy\\.title\\(\\)': 'await driver.getTitle()'
+      'cy\\.title\\(\\)': 'await driver.getTitle()',
     });
 
     // Selector patterns
     this.engine.registerPatterns('selectors', {
       'cy\\.get\\(([^)]+)\\)': 'await driver.findElement(By.css($1))',
-      'cy\\.get\\([\'"]#([^\']+)[\'"]\\)': 'await driver.findElement(By.id("$1"))',
-      'cy\\.contains\\(([^)]+)\\)': 'await driver.findElement(By.xpath(`//*[contains(text(),$1)]`))',
+      "cy\\.get\\(['\"]#([^']+)['\"]\\)":
+        'await driver.findElement(By.id("$1"))',
+      'cy\\.contains\\(([^)]+)\\)':
+        'await driver.findElement(By.xpath(`//*[contains(text(),$1)]`))',
       '\\.find\\(([^)]+)\\)': '.findElement(By.css($1))',
       '\\.first\\(\\)': '[0]',
       '\\.last\\(\\)': '.slice(-1)[0]',
-      '\\.eq\\((\\d+)\\)': '[$1]'
+      '\\.eq\\((\\d+)\\)': '[$1]',
     });
 
     // Interaction patterns
@@ -52,24 +55,32 @@ export class CypressToSelenium extends BaseConverter {
       '\\.clear\\(\\)': '.clear()',
       '\\.check\\(\\)': '.click()',
       '\\.uncheck\\(\\)': '.click()',
-      '\\.focus\\(\\)': '.click()'
+      '\\.focus\\(\\)': '.click()',
     });
 
     // Assertion patterns
     this.engine.registerPatterns('assertions', {
-      '\\.should\\([\'"]be\\.visible[\'"]\\)': '; expect(await element.isDisplayed()).toBe(true)',
-      '\\.should\\([\'"]not\\.be\\.visible[\'"]\\)': '; expect(await element.isDisplayed()).toBe(false)',
-      '\\.should\\([\'"]have\\.text[\'"],\\s*([^)]+)\\)': '; expect(await element.getText()).toBe($1)',
-      '\\.should\\([\'"]contain[\'"],\\s*([^)]+)\\)': '; expect(await element.getText()).toContain($1)',
-      '\\.should\\([\'"]have\\.value[\'"],\\s*([^)]+)\\)': '; expect(await element.getAttribute("value")).toBe($1)',
-      '\\.should\\([\'"]be\\.checked[\'"]\\)': '; expect(await element.isSelected()).toBe(true)',
-      '\\.should\\([\'"]be\\.disabled[\'"]\\)': '; expect(await element.isEnabled()).toBe(false)',
-      '\\.should\\([\'"]be\\.enabled[\'"]\\)': '; expect(await element.isEnabled()).toBe(true)'
+      '\\.should\\([\'"]be\\.visible[\'"]\\)':
+        '; expect(await element.isDisplayed()).toBe(true)',
+      '\\.should\\([\'"]not\\.be\\.visible[\'"]\\)':
+        '; expect(await element.isDisplayed()).toBe(false)',
+      '\\.should\\([\'"]have\\.text[\'"],\\s*([^)]+)\\)':
+        '; expect(await element.getText()).toBe($1)',
+      '\\.should\\([\'"]contain[\'"],\\s*([^)]+)\\)':
+        '; expect(await element.getText()).toContain($1)',
+      '\\.should\\([\'"]have\\.value[\'"],\\s*([^)]+)\\)':
+        '; expect(await element.getAttribute("value")).toBe($1)',
+      '\\.should\\([\'"]be\\.checked[\'"]\\)':
+        '; expect(await element.isSelected()).toBe(true)',
+      '\\.should\\([\'"]be\\.disabled[\'"]\\)':
+        '; expect(await element.isEnabled()).toBe(false)',
+      '\\.should\\([\'"]be\\.enabled[\'"]\\)':
+        '; expect(await element.isEnabled()).toBe(true)',
     });
 
     // Wait patterns
     this.engine.registerPatterns('waits', {
-      'cy\\.wait\\((\\d+)\\)': 'await driver.sleep($1)'
+      'cy\\.wait\\((\\d+)\\)': 'await driver.sleep($1)',
     });
   }
 
@@ -204,14 +215,20 @@ export class CypressToSelenium extends BaseConverter {
     );
 
     // Convert navigation
-    result = result.replace(
-      /cy\.visit\(([^)]+)\)/g,
-      'await driver.get($1)'
-    );
+    result = result.replace(/cy\.visit\(([^)]+)\)/g, 'await driver.get($1)');
 
-    result = result.replace(/cy\.reload\(\)/g, 'await driver.navigate().refresh()');
-    result = result.replace(/cy\.go\(['"]back['"]\)/g, 'await driver.navigate().back()');
-    result = result.replace(/cy\.go\(['"]forward['"]\)/g, 'await driver.navigate().forward()');
+    result = result.replace(
+      /cy\.reload\(\)/g,
+      'await driver.navigate().refresh()'
+    );
+    result = result.replace(
+      /cy\.go\(['"]back['"]\)/g,
+      'await driver.navigate().back()'
+    );
+    result = result.replace(
+      /cy\.go\(['"]forward['"]\)/g,
+      'await driver.navigate().forward()'
+    );
 
     // Convert URL assertions
     result = result.replace(
@@ -231,10 +248,7 @@ export class CypressToSelenium extends BaseConverter {
     );
 
     // Convert waits
-    result = result.replace(
-      /cy\.wait\((\d+)\)/g,
-      'await driver.sleep($1)'
-    );
+    result = result.replace(/cy\.wait\((\d+)\)/g, 'await driver.sleep($1)');
 
     // Convert storage/cookies
     result = result.replace(
@@ -331,11 +345,13 @@ export class CypressToSelenium extends BaseConverter {
    * @returns {string}
    */
   cleanupOutput(content) {
-    return content
-      // Remove empty lines
-      .replace(/\n{3,}/g, '\n\n')
-      // Trim
-      .trim() + '\n';
+    return (
+      content
+        // Remove empty lines
+        .replace(/\n{3,}/g, '\n\n')
+        // Trim
+        .trim() + '\n'
+    );
   }
 
   transformTestStructure(content) {
@@ -368,8 +384,8 @@ afterAll(async () => {
 
   getImports(_testTypes) {
     return [
-      'const { Builder, By, Key, until } = require(\'selenium-webdriver\');',
-      'const { expect } = require(\'@jest/globals\');'
+      "const { Builder, By, Key, until } = require('selenium-webdriver');",
+      "const { expect } = require('@jest/globals');",
     ];
   }
 

@@ -61,11 +61,15 @@ export class MigrationStateManager {
       return this.state;
     } catch (error) {
       if (error.code === 'ENOENT') {
-        throw new Error(`No migration state found at ${this.statePath}. Run 'hamlet migrate' to start.`);
+        throw new Error(
+          `No migration state found at ${this.statePath}. Run 'hamlet migrate' to start.`
+        );
       }
       if (error instanceof SyntaxError) {
         // Corrupted state — re-initialize with warning
-        console.warn(`Warning: Corrupted state at ${this.statePath}, re-initializing.`);
+        console.warn(
+          `Warning: Corrupted state at ${this.statePath}, re-initializing.`
+        );
         return this.init();
       }
       throw error;
@@ -78,7 +82,8 @@ export class MigrationStateManager {
    * @returns {Promise<void>}
    */
   async save() {
-    if (!this.state) throw new Error('No state to save. Call init() or load() first.');
+    if (!this.state)
+      throw new Error('No state to save. Call init() or load() first.');
 
     await fs.mkdir(this.stateDir, { recursive: true });
     const data = JSON.stringify(this.state, null, 2);
@@ -95,7 +100,8 @@ export class MigrationStateManager {
    * @param {string} [info.error] - Error message if failed
    */
   markFileConverted(filePath, info = {}) {
-    if (!this.state) throw new Error('No state loaded. Call init() or load() first.');
+    if (!this.state)
+      throw new Error('No state loaded. Call init() or load() first.');
 
     this.state.files[filePath] = {
       status: info.error ? 'failed' : 'converted',
@@ -112,7 +118,8 @@ export class MigrationStateManager {
    * @param {string} reason - Reason for skipping
    */
   markFileSkipped(filePath, reason) {
-    if (!this.state) throw new Error('No state loaded. Call init() or load() first.');
+    if (!this.state)
+      throw new Error('No state loaded. Call init() or load() first.');
 
     this.state.files[filePath] = {
       status: 'skipped',
@@ -152,14 +159,15 @@ export class MigrationStateManager {
    * @returns {Object}
    */
   getStatus() {
-    if (!this.state) return { total: 0, converted: 0, failed: 0, skipped: 0, pending: 0 };
+    if (!this.state)
+      return { total: 0, converted: 0, failed: 0, skipped: 0, pending: 0 };
 
     const entries = Object.values(this.state.files);
     return {
       total: entries.length,
-      converted: entries.filter(e => e.status === 'converted').length,
-      failed: entries.filter(e => e.status === 'failed').length,
-      skipped: entries.filter(e => e.status === 'skipped').length,
+      converted: entries.filter((e) => e.status === 'converted').length,
+      failed: entries.filter((e) => e.status === 'failed').length,
+      skipped: entries.filter((e) => e.status === 'skipped').length,
       source: this.state.source,
       target: this.state.target,
       startedAt: this.state.startedAt,

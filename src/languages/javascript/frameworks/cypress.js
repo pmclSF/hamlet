@@ -3,7 +3,8 @@
  *
  * Provides detect, parse, and emit for the Cypress E2E testing framework.
  * emit() handles conversions from WebdriverIO and TestCafe into Cypress code.
- * parse() builds an IR tree from Cypress source code for scoring.
+ * parse() builds a flat IR tree (one node per line, no nesting) from Cypress
+ * source code. The IR is consumed by ConfidenceScorer for scoring.
  */
 
 import {
@@ -58,42 +59,94 @@ function parse(source) {
 
     if (!trimmed) continue;
 
-    if (trimmed.startsWith('//') || trimmed.startsWith('/*') || trimmed.startsWith('*')) {
-      body.push(new Comment({ text: line, sourceLocation: loc, originalSource: line }));
+    if (
+      trimmed.startsWith('//') ||
+      trimmed.startsWith('/*') ||
+      trimmed.startsWith('*')
+    ) {
+      body.push(
+        new Comment({ text: line, sourceLocation: loc, originalSource: line })
+      );
       continue;
     }
 
     if (/^import\s/.test(trimmed) || /^const\s.*=\s*require\(/.test(trimmed)) {
-      imports.push(new ImportStatement({ source: trimmed, sourceLocation: loc, originalSource: line, confidence: 'converted' }));
+      imports.push(
+        new ImportStatement({
+          source: trimmed,
+          sourceLocation: loc,
+          originalSource: line,
+          confidence: 'converted',
+        })
+      );
       continue;
     }
 
     if (/\bdescribe\s*\(/.test(trimmed)) {
-      body.push(new TestSuite({ name: '', sourceLocation: loc, originalSource: line, confidence: 'converted' }));
+      body.push(
+        new TestSuite({
+          name: '',
+          sourceLocation: loc,
+          originalSource: line,
+          confidence: 'converted',
+        })
+      );
       continue;
     }
 
     if (/\b(?:it|test)\s*\(/.test(trimmed)) {
-      body.push(new TestCase({ name: '', sourceLocation: loc, originalSource: line, confidence: 'converted' }));
+      body.push(
+        new TestCase({
+          name: '',
+          sourceLocation: loc,
+          originalSource: line,
+          confidence: 'converted',
+        })
+      );
       continue;
     }
 
-    if (/\b(?:beforeEach|afterEach|beforeAll|afterAll|before|after)\s*\(/.test(trimmed)) {
-      body.push(new Hook({ sourceLocation: loc, originalSource: line, confidence: 'converted' }));
+    if (
+      /\b(?:beforeEach|afterEach|beforeAll|afterAll|before|after)\s*\(/.test(
+        trimmed
+      )
+    ) {
+      body.push(
+        new Hook({
+          sourceLocation: loc,
+          originalSource: line,
+          confidence: 'converted',
+        })
+      );
       continue;
     }
 
     if (/\.should\s*\(/.test(trimmed) || /\bexpect\s*\(/.test(trimmed)) {
-      body.push(new Assertion({ sourceLocation: loc, originalSource: line, confidence: 'converted' }));
+      body.push(
+        new Assertion({
+          sourceLocation: loc,
+          originalSource: line,
+          confidence: 'converted',
+        })
+      );
       continue;
     }
 
     if (/\bcy\./.test(trimmed)) {
-      body.push(new RawCode({ code: line, sourceLocation: loc, originalSource: line, confidence: 'converted' }));
+      body.push(
+        new RawCode({
+          code: line,
+          sourceLocation: loc,
+          originalSource: line,
+          confidence: 'converted',
+        })
+      );
       continue;
     }
 
-    body.push(new RawCode({ code: line, sourceLocation: loc, originalSource: line }));
+    body.push(
+      new RawCode({ code: line, sourceLocation: loc, originalSource: line })
+    );
   }
 
   return new TestFile({ language: 'javascript', imports, body });
@@ -106,7 +159,11 @@ function parse(source) {
  * Each source framework's patterns are isolated in a separate function
  * and gated by source detection to prevent phase interference.
  *
- * @param {TestFile} _ir - Parsed IR tree (for scoring metadata)
+ * Note: _ir is currently unused — conversion operates on the source string
+ * via regex. The IR is consumed by ConfidenceScorer for scoring only.
+ * Future work: reconstruct output from the IR tree.
+ *
+ * @param {TestFile} _ir - Parsed IR tree (used by ConfidenceScorer, not here)
  * @param {string} source - Original source code
  * @returns {string} Converted Cypress source code
  */
@@ -114,18 +171,28 @@ function emit(_ir, source) {
   let result = source;
 
   // Detect source framework
-  const isWdioSource = /\bbrowser\.url\s*\(/.test(source) ||
+  const isWdioSource =
+    /\bbrowser\.url\s*\(/.test(source) ||
     (/\$\(/.test(source) && /\.setValue\s*\(/.test(source));
-  const isTestCafeSource = /\bfixture\s*`/.test(source) ||
-    /from\s+['"]testcafe['"]/.test(source);
+  const isTestCafeSource =
+    /\bfixture\s*`/.test(source) || /from\s+['"]testcafe['"]/.test(source);
 
   // Phase 1: Remove source-framework imports
   if (isWdioSource) {
-    result = result.replace(/import\s+\{[^}]*\}\s+from\s+['"]@wdio\/globals['"];?\n?/g, '');
-    result = result.replace(/import\s+\{[^}]*\}\s+from\s+['"]webdriverio['"];?\n?/g, '');
+    result = result.replace(
+      /import\s+\{[^}]*\}\s+from\s+['"]@wdio\/globals['"];?\n?/g,
+      ''
+    );
+    result = result.replace(
+      /import\s+\{[^}]*\}\s+from\s+['"]webdriverio['"];?\n?/g,
+      ''
+    );
   }
   if (isTestCafeSource) {
-    result = result.replace(/import\s+\{[^}]*\}\s+from\s+['"]testcafe['"];?\n?/g, '');
+    result = result.replace(
+      /import\s+\{[^}]*\}\s+from\s+['"]testcafe['"];?\n?/g,
+      ''
+    );
   }
 
   // Phase 2: Convert source commands
@@ -146,9 +213,7 @@ function emit(_ir, source) {
   result = removeAsyncAwait(result);
 
   // Phase 5: Clean up
-  result = result
-    .replace(/\n{3,}/g, '\n\n')
-    .trim() + '\n';
+  result = result.replace(/\n{3,}/g, '\n\n').trim() + '\n';
 
   return result;
 }
@@ -229,15 +294,9 @@ function convertWdioToCypress(content) {
   // --- WDIO text selectors (before composite patterns to avoid $() catch-all) ---
 
   // $('=text') -> cy.contains('text')
-  result = result.replace(
-    /\$\(['"]=([\w\s]+)['"]\)/g,
-    "cy.contains('$1')"
-  );
+  result = result.replace(/\$\(['"]=([\w\s]+)['"]\)/g, "cy.contains('$1')");
   // $('*=text') -> cy.contains('text')
-  result = result.replace(
-    /\$\(['"]\*=([\w\s]+)['"]\)/g,
-    "cy.contains('$1')"
-  );
+  result = result.replace(/\$\(['"]\*=([\w\s]+)['"]\)/g, "cy.contains('$1')");
 
   // --- Composite $().action() chains ---
 
@@ -296,52 +355,25 @@ function convertWdioToCypress(content) {
 
   // --- Standalone $() / $$() -> cy.get() ---
 
-  result = result.replace(
-    /\$\$\(([^)]+)\)/g,
-    'cy.get($1)'
-  );
-  result = result.replace(
-    /\$\(([^)]+)\)/g,
-    'cy.get($1)'
-  );
+  result = result.replace(/\$\$\(([^)]+)\)/g, 'cy.get($1)');
+  result = result.replace(/\$\(([^)]+)\)/g, 'cy.get($1)');
 
   // --- Navigation ---
 
-  result = result.replace(
-    /await browser\.url\(([^)]+)\)/g,
-    'cy.visit($1)'
-  );
+  result = result.replace(/await browser\.url\(([^)]+)\)/g, 'cy.visit($1)');
 
   // --- Browser API ---
 
-  result = result.replace(
-    /await browser\.pause\(([^)]+)\)/g,
-    'cy.wait($1)'
-  );
+  result = result.replace(/await browser\.pause\(([^)]+)\)/g, 'cy.wait($1)');
   result = result.replace(
     /await browser\.execute\(([^)]*)\)/g,
     'cy.window().then($1)'
   );
-  result = result.replace(
-    /await browser\.refresh\(\)/g,
-    'cy.reload()'
-  );
-  result = result.replace(
-    /await browser\.back\(\)/g,
-    "cy.go('back')"
-  );
-  result = result.replace(
-    /await browser\.forward\(\)/g,
-    "cy.go('forward')"
-  );
-  result = result.replace(
-    /await browser\.getTitle\(\)/g,
-    'cy.title()'
-  );
-  result = result.replace(
-    /await browser\.getUrl\(\)/g,
-    'cy.url()'
-  );
+  result = result.replace(/await browser\.refresh\(\)/g, 'cy.reload()');
+  result = result.replace(/await browser\.back\(\)/g, "cy.go('back')");
+  result = result.replace(/await browser\.forward\(\)/g, "cy.go('forward')");
+  result = result.replace(/await browser\.getTitle\(\)/g, 'cy.title()');
+  result = result.replace(/await browser\.getUrl\(\)/g, 'cy.url()');
   result = result.replace(
     /await browser\.keys\(\[([^\]]+)\]\)/g,
     "cy.get('body').type($1)"
@@ -353,21 +385,21 @@ function convertWdioToCypress(content) {
     /await browser\.deleteCookies\(\)/g,
     'cy.clearCookies()'
   );
-  result = result.replace(
-    /await browser\.getCookies\(\)/g,
-    'cy.getCookies()'
-  );
+  result = result.replace(/await browser\.getCookies\(\)/g, 'cy.getCookies()');
 
   // --- Unconvertible: browser.mock ---
 
   result = result.replace(
     /await browser\.mock\([^)]+(?:,\s*[^)]+)?\)/g,
-    (match) => formatter.formatTodo({
-      id: 'UNCONVERTIBLE-MOCK',
-      description: 'WDIO browser.mock() has no direct Cypress equivalent',
-      original: match.trim(),
-      action: 'Use cy.intercept() for network interception in Cypress',
-    }) + '\n// ' + match.trim()
+    (match) =>
+      formatter.formatTodo({
+        id: 'UNCONVERTIBLE-MOCK',
+        description: 'WDIO browser.mock() has no direct Cypress equivalent',
+        original: match.trim(),
+        action: 'Use cy.intercept() for network interception in Cypress',
+      }) +
+      '\n// ' +
+      match.trim()
   );
 
   return result;
@@ -442,10 +474,7 @@ function convertTestCafeToCypress(content) {
     /await\s+t\.typeText\(([^,]+),\s*([^)]+)\)/g,
     'cy.get($1).type($2)'
   );
-  result = result.replace(
-    /await\s+t\.click\(([^)]+)\)/g,
-    'cy.get($1).click()'
-  );
+  result = result.replace(/await\s+t\.click\(([^)]+)\)/g, 'cy.get($1).click()');
   result = result.replace(
     /await\s+t\.doubleClick\(([^)]+)\)/g,
     'cy.get($1).dblclick()'
@@ -454,18 +483,9 @@ function convertTestCafeToCypress(content) {
     /await\s+t\.hover\(([^)]+)\)/g,
     "cy.get($1).trigger('mouseover')"
   );
-  result = result.replace(
-    /await\s+t\.navigateTo\(([^)]+)\)/g,
-    'cy.visit($1)'
-  );
-  result = result.replace(
-    /await\s+t\.wait\(([^)]+)\)/g,
-    'cy.wait($1)'
-  );
-  result = result.replace(
-    /await\s+t\.takeScreenshot\(\)/g,
-    'cy.screenshot()'
-  );
+  result = result.replace(/await\s+t\.navigateTo\(([^)]+)\)/g, 'cy.visit($1)');
+  result = result.replace(/await\s+t\.wait\(([^)]+)\)/g, 'cy.wait($1)');
+  result = result.replace(/await\s+t\.takeScreenshot\(\)/g, 'cy.screenshot()');
   result = result.replace(
     /await\s+t\.resizeWindow\(([^,]+),\s*([^)]+)\)/g,
     'cy.viewport($1, $2)'
@@ -491,31 +511,34 @@ function convertTestCafeToCypress(content) {
   );
 
   // Standalone Selector() -> cy.get()
-  result = result.replace(
-    /Selector\(([^)]+)\)/g,
-    'cy.get($1)'
-  );
+  result = result.replace(/Selector\(([^)]+)\)/g, 'cy.get($1)');
 
   // --- Unconvertible: Role, RequestMock ---
 
   result = result.replace(
     /const\s+\w+\s*=\s*Role\([^)]+(?:,\s*async\s+t\s*=>\s*\{[\s\S]*?\})\s*\)\s*;?/g,
-    (match) => formatter.formatTodo({
-      id: 'UNCONVERTIBLE-ROLE',
-      description: 'TestCafe Role() has no direct Cypress equivalent',
-      original: match.trim(),
-      action: 'Use cy.session() for auth state management in Cypress',
-    }) + '\n// ' + match.trim()
+    (match) =>
+      formatter.formatTodo({
+        id: 'UNCONVERTIBLE-ROLE',
+        description: 'TestCafe Role() has no direct Cypress equivalent',
+        original: match.trim(),
+        action: 'Use cy.session() for auth state management in Cypress',
+      }) +
+      '\n// ' +
+      match.trim()
   );
 
   result = result.replace(
     /RequestMock\(\)/g,
-    (match) => '/* ' + formatter.formatTodo({
-      id: 'UNCONVERTIBLE-REQUEST-MOCK',
-      description: 'TestCafe RequestMock() — use cy.intercept() in Cypress',
-      original: match.trim(),
-      action: 'Rewrite using cy.intercept() for network mocking',
-    }) + ' */'
+    (match) =>
+      '/* ' +
+      formatter.formatTodo({
+        id: 'UNCONVERTIBLE-REQUEST-MOCK',
+        description: 'TestCafe RequestMock() — use cy.intercept() in Cypress',
+        original: match.trim(),
+        action: 'Rewrite using cy.intercept() for network mocking',
+      }) +
+      ' */'
   );
 
   return result;
@@ -528,10 +551,7 @@ function convertTestCafeStructure(content) {
   let result = content;
 
   // fixture`name` -> describe('name', () => {
-  result = result.replace(
-    /fixture\s*`([^`]*)`/g,
-    "describe('$1', () => {"
-  );
+  result = result.replace(/fixture\s*`([^`]*)`/g, "describe('$1', () => {");
 
   // .page`url` -> beforeEach with cy.visit
   result = result.replace(
@@ -573,7 +593,19 @@ export default {
   parse,
   emit,
   imports: {
-    globals: ['describe', 'it', 'context', 'specify', 'before', 'after', 'beforeEach', 'afterEach', 'cy', 'Cypress', 'expect'],
+    globals: [
+      'describe',
+      'it',
+      'context',
+      'specify',
+      'before',
+      'after',
+      'beforeEach',
+      'afterEach',
+      'cy',
+      'Cypress',
+      'expect',
+    ],
     mockNamespace: 'cy',
   },
 };

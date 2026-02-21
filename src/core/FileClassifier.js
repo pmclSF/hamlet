@@ -39,10 +39,7 @@ const SETUP_PATTERNS = [
   /test_helper\.rb$/,
 ];
 
-const TYPE_DEF_PATTERNS = [
-  /\.d\.ts$/,
-  /\.d\.mts$/,
-];
+const TYPE_DEF_PATTERNS = [/\.d\.ts$/, /\.d\.mts$/];
 
 const TEST_FILE_PATTERNS = [
   /\.test\.[jt]sx?$/,
@@ -131,26 +128,30 @@ export class FileClassifier {
     }
 
     // Type definitions
-    if (TYPE_DEF_PATTERNS.some(p => p.test(filePath))) {
+    if (TYPE_DEF_PATTERNS.some((p) => p.test(filePath))) {
       return { type: 'type-def', framework: null, confidence: 95 };
     }
 
     // Config files — check path first
-    if (CONFIG_PATTERNS.some(p => p.test(filePath))) {
+    if (CONFIG_PATTERNS.some((p) => p.test(filePath))) {
       const fw = this._detectFrameworkFromConfig(filePath);
       return { type: 'config', framework: fw, confidence: 95 };
     }
 
     // Setup files — check path patterns
-    if (SETUP_PATTERNS.some(p => p.test(filePath))) {
+    if (SETUP_PATTERNS.some((p) => p.test(filePath))) {
       const fw = this._detectFramework(content, filePath);
       return { type: 'setup', framework: fw, confidence: 90 };
     }
 
     // Content-based detection: does it have test patterns?
-    const hasTests = TEST_CONTENT_PATTERNS.some(p => p.test(content));
-    const hasPageObjectContent = PAGE_OBJECT_CONTENT_PATTERNS.some(p => p.test(content));
-    const hasFactoryContent = FACTORY_CONTENT_PATTERNS.some(p => p.test(content));
+    const hasTests = TEST_CONTENT_PATTERNS.some((p) => p.test(content));
+    const hasPageObjectContent = PAGE_OBJECT_CONTENT_PATTERNS.some((p) =>
+      p.test(content)
+    );
+    const hasFactoryContent = FACTORY_CONTENT_PATTERNS.some((p) =>
+      p.test(content)
+    );
 
     // Content wins: if file has test cases, it's a test regardless of path
     if (hasTests) {
@@ -171,27 +172,27 @@ export class FileClassifier {
     }
 
     // Path-based classification for non-test content
-    if (PAGE_OBJECT_PATH_PATTERNS.some(p => p.test(filePath))) {
+    if (PAGE_OBJECT_PATH_PATTERNS.some((p) => p.test(filePath))) {
       const fw = this._detectFramework(content, filePath);
       return { type: 'page-object', framework: fw, confidence: 70 };
     }
 
-    if (FACTORY_PATH_PATTERNS.some(p => p.test(filePath))) {
+    if (FACTORY_PATH_PATTERNS.some((p) => p.test(filePath))) {
       const fw = this._detectFramework(content, filePath);
       return { type: 'factory', framework: fw, confidence: 70 };
     }
 
-    if (FIXTURE_PATH_PATTERNS.some(p => p.test(filePath))) {
+    if (FIXTURE_PATH_PATTERNS.some((p) => p.test(filePath))) {
       return { type: 'fixture', framework: null, confidence: 75 };
     }
 
-    if (HELPER_PATH_PATTERNS.some(p => p.test(filePath))) {
+    if (HELPER_PATH_PATTERNS.some((p) => p.test(filePath))) {
       const fw = this._detectFramework(content, filePath);
       return { type: 'helper', framework: fw, confidence: 75 };
     }
 
     // Test file by path pattern (but no test content)
-    if (TEST_FILE_PATTERNS.some(p => p.test(filePath))) {
+    if (TEST_FILE_PATTERNS.some((p) => p.test(filePath))) {
       const fw = this._detectFramework(content, filePath);
       return { type: 'test', framework: fw, confidence: 70 };
     }
@@ -239,7 +240,11 @@ export class FileClassifier {
       // FrameworkDetector may not recognize the content
     }
     // Check for Jest/Vitest patterns not in FrameworkDetector
-    if (/\bjest\b/i.test(content) || /jest\.fn\b/.test(content) || /jest\.mock\b/.test(content)) {
+    if (
+      /\bjest\b/i.test(content) ||
+      /jest\.fn\b/.test(content) ||
+      /jest\.mock\b/.test(content)
+    ) {
       return 'jest';
     }
     if (/\bvi\.\w+/.test(content) || /from\s+['"]vitest['"]/.test(content)) {

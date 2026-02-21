@@ -9,13 +9,13 @@ export class BaseConverter {
     this.options = {
       preserveComments: true,
       addTypeAnnotations: false,
-      ...options
+      ...options,
     };
     this.patterns = {};
     this.stats = {
       conversions: 0,
       warnings: [],
-      errors: []
+      errors: [],
     };
   }
 
@@ -74,7 +74,7 @@ export class BaseConverter {
 
     return {
       valid: errors.length === 0,
-      errors
+      errors,
     };
   }
 
@@ -93,7 +93,7 @@ export class BaseConverter {
     this.stats = {
       conversions: 0,
       warnings: [],
-      errors: []
+      errors: [],
     };
   }
 
@@ -103,7 +103,11 @@ export class BaseConverter {
    * @param {Object} context - Additional context
    */
   addWarning(message, context = {}) {
-    this.stats.warnings.push({ message, context, timestamp: new Date().toISOString() });
+    this.stats.warnings.push({
+      message,
+      context,
+      timestamp: new Date().toISOString(),
+    });
   }
 
   /**
@@ -112,7 +116,11 @@ export class BaseConverter {
    * @param {Object} context - Additional context
    */
   addError(message, context = {}) {
-    this.stats.errors.push({ message, context, timestamp: new Date().toISOString() });
+    this.stats.errors.push({
+      message,
+      context,
+      timestamp: new Date().toISOString(),
+    });
   }
 
   /**

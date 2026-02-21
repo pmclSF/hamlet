@@ -46,7 +46,7 @@ export class VisualComparison {
       for (const cypressShot of cypressScreenshots) {
         const playwrightShot = this.findMatchingScreenshot(
           cypressShot,
-          playwrightScreenshots,
+          playwrightScreenshots
         );
 
         if (playwrightShot) {
@@ -159,7 +159,7 @@ export class VisualComparison {
         matrix[j][i] = Math.min(
           matrix[j - 1][i] + 1,
           matrix[j][i - 1] + 1,
-          substitute,
+          substitute
         );
       }
     }
@@ -186,7 +186,7 @@ export class VisualComparison {
         // Resize images if necessary
         const { width, height } = this.calculateCommonDimensions(
           cypress,
-          playwright,
+          playwright
         );
         const resizedCypress = this.resizeImage(cypress, width, height);
         const resizedPlaywright = this.resizeImage(playwright, width, height);
@@ -194,11 +194,16 @@ export class VisualComparison {
           resizedCypress,
           resizedPlaywright,
           cypressShot,
-          playwrightShot,
+          playwrightShot
         );
       }
 
-      return this.performComparison(cypress, playwright, cypressShot, playwrightShot);
+      return this.performComparison(
+        cypress,
+        playwright,
+        cypressShot,
+        playwrightShot
+      );
     } catch (error) {
       this.results.errors.push({
         type: 'comparison',
@@ -267,13 +272,13 @@ export class VisualComparison {
       {
         threshold: this.options.threshold,
         includeAA: true,
-      },
+      }
     );
 
     const diffRatio = mismatchedPixels / (width * height);
     const diffPath = path.join(
       this.options.snapshotDir,
-      `diff_${path.basename(cypressShotPath)}`,
+      `diff_${path.basename(cypressShotPath)}`
     );
 
     // Save diff image if there are differences
@@ -319,7 +324,7 @@ export class VisualComparison {
       const htmlReport = await this.generateHtmlReport(report);
       const reportPath = path.join(
         this.options.snapshotDir,
-        'visual-report.html',
+        'visual-report.html'
       );
       await fs.writeFile(reportPath, htmlReport);
     }
@@ -362,49 +367,49 @@ export class VisualComparison {
   <div class="comparisons">
     <h2>Detailed Results</h2>
     ${report.comparisons
-    .map(
-      (comp) => `
+      .map(
+        (comp) => `
       <div class="comparison">
         <h3 class="${comp.passed ? 'passed' : 'failed'}">
           ${path.basename(comp.cypressShot)}
           (${(comp.diffRatio * 100).toFixed(2)}% difference)
         </h3>
         ${
-  comp.diffPath
-    ? `
+          comp.diffPath
+            ? `
           <div class="diff">
             <img src="${comp.cypressShot}" alt="Cypress version">
             <img src="${comp.playwrightShot}" alt="Playwright version">
             <img src="${comp.diffPath}" alt="Difference">
           </div>
         `
-    : ''
-}
+            : ''
+        }
       </div>
-    `,
-    )
-    .join('')}
+    `
+      )
+      .join('')}
   </div>
 
   ${
-  report.errors.length > 0
-    ? `
+    report.errors.length > 0
+      ? `
     <div class="errors">
       <h2>Errors</h2>
       ${report.errors
-    .map(
-      (error) => `
+        .map(
+          (error) => `
         <div class="error">
           <p>Type: ${error.type}</p>
           <p>Message: ${error.message}</p>
         </div>
-      `,
-    )
-    .join('')}
+      `
+        )
+        .join('')}
     </div>
   `
-    : ''
-}
+      : ''
+  }
 </body>
 </html>`;
   }

@@ -24,24 +24,24 @@ export const navigationPatterns = {
       'cy\\.hash\\(\\)': 'GET_HASH()',
 
       // Title
-      'cy\\.title\\(\\)': 'GET_TITLE()'
+      'cy\\.title\\(\\)': 'GET_TITLE()',
     },
 
     // Generate Cypress code from abstract operations
     generators: {
-      'NAVIGATE': (url) => `cy.visit(${url})`,
-      'GO_BACK': () => 'cy.go(\'back\')',
-      'GO_FORWARD': () => 'cy.go(\'forward\')',
-      'GO': (delta) => `cy.go(${delta})`,
-      'RELOAD': () => 'cy.reload()',
-      'RELOAD_HARD': () => 'cy.reload(true)',
-      'GET_URL': () => 'cy.url()',
-      'GET_LOCATION': () => 'cy.location()',
-      'GET_PATHNAME': () => 'cy.location(\'pathname\')',
-      'GET_SEARCH': () => 'cy.location(\'search\')',
-      'GET_HASH': () => 'cy.hash()',
-      'GET_TITLE': () => 'cy.title()'
-    }
+      NAVIGATE: (url) => `cy.visit(${url})`,
+      GO_BACK: () => "cy.go('back')",
+      GO_FORWARD: () => "cy.go('forward')",
+      GO: (delta) => `cy.go(${delta})`,
+      RELOAD: () => 'cy.reload()',
+      RELOAD_HARD: () => 'cy.reload(true)',
+      GET_URL: () => 'cy.url()',
+      GET_LOCATION: () => 'cy.location()',
+      GET_PATHNAME: () => "cy.location('pathname')",
+      GET_SEARCH: () => "cy.location('search')",
+      GET_HASH: () => 'cy.hash()',
+      GET_TITLE: () => 'cy.title()',
+    },
   },
 
   playwright: {
@@ -51,27 +51,29 @@ export const navigationPatterns = {
       'await page\\.goBack\\(\\)': 'GO_BACK()',
       'await page\\.goForward\\(\\)': 'GO_FORWARD()',
       'await page\\.reload\\(\\)': 'RELOAD()',
-      'await page\\.reload\\(\\{[^}]*hardReload:\\s*true[^}]*\\}\\)': 'RELOAD_HARD()',
+      'await page\\.reload\\(\\{[^}]*hardReload:\\s*true[^}]*\\}\\)':
+        'RELOAD_HARD()',
 
       'page\\.url\\(\\)': 'GET_URL()',
-      'await page\\.title\\(\\)': 'GET_TITLE()'
+      'await page\\.title\\(\\)': 'GET_TITLE()',
     },
 
     // Generate Playwright code from abstract operations
     generators: {
-      'NAVIGATE': (url) => `await page.goto(${url})`,
-      'GO_BACK': () => 'await page.goBack()',
-      'GO_FORWARD': () => 'await page.goForward()',
-      'GO': (delta) => delta < 0 ? 'await page.goBack()' : 'await page.goForward()',
-      'RELOAD': () => 'await page.reload()',
-      'RELOAD_HARD': () => 'await page.reload({ hardReload: true })',
-      'GET_URL': () => 'page.url()',
-      'GET_LOCATION': () => 'new URL(page.url())',
-      'GET_PATHNAME': () => 'new URL(page.url()).pathname',
-      'GET_SEARCH': () => 'new URL(page.url()).search',
-      'GET_HASH': () => 'new URL(page.url()).hash',
-      'GET_TITLE': () => 'await page.title()'
-    }
+      NAVIGATE: (url) => `await page.goto(${url})`,
+      GO_BACK: () => 'await page.goBack()',
+      GO_FORWARD: () => 'await page.goForward()',
+      GO: (delta) =>
+        delta < 0 ? 'await page.goBack()' : 'await page.goForward()',
+      RELOAD: () => 'await page.reload()',
+      RELOAD_HARD: () => 'await page.reload({ hardReload: true })',
+      GET_URL: () => 'page.url()',
+      GET_LOCATION: () => 'new URL(page.url())',
+      GET_PATHNAME: () => 'new URL(page.url()).pathname',
+      GET_SEARCH: () => 'new URL(page.url()).search',
+      GET_HASH: () => 'new URL(page.url()).hash',
+      GET_TITLE: () => 'await page.title()',
+    },
   },
 
   selenium: {
@@ -84,25 +86,28 @@ export const navigationPatterns = {
       'await driver\\.navigate\\(\\)\\.refresh\\(\\)': 'RELOAD()',
 
       'await driver\\.getCurrentUrl\\(\\)': 'GET_URL()',
-      'await driver\\.getTitle\\(\\)': 'GET_TITLE()'
+      'await driver\\.getTitle\\(\\)': 'GET_TITLE()',
     },
 
     // Generate Selenium code from abstract operations
     generators: {
-      'NAVIGATE': (url) => `await driver.get(${url})`,
-      'GO_BACK': () => 'await driver.navigate().back()',
-      'GO_FORWARD': () => 'await driver.navigate().forward()',
-      'GO': (delta) => delta < 0 ? 'await driver.navigate().back()' : 'await driver.navigate().forward()',
-      'RELOAD': () => 'await driver.navigate().refresh()',
-      'RELOAD_HARD': () => 'await driver.navigate().refresh()',
-      'GET_URL': () => 'await driver.getCurrentUrl()',
-      'GET_LOCATION': () => 'new URL(await driver.getCurrentUrl())',
-      'GET_PATHNAME': () => 'new URL(await driver.getCurrentUrl()).pathname',
-      'GET_SEARCH': () => 'new URL(await driver.getCurrentUrl()).search',
-      'GET_HASH': () => 'new URL(await driver.getCurrentUrl()).hash',
-      'GET_TITLE': () => 'await driver.getTitle()'
-    }
-  }
+      NAVIGATE: (url) => `await driver.get(${url})`,
+      GO_BACK: () => 'await driver.navigate().back()',
+      GO_FORWARD: () => 'await driver.navigate().forward()',
+      GO: (delta) =>
+        delta < 0
+          ? 'await driver.navigate().back()'
+          : 'await driver.navigate().forward()',
+      RELOAD: () => 'await driver.navigate().refresh()',
+      RELOAD_HARD: () => 'await driver.navigate().refresh()',
+      GET_URL: () => 'await driver.getCurrentUrl()',
+      GET_LOCATION: () => 'new URL(await driver.getCurrentUrl())',
+      GET_PATHNAME: () => 'new URL(await driver.getCurrentUrl()).pathname',
+      GET_SEARCH: () => 'new URL(await driver.getCurrentUrl()).search',
+      GET_HASH: () => 'new URL(await driver.getCurrentUrl()).hash',
+      GET_TITLE: () => 'await driver.getTitle()',
+    },
+  },
 };
 
 /**
@@ -115,7 +120,7 @@ export const directMappings = {
     'cy\\.go\\([\'"]forward[\'"]\\)': 'await page.goForward()',
     'cy\\.reload\\(\\)': 'await page.reload()',
     'cy\\.url\\(\\)': 'page.url()',
-    'cy\\.title\\(\\)': 'await page.title()'
+    'cy\\.title\\(\\)': 'await page.title()',
   },
 
   'cypress-selenium': {
@@ -124,16 +129,16 @@ export const directMappings = {
     'cy\\.go\\([\'"]forward[\'"]\\)': 'await driver.navigate().forward()',
     'cy\\.reload\\(\\)': 'await driver.navigate().refresh()',
     'cy\\.url\\(\\)': 'await driver.getCurrentUrl()',
-    'cy\\.title\\(\\)': 'await driver.getTitle()'
+    'cy\\.title\\(\\)': 'await driver.getTitle()',
   },
 
   'playwright-cypress': {
     'await page\\.goto\\(([^)]+)\\)': 'cy.visit($1)',
-    'await page\\.goBack\\(\\)': 'cy.go(\'back\')',
-    'await page\\.goForward\\(\\)': 'cy.go(\'forward\')',
+    'await page\\.goBack\\(\\)': "cy.go('back')",
+    'await page\\.goForward\\(\\)': "cy.go('forward')",
     'await page\\.reload\\(\\)': 'cy.reload()',
     'page\\.url\\(\\)': 'cy.url()',
-    'await page\\.title\\(\\)': 'cy.title()'
+    'await page\\.title\\(\\)': 'cy.title()',
   },
 
   'playwright-selenium': {
@@ -142,16 +147,16 @@ export const directMappings = {
     'await page\\.goForward\\(\\)': 'await driver.navigate().forward()',
     'await page\\.reload\\(\\)': 'await driver.navigate().refresh()',
     'page\\.url\\(\\)': 'await driver.getCurrentUrl()',
-    'await page\\.title\\(\\)': 'await driver.getTitle()'
+    'await page\\.title\\(\\)': 'await driver.getTitle()',
   },
 
   'selenium-cypress': {
     'await driver\\.get\\(([^)]+)\\)': 'cy.visit($1)',
-    'await driver\\.navigate\\(\\)\\.back\\(\\)': 'cy.go(\'back\')',
-    'await driver\\.navigate\\(\\)\\.forward\\(\\)': 'cy.go(\'forward\')',
+    'await driver\\.navigate\\(\\)\\.back\\(\\)': "cy.go('back')",
+    'await driver\\.navigate\\(\\)\\.forward\\(\\)': "cy.go('forward')",
     'await driver\\.navigate\\(\\)\\.refresh\\(\\)': 'cy.reload()',
     'await driver\\.getCurrentUrl\\(\\)': 'cy.url()',
-    'await driver\\.getTitle\\(\\)': 'cy.title()'
+    'await driver\\.getTitle\\(\\)': 'cy.title()',
   },
 
   'selenium-playwright': {
@@ -160,6 +165,6 @@ export const directMappings = {
     'await driver\\.navigate\\(\\)\\.forward\\(\\)': 'await page.goForward()',
     'await driver\\.navigate\\(\\)\\.refresh\\(\\)': 'await page.reload()',
     'await driver\\.getCurrentUrl\\(\\)': 'page.url()',
-    'await driver\\.getTitle\\(\\)': 'await page.title()'
-  }
+    'await driver\\.getTitle\\(\\)': 'await page.title()',
+  },
 };

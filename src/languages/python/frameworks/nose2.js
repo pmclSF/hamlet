@@ -16,7 +16,7 @@ import {
   RawCode,
   Comment,
   Modifier,
-} from "../../../core/ir.js";
+} from '../../../core/ir.js';
 
 /**
  * Detect whether source code is nose2.
@@ -66,7 +66,7 @@ function detect(source) {
  * Parse nose2 source code into an IR tree.
  */
 function parse(source) {
-  const lines = source.split("\n");
+  const lines = source.split('\n');
   const imports = [];
   const allNodes = [];
 
@@ -78,17 +78,17 @@ function parse(source) {
     if (!trimmed) continue;
 
     // Comments
-    if (trimmed.startsWith("#")) {
+    if (trimmed.startsWith('#')) {
       const isLicense =
         /license|copyright|MIT|Apache|BSD/i.test(trimmed) && i < 5;
       allNodes.push(
         new Comment({
           text: line,
-          commentKind: isLicense ? "license" : "inline",
+          commentKind: isLicense ? 'license' : 'inline',
           preserveExact: isLicense,
           sourceLocation: loc,
           originalSource: line,
-        }),
+        })
       );
       continue;
     }
@@ -96,16 +96,16 @@ function parse(source) {
     // Import statements
     if (/^(?:import|from)\s/.test(trimmed)) {
       const sourceMatch = trimmed.match(
-        /(?:from\s+(\S+)\s+import|import\s+(\S+))/,
+        /(?:from\s+(\S+)\s+import|import\s+(\S+))/
       );
       allNodes.push(
         new ImportStatement({
-          kind: "library",
-          source: sourceMatch ? sourceMatch[1] || sourceMatch[2] : "",
+          kind: 'library',
+          source: sourceMatch ? sourceMatch[1] || sourceMatch[2] : '',
           sourceLocation: loc,
           originalSource: line,
-          confidence: "converted",
-        }),
+          confidence: 'converted',
+        })
       );
       imports.push(allNodes[allNodes.length - 1]);
       continue;
@@ -115,12 +115,12 @@ function parse(source) {
     if (/^\s*class\s+\w+/.test(trimmed)) {
       allNodes.push(
         new TestSuite({
-          name: (trimmed.match(/class\s+(\w+)/) || [])[1] || "",
+          name: (trimmed.match(/class\s+(\w+)/) || [])[1] || '',
           modifiers: [],
           sourceLocation: loc,
           originalSource: line,
-          confidence: "converted",
-        }),
+          confidence: 'converted',
+        })
       );
       continue;
     }
@@ -129,44 +129,44 @@ function parse(source) {
     if (/def\s+setUp\s*\(/.test(trimmed)) {
       allNodes.push(
         new Hook({
-          hookType: "beforeEach",
+          hookType: 'beforeEach',
           sourceLocation: loc,
           originalSource: line,
-          confidence: "converted",
-        }),
+          confidence: 'converted',
+        })
       );
       continue;
     }
     if (/def\s+tearDown\s*\(/.test(trimmed)) {
       allNodes.push(
         new Hook({
-          hookType: "afterEach",
+          hookType: 'afterEach',
           sourceLocation: loc,
           originalSource: line,
-          confidence: "converted",
-        }),
+          confidence: 'converted',
+        })
       );
       continue;
     }
     if (/def\s+setUpClass\s*\(/.test(trimmed)) {
       allNodes.push(
         new Hook({
-          hookType: "beforeAll",
+          hookType: 'beforeAll',
           sourceLocation: loc,
           originalSource: line,
-          confidence: "converted",
-        }),
+          confidence: 'converted',
+        })
       );
       continue;
     }
     if (/def\s+tearDownClass\s*\(/.test(trimmed)) {
       allNodes.push(
         new Hook({
-          hookType: "afterAll",
+          hookType: 'afterAll',
           sourceLocation: loc,
           originalSource: line,
-          confidence: "converted",
-        }),
+          confidence: 'converted',
+        })
       );
       continue;
     }
@@ -175,11 +175,11 @@ function parse(source) {
     if (/@params\s*\(/.test(trimmed)) {
       allNodes.push(
         new Modifier({
-          modifierType: "parameterized",
+          modifierType: 'parameterized',
           sourceLocation: loc,
           originalSource: line,
-          confidence: "converted",
-        }),
+          confidence: 'converted',
+        })
       );
       continue;
     }
@@ -188,11 +188,11 @@ function parse(source) {
     if (/@attr\s*\(/.test(trimmed)) {
       allNodes.push(
         new Modifier({
-          modifierType: "tag",
+          modifierType: 'tag',
           sourceLocation: loc,
           originalSource: line,
-          confidence: "converted",
-        }),
+          confidence: 'converted',
+        })
       );
       continue;
     }
@@ -201,38 +201,38 @@ function parse(source) {
     if (/def\s+test_\w+\s*\(/.test(trimmed)) {
       allNodes.push(
         new TestCase({
-          name: (trimmed.match(/def\s+(test_\w+)\s*\(/) || [])[1] || "",
+          name: (trimmed.match(/def\s+(test_\w+)\s*\(/) || [])[1] || '',
           isAsync: /async\s+def/.test(trimmed),
           modifiers: [],
           sourceLocation: loc,
           originalSource: line,
-          confidence: "converted",
-        }),
+          confidence: 'converted',
+        })
       );
       continue;
     }
 
     // nose assertion functions
     if (/\bassert_\w+\s*\(/.test(trimmed)) {
-      let kind = "equal";
-      if (/assert_equal/.test(trimmed)) kind = "equal";
-      else if (/assert_not_equal/.test(trimmed)) kind = "notEqual";
-      else if (/assert_true/.test(trimmed)) kind = "truthy";
-      else if (/assert_false/.test(trimmed)) kind = "falsy";
-      else if (/assert_is_none/.test(trimmed)) kind = "isNull";
-      else if (/assert_is_not_none/.test(trimmed)) kind = "isDefined";
-      else if (/assert_in/.test(trimmed)) kind = "contains";
-      else if (/assert_not_in/.test(trimmed)) kind = "notContains";
-      else if (/assert_raises/.test(trimmed)) kind = "throws";
-      else if (/assert_is_instance/.test(trimmed)) kind = "isInstance";
+      let kind = 'equal';
+      if (/assert_equal/.test(trimmed)) kind = 'equal';
+      else if (/assert_not_equal/.test(trimmed)) kind = 'notEqual';
+      else if (/assert_true/.test(trimmed)) kind = 'truthy';
+      else if (/assert_false/.test(trimmed)) kind = 'falsy';
+      else if (/assert_is_none/.test(trimmed)) kind = 'isNull';
+      else if (/assert_is_not_none/.test(trimmed)) kind = 'isDefined';
+      else if (/assert_in/.test(trimmed)) kind = 'contains';
+      else if (/assert_not_in/.test(trimmed)) kind = 'notContains';
+      else if (/assert_raises/.test(trimmed)) kind = 'throws';
+      else if (/assert_is_instance/.test(trimmed)) kind = 'isInstance';
 
       allNodes.push(
         new Assertion({
           kind,
           sourceLocation: loc,
           originalSource: line,
-          confidence: "converted",
-        }),
+          confidence: 'converted',
+        })
       );
       continue;
     }
@@ -243,12 +243,12 @@ function parse(source) {
         code: line,
         sourceLocation: loc,
         originalSource: line,
-      }),
+      })
     );
   }
 
   return new TestFile({
-    language: "python",
+    language: 'python',
     imports,
     body: allNodes.filter((n) => !imports.includes(n)),
   });
@@ -264,13 +264,13 @@ function emit(_ir, source) {
 }
 
 export default {
-  name: "nose2",
-  language: "python",
-  paradigm: "xunit",
+  name: 'nose2',
+  language: 'python',
+  paradigm: 'xunit',
   detect,
   parse,
   emit,
   imports: {
-    packages: ["nose2", "nose.tools"],
+    packages: ['nose2', 'nose.tools'],
   },
 };
