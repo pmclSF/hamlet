@@ -12,6 +12,7 @@ const NODE_WEIGHTS = {
   TestCase: 3,
   Hook: 3,
   Assertion: 2,
+  Navigation: 2,
   MockCall: 2,
   ImportStatement: 1,
   RawCode: 1,
@@ -27,9 +28,13 @@ export class ConfidenceScorer {
    * Score an IR tree and produce a confidence report.
    *
    * @param {import('./ir.js').TestFile} ir - Root IR node
+   * @param {Object} [options]
+   * @param {boolean} [options.experimentalIR] - Whether IR mode was active
+   * @param {number} [options.totalSucceeded] - Number of IR nodes successfully emitted
+   * @param {number} [options.totalAttempted] - Number of IR nodes attempted
    * @returns {Object} Report with confidence, counts, and details
    */
-  score(ir) {
+  score(ir, options = {}) {
     let totalWeight = 0;
     let convertedWeight = 0;
     let convertedCount = 0;
@@ -66,8 +71,14 @@ export class ConfidenceScorer {
       }
     });
 
-    const confidence =
+    let confidence =
       totalWeight > 0 ? Math.round((convertedWeight / totalWeight) * 100) : 100;
+
+    // IR mode: ratio-based adjustment
+    if (options.experimentalIR && options.totalAttempted > 0) {
+      const irRatio = options.totalSucceeded / options.totalAttempted;
+      confidence = Math.min(100, confidence + Math.round(irRatio * 5));
+    }
 
     return {
       confidence,

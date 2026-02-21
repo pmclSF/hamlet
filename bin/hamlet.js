@@ -384,6 +384,8 @@ async function convertAction(source, options) {
       {
         batchSize: parseInt(options.batchSize || '5'),
         preserveStructure: options.preserveStructure,
+        experimentalIR: options.experimentalIr,
+        emitter: options.experimentalIr ? 'ir-patch' : options.emitter,
       }
     );
   } catch (error) {
@@ -991,6 +993,15 @@ program
   .option('--json', 'JSON output')
   .option('--no-color', 'Disable color output')
   .option('--on-error <mode>', 'Error handling: skip|fail|best-effort', 'skip')
+  .option(
+    '--experimental-ir',
+    'Use IR-driven emission (alias for --emitter=ir-patch)'
+  )
+  .option(
+    '--emitter <mode>',
+    'Emitter mode: legacy, ir-patch, ir-full',
+    'legacy'
+  )
   .action(async (source, opts) => {
     try {
       await convertAction(source, opts);
@@ -1023,6 +1034,15 @@ for (const [alias, { from, to }] of Object.entries(SHORTHANDS)) {
     .option('--json', 'JSON output')
     .option('--verbose', 'Detailed output')
     .option('--no-color', 'Disable color output')
+    .option(
+      '--experimental-ir',
+      'Use IR-driven emission (alias for --emitter=ir-patch)'
+    )
+    .option(
+      '--emitter <mode>',
+      'Emitter mode: legacy, ir-patch, ir-full',
+      'legacy'
+    )
     .action(async (source, opts) => {
       try {
         await convertAction(source, { ...opts, from, to });

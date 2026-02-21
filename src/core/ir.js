@@ -93,6 +93,18 @@ export class Assertion extends IRNode {
 }
 
 /**
+ * A navigation action (visit URL, go back, reload, etc.)
+ */
+export class Navigation extends IRNode {
+  constructor(props = {}) {
+    super('Navigation', props);
+    this.action = props.action || 'visit';
+    this.url = props.url || '';
+    this.options = props.options || {};
+  }
+}
+
+/**
  * A mock, spy, or stub operation.
  */
 export class MockCall extends IRNode {
