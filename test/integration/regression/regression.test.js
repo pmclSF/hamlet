@@ -283,7 +283,8 @@ describe('Cross-Step Regression Testing', () => {
       const result = runCLI(['doctor']);
       expect(result).toContain('Hamlet Doctor');
       expect(result).toContain('Node.js');
-      expect(result).toContain('Conversions');
+      expect(result).toContain('PASS');
+      expect(result).toContain('checks:');
     });
   });
 

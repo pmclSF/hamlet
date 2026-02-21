@@ -155,10 +155,8 @@ describe('CLI Error Messages & Help', () => {
 
       expect(result).toContain('Hamlet Doctor');
       expect(result).toContain('Node.js');
-      expect(result).toContain('Hamlet');
-      expect(result).toContain('Conversions');
-      expect(result).toContain('directions');
-      expect(result).toContain('frameworks');
+      expect(result).toContain('PASS');
+      expect(result).toContain('checks:');
     });
   });
 
