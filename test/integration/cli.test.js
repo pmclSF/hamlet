@@ -1,4 +1,4 @@
-import { execFileSync } from 'child_process';
+import { spawnSync } from 'child_process';
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -7,14 +7,30 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, '../..');
 const cliPath = path.resolve(rootDir, 'bin/hamlet.js');
 const fixturesDir = path.resolve(__dirname, '../fixtures');
-const outputDir = path.resolve(__dirname, '../output');
+const outputDir = path.resolve(__dirname, '../output/cli');
 
-// Helper to run CLI commands safely without shell interpolation
+// Helper to run CLI commands safely without shell interpolation.
+// Uses spawnSync with an explicit timeout and no stdin pipe to avoid
+// leaving handles that delay Jest worker shutdown.
 function runCLI(args, options = {}) {
-  return execFileSync('node', [cliPath, ...args], {
+  const { stdio = ['ignore', 'pipe', 'pipe'], ...rest } = options;
+  const result = spawnSync('node', [cliPath, ...args], {
     encoding: 'utf8',
-    ...options
+    timeout: 15000,
+    stdio,
+    ...rest,
   });
+  if (result.error) throw result.error;
+  if (result.status !== 0) {
+    const err = new Error(
+      result.stderr || `Process exited with code ${result.status}`,
+    );
+    err.stdout = result.stdout;
+    err.stderr = result.stderr;
+    err.status = result.status;
+    throw err;
+  }
+  return result.stdout;
 }
 
 describe('CLI Integration Tests', () => {
@@ -94,15 +110,13 @@ describe('Sample Test', () => {
   });
 
   afterAll(async () => {
-    // Clean up output directory
-    try {
-      const files = await fs.readdir(outputDir);
-      for (const file of files) {
-        await fs.unlink(path.join(outputDir, file));
-      }
-    } catch (e) {
-      // Ignore cleanup errors
-    }
+    // Clean up output directory (recursive handles subdirs left by tests)
+    await fs.rm(outputDir, { recursive: true, force: true }).catch(() => {});
+
+    // Clean up fixture subdirectories created during tests
+    await fs
+      .rm(path.join(fixturesDir, 'multi'), { recursive: true, force: true })
+      .catch(() => {});
   });
 
   describe('Help Command', () => {
@@ -267,28 +281,28 @@ describe('Sample Test', () => {
   describe('Error Handling', () => {
     test('should error on missing input file', () => {
       expect(() => {
-        runCLI(['convert', 'nonexistent.js', '--from', 'cypress', '--to', 'playwright', '-o', outputDir], { stdio: 'pipe' });
+        runCLI(['convert', 'nonexistent.js', '--from', 'cypress', '--to', 'playwright', '-o', outputDir]);
       }).toThrow();
     });
 
     test('should error on invalid source framework', () => {
       const inputFile = path.resolve(fixturesDir, 'sample.cy.js');
       expect(() => {
-        runCLI(['convert', inputFile, '--from', 'invalid', '--to', 'playwright', '-o', outputDir], { stdio: 'pipe' });
+        runCLI(['convert', inputFile, '--from', 'invalid', '--to', 'playwright', '-o', outputDir]);
       }).toThrow();
     });
 
     test('should error on invalid target framework', () => {
       const inputFile = path.resolve(fixturesDir, 'sample.cy.js');
       expect(() => {
-        runCLI(['convert', inputFile, '--from', 'cypress', '--to', 'invalid', '-o', outputDir], { stdio: 'pipe' });
+        runCLI(['convert', inputFile, '--from', 'cypress', '--to', 'invalid', '-o', outputDir]);
       }).toThrow();
     });
 
     test('should error when source and target are the same', () => {
       const inputFile = path.resolve(fixturesDir, 'sample.cy.js');
       expect(() => {
-        runCLI(['convert', inputFile, '--from', 'cypress', '--to', 'cypress', '-o', outputDir], { stdio: 'pipe' });
+        runCLI(['convert', inputFile, '--from', 'cypress', '--to', 'cypress', '-o', outputDir]);
       }).toThrow();
     });
   });
@@ -635,6 +649,18 @@ describe('Test 2', () => {
     test('should list reset command in help', () => {
       const result = runCLI(['--help']);
       expect(result).toContain('reset');
+    });
+  });
+
+  describe('List / List-Conversions Aliases', () => {
+    test('list should exit 0 and show conversions', () => {
+      const result = runCLI(['list']);
+      expect(result).toContain('conversion');
+    });
+
+    test('list-conversions should exit 0 and show conversions', () => {
+      const result = runCLI(['list-conversions']);
+      expect(result).toContain('conversion');
     });
   });
 });
