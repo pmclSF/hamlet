@@ -3,8 +3,8 @@
  *
  * Provides detect, parse, and emit for the Cypress E2E testing framework.
  * emit() handles conversions from WebdriverIO and TestCafe into Cypress code.
- * parse() builds a flat IR tree (one node per line, no nesting) from Cypress
- * source code. The IR is consumed by ConfidenceScorer for scoring.
+ * parse() builds a nested IR tree from Cypress source code. TestSuite nodes
+ * contain hooks and tests; TestCase and Hook nodes contain body statements.
  */
 
 import {
@@ -13,6 +13,7 @@ import {
   TestCase,
   Hook,
   Assertion,
+  Navigation,
   MockCall,
   ImportStatement,
   RawCode,
@@ -50,7 +51,26 @@ function detect(source) {
 function parse(source) {
   const lines = source.split('\n');
   const imports = [];
-  const body = [];
+
+  // Root container — collects top-level nodes
+  const rootBody = [];
+  // Stack of { node, startDepth } for nesting containers
+  const stack = [{ node: null, addChild: (c) => rootBody.push(c), depth: 0 }];
+  let depth = 0;
+
+  function addChild(child) {
+    const top = stack[stack.length - 1];
+    const node = top.node;
+
+    if (!node) {
+      top.addChild(child);
+    } else if (node instanceof TestSuite) {
+      if (child instanceof Hook) node.hooks.push(child);
+      else node.tests.push(child);
+    } else if (node instanceof TestCase || node instanceof Hook) {
+      node.body.push(child);
+    }
+  }
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
@@ -59,17 +79,36 @@ function parse(source) {
 
     if (!trimmed) continue;
 
+    // Count braces outside strings and comments
+    const opens = countBraces(trimmed, '{');
+    const closes = countBraces(trimmed, '}');
+    const newDepth = depth + opens - closes;
+
+    // Pop containers whose blocks have closed
+    while (stack.length > 1 && newDepth <= stack[stack.length - 1].depth) {
+      stack.pop();
+    }
+
+    // Pure structural lines (closing braces only) — skip
+    if (/^[}\s);,]+$/.test(trimmed)) {
+      depth = newDepth;
+      continue;
+    }
+
+    // Comments
     if (
       trimmed.startsWith('//') ||
       trimmed.startsWith('/*') ||
       trimmed.startsWith('*')
     ) {
-      body.push(
+      addChild(
         new Comment({ text: line, sourceLocation: loc, originalSource: line })
       );
+      depth = newDepth;
       continue;
     }
 
+    // Imports
     if (/^import\s/.test(trimmed) || /^const\s.*=\s*require\(/.test(trimmed)) {
       imports.push(
         new ImportStatement({
@@ -79,61 +118,135 @@ function parse(source) {
           confidence: 'converted',
         })
       );
+      depth = newDepth;
       continue;
     }
 
-    if (/\bdescribe\s*\(/.test(trimmed)) {
-      body.push(
-        new TestSuite({
-          name: '',
-          sourceLocation: loc,
-          originalSource: line,
-          confidence: 'converted',
-        })
+    // describe/context block — extract name and push container
+    const descMatch = trimmed.match(
+      /\b(?:describe|context)(?:\.only|\.skip)?\s*\(\s*(['"`])(.+?)\1/
+    );
+    if (descMatch) {
+      const modMatch = trimmed.match(
+        /\b(?:describe|context)(\.only|\.skip)\s*\(/
       );
+      const modifiers = modMatch
+        ? [new Modifier({ modifierType: modMatch[1].slice(1) })]
+        : [];
+      const suite = new TestSuite({
+        name: descMatch[2],
+        modifiers,
+        sourceLocation: loc,
+        originalSource: line,
+        confidence: 'converted',
+      });
+      addChild(suite);
+      if (opens > closes) {
+        stack.push({ node: suite, depth });
+      }
+      depth = newDepth;
       continue;
     }
 
-    if (/\b(?:it|test)\s*\(/.test(trimmed)) {
-      body.push(
-        new TestCase({
-          name: '',
-          sourceLocation: loc,
-          originalSource: line,
-          confidence: 'converted',
-        })
-      );
+    // it/test block — extract name and push container
+    const testMatch = trimmed.match(
+      /\b(?:it|test)(?:\.only|\.skip)?\s*\(\s*(['"`])(.+?)\1/
+    );
+    if (testMatch) {
+      const modMatch = trimmed.match(/\b(?:it|test)(\.only|\.skip)\s*\(/);
+      const modifiers = modMatch
+        ? [new Modifier({ modifierType: modMatch[1].slice(1) })]
+        : [];
+      const tc = new TestCase({
+        name: testMatch[2],
+        modifiers,
+        sourceLocation: loc,
+        originalSource: line,
+        confidence: 'converted',
+      });
+      addChild(tc);
+      if (opens > closes) {
+        stack.push({ node: tc, depth });
+      }
+      depth = newDepth;
       continue;
     }
 
-    if (
-      /\b(?:beforeEach|afterEach|beforeAll|afterAll|before|after)\s*\(/.test(
-        trimmed
-      )
-    ) {
-      body.push(
-        new Hook({
-          sourceLocation: loc,
-          originalSource: line,
-          confidence: 'converted',
-        })
-      );
+    // Hook block — extract hookType and push container
+    const hookMatch = trimmed.match(
+      /\b(beforeEach|afterEach|beforeAll|afterAll|before|after)\s*\(/
+    );
+    if (hookMatch) {
+      const hookName = hookMatch[1];
+      const hookType =
+        hookName === 'before'
+          ? 'beforeAll'
+          : hookName === 'after'
+            ? 'afterAll'
+            : hookName;
+      const hook = new Hook({
+        hookType,
+        sourceLocation: loc,
+        originalSource: line,
+        confidence: 'converted',
+      });
+      addChild(hook);
+      if (opens > closes) {
+        stack.push({ node: hook, depth });
+      }
+      depth = newDepth;
       continue;
     }
 
+    // Assertions
     if (/\.should\s*\(/.test(trimmed) || /\bexpect\s*\(/.test(trimmed)) {
-      body.push(
+      const parsed = parseAssertionLine(trimmed);
+      addChild(
         new Assertion({
+          ...parsed,
           sourceLocation: loc,
           originalSource: line,
           confidence: 'converted',
         })
       );
+      depth = newDepth;
       continue;
     }
 
+    // Navigation: cy.visit(), cy.go(), cy.reload()
+    const nav = parseNavigationLine(trimmed);
+    if (nav) {
+      addChild(
+        new Navigation({
+          ...nav,
+          sourceLocation: loc,
+          originalSource: line,
+          confidence: 'converted',
+        })
+      );
+      depth = newDepth;
+      continue;
+    }
+
+    // Mock/stub/intercept: cy.intercept(), cy.stub(), cy.spy(), cy.clock(), cy.tick()
+    const mock = parseMockLine(trimmed);
+    if (mock) {
+      addChild(
+        new MockCall({
+          ...mock,
+          sourceLocation: loc,
+          originalSource: line,
+          confidence:
+            mock.kind === 'networkIntercept' ? 'converted' : 'warning',
+        })
+      );
+      depth = newDepth;
+      continue;
+    }
+
+    // Other cy commands → RawCode
     if (/\bcy\./.test(trimmed)) {
-      body.push(
+      addChild(
         new RawCode({
           code: line,
           sourceLocation: loc,
@@ -141,15 +254,274 @@ function parse(source) {
           confidence: 'converted',
         })
       );
+      depth = newDepth;
       continue;
     }
 
-    body.push(
+    // Everything else → RawCode
+    addChild(
       new RawCode({ code: line, sourceLocation: loc, originalSource: line })
     );
+    depth = newDepth;
   }
 
-  return new TestFile({ language: 'javascript', imports, body });
+  return new TestFile({ language: 'javascript', imports, body: rootBody });
+}
+
+/**
+ * Count occurrences of a character, skipping strings and line comments.
+ */
+function countBraces(line, ch) {
+  let count = 0;
+  let inString = false;
+  let stringDelim = '';
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (inString) {
+      if (c === stringDelim && line[i - 1] !== '\\') inString = false;
+    } else {
+      if (c === '/' && line[i + 1] === '/') break;
+      if (c === "'" || c === '"' || c === '`') {
+        inString = true;
+        stringDelim = c;
+      } else if (c === ch) {
+        count++;
+      }
+    }
+  }
+  return count;
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// Parser helpers — extract assertion and navigation semantics
+// ═══════════════════════════════════════════════════════════════════════
+
+/**
+ * Extract kind, subject, expected, isNegated from a Cypress assertion line.
+ *
+ * Handles:
+ *   cy.get(sel).should('kind')
+ *   cy.get(sel).should('kind', expected)
+ *   cy.url().should('kind', expected)
+ *   cy.title().should('kind', expected)
+ *   expect(subject).to.be.true / .to.equal(val) / etc.
+ *
+ * @param {string} trimmed - Trimmed source line
+ * @returns {{ kind: string, subject: string, expected: string|null, isNegated: boolean }}
+ */
+function parseAssertionLine(trimmed) {
+  // cy.get(sel).should('kind') or cy.get(sel).should('kind', expected)
+  // Also handles cy.get(sel).find(sel2).should(...)
+  const shouldMatch = trimmed.match(
+    /cy\.get\((['"`])([^'"]+)\1\)((?:\.\w+\([^)]*\))*)\.should\(\s*'(not\.)?([^']+)'/
+  );
+  if (shouldMatch) {
+    let selector = shouldMatch[2];
+    const chainStr = shouldMatch[3] || '';
+    const isNegated = !!shouldMatch[4];
+    const kind = shouldMatch[5];
+    // Combine chained .find() into subject
+    const findMatch = chainStr.match(/\.find\((['"`])([^'"]+)\1\)/);
+    if (findMatch) {
+      selector = `${selector} ${findMatch[2]}`;
+    }
+    // Extract expected value after the kind
+    const afterKind = trimmed.match(
+      /\.should\(\s*'(?:not\.)?[^']+'\s*,\s*(.+?)\s*\)/
+    );
+    const expected = afterKind ? afterKind[1] : null;
+    return { kind, subject: selector, expected, isNegated };
+  }
+
+  // cy.url().should('kind', expected)
+  const urlMatch = trimmed.match(
+    /cy\.url\(\)\.should\(\s*'(not\.)?([^']+)'(?:\s*,\s*(.+?))?\s*\)/
+  );
+  if (urlMatch) {
+    const isNegated = !!urlMatch[1];
+    const kind = urlMatch[2];
+    const expected = urlMatch[3] || null;
+    const mappedKind =
+      kind === 'include' ? 'url.include' : kind === 'eq' ? 'url.equal' : kind;
+    return { kind: mappedKind, subject: 'cy.url()', expected, isNegated };
+  }
+
+  // cy.title().should('kind', expected)
+  const titleMatch = trimmed.match(
+    /cy\.title\(\)\.should\(\s*'(not\.)?([^']+)'(?:\s*,\s*(.+?))?\s*\)/
+  );
+  if (titleMatch) {
+    const isNegated = !!titleMatch[1];
+    const kind = titleMatch[2];
+    const expected = titleMatch[3] || null;
+    const mappedKind = kind === 'eq' ? 'title.equal' : kind;
+    return { kind: mappedKind, subject: 'cy.title()', expected, isNegated };
+  }
+
+  // expect(subject).to.be.true / .to.be.false / .to.be.null / etc.
+  const expectBoolMatch = trimmed.match(
+    /expect\((.+?)\)\.to\.(not\.)?be\.(true|false|null|undefined)/
+  );
+  if (expectBoolMatch) {
+    return {
+      kind: `be.${expectBoolMatch[3]}`,
+      subject: expectBoolMatch[1],
+      expected: null,
+      isNegated: !!expectBoolMatch[2],
+    };
+  }
+
+  // expect(subject).to.equal(val)
+  const expectEqualMatch = trimmed.match(
+    /expect\((.+?)\)\.to\.(not\.)?equal\(\s*(.+?)\s*\)/
+  );
+  if (expectEqualMatch) {
+    return {
+      kind: 'equal',
+      subject: expectEqualMatch[1],
+      expected: expectEqualMatch[3],
+      isNegated: !!expectEqualMatch[2],
+    };
+  }
+
+  // expect(subject).to.include(val) or expect(subject).to.contain(val)
+  const expectIncludeMatch = trimmed.match(
+    /expect\((.+?)\)\.to\.(not\.)?(?:include|contain)\(\s*(.+?)\s*\)/
+  );
+  if (expectIncludeMatch) {
+    return {
+      kind: 'include',
+      subject: expectIncludeMatch[1],
+      expected: expectIncludeMatch[3],
+      isNegated: !!expectIncludeMatch[2],
+    };
+  }
+
+  // expect(subject).to.have.property(val)
+  const expectPropMatch = trimmed.match(
+    /expect\((.+?)\)\.to\.(not\.)?have\.property\(\s*(.+?)\s*\)/
+  );
+  if (expectPropMatch) {
+    return {
+      kind: 'have.property',
+      subject: expectPropMatch[1],
+      expected: expectPropMatch[3],
+      isNegated: !!expectPropMatch[2],
+    };
+  }
+
+  // Default: minimal info
+  return { kind: 'equal', subject: '', expected: null, isNegated: false };
+}
+
+/**
+ * Check if a line is a Cypress navigation command and extract action/url.
+ *
+ * @param {string} trimmed
+ * @returns {{ action: string, url: string }|null}
+ */
+function parseNavigationLine(trimmed) {
+  // cy.visit('url') or cy.visit(variable) — optionally with options object
+  const visitMatch = trimmed.match(
+    /cy\.visit\(\s*(['"]?)([^'",)]+)\1\s*(?:,\s*(\{[^}]*\}))?\s*\)/
+  );
+  if (visitMatch) {
+    const options = visitMatch[3] || undefined;
+    return { action: 'visit', url: visitMatch[2], options: options || {} };
+  }
+
+  // cy.go('back') / cy.go('forward') / cy.go(-1) / cy.go(1)
+  const goMatch = trimmed.match(/cy\.go\(\s*('?)([-\w]+)\1\s*\)/);
+  if (goMatch) {
+    const val = goMatch[2];
+    if (val === 'back' || val === '-1') {
+      return { action: 'goBack', url: '' };
+    }
+    if (val === 'forward' || val === '1') {
+      return { action: 'goForward', url: '' };
+    }
+  }
+
+  // cy.reload() or cy.reload(true)
+  const reloadMatch = trimmed.match(/cy\.reload\(\s*(true)?\s*\)/);
+  if (reloadMatch) {
+    return {
+      action: 'reload',
+      url: '',
+      options: reloadMatch[1] ? 'forceReload' : {},
+    };
+  }
+
+  return null;
+}
+
+/**
+ * Check if a line is a Cypress mock/stub/intercept command.
+ *
+ * @param {string} trimmed
+ * @returns {{ kind: string, target: string, args: string[], returnValue: string|null }|null}
+ */
+function parseMockLine(trimmed) {
+  // cy.intercept('METHOD', 'url', { response }).as('alias')
+  const intercept3 = trimmed.match(
+    /cy\.intercept\(\s*(['"])(\w+)\1\s*,\s*(['"])([^'"]+)\3\s*,\s*(\{[^}]*\})\s*\)/
+  );
+  if (intercept3) {
+    return {
+      kind: 'networkIntercept',
+      target: intercept3[4],
+      args: [intercept3[2]],
+      returnValue: intercept3[5],
+    };
+  }
+
+  // cy.intercept('METHOD', 'url').as('alias') — spy form
+  const intercept2 = trimmed.match(
+    /cy\.intercept\(\s*(['"])(\w+)\1\s*,\s*(['"])([^'"]+)\3\s*\)/
+  );
+  if (intercept2) {
+    return {
+      kind: 'networkIntercept',
+      target: intercept2[4],
+      args: [intercept2[2]],
+      returnValue: null,
+    };
+  }
+
+  // cy.intercept('url').as('alias') — bare spy
+  const intercept1 = trimmed.match(/cy\.intercept\(\s*(['"])([^'"]+)\1\s*\)/);
+  if (intercept1) {
+    return {
+      kind: 'networkIntercept',
+      target: intercept1[2],
+      args: [],
+      returnValue: null,
+    };
+  }
+
+  // cy.stub() / cy.spy()
+  if (/\bcy\.stub\s*\(/.test(trimmed)) {
+    return { kind: 'createStub', target: '', args: [], returnValue: null };
+  }
+  if (/\bcy\.spy\s*\(/.test(trimmed)) {
+    return { kind: 'createSpy', target: '', args: [], returnValue: null };
+  }
+
+  // cy.clock() / cy.tick()
+  if (/\bcy\.clock\s*\(/.test(trimmed)) {
+    return { kind: 'fakeTimers', target: '', args: [], returnValue: null };
+  }
+  const tickMatch = trimmed.match(/\bcy\.tick\(\s*(\d+)\s*\)/);
+  if (tickMatch) {
+    return {
+      kind: 'advanceTimers',
+      target: '',
+      args: [tickMatch[1]],
+      returnValue: null,
+    };
+  }
+
+  return null;
 }
 
 /**

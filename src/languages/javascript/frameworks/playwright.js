@@ -12,10 +12,12 @@ import {
   TestCase,
   Hook,
   Assertion,
+  Navigation,
   MockCall,
   ImportStatement,
   RawCode,
   Comment,
+  Modifier,
 } from '../../../core/ir.js';
 
 import { TodoFormatter } from '../../../core/TodoFormatter.js';
@@ -42,13 +44,349 @@ function detect(source) {
   return Math.max(0, Math.min(100, score));
 }
 
+/**
+ * Parse Playwright source code into a nested IR tree.
+ *
+ * Uses brace-depth tracking to nest test.describe, test(), and hook nodes.
+ * Extracts assertions, navigation, and mock calls from body lines.
+ */
 function parse(source) {
-  // Minimal parse for when Playwright is the source (Playwright→X direction).
-  return new TestFile({
-    language: 'javascript',
-    imports: [],
-    body: [new RawCode({ code: source })],
-  });
+  const lines = source.split('\n');
+  const imports = [];
+
+  const rootBody = [];
+  const stack = [{ node: null, addChild: (c) => rootBody.push(c), depth: 0 }];
+  let depth = 0;
+
+  function addChild(child) {
+    const top = stack[stack.length - 1];
+    const node = top.node;
+
+    if (!node) {
+      top.addChild(child);
+    } else if (node instanceof TestSuite) {
+      if (child instanceof Hook) node.hooks.push(child);
+      else node.tests.push(child);
+    } else if (node instanceof TestCase || node instanceof Hook) {
+      node.body.push(child);
+    }
+  }
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const trimmed = line.trim();
+    const loc = { line: i + 1, column: 0 };
+
+    if (!trimmed) continue;
+
+    const opens = countBraces(trimmed, '{');
+    const closes = countBraces(trimmed, '}');
+    const newDepth = depth + opens - closes;
+
+    while (stack.length > 1 && newDepth <= stack[stack.length - 1].depth) {
+      stack.pop();
+    }
+
+    if (/^[}\s);,]+$/.test(trimmed)) {
+      depth = newDepth;
+      continue;
+    }
+
+    // Comments
+    if (
+      trimmed.startsWith('//') ||
+      trimmed.startsWith('/*') ||
+      trimmed.startsWith('*')
+    ) {
+      addChild(
+        new Comment({ text: line, sourceLocation: loc, originalSource: line })
+      );
+      depth = newDepth;
+      continue;
+    }
+
+    // Imports
+    if (/^import\s/.test(trimmed) || /^const\s.*=\s*require\(/.test(trimmed)) {
+      const sourceMatch =
+        trimmed.match(/from\s+['"]([^'"]+)['"]/) ||
+        trimmed.match(/require\s*\(\s*['"]([^'"]+)['"]\s*\)/);
+      imports.push(
+        new ImportStatement({
+          source: sourceMatch ? sourceMatch[1] : '',
+          sourceLocation: loc,
+          originalSource: line,
+          confidence: 'converted',
+        })
+      );
+      depth = newDepth;
+      continue;
+    }
+
+    // test.describe block
+    const descMatch = trimmed.match(
+      /\btest\.describe(?:\.(only|skip))?\s*\(\s*(['"`])(.+?)\2/
+    );
+    if (descMatch) {
+      const modifiers = descMatch[1]
+        ? [new Modifier({ modifierType: descMatch[1] })]
+        : [];
+      const suite = new TestSuite({
+        name: descMatch[3],
+        modifiers,
+        sourceLocation: loc,
+        originalSource: line,
+        confidence: 'converted',
+      });
+      addChild(suite);
+      if (opens > closes) {
+        stack.push({ node: suite, depth });
+      }
+      depth = newDepth;
+      continue;
+    }
+
+    // test() or test.only/test.skip block
+    const testMatch = trimmed.match(
+      /\btest(?:\.(only|skip))?\s*\(\s*(['"`])(.+?)\2/
+    );
+    if (testMatch) {
+      const modifiers = testMatch[1]
+        ? [new Modifier({ modifierType: testMatch[1] })]
+        : [];
+      const tc = new TestCase({
+        name: testMatch[3],
+        isAsync: /async/.test(trimmed),
+        modifiers,
+        sourceLocation: loc,
+        originalSource: line,
+        confidence: 'converted',
+      });
+      addChild(tc);
+      if (opens > closes) {
+        stack.push({ node: tc, depth });
+      }
+      depth = newDepth;
+      continue;
+    }
+
+    // Hook: test.beforeEach, test.afterAll, etc.
+    const hookMatch = trimmed.match(
+      /\btest\.(beforeEach|afterEach|beforeAll|afterAll)\s*\(/
+    );
+    if (hookMatch) {
+      const hook = new Hook({
+        hookType: hookMatch[1],
+        isAsync: /async/.test(trimmed),
+        sourceLocation: loc,
+        originalSource: line,
+        confidence: 'converted',
+      });
+      addChild(hook);
+      if (opens > closes) {
+        stack.push({ node: hook, depth });
+      }
+      depth = newDepth;
+      continue;
+    }
+
+    // Assertions: await expect(...)
+    if (/\bexpect\s*\(/.test(trimmed)) {
+      const parsed = parsePlaywrightAssertion(trimmed);
+      addChild(
+        new Assertion({
+          ...parsed,
+          sourceLocation: loc,
+          originalSource: line,
+          confidence: 'converted',
+        })
+      );
+      depth = newDepth;
+      continue;
+    }
+
+    // Navigation: page.goto, page.goBack, page.goForward, page.reload
+    const nav = parsePlaywrightNavigation(trimmed);
+    if (nav) {
+      addChild(
+        new Navigation({
+          ...nav,
+          sourceLocation: loc,
+          originalSource: line,
+          confidence: 'converted',
+        })
+      );
+      depth = newDepth;
+      continue;
+    }
+
+    // Mock: page.route
+    if (/\bpage\.route\s*\(/.test(trimmed)) {
+      const routeMatch = trimmed.match(/page\.route\(\s*(['"`])([^'"]+)\1/);
+      const hasFulfill = /route\.fulfill/.test(trimmed);
+      addChild(
+        new MockCall({
+          kind: 'networkIntercept',
+          target: routeMatch ? routeMatch[2] : '',
+          returnValue: hasFulfill ? 'fulfill' : null,
+          sourceLocation: loc,
+          originalSource: line,
+          confidence: 'converted',
+        })
+      );
+      depth = newDepth;
+      continue;
+    }
+
+    // Other page.* calls → RawCode
+    addChild(
+      new RawCode({ code: line, sourceLocation: loc, originalSource: line })
+    );
+    depth = newDepth;
+  }
+
+  return new TestFile({ language: 'javascript', imports, body: rootBody });
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// Parser helpers
+// ═══════════════════════════════════════════════════════════════════════
+
+/**
+ * Count occurrences of a character, skipping strings and line comments.
+ */
+function countBraces(line, ch) {
+  let count = 0;
+  let inString = false;
+  let stringDelim = '';
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (inString) {
+      if (c === stringDelim && line[i - 1] !== '\\') inString = false;
+    } else {
+      if (c === '/' && line[i + 1] === '/') break;
+      if (c === "'" || c === '"' || c === '`') {
+        inString = true;
+        stringDelim = c;
+      } else if (c === ch) {
+        count++;
+      }
+    }
+  }
+  return count;
+}
+
+/**
+ * Parse a Playwright assertion line.
+ *
+ * Handles:
+ *   await expect(page.locator(sel)).toBeVisible()
+ *   await expect(page.locator(sel)).toHaveText(val)
+ *   await expect(page).toHaveURL(val)
+ *   await expect(page).toHaveTitle(val)
+ *   expect(val).toBe(expected)
+ */
+function parsePlaywrightAssertion(trimmed) {
+  const isNegated = /\.not\./.test(trimmed);
+
+  // Locator-based: expect(page.locator('sel'))
+  const locatorMatch = trimmed.match(
+    /expect\(page\.locator\(\s*(['"`])([^'"]+)\1\s*\)\)/
+  );
+  if (locatorMatch) {
+    const subject = locatorMatch[2];
+    const kind = extractPlaywrightMatcherKind(trimmed);
+    const expected = extractPlaywrightExpected(trimmed);
+    return { kind, subject, expected, isNegated };
+  }
+
+  // Page-level: expect(page).toHaveURL/toHaveTitle
+  if (/expect\(page\)/.test(trimmed)) {
+    if (/\.toHaveURL\(/.test(trimmed)) {
+      const expected = extractPlaywrightExpected(trimmed);
+      return { kind: 'url.equal', subject: 'page', expected, isNegated };
+    }
+    if (/\.toHaveTitle\(/.test(trimmed)) {
+      const expected = extractPlaywrightExpected(trimmed);
+      return { kind: 'title.equal', subject: 'page', expected, isNegated };
+    }
+  }
+
+  // Value-based: expect(expr).toBe(val)
+  const expectMatch = trimmed.match(/expect\((.+?)\)/);
+  if (expectMatch) {
+    const subject = expectMatch[1];
+    const kind = extractPlaywrightMatcherKind(trimmed);
+    const expected = extractPlaywrightExpected(trimmed);
+    return { kind, subject, expected, isNegated };
+  }
+
+  return { kind: 'equal', subject: '', expected: null, isNegated: false };
+}
+
+/**
+ * Map Playwright matcher to IR assertion kind.
+ */
+function extractPlaywrightMatcherKind(trimmed) {
+  if (/\.toBeVisible\(/.test(trimmed)) return 'be.visible';
+  if (/\.toBeAttached\(/.test(trimmed)) return 'exist';
+  if (/\.toContainText\(/.test(trimmed)) return 'contain';
+  if (/\.toHaveText\(/.test(trimmed)) return 'have.text';
+  if (/\.toHaveCount\(/.test(trimmed)) return 'have.length';
+  if (/\.toHaveAttribute\(/.test(trimmed)) return 'have.attr';
+  if (/\.toHaveClass\(/.test(trimmed)) return 'have.class';
+  if (/\.toHaveValue\(/.test(trimmed)) return 'have.value';
+  if (/\.toBeChecked\(/.test(trimmed)) return 'be.checked';
+  if (/\.toBeDisabled\(/.test(trimmed)) return 'be.disabled';
+  if (/\.toBeEnabled\(/.test(trimmed)) return 'be.enabled';
+  if (/\.toBeEmpty\(/.test(trimmed)) return 'be.empty';
+  if (/\.toBeFocused\(/.test(trimmed)) return 'be.focused';
+  if (/\.toHaveURL\(/.test(trimmed)) return 'url.equal';
+  if (/\.toHaveTitle\(/.test(trimmed)) return 'title.equal';
+  if (/\.toBe\(/.test(trimmed)) return 'equal';
+  if (/\.toEqual\(/.test(trimmed)) return 'equal';
+  if (/\.toBeTruthy\(/.test(trimmed)) return 'be.true';
+  if (/\.toBeFalsy\(/.test(trimmed)) return 'be.false';
+  if (/\.toBeNull\(/.test(trimmed)) return 'be.null';
+  if (/\.toBeUndefined\(/.test(trimmed)) return 'be.undefined';
+  return 'equal';
+}
+
+/**
+ * Extract the first arg from a Playwright matcher call.
+ */
+function extractPlaywrightExpected(trimmed) {
+  // Match the last matcher call's arg: .toSomething(value)
+  const m = trimmed.match(/\.to\w+\((.+)\)\s*;?\s*$/);
+  if (!m) return null;
+  const inner = m[1].trim();
+  return inner || null;
+}
+
+/**
+ * Parse a Playwright navigation command.
+ */
+function parsePlaywrightNavigation(trimmed) {
+  // page.goto('url')
+  const gotoMatch = trimmed.match(
+    /page\.goto\(\s*(['"`])([^'"]+)\1\s*(?:,\s*\{[^}]*\})?\s*\)/
+  );
+  if (gotoMatch) {
+    return { action: 'visit', url: gotoMatch[2] };
+  }
+  // page.goto(variable)
+  if (/page\.goto\(/.test(trimmed) && !/page\.goto\(\s*['"`]/.test(trimmed)) {
+    const varMatch = trimmed.match(/page\.goto\(\s*([^,)]+)/);
+    if (varMatch) {
+      return { action: 'visit', url: varMatch[1].trim() };
+    }
+  }
+
+  if (/page\.goBack\(/.test(trimmed)) return { action: 'goBack', url: '' };
+  if (/page\.goForward\(/.test(trimmed))
+    return { action: 'goForward', url: '' };
+  if (/page\.reload\(/.test(trimmed)) return { action: 'reload', url: '' };
+
+  return null;
 }
 
 /**

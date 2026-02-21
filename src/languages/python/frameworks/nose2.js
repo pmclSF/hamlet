@@ -63,25 +63,56 @@ function detect(source) {
 }
 
 /**
- * Parse nose2 source code into an IR tree.
+ * Parse nose2 source code into a nested IR tree.
+ *
+ * Uses indent-level tracking to nest TestCase/Hook inside TestSuite (class),
+ * and Assertion/RawCode inside TestCase/Hook bodies.
+ * Extracts assertion subject/expected from assert_equal(a, b).
  */
 function parse(source) {
   const lines = source.split('\n');
   const imports = [];
-  const allNodes = [];
+  const rootBody = [];
+  const stack = [{ node: null, addChild: (c) => rootBody.push(c), indent: -1 }];
+  let pendingDecorators = [];
+
+  function addChild(child) {
+    const top = stack[stack.length - 1];
+    const node = top.node;
+    if (!node) {
+      top.addChild(child);
+    } else if (node instanceof TestSuite) {
+      if (child instanceof Hook) node.hooks.push(child);
+      else if (child instanceof TestCase) node.tests.push(child);
+      else node.tests.push(child);
+    } else if (node instanceof TestCase || node instanceof Hook) {
+      node.body.push(child);
+    }
+  }
+
+  function getIndent(line) {
+    const m = line.match(/^(\s*)/);
+    return m ? m[1].length : 0;
+  }
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     const trimmed = line.trim();
     const loc = { line: i + 1, column: 0 };
+    const indent = getIndent(line);
 
     if (!trimmed) continue;
+
+    // Pop stack when indent decreases
+    while (stack.length > 1 && indent <= stack[stack.length - 1].indent) {
+      stack.pop();
+    }
 
     // Comments
     if (trimmed.startsWith('#')) {
       const isLicense =
         /license|copyright|MIT|Apache|BSD/i.test(trimmed) && i < 5;
-      allNodes.push(
+      addChild(
         new Comment({
           text: line,
           commentKind: isLicense ? 'license' : 'inline',
@@ -98,147 +129,129 @@ function parse(source) {
       const sourceMatch = trimmed.match(
         /(?:from\s+(\S+)\s+import|import\s+(\S+))/
       );
-      allNodes.push(
-        new ImportStatement({
-          kind: 'library',
-          source: sourceMatch ? sourceMatch[1] || sourceMatch[2] : '',
-          sourceLocation: loc,
-          originalSource: line,
-          confidence: 'converted',
-        })
-      );
-      imports.push(allNodes[allNodes.length - 1]);
+      const imp = new ImportStatement({
+        kind: 'library',
+        source: sourceMatch ? sourceMatch[1] || sourceMatch[2] : '',
+        sourceLocation: loc,
+        originalSource: line,
+        confidence: 'converted',
+      });
+      imports.push(imp);
       continue;
     }
 
-    // Class declaration
-    if (/^\s*class\s+\w+/.test(trimmed)) {
-      allNodes.push(
-        new TestSuite({
-          name: (trimmed.match(/class\s+(\w+)/) || [])[1] || '',
-          modifiers: [],
-          sourceLocation: loc,
-          originalSource: line,
-          confidence: 'converted',
-        })
-      );
+    // Class declaration → TestSuite
+    if (/^\s*class\s+\w+/.test(line)) {
+      const suite = new TestSuite({
+        name: (trimmed.match(/class\s+(\w+)/) || [])[1] || '',
+        modifiers: [],
+        sourceLocation: loc,
+        originalSource: line,
+        confidence: 'converted',
+      });
+      addChild(suite);
+      pendingDecorators = [];
+      stack.push({
+        node: suite,
+        addChild: (c) => {
+          if (c instanceof Hook) suite.hooks.push(c);
+          else suite.tests.push(c);
+        },
+        indent,
+      });
       continue;
     }
 
-    // setUp / tearDown
+    // setUp / tearDown → Hook
     if (/def\s+setUp\s*\(/.test(trimmed)) {
-      allNodes.push(
-        new Hook({
-          hookType: 'beforeEach',
-          sourceLocation: loc,
-          originalSource: line,
-          confidence: 'converted',
-        })
-      );
+      const hook = new Hook({
+        hookType: 'beforeEach',
+        body: [],
+        sourceLocation: loc,
+        originalSource: line,
+        confidence: 'converted',
+      });
+      addChild(hook);
+      stack.push({ node: hook, addChild: (c) => hook.body.push(c), indent });
       continue;
     }
     if (/def\s+tearDown\s*\(/.test(trimmed)) {
-      allNodes.push(
-        new Hook({
-          hookType: 'afterEach',
-          sourceLocation: loc,
-          originalSource: line,
-          confidence: 'converted',
-        })
-      );
+      const hook = new Hook({
+        hookType: 'afterEach',
+        body: [],
+        sourceLocation: loc,
+        originalSource: line,
+        confidence: 'converted',
+      });
+      addChild(hook);
+      stack.push({ node: hook, addChild: (c) => hook.body.push(c), indent });
       continue;
     }
     if (/def\s+setUpClass\s*\(/.test(trimmed)) {
-      allNodes.push(
-        new Hook({
-          hookType: 'beforeAll',
-          sourceLocation: loc,
-          originalSource: line,
-          confidence: 'converted',
-        })
-      );
+      const hook = new Hook({
+        hookType: 'beforeAll',
+        body: [],
+        sourceLocation: loc,
+        originalSource: line,
+        confidence: 'converted',
+      });
+      addChild(hook);
+      stack.push({ node: hook, addChild: (c) => hook.body.push(c), indent });
       continue;
     }
     if (/def\s+tearDownClass\s*\(/.test(trimmed)) {
-      allNodes.push(
-        new Hook({
-          hookType: 'afterAll',
-          sourceLocation: loc,
-          originalSource: line,
-          confidence: 'converted',
-        })
-      );
+      const hook = new Hook({
+        hookType: 'afterAll',
+        body: [],
+        sourceLocation: loc,
+        originalSource: line,
+        confidence: 'converted',
+      });
+      addChild(hook);
+      stack.push({ node: hook, addChild: (c) => hook.body.push(c), indent });
       continue;
     }
 
-    // @params decorator
+    // Decorators — store as pending
     if (/@params\s*\(/.test(trimmed)) {
-      allNodes.push(
-        new Modifier({
-          modifierType: 'parameterized',
-          sourceLocation: loc,
-          originalSource: line,
-          confidence: 'converted',
-        })
-      );
+      pendingDecorators.push({
+        type: 'parameterized',
+        loc,
+        originalSource: line,
+      });
       continue;
     }
-
-    // @attr decorator
     if (/@attr\s*\(/.test(trimmed)) {
-      allNodes.push(
-        new Modifier({
-          modifierType: 'tag',
-          sourceLocation: loc,
-          originalSource: line,
-          confidence: 'converted',
-        })
-      );
+      pendingDecorators.push({ type: 'tag', loc, originalSource: line });
       continue;
     }
 
     // Test functions/methods
     if (/def\s+test_\w+\s*\(/.test(trimmed)) {
-      allNodes.push(
-        new TestCase({
-          name: (trimmed.match(/def\s+(test_\w+)\s*\(/) || [])[1] || '',
-          isAsync: /async\s+def/.test(trimmed),
-          modifiers: [],
-          sourceLocation: loc,
-          originalSource: line,
-          confidence: 'converted',
-        })
-      );
+      const tc = new TestCase({
+        name: (trimmed.match(/def\s+(test_\w+)\s*\(/) || [])[1] || '',
+        isAsync: /async\s+def/.test(trimmed),
+        modifiers: [],
+        body: [],
+        sourceLocation: loc,
+        originalSource: line,
+        confidence: 'converted',
+      });
+      addChild(tc);
+      pendingDecorators = [];
+      stack.push({ node: tc, addChild: (c) => tc.body.push(c), indent });
       continue;
     }
 
-    // nose assertion functions
+    // nose assertion functions — extract subject/expected
     if (/\bassert_\w+\s*\(/.test(trimmed)) {
-      let kind = 'equal';
-      if (/assert_equal/.test(trimmed)) kind = 'equal';
-      else if (/assert_not_equal/.test(trimmed)) kind = 'notEqual';
-      else if (/assert_true/.test(trimmed)) kind = 'truthy';
-      else if (/assert_false/.test(trimmed)) kind = 'falsy';
-      else if (/assert_is_none/.test(trimmed)) kind = 'isNull';
-      else if (/assert_is_not_none/.test(trimmed)) kind = 'isDefined';
-      else if (/assert_in/.test(trimmed)) kind = 'contains';
-      else if (/assert_not_in/.test(trimmed)) kind = 'notContains';
-      else if (/assert_raises/.test(trimmed)) kind = 'throws';
-      else if (/assert_is_instance/.test(trimmed)) kind = 'isInstance';
-
-      allNodes.push(
-        new Assertion({
-          kind,
-          sourceLocation: loc,
-          originalSource: line,
-          confidence: 'converted',
-        })
-      );
+      const assertion = parseNoseAssertion(trimmed, loc, line);
+      addChild(assertion);
       continue;
     }
 
     // Everything else
-    allNodes.push(
+    addChild(
       new RawCode({
         code: line,
         sourceLocation: loc,
@@ -250,8 +263,117 @@ function parse(source) {
   return new TestFile({
     language: 'python',
     imports,
-    body: allNodes.filter((n) => !imports.includes(n)),
+    body: rootBody,
   });
+}
+
+/**
+ * Parse a nose assertion and extract kind, subject, expected.
+ * assert_equal(a, b) → kind='equal', subject=a, expected=b
+ */
+function parseNoseAssertion(trimmed, loc, line) {
+  let kind = 'equal';
+  if (/assert_not_equal/.test(trimmed)) kind = 'notEqual';
+  else if (/assert_equal/.test(trimmed)) kind = 'equal';
+  else if (/assert_true/.test(trimmed)) kind = 'truthy';
+  else if (/assert_false/.test(trimmed)) kind = 'falsy';
+  else if (/assert_is_not_none/.test(trimmed)) kind = 'isDefined';
+  else if (/assert_is_none/.test(trimmed)) kind = 'isNull';
+  else if (/assert_not_in/.test(trimmed)) kind = 'notContains';
+  else if (/assert_in/.test(trimmed)) kind = 'contains';
+  else if (/assert_raises/.test(trimmed)) kind = 'throws';
+  else if (/assert_is_instance/.test(trimmed)) kind = 'isInstance';
+
+  const args = extractNoseAssertArgs(trimmed);
+  let subject, expected;
+
+  if (args) {
+    if (
+      kind === 'equal' ||
+      kind === 'notEqual' ||
+      kind === 'contains' ||
+      kind === 'notContains'
+    ) {
+      if (args.length >= 2) {
+        subject = args[0];
+        expected = args[1];
+      }
+    } else if (
+      kind === 'truthy' ||
+      kind === 'falsy' ||
+      kind === 'isNull' ||
+      kind === 'isDefined'
+    ) {
+      subject = args[0];
+    } else if (kind === 'throws') {
+      expected = args[0];
+    } else if (kind === 'isInstance' && args.length >= 2) {
+      subject = args[0];
+      expected = args[1];
+    }
+  }
+
+  return new Assertion({
+    kind,
+    subject,
+    expected,
+    sourceLocation: loc,
+    originalSource: line,
+    confidence: 'converted',
+  });
+}
+
+/**
+ * Extract arguments from a nose assert_X(...) call.
+ */
+function extractNoseAssertArgs(trimmed) {
+  const m = trimmed.match(/\bassert_\w+\s*\(/);
+  if (!m) return null;
+  const start = m.index + m[0].length;
+  let depth = 1;
+  let i = start;
+  while (i < trimmed.length && depth > 0) {
+    const ch = trimmed[i];
+    if (ch === '(') depth++;
+    else if (ch === ')') depth--;
+    i++;
+  }
+  const argsStr = trimmed.slice(start, i - 1);
+  if (!argsStr.trim()) return [];
+
+  // Simple comma split respecting parens/strings
+  const args = [];
+  let d = 0;
+  let current = '';
+  let inString = null;
+  for (let j = 0; j < argsStr.length; j++) {
+    const ch = argsStr[j];
+    const prev = j > 0 ? argsStr[j - 1] : '';
+    if (inString) {
+      current += ch;
+      if (ch === inString && prev !== '\\') inString = null;
+      continue;
+    }
+    if (ch === '"' || ch === "'") {
+      inString = ch;
+      current += ch;
+      continue;
+    }
+    if (ch === '(' || ch === '[' || ch === '{') {
+      d++;
+      current += ch;
+    } else if (ch === ')' || ch === ']' || ch === '}') {
+      d--;
+      current += ch;
+    } else if (ch === ',' && d === 0) {
+      args.push(current.trim());
+      current = '';
+    } else {
+      current += ch;
+    }
+  }
+  if (current.trim()) args.push(current.trim());
+  return args;
 }
 
 /**

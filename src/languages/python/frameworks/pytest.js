@@ -68,25 +68,56 @@ function detect(source) {
 }
 
 /**
- * Parse pytest source code into an IR tree.
+ * Parse pytest source code into a nested IR tree.
+ *
+ * Uses indent-level tracking to nest TestCase inside optional TestSuite (class),
+ * and Assertion/RawCode inside TestCase bodies.
+ * Extracts assertion subject/expected from bare assert a == b patterns.
  */
 function parse(source) {
   const lines = source.split('\n');
   const imports = [];
-  const allNodes = [];
+  const rootBody = [];
+  const stack = [{ node: null, addChild: (c) => rootBody.push(c), indent: -1 }];
+  let pendingDecorators = [];
+
+  function addChild(child) {
+    const top = stack[stack.length - 1];
+    const node = top.node;
+    if (!node) {
+      top.addChild(child);
+    } else if (node instanceof TestSuite) {
+      if (child instanceof Hook) node.hooks.push(child);
+      else if (child instanceof TestCase) node.tests.push(child);
+      else node.tests.push(child);
+    } else if (node instanceof TestCase || node instanceof Hook) {
+      node.body.push(child);
+    }
+  }
+
+  function getIndent(line) {
+    const m = line.match(/^(\s*)/);
+    return m ? m[1].length : 0;
+  }
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     const trimmed = line.trim();
     const loc = { line: i + 1, column: 0 };
+    const indent = getIndent(line);
 
     if (!trimmed) continue;
+
+    // Pop stack when indent decreases
+    while (stack.length > 1 && indent <= stack[stack.length - 1].indent) {
+      stack.pop();
+    }
 
     // Comments
     if (trimmed.startsWith('#')) {
       const isLicense =
         /license|copyright|MIT|Apache|BSD/i.test(trimmed) && i < 5;
-      allNodes.push(
+      addChild(
         new Comment({
           text: line,
           commentKind: isLicense ? 'license' : 'inline',
@@ -98,38 +129,27 @@ function parse(source) {
       continue;
     }
 
-    // Import statements
+    // Import statements (always at top level)
     if (/^(?:import|from)\s/.test(trimmed)) {
       const sourceMatch = trimmed.match(
         /(?:from\s+(\S+)\s+import|import\s+(\S+))/
       );
-      allNodes.push(
-        new ImportStatement({
-          kind: 'library',
-          source: sourceMatch ? sourceMatch[1] || sourceMatch[2] : '',
-          sourceLocation: loc,
-          originalSource: line,
-          confidence: 'converted',
-        })
-      );
-      imports.push(allNodes[allNodes.length - 1]);
+      const imp = new ImportStatement({
+        kind: 'library',
+        source: sourceMatch ? sourceMatch[1] || sourceMatch[2] : '',
+        sourceLocation: loc,
+        originalSource: line,
+        confidence: 'converted',
+      });
+      imports.push(imp);
       continue;
     }
 
-    // @pytest.fixture
+    // Decorators — store as pending
     if (/@pytest\.fixture\b/.test(trimmed)) {
-      allNodes.push(
-        new Hook({
-          hookType: 'beforeEach',
-          sourceLocation: loc,
-          originalSource: line,
-          confidence: 'converted',
-        })
-      );
+      pendingDecorators.push({ type: 'fixture', loc, originalSource: line });
       continue;
     }
-
-    // @pytest.mark decorators
     if (/@pytest\.mark\./.test(trimmed)) {
       let modType = 'tag';
       if (/@pytest\.mark\.skip\b/.test(trimmed)) modType = 'skip';
@@ -138,61 +158,85 @@ function parse(source) {
         modType = 'expectedFailure';
       else if (/@pytest\.mark\.parametrize\b/.test(trimmed))
         modType = 'parameterized';
-
-      allNodes.push(
-        new Modifier({
-          modifierType: modType,
-          sourceLocation: loc,
-          originalSource: line,
-          confidence: 'converted',
-        })
-      );
+      pendingDecorators.push({ type: modType, loc, originalSource: line });
       continue;
     }
 
-    // Test functions (no self)
+    // Class declaration → TestSuite
+    if (/^\s*class\s+\w+/.test(line)) {
+      const suite = new TestSuite({
+        name: (trimmed.match(/class\s+(\w+)/) || [])[1] || '',
+        modifiers: [],
+        sourceLocation: loc,
+        originalSource: line,
+        confidence: 'converted',
+      });
+      addChild(suite);
+      pendingDecorators = [];
+      stack.push({
+        node: suite,
+        addChild: (c) => {
+          if (c instanceof Hook) suite.hooks.push(c);
+          else suite.tests.push(c);
+        },
+        indent,
+      });
+      continue;
+    }
+
+    // Test functions (no self → top-level pytest)
     if (/def\s+test_\w+\s*\(/.test(trimmed) && !/\bself\b/.test(trimmed)) {
-      allNodes.push(
-        new TestCase({
-          name: (trimmed.match(/def\s+(test_\w+)\s*\(/) || [])[1] || '',
-          isAsync: /async\s+def/.test(trimmed),
-          modifiers: [],
-          sourceLocation: loc,
-          originalSource: line,
-          confidence: 'converted',
-        })
-      );
+      const hasSkip = pendingDecorators.some((d) => d.type === 'skip');
+      const modifiers = hasSkip
+        ? [new Modifier({ modifierType: 'skip', confidence: 'converted' })]
+        : [];
+      const tc = new TestCase({
+        name: (trimmed.match(/def\s+(test_\w+)\s*\(/) || [])[1] || '',
+        isAsync: /async\s+def/.test(trimmed),
+        modifiers,
+        body: [],
+        sourceLocation: loc,
+        originalSource: line,
+        confidence: 'converted',
+      });
+      addChild(tc);
+      pendingDecorators = [];
+      stack.push({ node: tc, addChild: (c) => tc.body.push(c), indent });
       continue;
     }
 
-    // Bare assert
-    if (/^\s*assert\s+/.test(line)) {
-      let kind = 'truthy';
-      if (/assert\s+.+==/.test(trimmed)) kind = 'equal';
-      else if (/assert\s+.+!=/.test(trimmed)) kind = 'notEqual';
-      else if (/assert\s+not\s+/.test(trimmed)) kind = 'falsy';
-      else if (/assert\s+.+is\s+None/.test(trimmed)) kind = 'isNull';
-      else if (/assert\s+.+is\s+not\s+None/.test(trimmed)) kind = 'isDefined';
-      else if (/assert\s+.+\s+in\s+/.test(trimmed)) kind = 'contains';
-      else if (/assert\s+.+\s+not\s+in\s+/.test(trimmed)) kind = 'notContains';
-      else if (/assert\s+isinstance/.test(trimmed)) kind = 'isInstance';
-
-      allNodes.push(
-        new Assertion({
-          kind,
+    // Fixture function → Hook
+    if (/def\s+\w+\s*\(/.test(trimmed)) {
+      const hasFixture = pendingDecorators.some((d) => d.type === 'fixture');
+      if (hasFixture) {
+        const hook = new Hook({
+          hookType: 'beforeEach',
+          body: [],
           sourceLocation: loc,
           originalSource: line,
           confidence: 'converted',
-        })
-      );
+        });
+        addChild(hook);
+        pendingDecorators = [];
+        stack.push({ node: hook, addChild: (c) => hook.body.push(c), indent });
+        continue;
+      }
+    }
+
+    // Bare assert — extract subject/expected
+    if (/^\s*assert\s+/.test(line)) {
+      const assertion = parsePytestAssertion(trimmed, loc, line);
+      addChild(assertion);
       continue;
     }
 
     // pytest.raises
     if (/pytest\.raises\s*\(/.test(trimmed)) {
-      allNodes.push(
+      const exMatch = trimmed.match(/pytest\.raises\s*\(\s*(\w+)/);
+      addChild(
         new Assertion({
           kind: 'throws',
+          expected: exMatch ? exMatch[1] : undefined,
           sourceLocation: loc,
           originalSource: line,
           confidence: 'converted',
@@ -202,7 +246,7 @@ function parse(source) {
     }
 
     // Everything else
-    allNodes.push(
+    addChild(
       new RawCode({
         code: line,
         sourceLocation: loc,
@@ -214,7 +258,83 @@ function parse(source) {
   return new TestFile({
     language: 'python',
     imports,
-    body: allNodes.filter((n) => !imports.includes(n)),
+    body: rootBody,
+  });
+}
+
+/**
+ * Parse a pytest bare assert and extract kind, subject, expected.
+ */
+function parsePytestAssertion(trimmed, loc, line) {
+  const expr = trimmed.replace(/^assert\s+/, '');
+  let kind = 'truthy';
+  let subject, expected;
+
+  // Order: most specific patterns first
+  if (/\s+is\s+not\s+None$/.test(expr)) {
+    kind = 'isDefined';
+    subject = expr.replace(/\s+is\s+not\s+None$/, '');
+  } else if (/\s+is\s+None$/.test(expr)) {
+    kind = 'isNull';
+    subject = expr.replace(/\s+is\s+None$/, '');
+  } else if (/^not\s+/.test(expr)) {
+    kind = 'falsy';
+    subject = expr.replace(/^not\s+/, '');
+  } else if (/^isinstance\(/.test(expr)) {
+    kind = 'isInstance';
+    subject = expr;
+  } else if (/\s+not\s+in\s+/.test(expr)) {
+    kind = 'notContains';
+    const parts = expr.split(/\s+not\s+in\s+/);
+    subject = parts[1];
+    expected = parts[0];
+  } else if (/\s+in\s+/.test(expr)) {
+    kind = 'contains';
+    const parts = expr.split(/\s+in\s+/);
+    subject = parts[1];
+    expected = parts[0];
+  } else if (/\s*!=\s*/.test(expr)) {
+    kind = 'notEqual';
+    const parts = expr.split(/\s*!=\s*/);
+    subject = parts[0];
+    expected = parts[1];
+  } else if (/\s*==\s*/.test(expr)) {
+    kind = 'equal';
+    const parts = expr.split(/\s*==\s*/);
+    subject = parts[0];
+    expected = parts[1];
+  } else if (/\s*>=\s*/.test(expr)) {
+    kind = 'greaterThanOrEqual';
+    const parts = expr.split(/\s*>=\s*/);
+    subject = parts[0];
+    expected = parts[1];
+  } else if (/\s*<=\s*/.test(expr)) {
+    kind = 'lessThanOrEqual';
+    const parts = expr.split(/\s*<=\s*/);
+    subject = parts[0];
+    expected = parts[1];
+  } else if (/\s*>\s*/.test(expr)) {
+    kind = 'greaterThan';
+    const parts = expr.split(/\s*>\s*/);
+    subject = parts[0];
+    expected = parts[1];
+  } else if (/\s*<\s*/.test(expr)) {
+    kind = 'lessThan';
+    const parts = expr.split(/\s*<\s*/);
+    subject = parts[0];
+    expected = parts[1];
+  } else {
+    kind = 'truthy';
+    subject = expr;
+  }
+
+  return new Assertion({
+    kind,
+    subject,
+    expected,
+    sourceLocation: loc,
+    originalSource: line,
+    confidence: 'converted',
   });
 }
 

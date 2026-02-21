@@ -64,12 +64,33 @@ function detect(source) {
 }
 
 /**
- * Parse JUnit 4 source code into an IR tree.
+ * Parse JUnit 4 source code into a nested IR tree.
+ *
+ * Uses brace-depth tracking to nest TestCase/Hook inside TestSuite,
+ * and Assertion/RawCode inside TestCase/Hook bodies.
+ * Extracts assertion subject/expected from Assert.assertEquals(expected, actual).
  */
 function parse(source) {
   const lines = source.split('\n');
   const imports = [];
-  const allNodes = [];
+  const rootBody = [];
+  const stack = [{ node: null, addChild: (c) => rootBody.push(c), depth: 0 }];
+  let depth = 0;
+  let pendingAnnotations = []; // @Test, @Before, @Ignore, etc.
+
+  function addChild(child) {
+    const top = stack[stack.length - 1];
+    const node = top.node;
+    if (!node) {
+      top.addChild(child);
+    } else if (node instanceof TestSuite) {
+      if (child instanceof Hook) node.hooks.push(child);
+      else if (child instanceof TestCase) node.tests.push(child);
+      else node.tests.push(child);
+    } else if (node instanceof TestCase || node instanceof Hook) {
+      node.body.push(child);
+    }
+  }
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
@@ -77,6 +98,8 @@ function parse(source) {
     const loc = { line: i + 1, column: 0 };
 
     if (!trimmed) continue;
+
+    const delta = countBraces(trimmed);
 
     // Comments
     if (
@@ -86,7 +109,7 @@ function parse(source) {
     ) {
       const isLicense =
         /license|copyright|MIT|Apache|BSD/i.test(trimmed) && i < 5;
-      allNodes.push(
+      addChild(
         new Comment({
           text: line,
           commentKind: isLicense ? 'license' : 'inline',
@@ -95,114 +118,139 @@ function parse(source) {
           originalSource: line,
         })
       );
+      depth += delta;
       continue;
     }
 
     // Import statements
     if (/^import\s/.test(trimmed)) {
       const sourceMatch = trimmed.match(/import\s+(?:static\s+)?([^\s;]+)/);
-      allNodes.push(
-        new ImportStatement({
-          kind: 'library',
-          source: sourceMatch ? sourceMatch[1] : '',
-          sourceLocation: loc,
-          originalSource: line,
-          confidence: 'converted',
-        })
-      );
-      imports.push(allNodes[allNodes.length - 1]);
+      const imp = new ImportStatement({
+        kind: 'library',
+        source: sourceMatch ? sourceMatch[1] : '',
+        sourceLocation: loc,
+        originalSource: line,
+        confidence: 'converted',
+      });
+      imports.push(imp);
+      depth += delta;
       continue;
     }
 
-    // Class declaration
-    if (/\bclass\s+\w+/.test(trimmed)) {
-      allNodes.push(
-        new TestSuite({
-          name: (trimmed.match(/class\s+(\w+)/) || [])[1] || '',
-          modifiers: [],
-          sourceLocation: loc,
-          originalSource: line,
-          confidence: 'converted',
-        })
-      );
-      continue;
-    }
-
-    // @Test annotation (possibly with parameters)
+    // Annotations — store as pending, consumed by next method/class
     if (/@Test\b/.test(trimmed)) {
-      allNodes.push(
-        new Modifier({
-          modifierType: 'test',
-          sourceLocation: loc,
-          originalSource: line,
-          confidence: 'converted',
-        })
-      );
+      pendingAnnotations.push({
+        type: 'test',
+        loc,
+        originalSource: line,
+      });
+      depth += delta;
       continue;
     }
-
-    // @Before / @After / @BeforeClass / @AfterClass
     if (/@Before\b(?!Class)/.test(trimmed)) {
-      allNodes.push(
-        new Hook({
-          hookType: 'beforeEach',
-          sourceLocation: loc,
-          originalSource: line,
-          confidence: 'converted',
-        })
-      );
+      pendingAnnotations.push({
+        type: 'beforeEach',
+        loc,
+        originalSource: line,
+      });
+      depth += delta;
       continue;
     }
     if (/@After\b(?!Class)/.test(trimmed)) {
-      allNodes.push(
-        new Hook({
-          hookType: 'afterEach',
-          sourceLocation: loc,
-          originalSource: line,
-          confidence: 'converted',
-        })
-      );
+      pendingAnnotations.push({ type: 'afterEach', loc, originalSource: line });
+      depth += delta;
       continue;
     }
     if (/@BeforeClass\b/.test(trimmed)) {
-      allNodes.push(
-        new Hook({
-          hookType: 'beforeAll',
-          sourceLocation: loc,
-          originalSource: line,
-          confidence: 'converted',
-        })
-      );
+      pendingAnnotations.push({ type: 'beforeAll', loc, originalSource: line });
+      depth += delta;
       continue;
     }
     if (/@AfterClass\b/.test(trimmed)) {
-      allNodes.push(
-        new Hook({
-          hookType: 'afterAll',
-          sourceLocation: loc,
-          originalSource: line,
-          confidence: 'converted',
-        })
-      );
+      pendingAnnotations.push({ type: 'afterAll', loc, originalSource: line });
+      depth += delta;
+      continue;
+    }
+    if (/@Ignore\b/.test(trimmed)) {
+      pendingAnnotations.push({ type: 'skip', loc, originalSource: line });
+      depth += delta;
       continue;
     }
 
-    // @Ignore
-    if (/@Ignore\b/.test(trimmed)) {
-      allNodes.push(
-        new Modifier({
-          modifierType: 'skip',
+    // Class declaration → TestSuite
+    if (/\bclass\s+\w+/.test(trimmed)) {
+      const suite = new TestSuite({
+        name: (trimmed.match(/class\s+(\w+)/) || [])[1] || '',
+        modifiers: [],
+        sourceLocation: loc,
+        originalSource: line,
+        confidence: 'converted',
+      });
+      addChild(suite);
+      pendingAnnotations = [];
+      depth += delta;
+      stack.push({
+        node: suite,
+        addChild: (c) => {
+          if (c instanceof Hook) suite.hooks.push(c);
+          else suite.tests.push(c);
+        },
+        depth,
+      });
+      continue;
+    }
+
+    // Method declaration — consume pending annotations
+    if (
+      /(?:public\s+|protected\s+|private\s+)?(?:static\s+)?void\s+\w+\s*\(/.test(
+        trimmed
+      )
+    ) {
+      const methodName = (trimmed.match(/void\s+(\w+)\s*\(/) || [])[1] || '';
+      const hookAnnotation = pendingAnnotations.find((a) =>
+        ['beforeEach', 'afterEach', 'beforeAll', 'afterAll'].includes(a.type)
+      );
+      const hasTest = pendingAnnotations.some((a) => a.type === 'test');
+      const hasSkip = pendingAnnotations.some((a) => a.type === 'skip');
+
+      if (hookAnnotation) {
+        const hook = new Hook({
+          hookType: hookAnnotation.type,
+          body: [],
           sourceLocation: loc,
           originalSource: line,
           confidence: 'converted',
-        })
-      );
+        });
+        addChild(hook);
+        depth += delta;
+        stack.push({ node: hook, addChild: (c) => hook.body.push(c), depth });
+      } else {
+        const modifiers = [];
+        if (hasSkip) {
+          modifiers.push(
+            new Modifier({ modifierType: 'skip', confidence: 'converted' })
+          );
+        }
+        const tc = new TestCase({
+          name: methodName,
+          isAsync: false,
+          modifiers,
+          body: [],
+          sourceLocation: loc,
+          originalSource: line,
+          confidence: 'converted',
+        });
+        addChild(tc);
+        depth += delta;
+        stack.push({ node: tc, addChild: (c) => tc.body.push(c), depth });
+      }
+      pendingAnnotations = [];
       continue;
     }
 
     // @Rule / @ClassRule
     if (/@(?:Class)?Rule\b/.test(trimmed)) {
-      allNodes.push(
+      addChild(
         new RawCode({
           code: line,
           sourceLocation: loc,
@@ -210,65 +258,207 @@ function parse(source) {
           confidence: 'unconvertible',
         })
       );
+      depth += delta;
       continue;
     }
 
-    // Test methods
-    if (/public\s+void\s+\w+\s*\(/.test(trimmed)) {
-      allNodes.push(
-        new TestCase({
-          name: (trimmed.match(/void\s+(\w+)\s*\(/) || [])[1] || '',
-          isAsync: false,
-          modifiers: [],
-          sourceLocation: loc,
-          originalSource: line,
-          confidence: 'converted',
-        })
-      );
-      continue;
-    }
-
-    // Assert calls
+    // Assert calls — extract subject/expected
     if (
       /\bAssert\.\w+\s*\(/.test(trimmed) ||
       /\bassert\w+\s*\(/.test(trimmed)
     ) {
-      let kind = 'equal';
-      if (/assertEquals/.test(trimmed)) kind = 'equal';
-      else if (/assertTrue/.test(trimmed)) kind = 'truthy';
-      else if (/assertFalse/.test(trimmed)) kind = 'falsy';
-      else if (/assertNull/.test(trimmed)) kind = 'isNull';
-      else if (/assertNotNull/.test(trimmed)) kind = 'isDefined';
-      else if (/assertSame/.test(trimmed)) kind = 'strictEqual';
-      else if (/assertArrayEquals/.test(trimmed)) kind = 'deepEqual';
-      else if (/assertNotEquals/.test(trimmed)) kind = 'notEqual';
-
-      allNodes.push(
-        new Assertion({
-          kind,
-          sourceLocation: loc,
-          originalSource: line,
-          confidence: 'converted',
-        })
-      );
+      const assertion = parseJUnit4Assertion(trimmed, loc, line);
+      addChild(assertion);
+      depth += delta;
       continue;
     }
 
-    // Everything else
-    allNodes.push(
-      new RawCode({
-        code: line,
-        sourceLocation: loc,
-        originalSource: line,
-      })
-    );
+    // Skip pure structural braces — not test content
+    if (!/^[{}]+$/.test(trimmed)) {
+      addChild(
+        new RawCode({
+          code: line,
+          sourceLocation: loc,
+          originalSource: line,
+        })
+      );
+    }
+
+    depth += delta;
+
+    // Pop containers when braces close
+    while (stack.length > 1 && depth < stack[stack.length - 1].depth) {
+      stack.pop();
+    }
   }
 
   return new TestFile({
     language: 'java',
     imports,
-    body: allNodes.filter((n) => !imports.includes(n)),
+    body: rootBody,
   });
+}
+
+/**
+ * Count net brace delta in a line, skipping strings and comments.
+ */
+function countBraces(line) {
+  let delta = 0;
+  let inString = false;
+  let stringChar = '';
+  let inLineComment = false;
+
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    const next = i + 1 < line.length ? line[i + 1] : '';
+
+    if (inLineComment) break;
+
+    if (inString) {
+      if (ch === '\\') {
+        i++;
+        continue;
+      }
+      if (ch === stringChar) inString = false;
+      continue;
+    }
+
+    if (ch === '/' && next === '/') {
+      inLineComment = true;
+      continue;
+    }
+    if (ch === '"' || ch === "'") {
+      inString = true;
+      stringChar = ch;
+      continue;
+    }
+
+    if (ch === '{') delta++;
+    else if (ch === '}') delta--;
+  }
+  return delta;
+}
+
+/**
+ * Parse a JUnit 4 assertion line and extract kind, subject, expected.
+ * JUnit 4 arg order: assertEquals(expected, actual) or assertEquals("msg", expected, actual)
+ */
+function parseJUnit4Assertion(trimmed, loc, line) {
+  let kind = 'equal';
+  if (/assertEquals/.test(trimmed)) kind = 'equal';
+  else if (/assertTrue/.test(trimmed)) kind = 'truthy';
+  else if (/assertFalse/.test(trimmed)) kind = 'falsy';
+  else if (/assertNull/.test(trimmed)) kind = 'isNull';
+  else if (/assertNotNull/.test(trimmed)) kind = 'isDefined';
+  else if (/assertSame/.test(trimmed)) kind = 'strictEqual';
+  else if (/assertArrayEquals/.test(trimmed)) kind = 'deepEqual';
+  else if (/assertNotEquals/.test(trimmed)) kind = 'notEqual';
+
+  const args = extractJavaAssertArgs(trimmed);
+  let subject, expected;
+
+  if (args) {
+    if (kind === 'truthy' || kind === 'falsy') {
+      // assertTrue(cond) or assertTrue("msg", cond)
+      subject = args.length >= 2 ? args[1] : args[0];
+    } else if (kind === 'isNull' || kind === 'isDefined') {
+      // assertNull(obj) or assertNull("msg", obj)
+      subject = args.length >= 2 ? args[1] : args[0];
+    } else if (
+      kind === 'equal' ||
+      kind === 'notEqual' ||
+      kind === 'strictEqual' ||
+      kind === 'deepEqual'
+    ) {
+      // assertEquals(expected, actual) or assertEquals("msg", expected, actual)
+      if (args.length === 3) {
+        expected = args[1];
+        subject = args[2];
+      } else if (args.length >= 2) {
+        expected = args[0];
+        subject = args[1];
+      }
+    }
+  }
+
+  return new Assertion({
+    kind,
+    subject,
+    expected,
+    sourceLocation: loc,
+    originalSource: line,
+    confidence: 'converted',
+  });
+}
+
+/**
+ * Extract arguments from a Java Assert.method(...) call.
+ * Splits at top-level commas, respecting nested parens, strings, and generics.
+ */
+function extractJavaAssertArgs(trimmed) {
+  const m = trimmed.match(/(?:Assert\.)?\bassert\w+\s*\(/);
+  if (!m) return null;
+  const start = m.index + m[0].length;
+  let depth = 1;
+  let i = start;
+  while (i < trimmed.length && depth > 0) {
+    const ch = trimmed[i];
+    if (ch === '(') depth++;
+    else if (ch === ')') depth--;
+    i++;
+  }
+  const argsStr = trimmed.slice(start, i - 1);
+  if (!argsStr.trim()) return [];
+  return splitAssertArgs(argsStr);
+}
+
+/**
+ * Split assertion arguments at commas, respecting parens, strings, and generics.
+ */
+function splitAssertArgs(argsStr) {
+  const args = [];
+  let depth = 0;
+  let current = '';
+  let inString = false;
+  let stringChar = '';
+
+  for (let i = 0; i < argsStr.length; i++) {
+    const ch = argsStr[i];
+
+    if (inString) {
+      current += ch;
+      if (ch === '\\') {
+        i++;
+        current += argsStr[i] || '';
+        continue;
+      }
+      if (ch === stringChar) inString = false;
+      continue;
+    }
+
+    if (ch === '"' || ch === "'") {
+      inString = true;
+      stringChar = ch;
+      current += ch;
+      continue;
+    }
+
+    if (ch === '(' || ch === '<' || ch === '{' || ch === '[') {
+      depth++;
+      current += ch;
+    } else if (ch === ')' || ch === '>' || ch === '}' || ch === ']') {
+      depth--;
+      current += ch;
+    } else if (ch === ',' && depth === 0) {
+      args.push(current.trim());
+      current = '';
+    } else {
+      current += ch;
+    }
+  }
+
+  if (current.trim()) args.push(current.trim());
+  return args;
 }
 
 /**

@@ -42,11 +42,15 @@ export class PipelineConverter extends BaseConverter {
    * @param {Object} [options]
    * @returns {Promise<string>} Converted code
    */
-  async convert(content, _options = {}) {
+  async convert(content, options = {}) {
     const { code, report } = await this.pipeline.convert(
       content,
       this.sourceFramework,
-      this.targetFramework
+      this.targetFramework,
+      {
+        experimentalIR: this.options.experimentalIR || options.experimentalIR,
+        emitter: options.emitter || this.options.emitter,
+      }
     );
     this.stats.conversions++;
     this._lastReport = report;

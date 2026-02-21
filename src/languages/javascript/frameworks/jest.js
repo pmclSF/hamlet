@@ -69,18 +69,37 @@ function detect(source) {
 }
 
 /**
- * Parse Jest source code into an IR tree.
+ * Parse Jest source code into a nested IR tree.
  *
- * This is a regex-based parser that identifies test structure elements
- * and creates IR nodes for scoring and conversion tracking. It doesn't
- * attempt to parse every JavaScript expression — unrecognized code
- * passes through as RawCode nodes.
+ * Uses brace-depth tracking to nest TestSuite, TestCase, and Hook nodes:
+ *   TestSuite.hooks[] / TestSuite.tests[]
+ *   TestCase.body[] / Hook.body[]
+ *
+ * Extracts subject and expected from expect() assertions.
  */
 function parse(source) {
   const lines = source.split('\n');
   const imports = [];
-  const body = [];
-  const allNodes = [];
+
+  // Root container — collects top-level nodes
+  const rootBody = [];
+  // Stack of { node, depth } for nesting containers
+  const stack = [{ node: null, addChild: (c) => rootBody.push(c), depth: 0 }];
+  let depth = 0;
+
+  function addChild(child) {
+    const top = stack[stack.length - 1];
+    const node = top.node;
+
+    if (!node) {
+      top.addChild(child);
+    } else if (node instanceof TestSuite) {
+      if (child instanceof Hook) node.hooks.push(child);
+      else node.tests.push(child);
+    } else if (node instanceof TestCase || node instanceof Hook) {
+      node.body.push(child);
+    }
+  }
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
@@ -89,6 +108,22 @@ function parse(source) {
 
     // Skip empty lines
     if (!trimmed) continue;
+
+    // Count braces outside strings and comments
+    const opens = countBraces(trimmed, '{');
+    const closes = countBraces(trimmed, '}');
+    const newDepth = depth + opens - closes;
+
+    // Pop containers whose blocks have closed
+    while (stack.length > 1 && newDepth <= stack[stack.length - 1].depth) {
+      stack.pop();
+    }
+
+    // Pure structural lines (closing braces only) — skip
+    if (/^[}\s);,]+$/.test(trimmed)) {
+      depth = newDepth;
+      continue;
+    }
 
     // Comments
     if (
@@ -100,18 +135,20 @@ function parse(source) {
         /eslint-disable|noinspection|@ts-|type:\s*ignore/.test(trimmed);
       const isLicense =
         /license|copyright|MIT|Apache|BSD/i.test(trimmed) && i < 5;
-      const node = new Comment({
-        text: line,
-        commentKind: isLicense
-          ? 'license'
-          : isDirective
-            ? 'directive'
-            : 'inline',
-        preserveExact: isDirective || isLicense,
-        sourceLocation: loc,
-        originalSource: line,
-      });
-      allNodes.push(node);
+      addChild(
+        new Comment({
+          text: line,
+          commentKind: isLicense
+            ? 'license'
+            : isDirective
+              ? 'directive'
+              : 'inline',
+          preserveExact: isDirective || isLicense,
+          sourceLocation: loc,
+          originalSource: line,
+        })
+      );
+      depth = newDepth;
       continue;
     }
 
@@ -130,7 +167,7 @@ function parse(source) {
         confidence: 'converted',
       });
       imports.push(node);
-      allNodes.push(node);
+      depth = newDepth;
       continue;
     }
 
@@ -148,25 +185,28 @@ function parse(source) {
         }
         i = j - 1;
       }
-      const node = new MockCall({
-        kind: hasVirtual
-          ? 'mockModule'
-          : hasFactory
+      addChild(
+        new MockCall({
+          kind: hasVirtual
             ? 'mockModule'
-            : 'mockModule',
-        target:
-          (trimmed.match(/jest\.mock\s*\(\s*['"]([^'"]+)['"]/) || [])[1] || '',
-        sourceLocation: loc,
-        originalSource: fullMock,
-        confidence: hasVirtual ? 'unconvertible' : 'converted',
-      });
-      allNodes.push(node);
+            : hasFactory
+              ? 'mockModule'
+              : 'mockModule',
+          target:
+            (trimmed.match(/jest\.mock\s*\(\s*['"]([^'"]+)['"]/) || [])[1] ||
+            '',
+          sourceLocation: loc,
+          originalSource: fullMock,
+          confidence: hasVirtual ? 'unconvertible' : 'converted',
+        })
+      );
+      depth = newDepth;
       continue;
     }
 
     // jest.setTimeout / jest.retryTimes at top level
     if (/^jest\.setTimeout\s*\(/.test(trimmed)) {
-      allNodes.push(
+      addChild(
         new MockCall({
           kind: 'fakeTimers',
           target: 'setTimeout',
@@ -175,10 +215,11 @@ function parse(source) {
           confidence: 'converted',
         })
       );
+      depth = newDepth;
       continue;
     }
     if (/^jest\.retryTimes\s*\(/.test(trimmed)) {
-      allNodes.push(
+      addChild(
         new MockCall({
           kind: 'fakeTimers',
           target: 'retryTimes',
@@ -187,12 +228,11 @@ function parse(source) {
           confidence: 'warning',
         })
       );
+      depth = newDepth;
       continue;
     }
 
-    // describe / it / test / hooks / assertions inside code
-    // These are tracked for scoring but we don't need to build a full tree
-    // for same-paradigm conversions
+    // describe block — extract name and push container
     if (
       /\bdescribe\s*\(/.test(trimmed) ||
       /\bdescribe\.(?:only|skip|each)\s*[\(`]/.test(trimmed)
@@ -208,20 +248,24 @@ function parse(source) {
         modifiers.push(
           new Modifier({ modifierType: 'only', sourceLocation: loc })
         );
-      allNodes.push(
-        new TestSuite({
-          name:
-            (trimmed.match(/describe(?:\.\w+)*\s*\(\s*['"`]([^'"`]*)['"`]/) ||
-              [])[1] || '',
-          modifiers,
-          sourceLocation: loc,
-          originalSource: line,
-          confidence: 'converted',
-        })
-      );
+      const suite = new TestSuite({
+        name:
+          (trimmed.match(/describe(?:\.\w+)*\s*\(\s*['"`]([^'"`]*)['"`]/) ||
+            [])[1] || '',
+        modifiers,
+        sourceLocation: loc,
+        originalSource: line,
+        confidence: 'converted',
+      });
+      addChild(suite);
+      if (opens > closes) {
+        stack.push({ node: suite, depth });
+      }
+      depth = newDepth;
       continue;
     }
 
+    // it/test block — extract name and push container
     if (
       /\b(?:it|test)\s*\(/.test(trimmed) ||
       /\b(?:it|test)\.(?:only|skip|todo|each)\s*[\(`]/.test(trimmed)
@@ -246,92 +290,63 @@ function parse(source) {
         modifiers.push(
           new Modifier({ modifierType: 'only', sourceLocation: loc })
         );
-      allNodes.push(
-        new TestCase({
-          name:
-            (trimmed.match(
-              /(?:it|test)(?:\.\w+)*\s*\(\s*['"`]([^'"`]*)['"`]/
-            ) || [])[1] || '',
-          isAsync,
-          modifiers,
-          sourceLocation: loc,
-          originalSource: line,
-          confidence: 'converted',
-        })
-      );
+      const tc = new TestCase({
+        name:
+          (trimmed.match(/(?:it|test)(?:\.\w+)*\s*\(\s*['"`]([^'"`]*)['"`]/) ||
+            [])[1] || '',
+        isAsync,
+        modifiers,
+        sourceLocation: loc,
+        originalSource: line,
+        confidence: 'converted',
+      });
+      addChild(tc);
+      if (opens > closes) {
+        stack.push({ node: tc, depth });
+      }
+      depth = newDepth;
       continue;
     }
 
+    // Hook block — extract hookType and push container
     if (/\b(?:beforeEach|afterEach|beforeAll|afterAll)\s*\(/.test(trimmed)) {
       const hookType = (trimmed.match(
         /\b(beforeEach|afterEach|beforeAll|afterAll)/
       ) || [])[1];
-      allNodes.push(
-        new Hook({
-          hookType,
-          isAsync: /async/.test(trimmed),
-          sourceLocation: loc,
-          originalSource: line,
-          confidence: 'converted',
-        })
-      );
+      const hook = new Hook({
+        hookType,
+        isAsync: /async/.test(trimmed),
+        sourceLocation: loc,
+        originalSource: line,
+        confidence: 'converted',
+      });
+      addChild(hook);
+      if (opens > closes) {
+        stack.push({ node: hook, depth });
+      }
+      depth = newDepth;
       continue;
     }
 
-    // Assertions: expect(...)
+    // Assertions: expect(...) — extract subject and expected
     if (/\bexpect\s*\(/.test(trimmed)) {
-      const isNegated = /\.not\./.test(trimmed);
-      let kind = 'equal';
-      if (/\.toBe\(/.test(trimmed)) kind = 'strictEqual';
-      else if (/\.toEqual\(/.test(trimmed)) kind = 'deepEqual';
-      else if (/\.toBeTruthy\(/.test(trimmed)) kind = 'truthy';
-      else if (/\.toBeFalsy\(/.test(trimmed)) kind = 'falsy';
-      else if (/\.toBeNull\(/.test(trimmed)) kind = 'isNull';
-      else if (/\.toBeUndefined\(/.test(trimmed)) kind = 'isUndefined';
-      else if (/\.toBeDefined\(/.test(trimmed)) kind = 'isDefined';
-      else if (/\.toBeNaN\(/.test(trimmed)) kind = 'isNaN';
-      else if (/\.toBeInstanceOf\(/.test(trimmed)) kind = 'instanceOf';
-      else if (/\.toMatch\(/.test(trimmed)) kind = 'matches';
-      else if (/\.toContain\(/.test(trimmed)) kind = 'contains';
-      else if (/\.toContainEqual\(/.test(trimmed)) kind = 'containsEqual';
-      else if (/\.toHaveLength\(/.test(trimmed)) kind = 'hasLength';
-      else if (/\.toHaveProperty\(/.test(trimmed)) kind = 'hasProperty';
-      else if (/\.toBeGreaterThan\(/.test(trimmed)) kind = 'greaterThan';
-      else if (/\.toBeLessThan\(/.test(trimmed)) kind = 'lessThan';
-      else if (/\.toBeGreaterThanOrEqual\(/.test(trimmed))
-        kind = 'greaterOrEqual';
-      else if (/\.toBeLessThanOrEqual\(/.test(trimmed)) kind = 'lessOrEqual';
-      else if (/\.toBeCloseTo\(/.test(trimmed)) kind = 'closeTo';
-      else if (/\.toThrow\(/.test(trimmed)) kind = 'throws';
-      else if (/\.toHaveBeenCalled\b/.test(trimmed)) kind = 'called';
-      else if (/\.toHaveBeenCalledWith\(/.test(trimmed)) kind = 'calledWith';
-      else if (/\.toHaveBeenCalledTimes\(/.test(trimmed)) kind = 'calledTimes';
-      else if (/\.toMatchSnapshot\(/.test(trimmed)) kind = 'snapshot';
-      else if (/\.toMatchInlineSnapshot\(/.test(trimmed)) kind = 'snapshot';
-      else if (/\.toHaveBeenLastCalledWith\(/.test(trimmed))
-        kind = 'calledWith';
-      else if (/\.resolves\./.test(trimmed)) kind = 'resolves';
-      else if (/\.rejects\./.test(trimmed)) kind = 'rejects';
-      else if (/\.toStrictEqual\(/.test(trimmed)) kind = 'strictEqual';
-      else if (/\.toHaveClass\(/.test(trimmed)) kind = 'hasClass';
-      else if (/\.toHaveCount\(/.test(trimmed)) kind = 'hasCount';
-
-      allNodes.push(
+      const parsed = parseJestAssertionLine(trimmed);
+      addChild(
         new Assertion({
-          kind,
-          isNegated,
+          ...parsed,
           sourceLocation: loc,
           originalSource: line,
           confidence: 'converted',
         })
       );
+      depth = newDepth;
       continue;
     }
 
     // jest.fn / jest.spyOn / jest.mock inline
     if (/jest\.fn\s*\(/.test(trimmed) || /jest\.spyOn\s*\(/.test(trimmed)) {
       const kind = /jest\.fn/.test(trimmed) ? 'createMock' : 'spyOnMethod';
-      allNodes.push(
+      addChild(
         new MockCall({
           kind,
           sourceLocation: loc,
@@ -339,12 +354,13 @@ function parse(source) {
           confidence: 'converted',
         })
       );
+      depth = newDepth;
       continue;
     }
 
     // jest.useFakeTimers / jest.useRealTimers / jest.advanceTimersByTime / jest.runAllTimers
     if (/jest\.\w+/.test(trimmed)) {
-      allNodes.push(
+      addChild(
         new MockCall({
           kind: 'fakeTimers',
           sourceLocation: loc,
@@ -352,12 +368,13 @@ function parse(source) {
           confidence: 'converted',
         })
       );
+      depth = newDepth;
       continue;
     }
 
     // expect.extend, expect.assertions, expect.addSnapshotSerializer
     if (/\bexpect\.extend\s*\(/.test(trimmed)) {
-      allNodes.push(
+      addChild(
         new RawCode({
           code: line,
           sourceLocation: loc,
@@ -365,10 +382,11 @@ function parse(source) {
           confidence: 'converted',
         })
       );
+      depth = newDepth;
       continue;
     }
     if (/\bexpect\.addSnapshotSerializer\s*\(/.test(trimmed)) {
-      allNodes.push(
+      addChild(
         new RawCode({
           code: line,
           sourceLocation: loc,
@@ -376,23 +394,25 @@ function parse(source) {
           confidence: 'unconvertible',
         })
       );
+      depth = newDepth;
       continue;
     }
 
     // Everything else is raw code
-    allNodes.push(
+    addChild(
       new RawCode({
         code: line,
         sourceLocation: loc,
         originalSource: line,
       })
     );
+    depth = newDepth;
   }
 
   return new TestFile({
     language: 'javascript',
     imports,
-    body: allNodes.filter((n) => !imports.includes(n)),
+    body: rootBody,
   });
 }
 
@@ -1060,6 +1080,119 @@ function emit(_ir, source) {
   if (!result.endsWith('\n')) result += '\n';
 
   return result;
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// Parser helpers
+// ═══════════════════════════════════════════════════════════════════════
+
+/**
+ * Count occurrences of a character, skipping strings and line comments.
+ */
+function countBraces(line, ch) {
+  let count = 0;
+  let inString = false;
+  let stringDelim = '';
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (inString) {
+      if (c === stringDelim && line[i - 1] !== '\\') inString = false;
+    } else {
+      if (c === '/' && line[i + 1] === '/') break;
+      if (c === "'" || c === '"' || c === '`') {
+        inString = true;
+        stringDelim = c;
+      } else if (c === ch) {
+        count++;
+      }
+    }
+  }
+  return count;
+}
+
+/**
+ * Extract the subject from expect(subject) handling nested parens.
+ * Returns { subject, rest } where rest is everything after the closing paren.
+ */
+function extractExpectSubject(trimmed) {
+  const m = trimmed.match(/\bexpect\s*\(/);
+  if (!m) return { subject: '', rest: '' };
+  const start = m.index + m[0].length;
+  let parenDepth = 1;
+  let i = start;
+  while (i < trimmed.length && parenDepth > 0) {
+    if (trimmed[i] === '(') parenDepth++;
+    else if (trimmed[i] === ')') parenDepth--;
+    i++;
+  }
+  return {
+    subject: trimmed.slice(start, i - 1),
+    rest: trimmed.slice(i),
+  };
+}
+
+/**
+ * Extract the first arg from a matcher call, e.g. ".toBe(value)" → "value".
+ * Returns null for zero-arg matchers like ".toBeNull()".
+ */
+function extractMatcherArg(rest) {
+  const m = rest.match(/\.\w+\((.+)\)\s*;?\s*$/);
+  if (!m) return null;
+  const inner = m[1].trim();
+  // Handle empty parens: .toBeNull() → inner is ""
+  return inner || null;
+}
+
+/**
+ * Extract kind, subject, expected, isNegated from a Jest assertion line.
+ *
+ * Handles:
+ *   expect(subject).toBe(expected)
+ *   expect(subject).not.toBe(expected)
+ *   expect(subject).toBeNull()
+ *   expect(subject).resolves.toBe(expected)
+ *   expect(subject).rejects.toThrow()
+ */
+function parseJestAssertionLine(trimmed) {
+  const { subject, rest } = extractExpectSubject(trimmed);
+  const isNegated = /\.not\./.test(rest);
+  let kind = 'equal';
+
+  if (/\.toBe\(/.test(rest)) kind = 'strictEqual';
+  else if (/\.toEqual\(/.test(rest)) kind = 'deepEqual';
+  else if (/\.toBeTruthy\(/.test(rest)) kind = 'truthy';
+  else if (/\.toBeFalsy\(/.test(rest)) kind = 'falsy';
+  else if (/\.toBeNull\(/.test(rest)) kind = 'isNull';
+  else if (/\.toBeUndefined\(/.test(rest)) kind = 'isUndefined';
+  else if (/\.toBeDefined\(/.test(rest)) kind = 'isDefined';
+  else if (/\.toBeNaN\(/.test(rest)) kind = 'isNaN';
+  else if (/\.toBeInstanceOf\(/.test(rest)) kind = 'instanceOf';
+  else if (/\.toMatch\(/.test(rest)) kind = 'matches';
+  else if (/\.toContain\(/.test(rest)) kind = 'contains';
+  else if (/\.toContainEqual\(/.test(rest)) kind = 'containsEqual';
+  else if (/\.toHaveLength\(/.test(rest)) kind = 'hasLength';
+  else if (/\.toHaveProperty\(/.test(rest)) kind = 'hasProperty';
+  else if (/\.toBeGreaterThan\(/.test(rest)) kind = 'greaterThan';
+  else if (/\.toBeLessThan\(/.test(rest)) kind = 'lessThan';
+  else if (/\.toBeGreaterThanOrEqual\(/.test(rest)) kind = 'greaterOrEqual';
+  else if (/\.toBeLessThanOrEqual\(/.test(rest)) kind = 'lessOrEqual';
+  else if (/\.toBeCloseTo\(/.test(rest)) kind = 'closeTo';
+  else if (/\.toThrow\(/.test(rest)) kind = 'throws';
+  else if (/\.toHaveBeenCalled\b/.test(rest)) kind = 'called';
+  else if (/\.toHaveBeenCalledWith\(/.test(rest)) kind = 'calledWith';
+  else if (/\.toHaveBeenCalledTimes\(/.test(rest)) kind = 'calledTimes';
+  else if (/\.toMatchSnapshot\(/.test(rest)) kind = 'snapshot';
+  else if (/\.toMatchInlineSnapshot\(/.test(rest)) kind = 'snapshot';
+  else if (/\.toHaveBeenLastCalledWith\(/.test(rest)) kind = 'calledWith';
+  else if (/\.resolves\./.test(rest)) kind = 'resolves';
+  else if (/\.rejects\./.test(rest)) kind = 'rejects';
+  else if (/\.toStrictEqual\(/.test(rest)) kind = 'strictEqual';
+  else if (/\.toHaveClass\(/.test(rest)) kind = 'hasClass';
+  else if (/\.toHaveCount\(/.test(rest)) kind = 'hasCount';
+
+  const expected = extractMatcherArg(rest);
+
+  return { kind, subject, expected, isNegated };
 }
 
 /**
