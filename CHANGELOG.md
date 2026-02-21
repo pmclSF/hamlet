@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+### Prepublish Hardening
+
+- **docs**: Fix README "4 languages" → "3 languages" (JavaScript, Java, Python)
+- **types**: Align `src/types/index.d.ts` with actual main entry exports — add missing `VERSION`, `DEFAULT_OPTIONS`, `SUPPORTED_TEST_TYPES`, `validateTests`, `generateReport`, `processTestFiles`, `ConversionReporter`, `BatchProcessor`, utility namespaces
+- **types**: Add consumer type-test (`test/types/consumer.ts`) and `npm run typecheck` script; integrated into `release:verify`
+- **cli**: Generate `DIRECTIONS` in `shorthands.js` from `ConverterFactory.getSupportedConversions()` instead of hardcoded array — single source of truth
+- **test**: Add shorthands↔ConverterFactory sync test (4 assertions)
+- **test**: Add all-25-directions smoke test — converter creation + non-empty output for every direction
+- **test**: Add migration state resume/retry/idempotency tests (9 tests)
+
 ## 2.0.0
 
 ### New Frameworks

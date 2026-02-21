@@ -6,7 +6,7 @@
 
 Migrate your test suites between frameworks with confidence.
 
-**25 conversion directions** across **16 frameworks** in **4 languages** (JavaScript, Java, Python).
+**25 conversion directions** across **16 frameworks** in **3 languages** (JavaScript, Java, Python).
 
 ## Node Support
 
