@@ -247,7 +247,7 @@ npm run format              # Format with Prettier
 
 ## Requirements
 
-- Node.js >= 16.0.0
+- Node.js >= 22.0.0
 
 ## Contributing
 

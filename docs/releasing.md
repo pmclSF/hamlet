@@ -9,9 +9,16 @@ git tag v2.x.x && git push origin v2.x.x
   release.yml (trigger: tag push v*)
     ├── verify job:
     │     ├── npm ci
-    │     ├── format:check
-    │     ├── lint
-    │     └── test
+    │     ├── Assert tag matches package.json version
+    │     └── npm run release:verify
+    │           ├── format:check
+    │           ├── lint
+    │           ├── test (all suites)
+    │           └── verify-pack.js
+    │                 ├── npm pack → install in temp dir
+    │                 ├── Verify JS exports (VERSION, convertFile, …)
+    │                 ├── CLI smoke (--version, --help)
+    │                 └── Conversion smoke (jest→vitest)
     └── release job (needs: verify):
           ├── npm ci
           ├── Create GitHub Release (auto-generated notes)
@@ -21,8 +28,12 @@ git tag v2.x.x && git push origin v2.x.x
 A single workflow (`release.yml`) handles the full pipeline: verify → release →
 publish. The release job only runs if verify passes.
 
+The verify job includes a **tag/version guard** that aborts if the git tag
+version does not match `package.json` version — preventing accidental publishes
+of mismatched versions.
+
 `publish.yml` (renamed "Verify Release") is a safety net that triggers on
-`release: created` events. It runs format:check + lint + tests but does NOT
+`release: created` events. It runs `npm run release:verify` but does NOT
 publish — this catches issues if a release is created manually outside the
 tag-push flow.
 
@@ -57,7 +68,8 @@ npm run release:verify
 ```
 
 This runs format:check, lint, tests, packs the tarball, installs it in a temp
-directory, and verifies the VERSION export matches package.json.
+directory, verifies exports, runs CLI smoke tests (`--version`, `--help`), and
+runs a conversion smoke test (jest→vitest).
 
 ### 2. Inspect tarball contents
 
@@ -75,25 +87,14 @@ Confirm only expected files are included:
 
 No test files, no `.github/`, no `node_modules/`, no `.env`.
 
-### 3. Verify consumer import (manual, if needed)
-
-```bash
-TARBALL=$(npm pack --pack-destination /tmp)
-mkdir /tmp/hamlet-verify && cd /tmp/hamlet-verify
-npm init -y
-npm install /tmp/$TARBALL
-node --input-type=module -e "import { VERSION, ConverterFactory } from 'hamlet-converter'; console.log('VERSION:', VERSION); console.log('ConverterFactory:', typeof ConverterFactory);"
-cd - && rm -rf /tmp/hamlet-verify /tmp/$TARBALL
-```
-
-### 4. Tag and push
+### 3. Tag and push
 
 ```bash
 git tag v2.x.x
 git push origin v2.x.x
 ```
 
-### 5. Verify after push
+### 4. Verify after push
 
 - [ ] GitHub Actions: `release.yml` completed successfully
 - [ ] GitHub Releases: new release exists with auto-generated notes

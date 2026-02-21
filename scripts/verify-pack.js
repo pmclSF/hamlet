@@ -82,7 +82,83 @@ try {
   );
   console.log(check);
 
-  console.log('Release verification passed.');
+  // CLI smoke tests
+  console.log('CLI smoke tests...');
+  const hamletBin = path.join(
+    tmpDir,
+    'node_modules',
+    '.bin',
+    'hamlet'
+  );
+
+  const versionOut = execFileSync(hamletBin, ['--version'], {
+    encoding: 'utf8',
+  }).trim();
+  const pkgVersion = JSON.parse(
+    await fs.readFile(
+      path.join(tmpDir, 'node_modules', 'hamlet-converter', 'package.json'),
+      'utf8'
+    )
+  ).version;
+  if (versionOut !== pkgVersion) {
+    console.error(
+      `  --version mismatch: got "${versionOut}", expected "${pkgVersion}"`
+    );
+    process.exit(1);
+  }
+  console.log(`  hamlet --version: ${versionOut}`);
+
+  const helpOut = execFileSync(hamletBin, ['--help'], {
+    encoding: 'utf8',
+  });
+  const requiredHelpTokens = ['convert', 'detect', 'doctor'];
+  for (const token of requiredHelpTokens) {
+    if (!helpOut.includes(token)) {
+      console.error(`  --help missing expected token: "${token}"`);
+      process.exit(1);
+    }
+  }
+  console.log('  hamlet --help: ok (contains convert, detect, doctor)');
+
+  // Conversion smoke test: jest → vitest on a tiny inline fixture
+  console.log('\nConversion smoke test...');
+  const fixtureDir = path.join(tmpDir, 'fixture');
+  const outDir = path.join(tmpDir, 'converted');
+  await fs.mkdir(fixtureDir, { recursive: true });
+  await fs.writeFile(
+    path.join(fixtureDir, 'smoke.test.js'),
+    `describe('Smoke', () => {
+  it('should pass', () => {
+    expect(true).toBe(true);
+  });
+});
+`
+  );
+
+  execFileSync(
+    hamletBin,
+    ['convert', fixtureDir, '--from', 'jest', '--to', 'vitest', '-o', outDir],
+    { encoding: 'utf8' }
+  );
+
+  const convertedFiles = await fs.readdir(outDir);
+  if (convertedFiles.length === 0) {
+    console.error('  No output files produced');
+    process.exit(1);
+  }
+  const convertedContent = await fs.readFile(
+    path.join(outDir, convertedFiles[0]),
+    'utf8'
+  );
+  if (!convertedContent.includes('describe') || convertedContent.length < 10) {
+    console.error('  Converted output looks invalid');
+    process.exit(1);
+  }
+  console.log(
+    `  jest→vitest: ok (${convertedFiles.length} file, ${convertedContent.length} bytes)`
+  );
+
+  console.log('\nRelease verification passed.');
 } catch (error) {
   console.error('Release verification failed:', error.message);
   process.exit(1);
