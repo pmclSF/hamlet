@@ -3,7 +3,17 @@ import path from 'path';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import glob from 'fast-glob';
-import { convertFile, convertConfig as convertCypressConfig } from '../index.js';
+import {
+  convertFile,
+  convertConfig as convertCypressConfig,
+  convertConfig,
+} from './fileConverter.js';
+import { BatchProcessor } from './batchProcessor.js';
+import { DependencyAnalyzer } from './dependencyAnalyzer.js';
+import { TestMetadataCollector } from './metadataCollector.js';
+import { PluginConverter } from './plugins.js';
+import { TestMapper } from './mapper.js';
+import { ConversionReporter } from '../utils/reporter.js';
 import { fileUtils, logUtils } from '../utils/helpers.js';
 
 const execAsync = promisify(exec);
@@ -16,14 +26,14 @@ export class RepositoryConverter {
       batchSize: 5,
       preserveStructure: true,
       ignore: ['node_modules/**', '**/cypress/plugins/**'],
-      ...options
+      ...options,
     };
 
     this.stats = {
       totalFiles: 0,
       converted: 0,
       skipped: 0,
-      errors: []
+      errors: [],
     };
   }
 
@@ -35,28 +45,21 @@ export class RepositoryConverter {
   async analyzeRepository(repoPath) {
     const testFiles = await this.findCypressTests(repoPath);
 
-    const configPatterns = [
-      '**/cypress.json',
-      '**/cypress.config.{js,ts}',
-    ];
+    const configPatterns = ['**/cypress.json', '**/cypress.config.{js,ts}'];
     const configs = await glob(configPatterns, {
       cwd: repoPath,
       absolute: true,
       ignore: this.options.ignore,
     });
 
-    const supportPatterns = [
-      '**/cypress/support/**/*.{js,ts}',
-    ];
+    const supportPatterns = ['**/cypress/support/**/*.{js,ts}'];
     const supportFiles = await glob(supportPatterns, {
       cwd: repoPath,
       absolute: true,
       ignore: this.options.ignore,
     });
 
-    const pluginPatterns = [
-      '**/cypress/plugins/**/*.{js,ts}',
-    ];
+    const pluginPatterns = ['**/cypress/plugins/**/*.{js,ts}'];
     const plugins = await glob(pluginPatterns, {
       cwd: repoPath,
       absolute: true,
@@ -87,7 +90,9 @@ export class RepositoryConverter {
       // Process tests in batches
       const batches = this.createBatches(testFiles);
       for (const batch of batches) {
-        await Promise.all(batch.map(file => this.processTestFile(file, repoPath, outputPath)));
+        await Promise.all(
+          batch.map((file) => this.processTestFile(file, repoPath, outputPath))
+        );
       }
 
       // Convert configuration files
@@ -99,7 +104,6 @@ export class RepositoryConverter {
       }
 
       return this.generateReport();
-
     } catch (error) {
       logger.error(`Repository conversion failed: ${error.message}`);
       throw error;
@@ -131,13 +135,13 @@ export class RepositoryConverter {
       '**/cypress/integration/**/*.{js,jsx,ts,tsx}',
       '**/cypress/e2e/**/*.{js,jsx,ts,tsx}',
       '**/cypress/component/**/*.{js,jsx,ts,tsx}',
-      '**/*.cy.{js,jsx,ts,tsx}'
+      '**/*.cy.{js,jsx,ts,tsx}',
     ];
 
     const files = await glob(patterns, {
       cwd: repoPath,
       absolute: true,
-      ignore: this.options.ignore
+      ignore: this.options.ignore,
     });
 
     return files;
@@ -166,17 +170,21 @@ export class RepositoryConverter {
     try {
       const relativePath = path.relative(repoPath, filePath);
       const outputFile = this.options.preserveStructure
-        ? path.join(outputPath, relativePath).replace(/\.cy\.(js|ts)x?$/, '.spec.$1')
-        : path.join(outputPath, path.basename(filePath).replace(/\.cy\.(js|ts)x?$/, '.spec.$1'));
+        ? path
+            .join(outputPath, relativePath)
+            .replace(/\.cy\.(js|ts)x?$/, '.spec.$1')
+        : path.join(
+            outputPath,
+            path.basename(filePath).replace(/\.cy\.(js|ts)x?$/, '.spec.$1')
+          );
 
       await convertFile(filePath, outputFile);
       this.stats.converted++;
       logger.info(`Converted: ${relativePath}`);
-
     } catch (error) {
       this.stats.errors.push({
         file: filePath,
-        error: error.message
+        error: error.message,
       });
       this.stats.skipped++;
       logger.error(`Failed to convert ${filePath}: ${error.message}`);
@@ -193,7 +201,7 @@ export class RepositoryConverter {
       const configFiles = [
         'cypress.json',
         'cypress.config.js',
-        'cypress.config.ts'
+        'cypress.config.ts',
       ];
 
       for (const configFile of configFiles) {
@@ -231,7 +239,7 @@ export class RepositoryConverter {
       stats: this.stats,
       timestamp: new Date().toISOString(),
       duration: process.hrtime(),
-      configuration: this.options
+      configuration: this.options,
     };
   }
 }
@@ -239,4 +247,194 @@ export class RepositoryConverter {
 export async function convertRepo(repoUrl, outputPath, options = {}) {
   const converter = new RepositoryConverter(options);
   return converter.convertRepository(repoUrl, outputPath);
+}
+
+const converterLogger = logUtils.createLogger('Converter');
+
+/**
+ * Convert a repository of Cypress tests to Playwright
+ * @param {string} repoPath - Path to repository or repository URL
+ * @param {string} outputPath - Output directory path
+ * @param {Object} options - Conversion options
+ */
+export async function convertRepository(repoPath, outputPath, options = {}) {
+  try {
+    // Initialize components
+    const repoConverter = new RepositoryConverter(options);
+    const batchProcessor = new BatchProcessor(options);
+    const metadataCollector = new TestMetadataCollector();
+    const dependencyAnalyzer = new DependencyAnalyzer();
+    const reporter = options.reporter || new ConversionReporter();
+    const testMapper = new TestMapper();
+
+    converterLogger.info(`Starting repository conversion: ${repoPath}`);
+
+    // Clone repository if it's a URL
+    const isRemoteRepo =
+      repoPath.startsWith('http') || repoPath.startsWith('git@');
+    const workingPath = isRemoteRepo
+      ? await repoConverter.cloneRepository(repoPath)
+      : repoPath;
+
+    // Analyze repository structure
+    const structure = await repoConverter.analyzeRepository(workingPath);
+    converterLogger.info(`Found ${structure.testFiles.length} test files`);
+
+    // Convert configuration files
+    const configs = await Promise.all(
+      structure.configs.map(async (config) => {
+        const outputConfig = path.join(
+          outputPath,
+          path
+            .basename(config)
+            .replace('cypress', 'playwright')
+            .replace('.json', '.config.js')
+        );
+
+        try {
+          const converted = await convertConfig(config, options);
+          await fs.writeFile(outputConfig, converted);
+          return { source: config, output: outputConfig, status: 'success' };
+        } catch (error) {
+          converterLogger.error(`Failed to convert config ${config}:`, error);
+          return { source: config, status: 'error', error: error.message };
+        }
+      })
+    );
+
+    // Process tests in batches
+    const batchResults = await batchProcessor.processBatch(
+      structure.testFiles,
+      async (file) => {
+        const relativePath = path.relative(workingPath, file);
+        const outputFile = path.join(
+          outputPath,
+          'tests',
+          relativePath.replace(/\.cy\.(js|ts)$/, '.spec.$1')
+        );
+
+        try {
+          // Convert individual test file
+          const _result = await convertFile(file, outputFile, {
+            ...options,
+            reporter,
+          });
+
+          // Collect metadata and analyze dependencies
+          const metadata = await metadataCollector.collectMetadata(file);
+          const dependencies =
+            await dependencyAnalyzer.analyzeDependencies(file);
+
+          // Add to test mapper
+          await testMapper.addMapping(file, outputFile);
+
+          return {
+            source: file,
+            output: outputFile,
+            status: 'success',
+            metadata,
+            dependencies,
+          };
+        } catch (error) {
+          converterLogger.error(`Failed to convert ${file}:`, error);
+          return {
+            source: file,
+            status: 'error',
+            error: error.message,
+          };
+        }
+      }
+    );
+
+    // Convert support files
+    const supportResults = await Promise.all(
+      structure.supportFiles.map(async (file) => {
+        const relativePath = path.relative(workingPath, file);
+        const outputFile = path.join(outputPath, 'support', relativePath);
+
+        try {
+          await convertFile(file, outputFile, options);
+          return { source: file, output: outputFile, status: 'success' };
+        } catch (error) {
+          converterLogger.error(
+            `Failed to convert support file ${file}:`,
+            error
+          );
+          return { source: file, status: 'error', error: error.message };
+        }
+      })
+    );
+
+    // Convert plugins if requested
+    let pluginResults = [];
+    if (options.convertPlugins) {
+      const pluginConverter = new PluginConverter();
+      pluginResults = await Promise.all(
+        structure.plugins.map(async (plugin) => {
+          try {
+            const converted = await pluginConverter.convertPlugin(plugin);
+            const outputFile = path.join(
+              outputPath,
+              'plugins',
+              path.basename(plugin)
+            );
+            await fs.writeFile(outputFile, converted);
+            return { source: plugin, output: outputFile, status: 'success' };
+          } catch (error) {
+            converterLogger.error(`Failed to convert plugin ${plugin}:`, error);
+            return { source: plugin, status: 'error', error: error.message };
+          }
+        })
+      );
+    }
+
+    // Generate comprehensive report
+    const report = {
+      summary: {
+        totalFiles: structure.testFiles.length,
+        convertedFiles: batchResults.filter((r) => r.status === 'success')
+          .length,
+        failedFiles: batchResults.filter((r) => r.status === 'error').length,
+        configurationFiles: configs.length,
+        supportFiles: supportResults.length,
+        plugins: pluginResults.length,
+      },
+      testResults: batchResults,
+      configResults: configs,
+      supportResults: supportResults,
+      pluginResults: pluginResults,
+      metadata: metadataCollector.generateReport(),
+      dependencies: dependencyAnalyzer.generateReport(),
+      mappings: testMapper.getMappings(),
+      timestamp: new Date().toISOString(),
+      duration: process.hrtime(),
+    };
+
+    // Save report
+    if (options.report) {
+      const reportPath = path.join(outputPath, 'conversion-report.json');
+      await fs.writeFile(reportPath, JSON.stringify(report, null, 2));
+      converterLogger.info(`Report saved to: ${reportPath}`);
+
+      // Generate HTML report if requested
+      if (options.report === 'html') {
+        const htmlReport = reporter.generateHtmlReport(report);
+        await fs.writeFile(
+          path.join(outputPath, 'conversion-report.html'),
+          htmlReport
+        );
+      }
+    }
+
+    // Clean up if remote repository
+    if (isRemoteRepo) {
+      await fs.rm(workingPath, { recursive: true, force: true });
+    }
+
+    converterLogger.success('Repository conversion completed successfully');
+    return report;
+  } catch (error) {
+    converterLogger.error('Repository conversion failed:', error);
+    throw error;
+  }
 }

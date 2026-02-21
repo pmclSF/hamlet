@@ -452,6 +452,19 @@ export default {
 
 ## 6. Conversion Pipeline
 
+> **Implementation status (v2.0):** The pipeline stages below are wired end-to-end
+> in `ConversionPipeline` → `PipelineConverter`, which `ConverterFactory` uses for
+> 20 of 25 conversion directions. However, current `emit()` functions in 13 of 15
+> framework definitions receive the IR as `_ir` (unused) and perform regex-based
+> string transforms on the raw source instead. The IR's primary runtime value today
+> is **confidence scoring** via `ConfidenceScorer.score(ir)`. Emitters that
+> reconstruct output from the IR tree are a planned improvement.
+>
+> Additionally, `src/converter/fileConverter.js` provides a standalone
+> `convertFile()` / `convertCypressToPlaywright()` path that bypasses the pipeline
+> entirely — it uses hardcoded regex patterns with no IR, no PatternEngine, and no
+> ConverterFactory.
+
 ### UniversalConverter Flow
 
 ```
@@ -464,11 +477,11 @@ Source Code
        │
        ▼
 ┌──────────────┐
-│  2. PARSE    │  Language-specific parser → IR (TestFile node tree)
-│              │  - Identifies test structure (suites, tests, hooks)
-│              │  - Extracts assertions, mock calls, imports
+│  2. PARSE    │  Regex-based line classifier → IR (TestFile node tree)
+│              │  - Classifies lines as suites, tests, hooks, assertions, raw code
 │              │  - Preserves raw code for unrecognized constructs
-│              │  - Preserves comments (inline, block, docstring, directive)
+│              │  - Preserves comments
+│              │  (Planned: tree-sitter for block boundaries and nesting depth)
 └──────┬───────┘
        │
        ▼
@@ -479,21 +492,21 @@ Source Code
 │              │  - Modifier conversion (skip, only, timeout, tags)
 │              │  - Parameter conversion (parametrize → each/DataProvider)
 │              │  - Shared state conversion (let → instance var)
+│              │  (Currently lightweight — most transforms happen in emit via regex)
 └──────┬───────┘
        │
        ▼
 ┌──────────────┐
-│  4. EMIT     │  IR → target framework code
-│              │  - Uses generators from target framework definition
-│              │  - PatternEngine applies API-level transforms to RawCode bodies
-│              │  - Generates correct imports
-│              │  - Applies target formatting (indent, blank lines, conventions)
+│  4. EMIT     │  Regex-based string transforms on source code
+│              │  - Detects source framework from content, applies pattern maps
+│              │  - Rewrites imports, API calls, assertions, and test structure
 │              │  - Marks unconvertible nodes with HAMLET-TODO comments
+│              │  (Planned: reconstruct output from IR tree instead of source string)
 └──────┬───────┘
        │
        ▼
 ┌──────────────┐
-│  5. SCORE    │  ConfidenceScorer evaluates the result
+│  5. SCORE    │  ConfidenceScorer walks the IR tree
 │              │  - Counts converted vs unconvertible nodes
 │              │  - Produces per-line annotations for anything below 100%
 │              │  - Assigns overall file confidence percentage
@@ -508,26 +521,37 @@ Target Code + Confidence Report
 When source and target share the same paradigm (e.g., Jest → Vitest), the pipeline can skip the IR structural transform step entirely and use PatternEngine-only conversion. This is faster and produces higher-fidelity output for trivial conversions.
 
 ```
-Jest → Vitest:   DETECT → PATTERN-ONLY → SCORE  (no IR needed)
-pytest → unittest: DETECT → PARSE → TRANSFORM → EMIT → SCORE  (full pipeline)
+Jest → Vitest:      DETECT → PARSE → EMIT (regex on source) → SCORE
+pytest → unittest:  DETECT → PARSE → TRANSFORM → EMIT (regex on source) → SCORE
 ```
 
-The `FrameworkRegistry` declares whether two frameworks share a paradigm, enabling this optimization.
+> **Implementation status (v2.0):** In practice, all 20 pipeline directions
+> currently follow the same flow — parse produces IR for scoring, but emit
+> operates on the source string via regex in every case. The distinction between
+> "short-circuit" and "full pipeline" is in the TRANSFORM step (lightweight for
+> same-paradigm, more involved for cross-paradigm), not in whether emit uses IR.
 
 ---
 
 ## 7. Parsing Strategy
 
-### Per-Language Parser Approach
+> **Implementation status (v2.0):** tree-sitter is not yet integrated.
+> All 15 framework parsers currently use regex-based line-by-line classification
+> (see e.g. `src/languages/javascript/frameworks/cypress.js:parse()`).
+> This works well for flat test files but does not track nesting depth or block
+> boundaries. The tree-sitter plan below remains the intended direction for
+> improving structural accuracy.
 
-| Language | Strategy | Rationale |
+### Planned: Per-Language Parser Approach
+
+| Language | Planned Strategy | Rationale |
 |----------|----------|-----------|
 | JavaScript/TypeScript | tree-sitter + regex | tree-sitter identifies `describe`/`it`/`test` block boundaries, class declarations, function signatures, and import statements. Regex handles API-level transforms within identified blocks. Tree-sitter's JS/TS grammar is mature and handles JSX/TSX. |
 | Python | tree-sitter + regex | tree-sitter identifies `class` boundaries, `def` functions, decorators (`@pytest.mark.*`, `@unittest.skip`), and `import` statements. Critical for pytest → unittest where functions must be wrapped in classes. Python's significant whitespace makes pure regex unreliable for structural parsing. |
 | Ruby | tree-sitter + regex | tree-sitter identifies `describe`/`context`/`it` blocks, `class` definitions, `def` methods, and `do...end`/`{ }` block boundaries. Necessary for RSpec → Minitest where BDD blocks become class methods. |
 | Java | tree-sitter + regex | tree-sitter identifies class declarations, method declarations, annotations (including their arguments), and import statements. Required for JUnit 4 → 5 where `@Test(expected=X.class)` must wrap the method body in `assertThrows`. |
 
-### Why tree-sitter
+### Why tree-sitter (planned)
 
 - Single dependency that handles all 4 languages from Node.js (no Python/Ruby/Java runtime required)
 - Incremental parsing — can parse partial/broken files gracefully
@@ -536,9 +560,17 @@ The `FrameworkRegistry` declares whether two frameworks share a paradigm, enabli
 - npm packages: `tree-sitter`, `tree-sitter-javascript`, `tree-sitter-python`, `tree-sitter-ruby`, `tree-sitter-java`
 - Alternative: `web-tree-sitter` (WASM-based, no native compilation needed)
 
-### What tree-sitter Does vs What Regex Does
+### Current: Regex-Only Parsing
 
-**tree-sitter identifies:**
+All framework `parse()` functions currently iterate source lines and classify each
+line into an IR node type using regex tests (e.g. `/\bdescribe\s*\(/` → `TestSuite`,
+`/\bit\s*\(/` → `TestCase`). This produces a flat IR — one node per line with no
+nesting information. The IR is consumed by `ConfidenceScorer` for scoring but is
+not used by emitters for code generation.
+
+### Planned: What tree-sitter Would Add vs What Regex Does
+
+**tree-sitter would identify (not yet implemented):**
 - Block boundaries (where does this `describe` block start and end?)
 - Nesting depth (is this `it()` inside a `describe` or at top level?)
 - Function/method signatures (parameters, async keyword, decorators/annotations)
@@ -546,14 +578,12 @@ The `FrameworkRegistry` declares whether two frameworks share a paradigm, enabli
 - Class structure (which methods belong to which class?)
 - Comments (attached to the correct node)
 
-**Regex transforms (PatternEngine):**
-- API calls within identified blocks (`cy.get('.btn')` → `page.locator('.btn')`)
+**Regex transforms (current implementation):**
+- API calls (`cy.get('.btn')` → `page.locator('.btn')`)
 - Assertion syntax (`expect(x).toBe(y)` → `assert x == y`)
 - Mock calls (`jest.fn()` → `vi.fn()`)
 - Command mappings (`.type(text)` → `.fill(text)`)
 - Import path rewrites (`from 'cypress'` → `from '@playwright/test'`)
-
-This division means regex never has to understand nesting, block boundaries, or language-level syntax — it only operates on the content within blocks that tree-sitter has already identified.
 
 ---
 

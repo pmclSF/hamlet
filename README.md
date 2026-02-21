@@ -8,6 +8,12 @@ Migrate your test suites between frameworks with confidence.
 
 **25 conversion directions** across **16 frameworks** in **4 languages** (JavaScript, Java, Python).
 
+## Node Support
+
+Hamlet supports **active and maintenance LTS** versions of Node.js. Currently: **Node 22** and **Node 24**.
+
+CI tests run on both. When a Node major reaches end-of-life, it is dropped in the next minor release.
+
 ## Quick Start
 
 ```bash
@@ -160,13 +166,16 @@ hamlet jest2vt auth.test.js -o converted/ --json
 
 ## How It Works
 
-1. **Scan** &mdash; discover test files in the source directory
-2. **Classify** &mdash; identify file types (test, helper, config, fixture)
-3. **Detect** &mdash; determine source framework from content
-4. **Parse** &mdash; convert source code into framework-neutral IR (intermediate representation)
-5. **Convert** &mdash; emit target framework code from the IR
-6. **Score** &mdash; calculate confidence based on converted vs. unconvertible patterns
-7. **Report** &mdash; generate HAMLET-TODO markers for patterns that need manual review
+1. **Detect** &mdash; determine source framework from content (regex heuristics per framework)
+2. **Parse** &mdash; classify source lines into IR nodes (suites, tests, hooks, assertions, raw code)
+3. **Transform** &mdash; apply regex-based pattern substitutions to convert API calls and test structure
+4. **Score** &mdash; walk the IR tree to calculate confidence (converted vs. unconvertible nodes)
+5. **Report** &mdash; generate HAMLET-TODO markers for patterns that need manual review
+
+> **Architecture note:** Conversion is currently regex-based string transformation.
+> The IR (intermediate representation) captures test structure for confidence scoring
+> but emitters operate on the source string, not the IR tree.
+> See [DESIGN.md](DESIGN.md) §1 for the hybrid IR + PatternEngine design rationale.
 
 ## Confidence Scores
 
@@ -199,7 +208,7 @@ hamlet convert-config cypress.config.js --to playwright -o playwright.config.ts
 ## Programmatic API
 
 ```javascript
-import { ConverterFactory, FRAMEWORKS } from 'hamlet-converter';
+import { ConverterFactory, FRAMEWORKS } from 'hamlet-converter/core';
 
 const converter = await ConverterFactory.createConverter('jest', 'vitest');
 const output = await converter.convert(jestCode);
@@ -208,6 +217,16 @@ const output = await converter.convert(jestCode);
 const report = converter.getLastReport();
 console.log(`Confidence: ${report.confidence}%`);
 ```
+
+### Entry Points
+
+| Import path | Stability | Contents |
+|-------------|-----------|----------|
+| `hamlet-converter` | **Stable** | Public API: `convertFile`, `convertRepository`, `processTestFiles`, `validateTests`, `generateReport`, `VERSION`, `DEFAULT_OPTIONS`, `SUPPORTED_TEST_TYPES`, plus re-exported classes and utilities |
+| `hamlet-converter/core` | Internal | `ConverterFactory`, `BaseConverter`, `PatternEngine`, `MigrationEngine`, and other core classes. May change between minor versions. |
+| `hamlet-converter/converters` | Internal | Legacy E2E converter classes (`CypressToPlaywright`, etc.). May change between minor versions. |
+
+The `hamlet-converter` (main) entry point is the stable public API. Exports from `/core` and `/converters` are available for advanced use but are not covered by semver stability guarantees.
 
 ## Exit Codes
 
