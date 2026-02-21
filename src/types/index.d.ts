@@ -165,33 +165,9 @@ export interface IConverter {
  * Converter factory interface
  */
 export interface IConverterFactory {
-  /**
-   * Create a converter for the specified frameworks
-   * @param from - Source framework
-   * @param to - Target framework
-   * @param options - Converter options
-   * @returns Converter instance
-   */
   createConverter(from: Framework, to: Framework, options?: ConversionOptions): Promise<IConverter>;
-
-  /**
-   * Check if a conversion direction is supported
-   * @param from - Source framework
-   * @param to - Target framework
-   * @returns True if supported
-   */
   isSupported(from: Framework, to: Framework): boolean;
-
-  /**
-   * Get all supported conversion directions
-   * @returns Array of "from-to" strings
-   */
   getSupportedConversions(): string[];
-
-  /**
-   * Get all supported frameworks
-   * @returns Array of framework names
-   */
   getFrameworks(): Framework[];
 }
 
@@ -199,26 +175,8 @@ export interface IConverterFactory {
  * Framework detector interface
  */
 export interface IFrameworkDetector {
-  /**
-   * Detect framework from file content and/or path
-   * @param content - File content
-   * @param filePath - Optional file path
-   * @returns Detection result
-   */
   detect(content: string, filePath?: string): DetectionResult;
-
-  /**
-   * Detect framework from content only
-   * @param content - File content
-   * @returns Detection result
-   */
   detectFromContent(content: string): DetectionResult;
-
-  /**
-   * Detect framework from file path only
-   * @param filePath - File path
-   * @returns Detection result
-   */
   detectFromPath(filePath: string): DetectionResult;
 }
 
@@ -226,34 +184,14 @@ export interface IFrameworkDetector {
  * Pattern engine interface
  */
 export interface IPatternEngine {
-  /**
-   * Register patterns for a category
-   * @param category - Pattern category
-   * @param patterns - Pattern definitions
-   */
   registerPatterns(category: string, patterns: Record<string, string>): void;
-
-  /**
-   * Apply all registered patterns to content
-   * @param content - Content to transform
-   * @param categories - Optional categories to apply
-   * @returns Transformed content
-   */
   applyPatterns(content: string, categories?: string[]): string;
-
-  /**
-   * Get all registered categories
-   * @returns Array of category names
-   */
   getCategories(): string[];
-
-  /**
-   * Clear all registered patterns
-   */
   clear(): void;
 }
 
-// Export converter classes
+// ── Classes exported from hamlet-converter/core ──
+
 export class BaseConverter implements IConverter {
   readonly sourceFramework: string;
   readonly targetFramework: string;
@@ -308,20 +246,96 @@ export class PatternEngine implements IPatternEngine {
   clear(): void;
 }
 
-// Convenience functions
+// ── Classes and functions exported from main entry (hamlet-converter) ──
+
+export class RepositoryConverter {
+  constructor();
+}
+
+export class BatchProcessor {
+  constructor();
+}
+
+export class ConversionReporter {
+  constructor(options?: { format?: string });
+  generateReport(data: object, outputPath: string): Promise<void>;
+}
+
+export class TestValidator {
+  validateConvertedTests(testDir: string): Promise<object>;
+}
+
+export class TypeScriptConverter {
+  constructor();
+}
+
+export class TestMapper {
+  constructor();
+}
+
+export class DependencyAnalyzer {
+  constructor();
+}
+
+export class TestMetadataCollector {
+  constructor();
+}
+
+export class PluginConverter {
+  constructor();
+}
+
+export class VisualComparison {
+  constructor();
+}
+
+/** Convert a single file */
 export function convertFile(
   inputPath: string,
   outputPath: string,
   options?: ConversionOptions & { from?: Framework; to?: Framework }
 ): Promise<ConversionResult>;
 
+/** Convert a repository */
 export function convertRepository(
   repoUrl: string,
   outputPath: string,
   options?: ConversionOptions & { from?: Framework; to?: Framework }
 ): Promise<ConversionResult[]>;
 
-// Constants
+/** Process test files in batch */
+export function processTestFiles(
+  files: string[],
+  options?: ConversionOptions & { from?: Framework; to?: Framework }
+): Promise<ConversionResult[]>;
+
+/** Validate converted tests */
+export function validateTests(
+  testDir: string,
+  options?: object
+): Promise<object>;
+
+/** Generate conversion report */
+export function generateReport(
+  outputPath: string,
+  format?: string,
+  data?: object
+): Promise<void>;
+
+/** Convert Cypress test to Playwright */
+export function convertCypressToPlaywright(
+  content: string,
+  options?: ConversionOptions
+): Promise<string>;
+
+/** Convert framework configuration file */
+export function convertConfig(
+  configPath: string,
+  options?: ConversionOptions & { from?: Framework; to?: Framework }
+): Promise<string>;
+
+// ── Constants ──
+
 export const FRAMEWORKS: {
   CYPRESS: 'cypress';
   PLAYWRIGHT: 'playwright';
@@ -339,4 +353,48 @@ export const FRAMEWORKS: {
   PYTEST: 'pytest';
   UNITTEST: 'unittest';
   NOSE2: 'nose2';
+};
+
+export const VERSION: string;
+
+export const SUPPORTED_TEST_TYPES: string[];
+
+export const DEFAULT_OPTIONS: {
+  typescript: boolean;
+  validate: boolean;
+  compareVisuals: boolean;
+  convertPlugins: boolean;
+  preserveStructure: boolean;
+  report: string;
+  batchSize: number;
+  timeout: number;
+};
+
+// ── Utility namespaces ──
+
+export const fileUtils: {
+  readFile(filePath: string): Promise<string>;
+  writeFile(filePath: string, content: string): Promise<void>;
+  ensureDir(dirPath: string): Promise<void>;
+  [key: string]: unknown;
+};
+
+export const stringUtils: {
+  [key: string]: unknown;
+};
+
+export const codeUtils: {
+  [key: string]: unknown;
+};
+
+export const testUtils: {
+  [key: string]: unknown;
+};
+
+export const reportUtils: {
+  [key: string]: unknown;
+};
+
+export const logUtils: {
+  [key: string]: unknown;
 };

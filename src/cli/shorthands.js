@@ -4,7 +4,12 @@
  * Each direction gets two aliases:
  *   - Numeric form: jest2vt, cy2pw, etc.
  *   - Long form: jesttovt, cytopw, etc.
+ *
+ * DIRECTIONS is generated from ConverterFactory.getSupportedConversions()
+ * so it cannot drift from the actual supported set.
  */
+
+import { ConverterFactory } from '../core/ConverterFactory.js';
 
 /**
  * Abbreviations for framework names used in shorthand commands.
@@ -29,39 +34,34 @@ const FRAMEWORK_ABBREV = {
 };
 
 /**
- * All 25 supported conversion directions (from ConverterFactory.getSupportedConversions()).
+ * All supported conversion directions — derived from ConverterFactory.
  */
-const DIRECTIONS = [
-  // JavaScript E2E / Browser
-  { from: 'cypress', to: 'playwright' },
-  { from: 'cypress', to: 'selenium' },
-  { from: 'playwright', to: 'cypress' },
-  { from: 'playwright', to: 'selenium' },
-  { from: 'selenium', to: 'cypress' },
-  { from: 'selenium', to: 'playwright' },
-  { from: 'cypress', to: 'webdriverio' },
-  { from: 'webdriverio', to: 'cypress' },
-  { from: 'webdriverio', to: 'playwright' },
-  { from: 'playwright', to: 'webdriverio' },
-  { from: 'puppeteer', to: 'playwright' },
-  { from: 'playwright', to: 'puppeteer' },
-  { from: 'testcafe', to: 'playwright' },
-  { from: 'testcafe', to: 'cypress' },
-  // JavaScript Unit Testing
-  { from: 'jest', to: 'vitest' },
-  { from: 'mocha', to: 'jest' },
-  { from: 'jasmine', to: 'jest' },
-  { from: 'jest', to: 'mocha' },
-  { from: 'jest', to: 'jasmine' },
-  // Java
-  { from: 'junit4', to: 'junit5' },
-  { from: 'junit5', to: 'testng' },
-  { from: 'testng', to: 'junit5' },
-  // Python
-  { from: 'pytest', to: 'unittest' },
-  { from: 'unittest', to: 'pytest' },
-  { from: 'nose2', to: 'pytest' },
-];
+const DIRECTIONS = ConverterFactory.getSupportedConversions().map((key) => {
+  const [from, to] = key.split('-');
+  return { from, to };
+});
+
+/**
+ * Language category for a framework (for grouping in `list` output).
+ */
+const FRAMEWORK_CATEGORY = {
+  cypress: 'JavaScript E2E / Browser',
+  playwright: 'JavaScript E2E / Browser',
+  selenium: 'JavaScript E2E / Browser',
+  webdriverio: 'JavaScript E2E / Browser',
+  puppeteer: 'JavaScript E2E / Browser',
+  testcafe: 'JavaScript E2E / Browser',
+  jest: 'JavaScript Unit Testing',
+  vitest: 'JavaScript Unit Testing',
+  mocha: 'JavaScript Unit Testing',
+  jasmine: 'JavaScript Unit Testing',
+  junit4: 'Java',
+  junit5: 'Java',
+  testng: 'Java',
+  pytest: 'Python',
+  unittest: 'Python',
+  nose2: 'Python',
+};
 
 /**
  * Build shorthand aliases for a direction.
@@ -76,6 +76,21 @@ function buildAliases(from, to) {
     numeric: `${abbrevFrom}2${abbrevTo}`,
     long: `${abbrevFrom}to${abbrevTo}`,
   };
+}
+
+/**
+ * Build alias array for a direction.
+ * @param {string} from
+ * @param {string} to
+ * @returns {string[]}
+ */
+function buildAliasArray(from, to) {
+  const { numeric, long } = buildAliases(from, to);
+  const result = [numeric];
+  if (long !== numeric) {
+    result.push(long);
+  }
+  return result;
 }
 
 /**
@@ -95,169 +110,36 @@ for (const { from, to } of DIRECTIONS) {
 
 /**
  * Categorized conversion directions for the `list` command.
+ * Generated from DIRECTIONS grouped by source framework category.
  */
-export const CONVERSION_CATEGORIES = [
-  {
-    name: 'JavaScript E2E / Browser',
-    directions: [
-      {
-        from: 'cypress',
-        to: 'playwright',
-        shorthands: buildAliasArray('cypress', 'playwright'),
-      },
-      {
-        from: 'cypress',
-        to: 'selenium',
-        shorthands: buildAliasArray('cypress', 'selenium'),
-      },
-      {
-        from: 'playwright',
-        to: 'cypress',
-        shorthands: buildAliasArray('playwright', 'cypress'),
-      },
-      {
-        from: 'playwright',
-        to: 'selenium',
-        shorthands: buildAliasArray('playwright', 'selenium'),
-      },
-      {
-        from: 'selenium',
-        to: 'cypress',
-        shorthands: buildAliasArray('selenium', 'cypress'),
-      },
-      {
-        from: 'selenium',
-        to: 'playwright',
-        shorthands: buildAliasArray('selenium', 'playwright'),
-      },
-      {
-        from: 'cypress',
-        to: 'webdriverio',
-        shorthands: buildAliasArray('cypress', 'webdriverio'),
-      },
-      {
-        from: 'webdriverio',
-        to: 'cypress',
-        shorthands: buildAliasArray('webdriverio', 'cypress'),
-      },
-      {
-        from: 'webdriverio',
-        to: 'playwright',
-        shorthands: buildAliasArray('webdriverio', 'playwright'),
-      },
-      {
-        from: 'playwright',
-        to: 'webdriverio',
-        shorthands: buildAliasArray('playwright', 'webdriverio'),
-      },
-      {
-        from: 'puppeteer',
-        to: 'playwright',
-        shorthands: buildAliasArray('puppeteer', 'playwright'),
-      },
-      {
-        from: 'playwright',
-        to: 'puppeteer',
-        shorthands: buildAliasArray('playwright', 'puppeteer'),
-      },
-      {
-        from: 'testcafe',
-        to: 'playwright',
-        shorthands: buildAliasArray('testcafe', 'playwright'),
-      },
-      {
-        from: 'testcafe',
-        to: 'cypress',
-        shorthands: buildAliasArray('testcafe', 'cypress'),
-      },
-    ],
-  },
-  {
-    name: 'JavaScript Unit Testing',
-    directions: [
-      {
-        from: 'jest',
-        to: 'vitest',
-        shorthands: buildAliasArray('jest', 'vitest'),
-      },
-      {
-        from: 'mocha',
-        to: 'jest',
-        shorthands: buildAliasArray('mocha', 'jest'),
-      },
-      {
-        from: 'jasmine',
-        to: 'jest',
-        shorthands: buildAliasArray('jasmine', 'jest'),
-      },
-      {
-        from: 'jest',
-        to: 'mocha',
-        shorthands: buildAliasArray('jest', 'mocha'),
-      },
-      {
-        from: 'jest',
-        to: 'jasmine',
-        shorthands: buildAliasArray('jest', 'jasmine'),
-      },
-    ],
-  },
-  {
-    name: 'Java',
-    directions: [
-      {
-        from: 'junit4',
-        to: 'junit5',
-        shorthands: buildAliasArray('junit4', 'junit5'),
-      },
-      {
-        from: 'junit5',
-        to: 'testng',
-        shorthands: buildAliasArray('junit5', 'testng'),
-      },
-      {
-        from: 'testng',
-        to: 'junit5',
-        shorthands: buildAliasArray('testng', 'junit5'),
-      },
-    ],
-  },
-  {
-    name: 'Python',
-    directions: [
-      {
-        from: 'pytest',
-        to: 'unittest',
-        shorthands: buildAliasArray('pytest', 'unittest'),
-      },
-      {
-        from: 'unittest',
-        to: 'pytest',
-        shorthands: buildAliasArray('unittest', 'pytest'),
-      },
-      {
-        from: 'nose2',
-        to: 'pytest',
-        shorthands: buildAliasArray('nose2', 'pytest'),
-      },
-    ],
-  },
-];
+export const CONVERSION_CATEGORIES = (() => {
+  const categoryMap = new Map();
 
-/**
- * Build alias array for a direction.
- * @param {string} from
- * @param {string} to
- * @returns {string[]}
- */
-function buildAliasArray(from, to) {
-  const { numeric, long } = buildAliases(from, to);
-  const result = [numeric];
-  if (long !== numeric) {
-    result.push(long);
+  for (const { from, to } of DIRECTIONS) {
+    const categoryName = FRAMEWORK_CATEGORY[from] || 'Other';
+    if (!categoryMap.has(categoryName)) {
+      categoryMap.set(categoryName, []);
+    }
+    categoryMap.get(categoryName).push({
+      from,
+      to,
+      shorthands: buildAliasArray(from, to),
+    });
   }
-  return result;
-}
+
+  // Stable ordering: JS E2E, JS Unit, Java, Python
+  const ORDER = [
+    'JavaScript E2E / Browser',
+    'JavaScript Unit Testing',
+    'Java',
+    'Python',
+  ];
+
+  return ORDER.filter((name) => categoryMap.has(name)).map((name) => ({
+    name,
+    directions: categoryMap.get(name),
+  }));
+})();
 
 /**
  * Get the FRAMEWORK_ABBREV mapping (for doctor/debug commands).

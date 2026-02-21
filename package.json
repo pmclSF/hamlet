@@ -42,7 +42,8 @@
     "start": "node bin/hamlet.js",
     "lint-staged": "lint-staged",
     "test:staged": "jest --findRelatedTests",
-    "release:verify": "npm run format:check && npm run lint && npm test && node scripts/verify-pack.js"
+    "typecheck": "tsc --noEmit -p test/types/tsconfig.json",
+    "release:verify": "npm run format:check && npm run lint && npm test && npm run typecheck && node scripts/verify-pack.js"
   },
   "keywords": [
     "playwright",
