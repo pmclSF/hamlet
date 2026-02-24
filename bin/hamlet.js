@@ -57,6 +57,7 @@ const FRAMEWORK_LANGUAGE = {
 
 // ── Output filename helpers ──────────────────────────────────────────
 function getTargetExtension(toFramework, originalExt) {
+  if (originalExt === '.py' || originalExt === '.java') return originalExt;
   if (toFramework === 'cypress') return '.cy' + (originalExt || '.js');
   if (toFramework === 'playwright') return '.spec' + (originalExt || '.js');
   return '.test' + (originalExt || '.js');
@@ -66,6 +67,7 @@ function buildOutputFilename(sourceBasename, toFramework) {
   const ext = path.extname(sourceBasename);
   const base = path.basename(sourceBasename, ext);
   const cleanBase = base.replace(/\.(cy|spec|test)$/, '');
+  if (ext === '.py' || ext === '.java') return cleanBase + ext;
   if (toFramework === 'cypress') return cleanBase + '.cy.js';
   if (toFramework === 'playwright') return cleanBase + '.spec.js';
   return cleanBase + '.test.js';

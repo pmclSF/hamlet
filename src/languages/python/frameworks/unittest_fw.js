@@ -533,9 +533,6 @@ function convertAssertions(result) {
 function wrapInClass(result) {
   const lines = result.split('\n');
   const output = [];
-  let inBareFunction = false;
-  let funcIndent = 0;
-  let collectedFunctions = [];
   let hasClass = false;
 
   // Check if already has a class
@@ -560,47 +557,58 @@ function wrapInClass(result) {
     }
   }
 
-  // Collect import lines and other pre-function content
+  // Separate: imports/top-level, non-test functions, test functions
   const preContent = [];
-  const functions = [];
+  const testFunctions = [];
   let i = 0;
 
-  // Gather imports and top-level non-function content
+  // Gather imports and non-function top-level content, plus non-test functions
   while (i < lines.length) {
     const line = lines[i];
     const trimmed = line.trim();
 
-    // Check if this is a top-level function or decorator
-    if (/^(?:@\w|def\s+)/.test(trimmed)) {
+    // Stop at test functions, setUp/tearDown, or pytest decorators
+    if (/^(?:@pytest\.|def\s+test_|def\s+setUp|def\s+tearDown)/.test(trimmed)) {
       break;
     }
+
+    // Non-test functions: keep at module level (collect entire function body)
+    if (/^def\s+(?!test_|setUp|tearDown)\w+/.test(trimmed)) {
+      preContent.push(line);
+      i++;
+      while (i < lines.length) {
+        // A non-empty line at column 0 means we've left the function body
+        if (lines[i].trim() !== '' && /^\S/.test(lines[i])) break;
+        preContent.push(lines[i]);
+        i++;
+      }
+      continue;
+    }
+
     preContent.push(line);
     i++;
   }
 
-  // Gather remaining lines as function content
+  // Everything remaining is test functions (and their bodies)
   while (i < lines.length) {
-    functions.push(lines[i]);
+    testFunctions.push(lines[i]);
     i++;
   }
 
-  // Build output: imports, then class with indented methods
+  if (testFunctions.length === 0) return result;
+
+  // Build output
   for (const line of preContent) {
     output.push(line);
   }
 
-  // Add blank line before class if needed
-  if (
-    preContent.length > 0 &&
-    preContent[preContent.length - 1].trim() !== ''
-  ) {
+  if (preContent.length > 0 && preContent[preContent.length - 1].trim() !== '') {
     output.push('');
   }
   output.push('');
   output.push(`class ${className}(unittest.TestCase):`);
 
-  // Indent all function content by 4 spaces and add self parameter
-  for (const line of functions) {
+  for (const line of testFunctions) {
     if (!line.trim()) {
       output.push('');
       continue;

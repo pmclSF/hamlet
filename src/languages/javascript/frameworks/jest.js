@@ -411,6 +411,32 @@ function parse(source) {
 function emit(_ir, source) {
   let result = source;
 
+  // --- Phase 0: Restore HAMLET-TODO blocks back to original Jest code ---
+
+  // Restore toMatchSnapshot from HAMLET-TODO block
+  result = result.replace(
+    /\/\/ HAMLET-TODO \[UNCONVERTIBLE-SNAPSHOT\][^\n]*\n\s*\/\/ Original: ([^\n]+)\n\s*\/\/ Manual action required:[^\n]*\n\s*\/\/[^\n]*/g,
+    '$1'
+  );
+
+  // Restore toMatchInlineSnapshot from HAMLET-TODO block
+  result = result.replace(
+    /\/\/ HAMLET-TODO \[UNCONVERTIBLE-INLINE-SNAPSHOT\][^\n]*\n\s*\/\/ Original: ([^\n]+)\n\s*\/\/ Manual action required:[^\n]*\n\s*\/\/[^\n]*/g,
+    '$1'
+  );
+
+  // Restore jest.mock from HAMLET-TODO block (both Jasmine and Mocha emit this)
+  result = result.replace(
+    /\/\/ HAMLET-TODO \[UNCONVERTIBLE-MODULE-MOCK\][^\n]*\n\s*\/\/ Original: ([^\n]+)\n\s*\/\/ Manual action required:[^\n]*\n\s*\/\/[^\n]*/g,
+    '$1'
+  );
+
+  // Restore jest mock cleanup from Jasmine auto-clean comment
+  result = result.replace(
+    /\/\/ Jasmine spies are auto-cleaned between specs/g,
+    'jest.restoreAllMocks()'
+  );
+
   // --- Phase 1: Remove source-framework imports ---
 
   // Remove chai imports
@@ -876,6 +902,12 @@ function emit(_ir, source) {
   // fit → it.only
   result = result.replace(/\bfit\s*\(/g, 'it.only(');
 
+  // xit('name', () => { pending(); }) → it.todo('name')  [before generic xit→it.skip]
+  result = result.replace(
+    /\bxit\(\s*(['"][^'"]*['"])\s*,\s*(?:\(\)\s*=>|function\s*\(\))\s*\{\s*pending\(\)\s*;?\s*\}\s*\)/g,
+    'it.todo($1)'
+  );
+
   // xit → it.skip
   result = result.replace(/\bxit\s*\(/g, 'it.skip(');
 
@@ -897,6 +929,12 @@ function emit(_ir, source) {
   );
 
   // --- Phase 8: Convert Jasmine spy API ---
+
+  // jasmine.createSpy().and.callFake(impl) → jest.fn(impl)  [must precede bare createSpy rule]
+  result = result.replace(
+    /jasmine\.createSpy\(\)\.and\.callFake\(([^)]+)\)/g,
+    'jest.fn($1)'
+  );
 
   // jasmine.createSpy('name') → jest.fn()
   result = result.replace(
