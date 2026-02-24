@@ -468,6 +468,12 @@ function parse(source) {
 function emit(_ir, source) {
   let result = source;
 
+  // Strip incoming HAMLET-TODO blocks (from previous round-trip step)
+  result = result.replace(
+    /^[ \t]*\/\/ HAMLET-TODO \[[^\]]+\]:.*\n(?:[ \t]*\n)*(?:[ \t]*\/\/ (?:Original|Manual action required):.*\n(?:[ \t]*\n)*)*/gm,
+    ''
+  );
+
   // --- Phase 1: Convert Jest expect → Chai chains ---
   // Use chain-suffix replacements to avoid nested-paren issues with expect() subjects.
   // Instead of capturing expect(subject), we match ').methodName(' which works regardless

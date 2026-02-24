@@ -198,6 +198,16 @@ function parse(source) {
 function emit(_ir, source) {
   let result = source;
 
+  // Strip incoming HAMLET-TODO blocks (from previous round-trip step)
+  result = result.replace(
+    /^[ \t]*\/\/ HAMLET-TODO \[[^\]]+\]:.*\n(?:[ \t]*\n)*(?:[ \t]*\/\/ (?:Original|Manual action required):.*\n(?:[ \t]*\n)*)*/gm,
+    ''
+  );
+  result = result.replace(
+    /^[ \t]*\/\*\s*HAMLET-TODO:.*?\*\/\s*\n?/gm,
+    ''
+  );
+
   const isPlaywrightSource =
     /from\s+['"]@playwright\/test['"]/.test(source) ||
     /\bpage\.goto\s*\(/.test(source);
@@ -295,7 +305,7 @@ function convertPlaywrightToWdio(content) {
   );
   result = result.replace(
     /await expect\(page\.locator\(([^)]+)\)\)\.toHaveCount\(([^)]+)\)/g,
-    'await expect($$($1)).toBeElementsArrayOfSize($2)'
+    'await expect($$$$($1)).toBeElementsArrayOfSize($2)'
   );
   result = result.replace(
     /await expect\(page\.locator\(([^)]+)\)\)\.toBeChecked\(\)/g,
@@ -353,8 +363,12 @@ function convertPlaywrightToWdio(content) {
     'await $($1).clearValue()'
   );
   result = result.replace(
-    /await page\.locator\(([^)]+)\)\.selectOption\(([^)]+)\)/g,
+    /await page\.locator\(([^)]+)\)\.selectOption\(\{\s*label:\s*([^}]+)\}\)/g,
     'await $($1).selectByVisibleText($2)'
+  );
+  result = result.replace(
+    /await page\.locator\(([^)]+)\)\.selectOption\(([^)]+)\)/g,
+    "await $($1).selectByAttribute('value', $2)"
   );
   result = result.replace(
     /await page\.locator\(([^)]+)\)\.check\(\)/g,
@@ -478,7 +492,7 @@ function convertCypressToWdio(content) {
   );
   result = result.replace(
     /cy\.get\(([^)]+)\)\.should\(['"]have\.length['"],\s*(\d+)\)/g,
-    'await expect($$($1)).toBeElementsArrayOfSize($2)'
+    'await expect($$$$($1)).toBeElementsArrayOfSize($2)'
   );
   result = result.replace(
     /cy\.get\(([^)]+)\)\.should\(['"]be\.checked['"]\)/g,
@@ -499,6 +513,11 @@ function convertCypressToWdio(content) {
 
   // --- Composite cy.get().action() chains ---
 
+  // .clear().type() combined → setValue (must be before individual .clear() and .type())
+  result = result.replace(
+    /cy\.get\(([^)]+)\)\.clear\(\)\.type\(([^)]+)\)/g,
+    'await $($1).setValue($2)'
+  );
   result = result.replace(
     /cy\.get\(([^)]+)\)\.type\(([^)]+)\)/g,
     'await $($1).setValue($2)'
@@ -522,6 +541,18 @@ function convertCypressToWdio(content) {
   result = result.replace(
     /cy\.get\(([^)]+)\)\.check\(\)/g,
     'await $($1).click()'
+  );
+  result = result.replace(
+    /cy\.get\(([^)]+)\)\.trigger\(['"]mouseover['"]\)/g,
+    'await $($1).moveTo()'
+  );
+  result = result.replace(
+    /cy\.get\(([^)]+)\)\.invoke\(['"]text['"]\)/g,
+    'await $($1).getText()'
+  );
+  result = result.replace(
+    /cy\.get\(([^)]+)\)\.invoke\(['"]attr['"],\s*([^)]+)\)/g,
+    'await $($1).getAttribute($2)'
   );
 
   // --- cy.contains ---
@@ -569,6 +600,10 @@ function convertCypressToWdio(content) {
   result = result.replace(
     /cy\.clearCookies\(\)/g,
     'await browser.deleteCookies()'
+  );
+  result = result.replace(
+    /cy\.getCookies\(\)/g,
+    'await browser.getCookies()'
   );
   result = result.replace(
     /cy\.clearLocalStorage\(\)/g,

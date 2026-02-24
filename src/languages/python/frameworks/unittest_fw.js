@@ -400,6 +400,22 @@ function isPytestSource(source) {
  * Convert pytest assertions to unittest self.assert* calls.
  */
 function convertAssertions(result) {
+  // Pre-pass: join multi-line with pytest.raises( into single line
+  // Handle 1-arg: with pytest.raises(\n    Exc\n):
+  result = result.replace(
+    /^(\s*with\s+pytest\.raises\s*\()[ \t]*\n\s*(.+?)\n\s*(\)\s*(?:as\s+\w+\s*)?:)/gm,
+    '$1$2$3'
+  );
+  // Handle multi-arg: with pytest.raises(\n    Exc, match="pattern"\n):
+  result = result.replace(
+    /^(\s*with\s+pytest\.raises\s*\()[ \t]*\n\s*(.+?)(?:,\s*(.+?))?\n\s*(\)\s*(?:as\s+\w+\s*)?:)/gm,
+    (match, prefix, arg1, arg2, suffix) => {
+      return arg2
+        ? `${prefix}${arg1}, ${arg2}${suffix}`
+        : `${prefix}${arg1}${suffix}`;
+    }
+  );
+
   const lines = result.split('\n');
   const converted = [];
 
@@ -420,108 +436,158 @@ function convertAssertions(result) {
     const indent = line.match(/^(\s*)/)[1];
     let expr = trimmed.replace(/^assert\s+/, '');
 
+    // Separate assertion message: assert X == Y, "msg" → expr=X == Y
+    let assertMsg = '';
+    const topParts = splitArgs(expr);
+    if (topParts.length > 1) {
+      const last = topParts[topParts.length - 1].trim();
+      if (/^["'(f"]/.test(last)) {
+        assertMsg = last;
+        expr = topParts.slice(0, -1).join(', ');
+      }
+    }
+    const msgAnnotation = assertMsg
+      ? `  # @hamlet:msg(${assertMsg})`
+      : '';
+
+    // Strip string contents for safe operator detection (avoid matching > inside strings)
+    const safe = expr.replace(
+      /(["'])(?:(?!\1|\\).|\\.)*\1/g,
+      (_m, q) => q + q
+    );
+
     // Order matters: most specific patterns first
 
     // assert x is not None
-    const isNotNoneMatch = expr.match(/^(.+?)\s+is\s+not\s+None$/);
-    if (isNotNoneMatch) {
-      converted.push(`${indent}self.assertIsNotNone(${isNotNoneMatch[1]})`);
-      continue;
+    if (/^(.+?)\s+is\s+not\s+None$/.test(safe)) {
+      const isNotNoneMatch = expr.match(/^(.+?)\s+is\s+not\s+None$/);
+      if (isNotNoneMatch) {
+        converted.push(
+          `${indent}self.assertIsNotNone(${isNotNoneMatch[1]})${msgAnnotation}`
+        );
+        continue;
+      }
     }
 
     // assert x is None
-    const isNoneMatch = expr.match(/^(.+?)\s+is\s+None$/);
-    if (isNoneMatch) {
-      converted.push(`${indent}self.assertIsNone(${isNoneMatch[1]})`);
-      continue;
+    if (/^(.+?)\s+is\s+None$/.test(safe)) {
+      const isNoneMatch = expr.match(/^(.+?)\s+is\s+None$/);
+      if (isNoneMatch) {
+        converted.push(
+          `${indent}self.assertIsNone(${isNoneMatch[1]})${msgAnnotation}`
+        );
+        continue;
+      }
     }
 
     // assert isinstance(x, Y)
     const isInstanceMatch = expr.match(/^isinstance\((.+)\)$/);
     if (isInstanceMatch) {
-      converted.push(`${indent}self.assertIsInstance(${isInstanceMatch[1]})`);
+      converted.push(
+        `${indent}self.assertIsInstance(${isInstanceMatch[1]})${msgAnnotation}`
+      );
       continue;
     }
 
     // assert not x
     const notMatch = expr.match(/^not\s+(.+)$/);
     if (notMatch) {
-      converted.push(`${indent}self.assertFalse(${notMatch[1]})`);
-      continue;
-    }
-
-    // assert x not in y
-    const notInMatch = expr.match(/^(.+?)\s+not\s+in\s+(.+)$/);
-    if (notInMatch) {
       converted.push(
-        `${indent}self.assertNotIn(${notInMatch[1]}, ${notInMatch[2]})`
+        `${indent}self.assertFalse(${notMatch[1]})${msgAnnotation}`
       );
       continue;
     }
 
-    // assert x in y
-    const inMatch = expr.match(/^(.+?)\s+in\s+(.+)$/);
-    if (inMatch) {
-      converted.push(`${indent}self.assertIn(${inMatch[1]}, ${inMatch[2]})`);
-      continue;
+    // assert x not in y (greedy left to skip 'not in' inside strings)
+    if (/^(.+)\s+not\s+in\s+(.+)$/.test(safe)) {
+      const notInMatch = expr.match(/^(.+)\s+not\s+in\s+(.+)$/);
+      if (notInMatch) {
+        converted.push(
+          `${indent}self.assertNotIn(${notInMatch[1]}, ${notInMatch[2]})${msgAnnotation}`
+        );
+        continue;
+      }
     }
 
-    // assert a == b
-    const eqMatch = expr.match(/^(.+?)\s*==\s*(.+)$/);
-    if (eqMatch) {
-      converted.push(
-        `${indent}self.assertEqual(${eqMatch[1].trim()}, ${eqMatch[2].trim()})`
-      );
-      continue;
+    // assert x in y (greedy left to skip 'in' inside strings)
+    if (/^(.+)\s+in\s+(.+)$/.test(safe)) {
+      const inMatch = expr.match(/^(.+)\s+in\s+(.+)$/);
+      if (inMatch) {
+        converted.push(
+          `${indent}self.assertIn(${inMatch[1]}, ${inMatch[2]})${msgAnnotation}`
+        );
+        continue;
+      }
+    }
+
+    // assert a == b (match against safe to avoid operators inside strings)
+    if (/^(.+?)\s*==\s*(.+)$/.test(safe)) {
+      const eqMatch = expr.match(/^(.+?)\s*==\s*(.+)$/);
+      if (eqMatch) {
+        converted.push(
+          `${indent}self.assertEqual(${eqMatch[1].trim()}, ${eqMatch[2].trim()})${msgAnnotation}`
+        );
+        continue;
+      }
     }
 
     // assert a != b
-    const neqMatch = expr.match(/^(.+?)\s*!=\s*(.+)$/);
-    if (neqMatch) {
-      converted.push(
-        `${indent}self.assertNotEqual(${neqMatch[1].trim()}, ${neqMatch[2].trim()})`
-      );
-      continue;
+    if (/^(.+?)\s*!=\s*(.+)$/.test(safe)) {
+      const neqMatch = expr.match(/^(.+?)\s*!=\s*(.+)$/);
+      if (neqMatch) {
+        converted.push(
+          `${indent}self.assertNotEqual(${neqMatch[1].trim()}, ${neqMatch[2].trim()})${msgAnnotation}`
+        );
+        continue;
+      }
     }
 
     // assert a >= b
-    const gteMatch = expr.match(/^(.+?)\s*>=\s*(.+)$/);
-    if (gteMatch) {
-      converted.push(
-        `${indent}self.assertGreaterEqual(${gteMatch[1].trim()}, ${gteMatch[2].trim()})`
-      );
-      continue;
+    if (/^(.+?)\s*>=\s*(.+)$/.test(safe)) {
+      const gteMatch = expr.match(/^(.+?)\s*>=\s*(.+)$/);
+      if (gteMatch) {
+        converted.push(
+          `${indent}self.assertGreaterEqual(${gteMatch[1].trim()}, ${gteMatch[2].trim()})${msgAnnotation}`
+        );
+        continue;
+      }
     }
 
     // assert a <= b
-    const lteMatch = expr.match(/^(.+?)\s*<=\s*(.+)$/);
-    if (lteMatch) {
-      converted.push(
-        `${indent}self.assertLessEqual(${lteMatch[1].trim()}, ${lteMatch[2].trim()})`
-      );
-      continue;
+    if (/^(.+?)\s*<=\s*(.+)$/.test(safe)) {
+      const lteMatch = expr.match(/^(.+?)\s*<=\s*(.+)$/);
+      if (lteMatch) {
+        converted.push(
+          `${indent}self.assertLessEqual(${lteMatch[1].trim()}, ${lteMatch[2].trim()})${msgAnnotation}`
+        );
+        continue;
+      }
     }
 
     // assert a > b
-    const gtMatch = expr.match(/^(.+?)\s*>\s*(.+)$/);
-    if (gtMatch) {
-      converted.push(
-        `${indent}self.assertGreater(${gtMatch[1].trim()}, ${gtMatch[2].trim()})`
-      );
-      continue;
+    if (/^(.+?)\s*>\s*(.+)$/.test(safe)) {
+      const gtMatch = expr.match(/^(.+?)\s*>\s*(.+)$/);
+      if (gtMatch) {
+        converted.push(
+          `${indent}self.assertGreater(${gtMatch[1].trim()}, ${gtMatch[2].trim()})${msgAnnotation}`
+        );
+        continue;
+      }
     }
 
     // assert a < b
-    const ltMatch = expr.match(/^(.+?)\s*<\s*(.+)$/);
-    if (ltMatch) {
-      converted.push(
-        `${indent}self.assertLess(${ltMatch[1].trim()}, ${ltMatch[2].trim()})`
-      );
-      continue;
+    if (/^(.+?)\s*<\s*(.+)$/.test(safe)) {
+      const ltMatch = expr.match(/^(.+?)\s*<\s*(.+)$/);
+      if (ltMatch) {
+        converted.push(
+          `${indent}self.assertLess(${ltMatch[1].trim()}, ${ltMatch[2].trim()})${msgAnnotation}`
+        );
+        continue;
+      }
     }
 
     // assert x (simple truthy)
-    converted.push(`${indent}self.assertTrue(${expr})`);
+    converted.push(`${indent}self.assertTrue(${expr})${msgAnnotation}`);
   }
 
   return converted.join('\n');
@@ -533,9 +599,6 @@ function convertAssertions(result) {
 function wrapInClass(result) {
   const lines = result.split('\n');
   const output = [];
-  let inBareFunction = false;
-  let funcIndent = 0;
-  let collectedFunctions = [];
   let hasClass = false;
 
   // Check if already has a class
@@ -560,36 +623,51 @@ function wrapInClass(result) {
     }
   }
 
-  // Collect import lines and other pre-function content
+  // Separate: imports/top-level, non-test functions, test functions
   const preContent = [];
-  const functions = [];
+  const testFunctions = [];
   let i = 0;
 
-  // Gather imports and top-level non-function content
+  // Gather imports and non-function top-level content, plus non-test functions
   while (i < lines.length) {
     const line = lines[i];
     const trimmed = line.trim();
 
-    // Check if this is a top-level function or decorator
-    if (/^(?:@\w|def\s+)/.test(trimmed)) {
+    // Stop at test functions, setUp/tearDown, or pytest decorators
+    if (/^(?:@pytest\.|def\s+test_|def\s+setUp|def\s+tearDown)/.test(trimmed)) {
       break;
     }
+
+    // Non-test functions: keep at module level (collect entire function body)
+    if (/^def\s+(?!test_|setUp|tearDown)\w+/.test(trimmed)) {
+      preContent.push(line);
+      i++;
+      while (i < lines.length) {
+        // A non-empty line at column 0 means we've left the function body
+        if (lines[i].trim() !== '' && /^\S/.test(lines[i])) break;
+        preContent.push(lines[i]);
+        i++;
+      }
+      continue;
+    }
+
     preContent.push(line);
     i++;
   }
 
-  // Gather remaining lines as function content
+  // Everything remaining is test functions (and their bodies)
   while (i < lines.length) {
-    functions.push(lines[i]);
+    testFunctions.push(lines[i]);
     i++;
   }
 
-  // Build output: imports, then class with indented methods
+  if (testFunctions.length === 0) return result;
+
+  // Build output
   for (const line of preContent) {
     output.push(line);
   }
 
-  // Add blank line before class if needed
   if (
     preContent.length > 0 &&
     preContent[preContent.length - 1].trim() !== ''
@@ -599,8 +677,7 @@ function wrapInClass(result) {
   output.push('');
   output.push(`class ${className}(unittest.TestCase):`);
 
-  // Indent all function content by 4 spaces and add self parameter
-  for (const line of functions) {
+  for (const line of testFunctions) {
     if (!line.trim()) {
       output.push('');
       continue;
@@ -650,9 +727,15 @@ function convertMarkers(result) {
     '@unittest.skipIf($1, $2)'
   );
 
-  // @pytest.mark.xfail -> @unittest.expectedFailure
+  // @pytest.mark.xfail(args) -> @unittest.expectedFailure  # @hamlet:xfail(args)
   result = result.replace(
-    /@pytest\.mark\.xfail\b(?:\s*\([^)]*\))?/g,
+    /@pytest\.mark\.xfail\(([^)]*)\)/g,
+    '@unittest.expectedFailure  # @hamlet:xfail($1)'
+  );
+
+  // @pytest.mark.xfail (bare) -> @unittest.expectedFailure
+  result = result.replace(
+    /@pytest\.mark\.xfail\b(?!\s*\()/g,
     '@unittest.expectedFailure'
   );
 

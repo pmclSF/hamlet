@@ -94,10 +94,10 @@ describe('PlaywrightToCypress', () => {
         expect(result).toContain("cy.get('.element').should('have.text', 'Hello')");
       });
 
-      it('should convert toContainText() to should("contain")', async () => {
+      it('should convert toContainText() to should("contain.text")', async () => {
         const input = `await expect(page.locator('.element')).toContainText('Hello');`;
         const result = await converter.convert(input);
-        expect(result).toContain("cy.get('.element').should('contain', 'Hello')");
+        expect(result).toContain("cy.get('.element').should('contain.text', 'Hello')");
       });
 
       it('should convert toHaveValue() to should("have.value")', async () => {

@@ -170,14 +170,57 @@ function parse(source) {
 function emit(_ir, source) {
   let result = source;
 
+  // Strip incoming HAMLET-TODO blocks (from previous round-trip step)
+  result = result.replace(
+    /^[ \t]*\/\/ HAMLET-TODO \[[^\]]+\]:.*\n(?:[ \t]*\n)*(?:[ \t]*\/\/ (?:Original|Manual action required):.*\n(?:[ \t]*\n)*)*/gm,
+    ''
+  );
+  result = result.replace(
+    /^[ \t]*\/\*\s*HAMLET-TODO:.*?\*\/\s*\n?/gm,
+    ''
+  );
+
   // Detect source framework
+  const isPlaywrightSource =
+    /from\s+['"]@playwright\/test['"]/.test(source) ||
+    /\bpage\.goto\s*\(/.test(source);
+  const isSeleniumSource =
+    /require\s*\(\s*['"]selenium-webdriver['"]/.test(source) ||
+    /from\s+['"]selenium-webdriver['"]/.test(source);
   const isWdioSource =
     /\bbrowser\.url\s*\(/.test(source) ||
     (/\$\(/.test(source) && /\.setValue\s*\(/.test(source));
+  const isPuppeteerSource = /\bpuppeteer\.launch/.test(source);
   const isTestCafeSource =
     /\bfixture\s*`/.test(source) || /from\s+['"]testcafe['"]/.test(source);
 
   // Phase 1: Remove source-framework imports
+  if (isPlaywrightSource) {
+    result = result.replace(
+      /import\s+\{[^}]*\}\s+from\s+['"]@playwright\/test['"];?\n?/g,
+      ''
+    );
+  }
+  if (isSeleniumSource) {
+    result = result.replace(
+      /(?:const|let|var)\s+\{[^}]*\}\s*=\s*require\s*\(\s*['"]selenium-webdriver['"]\s*\)\s*;?\n?/g,
+      ''
+    );
+    result = result.replace(
+      /import\s+\{[^}]*\}\s+from\s+['"]selenium-webdriver['"];?\n?/g,
+      ''
+    );
+    // Remove driver setup/teardown boilerplate
+    result = result.replace(/\s*let\s+driver\s*;\s*\n?/g, '\n');
+    result = result.replace(
+      /\s*beforeAll\s*\(\s*async\s*\(\)\s*=>\s*\{[^}]*new\s+Builder[^}]*\}\s*\)\s*;?\n?/g,
+      '\n'
+    );
+    result = result.replace(
+      /\s*afterAll\s*\(\s*async\s*\(\)\s*=>\s*\{[^}]*driver\.quit[^}]*\}\s*\)\s*;?\n?/g,
+      '\n'
+    );
+  }
   if (isWdioSource) {
     result = result.replace(
       /import\s+\{[^}]*\}\s+from\s+['"]@wdio\/globals['"];?\n?/g,
@@ -188,6 +231,25 @@ function emit(_ir, source) {
       ''
     );
   }
+  if (isPuppeteerSource) {
+    result = result.replace(
+      /const\s+puppeteer\s*=\s*require\s*\(\s*['"]puppeteer['"]\s*\)\s*;?\n?/g,
+      ''
+    );
+    result = result.replace(
+      /import\s+puppeteer\s+from\s+['"]puppeteer['"];?\n?/g,
+      ''
+    );
+    result = result.replace(
+      /const\s+browser\s*=\s*await\s+puppeteer\.launch\([^)]*\)\s*;?\n?/g,
+      ''
+    );
+    result = result.replace(
+      /const\s+page\s*=\s*await\s+browser\.newPage\(\)\s*;?\n?/g,
+      ''
+    );
+    result = result.replace(/await\s+browser\.close\(\)\s*;?\n?/g, '');
+  }
   if (isTestCafeSource) {
     result = result.replace(
       /import\s+\{[^}]*\}\s+from\s+['"]testcafe['"];?\n?/g,
@@ -196,24 +258,63 @@ function emit(_ir, source) {
   }
 
   // Phase 2: Convert source commands
+  if (isPlaywrightSource) {
+    result = convertPlaywrightToCypress(result);
+  }
+  if (isSeleniumSource) {
+    result = convertSeleniumToCypress(result);
+  }
   if (isWdioSource) {
     result = convertWdioToCypress(result);
+  }
+  if (isPuppeteerSource) {
+    result = convertPuppeteerToCypress(result);
   }
   if (isTestCafeSource) {
     result = convertTestCafeToCypress(result);
   }
 
   // Phase 3: Convert test structure
+  if (isPlaywrightSource) {
+    result = convertPlaywrightStructure(result);
+  }
   if (isTestCafeSource) {
     result = convertTestCafeStructure(result);
   }
-  // WDIO uses describe/it — same as Cypress, no structural changes needed
+  // WDIO/Selenium/Puppeteer use describe/it — same as Cypress
+
+  // Phase 3.5: Re-split long chains into multi-line format
+  // Forward conversion joins multi-line chains for regex matching;
+  // this restores multi-line style for readability and fidelity.
+  if (isPlaywrightSource) {
+    result = resplitChains(result);
+  }
 
   // Phase 4: Remove async/await (Cypress is synchronous)
   result = removeAsyncAwait(result);
 
+  // Phase 4.5: Post-async cleanup — fix patterns that depend on await removal
+  if (isPlaywrightSource) {
+    // cy.location('hash') → cy.hash() (Cypress has a dedicated command)
+    result = result.replace(/cy\.location\('hash'\)/g, 'cy.hash()');
+    // Remaining new URL(cy.url()).prop after async strip
+    result = result.replace(
+      /new URL\(cy\.url\(\)\)\.(\w+)/g,
+      "cy.location('$1')"
+    );
+    // Clean up location('hash') that was just created
+    result = result.replace(/cy\.location\('hash'\)/g, 'cy.hash()');
+  }
+
   // Phase 5: Clean up
   result = result.replace(/\n{3,}/g, '\n\n').trim() + '\n';
+
+  // Phase 6: Add Cypress reference comment (for Playwright/Selenium/Puppeteer sources)
+  if (isPlaywrightSource || isSeleniumSource || isPuppeteerSource) {
+    if (!result.includes('/// <reference types="cypress" />')) {
+      result = '/// <reference types="cypress" />\n\n' + result;
+    }
+  }
 
   return result;
 }
@@ -365,6 +466,11 @@ function convertWdioToCypress(content) {
   // --- Browser API ---
 
   result = result.replace(/await browser\.pause\(([^)]+)\)/g, 'cy.wait($1)');
+  // Specific execute patterns before generic (localStorage.clear, etc.)
+  result = result.replace(
+    /await browser\.execute\(\(\)\s*=>\s*localStorage\.clear\(\)\)/g,
+    'cy.clearLocalStorage()'
+  );
   result = result.replace(
     /await browser\.execute\(([^)]*)\)/g,
     'cy.window().then($1)'
@@ -386,6 +492,10 @@ function convertWdioToCypress(content) {
     'cy.clearCookies()'
   );
   result = result.replace(/await browser\.getCookies\(\)/g, 'cy.getCookies()');
+
+  // --- Console/log ---
+
+  result = result.replace(/console\.log\(([^)]+)\)/g, 'cy.log($1)');
 
   // --- Unconvertible: browser.mock ---
 
@@ -566,6 +676,756 @@ function convertTestCafeStructure(content) {
   );
 
   return result;
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// Playwright → Cypress
+// ═══════════════════════════════════════════════════════════════════════
+
+/**
+ * Convert Playwright commands to Cypress equivalents.
+ */
+function convertPlaywrightToCypress(content) {
+  let result = content;
+
+  // --- Restore HAMLET-TODO blocks back to original cy.* calls ---
+
+  // Catch-all 2-line format:
+  // /* HAMLET-TODO: cy.xxx() has no Playwright equivalent — rewrite manually */
+  // // cy.xxx(...)
+  result = result.replace(
+    /\/\* HAMLET-TODO: cy\.\w+\(\) has no Playwright equivalent[^*]*\*\/\s*\n\s*\/\/ (cy\.[^\n]+)/g,
+    '$1'
+  );
+
+  // TodoFormatter 3-line format:
+  // // HAMLET-TODO [TYPE]: description
+  // // Original: cy.xxx(...)
+  // // Manual action required: ...
+  result = result.replace(
+    /\/\/ HAMLET-TODO \[[^\]]+\]:[^\n]*\n\s*\/\/ Original: (cy\.[^\n]+)\n\s*\/\/ Manual action[^\n]*/g,
+    '$1'
+  );
+
+  // --- Restore annotated custom commands ---
+
+  // page.getByTestId("x") /* @hamlet:getBySel */ → cy.getBySel("x")
+  result = result.replace(
+    /page\.getByTestId\(([^)]+)\)\s*\/\* @hamlet:getBySel \*\//g,
+    'cy.getBySel($1)'
+  );
+
+  // page.locator(`[data-test*=${x}]`) /* @hamlet:getBySelLike */ → cy.getBySelLike(x)
+  result = result.replace(
+    /page\.locator\(`\[data-test\*=\$\{([^}]+)\}\]`\)\s*\/\* @hamlet:getBySelLike \*\//g,
+    'cy.getBySelLike($1)'
+  );
+
+  // await page.screenshot({ path: x }) /* @hamlet:visualSnapshot */ → cy.visualSnapshot(x)
+  result = result.replace(
+    /await page\.screenshot\(\{\s*path:\s*([^}]+?)\s*\}\)\s*\/\* @hamlet:visualSnapshot \*\//g,
+    'cy.visualSnapshot($1)'
+  );
+
+  // route(url, ...) /* @hamlet:intercept(method).as("alias") */ → cy.intercept(method, url).as("alias")
+  result = result.replace(
+    /await page\.route\(([^,\n]+),\s*route\s*=>\s*route\.continue\(\)\)\s*\/\* @hamlet:intercept\(([^)]+)\)\.as\("([^"]+)"\) \*\//g,
+    'cy.intercept($2, $1).as("$3")'
+  );
+  // route(url, ...) /* @hamlet:as("alias") */ → cy.intercept(url).as("alias")
+  result = result.replace(
+    /await page\.route\(([^,\n]+),\s*route\s*=>\s*route\.continue\(\)\)\s*\/\* @hamlet:as\("([^"]+)"\) \*\//g,
+    'cy.intercept($1).as("$2")'
+  );
+  // route(url, route => route.fulfill(resp)) /* @hamlet:intercept(method).as("alias") */ → cy.intercept(method, url, resp).as("alias")
+  result = result.replace(
+    /await page\.route\(([^,\n]+),\s*route\s*=>\s*route\.fulfill\(([^)]+)\)\)\s*\/\* @hamlet:intercept\(([^)]+)\)\.as\("([^"]+)"\) \*\//g,
+    'cy.intercept($3, $1, $2).as("$4")'
+  );
+  // route(url, route => route.fulfill(resp)) /* @hamlet:as("alias") */ → cy.intercept(url, resp).as("alias")
+  result = result.replace(
+    /await page\.route\(([^,\n]+),\s*route\s*=>\s*route\.fulfill\(([^)]+)\)\)\s*\/\* @hamlet:as\("([^"]+)"\) \*\//g,
+    'cy.intercept($1, $2).as("$3")'
+  );
+  // Generic .as() annotation fallback
+  result = result.replace(
+    /\s*\/\* @hamlet:as\("([^"]+)"\) \*\//g,
+    '.as("$1")'
+  );
+
+  // --- Assertions (most specific first) ---
+
+  // toHaveURL(new RegExp(path)) → cy.location("pathname").should("eq", path)
+  result = result.replace(
+    /await expect\(page\)\.toHaveURL\(new RegExp\(([^)]+)\)\)/g,
+    'cy.location("pathname").should("eq", $1)'
+  );
+  result = result.replace(
+    /await expect\(page\)\.toHaveURL\(([^)]+)\)/g,
+    "cy.url().should('include', $1)"
+  );
+  result = result.replace(
+    /await expect\(page\)\.toHaveTitle\(([^)]+)\)/g,
+    "cy.title().should('eq', $1)"
+  );
+  result = result.replace(
+    /await expect\(page\.locator\(([^)]+)\)\)\.toBeVisible\(\)/g,
+    "cy.get($1).should('be.visible')"
+  );
+  result = result.replace(
+    /await expect\(page\.locator\(([^)]+)\)\)\.toBeHidden\(\)/g,
+    "cy.get($1).should('not.be.visible')"
+  );
+  result = result.replace(
+    /await expect\(page\.locator\(([^)]+)\)\)\.toBeAttached\(\)/g,
+    "cy.get($1).should('exist')"
+  );
+  result = result.replace(
+    /await expect\(page\.locator\(([^)]+)\)\)\.not\.toBeAttached\(\)/g,
+    "cy.get($1).should('not.exist')"
+  );
+  result = result.replace(
+    /await expect\(page\.locator\(([^)]+)\)\)\.toHaveText\(([^)]+)\)/g,
+    "cy.get($1).should('have.text', $2)"
+  );
+  result = result.replace(
+    /await expect\(page\.locator\(([^)]+)\)\)\.toContainText\(([^)]+)\)/g,
+    "cy.get($1).should('contain', $2)"
+  );
+  result = result.replace(
+    /await expect\(page\.locator\(([^)]+)\)\)\.toHaveValue\(([^)]+)\)/g,
+    "cy.get($1).should('have.value', $2)"
+  );
+  result = result.replace(
+    /await expect\(page\.locator\(([^)]+)\)\)\.toHaveAttribute\(([^,]+),\s*([^)]+)\)/g,
+    "cy.get($1).should('have.attr', $2, $3)"
+  );
+  result = result.replace(
+    /await expect\(page\.locator\(([^)]+)\)\)\.toHaveClass\(([^)]+)\)/g,
+    "cy.get($1).should('have.class', $2)"
+  );
+  result = result.replace(
+    /await expect\(page\.locator\(([^)]+)\)\)\.toBeChecked\(\)/g,
+    "cy.get($1).should('be.checked')"
+  );
+  result = result.replace(
+    /await expect\(page\.locator\(([^)]+)\)\)\.toBeDisabled\(\)/g,
+    "cy.get($1).should('be.disabled')"
+  );
+  result = result.replace(
+    /await expect\(page\.locator\(([^)]+)\)\)\.toBeEnabled\(\)/g,
+    "cy.get($1).should('be.enabled')"
+  );
+  result = result.replace(
+    /await expect\(page\.locator\(([^)]+)\)\)\.toHaveCount\(([^)]+)\)/g,
+    "cy.get($1).should('have.length', $2)"
+  );
+  // Generic expect with locator variable
+  result = result.replace(
+    /await expect\(([^)]+)\)\.toBeVisible\(\)/g,
+    "$1.should('be.visible')"
+  );
+  result = result.replace(
+    /await expect\(([^)]+)\)\.toHaveText\(([^)]+)\)/g,
+    "$1.should('have.text', $2)"
+  );
+  result = result.replace(
+    /await expect\(([^)]+)\)\.toContainText\(([^)]+)\)/g,
+    "$1.should('contain', $2)"
+  );
+  result = result.replace(
+    /await expect\(([^)]+)\)\.toHaveValue\(([^)]+)\)/g,
+    "$1.should('have.value', $2)"
+  );
+
+  // Chained assertions (from .and() conversion): .toContainText(x) → .and("contain", x)
+  result = result.replace(
+    /\.toContainText\(([^)]+)\)/g,
+    '.and("contain", $1)'
+  );
+  result = result.replace(
+    /\.toHaveText\(([^)]+)\)/g,
+    '.and("have.text", $1)'
+  );
+  result = result.replace(
+    /\.toHaveAttribute\(([^)]+)\)/g,
+    '.and("have.attr", $1)'
+  );
+  result = result.replace(
+    /\.toHaveClass\(([^)]+)\)/g,
+    '.and("have.class", $1)'
+  );
+
+  // --- Wait patterns ---
+
+  result = result.replace(
+    /await page\.waitForTimeout\((\d+)\)/g,
+    'cy.wait($1)'
+  );
+  result = result.replace(
+    /await page\.waitForSelector\(([^)]+)\)/g,
+    'cy.get($1)'
+  );
+  result = result.replace(
+    /await page\.waitForURL\(([^)]+)\)/g,
+    "cy.url().should('include', $1)"
+  );
+  result = result.replace(
+    /await page\.waitForLoadState\(['"]networkidle['"]\)/g,
+    'cy.wait(1000)'
+  );
+
+  // --- Navigation ---
+
+  result = result.replace(/await page\.goto\(([^)]+)\)/g, 'cy.visit($1)');
+  // Restore numeric go() from annotation before generic conversion
+  result = result.replace(
+    /await page\.goBack\(\)\s*\/\* @hamlet:go\((-?\d+)\) \*\//g,
+    'cy.go($1)'
+  );
+  result = result.replace(
+    /await page\.goForward\(\)\s*\/\* @hamlet:go\((\d+)\) \*\//g,
+    'cy.go($1)'
+  );
+  result = result.replace(/await page\.goBack\(\)/g, "cy.go('back')");
+  result = result.replace(/await page\.goForward\(\)/g, "cy.go('forward')");
+  result = result.replace(/await page\.reload\(\)/g, 'cy.reload()');
+  // new URL(page.url()).prop → cy.location('prop')
+  result = result.replace(
+    /new URL\(page\.url\(\)\)\.(\w+)/g,
+    "cy.location('$1')"
+  );
+  result = result.replace(/page\.url\(\)/g, 'cy.url()');
+  result = result.replace(/await page\.title\(\)/g, 'cy.title()');
+
+  // --- Composite locator actions (before standalone locator) ---
+
+  result = result.replace(
+    /await page\.locator\(([^)]+)\)\.fill\(([^)]+)\)/g,
+    'cy.get($1).type($2)'
+  );
+  result = result.replace(
+    /await page\.locator\(([^)]+)\)\.click\(\)/g,
+    'cy.get($1).click()'
+  );
+  result = result.replace(
+    /await page\.locator\(([^)]+)\)\.dblclick\(\)/g,
+    'cy.get($1).dblclick()'
+  );
+  result = result.replace(
+    /await page\.locator\(([^)]+)\)\.check\(\)/g,
+    'cy.get($1).check()'
+  );
+  result = result.replace(
+    /await page\.locator\(([^)]+)\)\.uncheck\(\)/g,
+    'cy.get($1).uncheck()'
+  );
+  result = result.replace(
+    /await page\.locator\(([^)]+)\)\.selectOption\(([^)]+)\)/g,
+    'cy.get($1).select($2)'
+  );
+  result = result.replace(
+    /await page\.locator\(([^)]+)\)\.clear\(\)/g,
+    'cy.get($1).clear()'
+  );
+  result = result.replace(
+    /await page\.locator\(([^)]+)\)\.focus\(\)/g,
+    'cy.get($1).focus()'
+  );
+  result = result.replace(
+    /await page\.locator\(([^)]+)\)\.blur\(\)/g,
+    'cy.get($1).blur()'
+  );
+  result = result.replace(
+    /await page\.locator\(([^)]+)\)\.hover\(\)/g,
+    "cy.get($1).trigger('mouseover')"
+  );
+  result = result.replace(
+    /await page\.locator\(([^)]+)\)\.scrollIntoViewIfNeeded\(\)/g,
+    'cy.get($1).scrollIntoView()'
+  );
+  result = result.replace(
+    /await page\.locator\(([^)]+)\)\.setInputFiles\(([^)]+)\)/g,
+    'cy.get($1).selectFile($2)'
+  );
+  result = result.replace(
+    /await page\.locator\(([^)]+)\)\.textContent\(\)/g,
+    "cy.get($1).invoke('text')"
+  );
+  result = result.replace(
+    /await page\.locator\(([^)]+)\)\.isVisible\(\)/g,
+    "cy.get($1).should('be.visible')"
+  );
+  result = result.replace(
+    /await page\.locator\(([^)]+)\)\.getAttribute\(([^)]+)\)/g,
+    "cy.get($1).invoke('attr', $2)"
+  );
+
+  // --- Reverse mappings for common Playwright patterns ---
+
+  // localStorage/sessionStorage
+  result = result.replace(
+    /await page\.evaluate\(\(key\) => localStorage\.removeItem\(key\),\s*([^)]+)\)\s*\/\* @hamlet:clearLocalStorage\([^)]*\) \*\//g,
+    'cy.clearLocalStorage($1)'
+  );
+  result = result.replace(
+    /await page\.evaluate\(\(\) => localStorage\.clear\(\)\)/g,
+    'cy.clearLocalStorage()'
+  );
+  result = result.replace(
+    /await page\.evaluate\(\(\) => \(\{ \.\.\.localStorage \}\)\)/g,
+    'cy.getAllLocalStorage()'
+  );
+  result = result.replace(
+    /await page\.evaluate\(\(\) => \(\{ \.\.\.sessionStorage \}\)\)/g,
+    'cy.getAllSessionStorage()'
+  );
+  result = result.replace(
+    /await page\.evaluate\(\(\) => sessionStorage\.clear\(\)\)/g,
+    'cy.clearAllSessionStorage()'
+  );
+
+  // Cookies — decompose addCookies back to setCookie(name, value)
+  result = result.replace(
+    /await context\.addCookies\(\[\{\s*name:\s*([^,]+),\s*value:\s*([^,]+),\s*url:[^}]*\}\]\)/g,
+    'cy.setCookie($1, $2)'
+  );
+  result = result.replace(
+    /await context\.clearCookies\(\{\s*name:\s*([^}]+)\}\)/g,
+    'cy.clearCookie($1)'
+  );
+  result = result.replace(
+    /await context\.clearCookies\(\)/g,
+    'cy.clearCookies()'
+  );
+  // context.cookies().then(cookies => cookies.find(c => c.name === x)) → cy.getCookie(x)
+  result = result.replace(
+    /await context\.cookies\(\)\.then\(cookies\s*=>\s*cookies\.find\(c\s*=>\s*c\.name\s*===\s*([^)]+)\)\)/g,
+    'cy.getCookie($1)'
+  );
+  result = result.replace(/await context\.cookies\(\)/g, 'cy.getCookies()');
+
+  // console.log → cy.log
+  result = result.replace(/console\.log\(([^)]+)\)/g, 'cy.log($1)');
+
+  // page.waitForResponse with variable → cy.wait(`@${var}`)
+  result = result.replace(
+    /await page\.waitForResponse\(response\s*=>\s*response\.url\(\)\.includes\((\w[^)]*)\)\)/g,
+    'cy.wait(`@${$1}`)'
+  );
+  // page.waitForResponse with string → cy.wait('@alias')
+  result = result.replace(
+    /await page\.waitForResponse\(response\s*=>\s*response\.url\(\)\.includes\(["']([^"']+)["']\)\)/g,
+    "cy.wait('@$1')"
+  );
+  // Generic waitForResponse fallback
+  result = result.replace(
+    /await page\.waitForResponse\([^)]+\)/g,
+    "cy.wait('@alias') /* HAMLET-TODO: map response matcher to named alias */"
+  );
+
+  // page.on → cy.on
+  result = result.replace(/page\.on\(([^,]+),\s*([^)]+)\)/g, 'cy.on($1, $2)');
+
+  // page.should() → cy.window().should() (bare page used as cy.window() proxy)
+  result = result.replace(/\bpage\.should\(/g, 'cy.window().should(');
+
+  // request.method(url, { data: body }) → cy.request('METHOD', url, body)
+  result = result.replace(
+    /await request\.(get|post|put|patch|delete)\(([^,)]+),\s*\{\s*data:\s*([^}]+)\}\)/g,
+    (match, method, url, body) =>
+      `cy.request('${method.toUpperCase()}', ${url.trim()}, ${body.trim()})`
+  );
+  // request.method(url) /* @hamlet:explicit-method */ → cy.request('METHOD', url) (preserve explicit method)
+  result = result.replace(
+    /await request\.(get|post|put|patch|delete)\(([^)]+)\)\s*\/\* @hamlet:explicit-method \*\//g,
+    (match, method, url) =>
+      `cy.request("${method.toUpperCase()}", ${url.trim()})`
+  );
+  // request.get(url) → cy.request(url) (GET is default, no need to specify method)
+  result = result.replace(/await request\.get\(([^)]+)\)/g, 'cy.request($1)');
+  result = result.replace(
+    /await request\.(post|put|patch|delete)\(([^)]+)\)/g,
+    (match, method, url) =>
+      `cy.request('${method.toUpperCase()}', ${url.trim()})`
+  );
+
+  // ['property'] → .its('property') — reverse of .its() conversion
+  result = result.replace(/\[('[^']+')]/g, '.its($1)');
+  result = result.replace(/\[("[^"]+")]/g, '.its($1)');
+
+  // .click({ button: 'right' }) → .rightclick()
+  result = result.replace(
+    /\.click\(\{\s*button:\s*['"]right['"]\s*\}\)/g,
+    '.rightclick()'
+  );
+
+  // .dispatchEvent('event') → .trigger('event')
+  result = result.replace(/\.dispatchEvent\(([^)]+)\)/g, '.trigger($1)');
+
+  // .scrollIntoViewIfNeeded() → .scrollIntoView()
+  result = result.replace(/\.scrollIntoViewIfNeeded\(\)/g, '.scrollIntoView()');
+
+  // .evaluate((el, prop) => el[prop], arg) → .invoke(arg)
+  result = result.replace(
+    /\.evaluate\(\(el,\s*prop\)\s*=>\s*el\[prop\],\s*([^)]+)\)/g,
+    '.invoke($1)'
+  );
+
+  // test.step("within 'sel'", async () => { → cy.get(sel).within(() => {
+  result = result.replace(
+    /test\.step\("within ([^"]+)",\s*async\s*\(\)\s*=>\s*\{/g,
+    'cy.get($1).within(() => {'
+  );
+
+  // .filter({ has: page.locator(sel) }) → .filter(sel)
+  result = result.replace(
+    /\.filter\(\{\s*has:\s*(?:page\.locator|cy\.get)\(([^)]+)\)\s*\}\)/g,
+    '.filter($1)'
+  );
+  // .filter({ hasNot: page.locator(sel) }) → .not(sel)
+  result = result.replace(
+    /\.filter\(\{\s*hasNot:\s*(?:page\.locator|cy\.get)\(([^)]+)\)\s*\}\)/g,
+    '.not($1)'
+  );
+
+  // --- Standalone locators ---
+
+  result = result.replace(/page\.locator\(([^)]+)\)/g, 'cy.get($1)');
+  result = result.replace(/page\.getByText\(([^)]+)\)/g, 'cy.contains($1)');
+  result = result.replace(/page\.getByRole\(([^)]+)\)/g, 'cy.get(`[role=$1]`)');
+  result = result.replace(
+    /page\.getByTestId\(([^)]+)\)/g,
+    'cy.get(`[data-testid=$1]`)'
+  );
+
+  // --- Network ---
+
+  // page.route(url, route => route.continue()) → cy.intercept(url)
+  result = result.replace(
+    /await page\.route\(([^,\n]+),\s*route\s*=>\s*route\.continue\(\)\)/g,
+    'cy.intercept($1)'
+  );
+  // page.route(url, (route) => { /* @hamlet:intercept(method) */ → cy.intercept(method, url, (req) => {
+  result = result.replace(
+    /await page\.route\(([^,\n]+),\s*\(route\)\s*=>\s*\{\s*\/\* @hamlet:intercept\(([^)]+)\) \*\//g,
+    'cy.intercept($2, $1, (req) => {'
+  );
+  // page.route(url, (route) => { ... }) → cy.intercept(url, (req) => { ... })
+  result = result.replace(
+    /await page\.route\(([^,\n]+),\s*\(route\)\s*=>\s*\{/g,
+    'cy.intercept($1, (req) => {'
+  );
+  // Generic page.route fallback
+  result = result.replace(/await page\.route\(([^,\n]+),/g, 'cy.intercept($1,');
+  result = result.replace(/await page\.screenshot\(\)/g, 'cy.screenshot()');
+  // Restore named viewport presets with orientation from annotations
+  result = result.replace(
+    /await page\.setViewportSize\(\s*\{\s*width:\s*\d+,\s*height:\s*\d+\s*\}\s*\)\s*\/\* viewport preset: '([^']+)', '(landscape|portrait)' \*\//g,
+    'cy.viewport("$1", "$2")'
+  );
+  // Restore named viewport presets from annotations
+  result = result.replace(
+    /await page\.setViewportSize\(\s*\{\s*width:\s*\d+,\s*height:\s*\d+\s*\}\s*\)\s*\/\* viewport preset: '([^']+)' \*\//g,
+    "cy.viewport('$1')"
+  );
+  result = result.replace(
+    /await page\.setViewportSize\(\s*\{\s*width:\s*(\d+),\s*height:\s*(\d+)\s*\}\s*\)/g,
+    'cy.viewport($1, $2)'
+  );
+
+  // Chained .locator() → .find()
+  result = result.replace(/\.locator\(([^)]+)\)/g, '.find($1)');
+
+  // .first() / .last() / .nth()
+  result = result.replace(/\.first\(\)/g, '.first()');
+  result = result.replace(/\.last\(\)/g, '.last()');
+  result = result.replace(/\.nth\((\d+)\)/g, '.eq($1)');
+
+  return result;
+}
+
+/**
+ * Convert Playwright test structure to Cypress structure.
+ */
+function convertPlaywrightStructure(content) {
+  let result = content;
+
+  result = result.replace(/test\.describe\.only\(/g, 'describe.only(');
+  result = result.replace(/test\.describe\.skip\(/g, 'describe.skip(');
+  // Restore context() from annotated test.describe (before generic conversion)
+  result = result.replace(
+    /test\.describe\(\s*\/\* @hamlet:was-context \*\//g,
+    'context('
+  );
+  result = result.replace(/test\.describe\(/g, 'describe(');
+  result = result.replace(/test\.only\(/g, 'it.only(');
+  result = result.replace(/test\.skip\(/g, 'it.skip(');
+  result = result.replace(/test\.beforeAll\(/g, 'before(');
+  result = result.replace(/test\.afterAll\(/g, 'after(');
+  result = result.replace(/test\.beforeEach\(/g, 'beforeEach(');
+  result = result.replace(/test\.afterEach\(/g, 'afterEach(');
+  // Match test('name', or test("name", — handle parens inside quoted strings
+  result = result.replace(/\btest\(('[^']*'|"[^"]*"|`[^`]*`)\s*,/g, 'it($1,');
+
+  // Remove { page } destructure from callback params
+  result = result.replace(
+    /\(\s*\{\s*page\s*(?:,\s*request\s*)?\}\s*\)\s*=>/g,
+    '() =>'
+  );
+
+  return result;
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// Selenium → Cypress
+// ═══════════════════════════════════════════════════════════════════════
+
+/**
+ * Convert Selenium WebDriver commands to Cypress equivalents.
+ */
+function convertSeleniumToCypress(content) {
+  let result = content;
+
+  // --- Assertions ---
+
+  result = result.replace(
+    /expect\(await\s+\(await\s+driver\.findElement\(By\.css\(([^)]+)\)\)\)\.isDisplayed\(\)\)\.toBe\(true\)/g,
+    "cy.get($1).should('be.visible')"
+  );
+  result = result.replace(
+    /expect\(await\s+\(await\s+driver\.findElement\(By\.css\(([^)]+)\)\)\)\.isDisplayed\(\)\)\.toBe\(false\)/g,
+    "cy.get($1).should('not.be.visible')"
+  );
+  result = result.replace(
+    /expect\(await\s+\(await\s+driver\.findElement\(By\.css\(([^)]+)\)\)\)\.getText\(\)\)\.toBe\(([^)]+)\)/g,
+    "cy.get($1).should('have.text', $2)"
+  );
+  result = result.replace(
+    /expect\(await\s+\(await\s+driver\.findElement\(By\.css\(([^)]+)\)\)\)\.getText\(\)\)\.toContain\(([^)]+)\)/g,
+    "cy.get($1).should('contain', $2)"
+  );
+  result = result.replace(
+    /expect\(await\s+\(await\s+driver\.findElement\(By\.css\(([^)]+)\)\)\)\.getAttribute\('value'\)\)\.toBe\(([^)]+)\)/g,
+    "cy.get($1).should('have.value', $2)"
+  );
+  result = result.replace(
+    /expect\(await\s+driver\.getCurrentUrl\(\)\)\.toContain\(([^)]+)\)/g,
+    "cy.url().should('include', $1)"
+  );
+  result = result.replace(
+    /expect\(await\s+driver\.getCurrentUrl\(\)\)\.toBe\(([^)]+)\)/g,
+    "cy.url().should('eq', $1)"
+  );
+  result = result.replace(
+    /expect\(await\s+driver\.getTitle\(\)\)\.toBe\(([^)]+)\)/g,
+    "cy.title().should('eq', $1)"
+  );
+
+  // --- Wait patterns ---
+
+  result = result.replace(/await driver\.sleep\((\d+)\)/g, 'cy.wait($1)');
+  result = result.replace(
+    /await driver\.wait\(until\.elementLocated\(By\.css\(([^)]+)\)\),\s*(\d+)\)/g,
+    'cy.get($1, { timeout: $2 })'
+  );
+  result = result.replace(
+    /await driver\.wait\(until\.elementIsVisible\(([^)]+)\),\s*(\d+)\)/g,
+    "$1.should('be.visible')"
+  );
+  result = result.replace(
+    /await driver\.wait\(until\.urlContains\(([^)]+)\),\s*(\d+)\)/g,
+    "cy.url().should('include', $1)"
+  );
+
+  // --- Element state assertions ---
+
+  result = result.replace(
+    /expect\(await\s+\(await\s+driver\.findElement\(By\.css\(([^)]+)\)\)\)\.isEnabled\(\)\)\.toBe\(false\)/g,
+    "cy.get($1).should('be.disabled')"
+  );
+  result = result.replace(
+    /expect\(await\s+\(await\s+driver\.findElement\(By\.css\(([^)]+)\)\)\)\.isEnabled\(\)\)\.toBe\(true\)/g,
+    "cy.get($1).should('be.enabled')"
+  );
+  result = result.replace(
+    /expect\(await\s+\(await\s+driver\.findElement\(By\.css\(([^)]+)\)\)\)\.isSelected\(\)\)\.toBe\(true\)/g,
+    "cy.get($1).should('be.checked')"
+  );
+  result = result.replace(
+    /expect\(await\s+\(await\s+driver\.findElement\(By\.css\(([^)]+)\)\)\)\.isSelected\(\)\)\.toBe\(false\)/g,
+    "cy.get($1).should('not.be.checked')"
+  );
+
+  // --- Composite findElement actions ---
+
+  result = result.replace(
+    /await\s+\(await\s+driver\.findElement\(By\.css\(([^)]+)\)\)\)\.sendKeys\(([^)]+)\)/g,
+    'cy.get($1).type($2)'
+  );
+  result = result.replace(
+    /await\s+\(await\s+driver\.findElement\(By\.css\(([^)]+)\)\)\)\.click\(\)/g,
+    'cy.get($1).click()'
+  );
+  result = result.replace(
+    /await\s+\(await\s+driver\.findElement\(By\.css\(([^)]+)\)\)\)\.clear\(\)/g,
+    'cy.get($1).clear()'
+  );
+  result = result.replace(
+    /await\s+\(await\s+driver\.findElement\(By\.css\(([^)]+)\)\)\)\.getText\(\)/g,
+    "cy.get($1).invoke('text')"
+  );
+  result = result.replace(
+    /await\s+\(await\s+driver\.findElement\(By\.css\(([^)]+)\)\)\)\.isDisplayed\(\)/g,
+    "cy.get($1).should('be.visible')"
+  );
+
+  // --- Navigation ---
+
+  result = result.replace(/await driver\.get\(([^)]+)\)/g, 'cy.visit($1)');
+  result = result.replace(
+    /await driver\.navigate\(\)\.back\(\)/g,
+    "cy.go('back')"
+  );
+  result = result.replace(
+    /await driver\.navigate\(\)\.forward\(\)/g,
+    "cy.go('forward')"
+  );
+  result = result.replace(
+    /await driver\.navigate\(\)\.refresh\(\)/g,
+    'cy.reload()'
+  );
+  result = result.replace(/await driver\.getCurrentUrl\(\)/g, 'cy.url()');
+  result = result.replace(/await driver\.getTitle\(\)/g, 'cy.title()');
+
+  // --- Standalone selectors ---
+
+  result = result.replace(
+    /await driver\.findElement\(By\.css\(([^)]+)\)\)/g,
+    'cy.get($1)'
+  );
+  result = result.replace(
+    /await driver\.findElement\(By\.id\(([^)]+)\)\)/g,
+    'cy.get(`#${$1}`)'
+  );
+  result = result.replace(
+    /await driver\.findElement\(By\.xpath\(([^)]+)\)\)/g,
+    'cy.xpath($1)'
+  );
+  result = result.replace(
+    /await driver\.findElements\(By\.css\(([^)]+)\)\)/g,
+    'cy.get($1)'
+  );
+  result = result.replace(
+    /driver\.findElement\(By\.css\(([^)]+)\)\)/g,
+    'cy.get($1)'
+  );
+
+  // --- Interactions ---
+
+  result = result.replace(/\.sendKeys\(([^)]+)\)/g, '.type($1)');
+
+  return result;
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// Puppeteer → Cypress
+// ═══════════════════════════════════════════════════════════════════════
+
+/**
+ * Convert Puppeteer commands to Cypress equivalents.
+ */
+function convertPuppeteerToCypress(content) {
+  let result = content;
+
+  // --- Navigation ---
+
+  result = result.replace(/await page\.goto\(([^)]+)\)/g, 'cy.visit($1)');
+  result = result.replace(/await page\.goBack\(\)/g, "cy.go('back')");
+  result = result.replace(/await page\.goForward\(\)/g, "cy.go('forward')");
+  result = result.replace(/await page\.reload\(\)/g, 'cy.reload()');
+
+  // --- Selectors and actions ---
+
+  result = result.replace(
+    /await page\.type\(([^,]+),\s*([^)]+)\)/g,
+    'cy.get($1).type($2)'
+  );
+  result = result.replace(
+    /await page\.click\(([^)]+)\)/g,
+    'cy.get($1).click()'
+  );
+  result = result.replace(/await page\.\$\(([^)]+)\)/g, 'cy.get($1)');
+  result = result.replace(/await page\.\$\$\(([^)]+)\)/g, 'cy.get($1)');
+  result = result.replace(
+    /await page\.waitForSelector\(([^)]+)\)/g,
+    'cy.get($1)'
+  );
+
+  // --- Viewport ---
+
+  result = result.replace(
+    /await page\.setViewport\(\s*\{\s*width:\s*(\d+),\s*height:\s*(\d+)\s*\}\s*\)/g,
+    'cy.viewport($1, $2)'
+  );
+
+  result = result.replace(/await page\.screenshot\(\)/g, 'cy.screenshot()');
+
+  return result;
+}
+
+/**
+ * Re-split long chains into multi-line format.
+ * Forward conversion joins multi-line cy.get().should().and() chains into
+ * single lines for regex matching. This restores multi-line style to
+ * improve round-trip fidelity and readability.
+ */
+function resplitChains(content) {
+  return content
+    .split('\n')
+    .flatMap((line) => {
+      const trimmed = line.trim();
+      // Only process cy.get/cy.contains chains with 2+ chained methods
+      if (
+        !/^(?:await\s+)?cy\.(?:get|contains)\(/.test(trimmed) &&
+        !/^(?:await\s+)?(?:expect\()?cy\./.test(trimmed)
+      ) {
+        return [line];
+      }
+      // Count chain points (")." patterns)
+      const chainPoints = (trimmed.match(/\)\./g) || []).length;
+      // Only split if 3+ chain points, or 2+ and line is very long
+      if (chainPoints < 3 && (chainPoints < 2 || trimmed.length < 120)) {
+        return [line];
+      }
+      // Get the leading indent
+      const indent = line.match(/^(\s*)/)[1];
+      const contIndent = indent + '  ';
+      // Split at chain points: ).method( → )\n  .method(
+      const parts = [];
+      let depth = 0;
+      let current = '';
+      for (let i = 0; i < trimmed.length; i++) {
+        const ch = trimmed[i];
+        if (ch === '(' || ch === '[' || ch === '{') depth++;
+        if (ch === ')' || ch === ']' || ch === '}') depth--;
+        current += ch;
+        // Split at ")." when at depth 0 (after the closing paren)
+        if (
+          ch === ')' &&
+          depth === 0 &&
+          i + 1 < trimmed.length &&
+          trimmed[i + 1] === '.'
+        ) {
+          parts.push(current);
+          current = '';
+        }
+      }
+      if (current) parts.push(current);
+      if (parts.length < 2) return [line];
+      return parts.map((p, i) => (i === 0 ? indent + p : contIndent + p));
+    })
+    .join('\n');
 }
 
 /**

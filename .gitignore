@@ -124,6 +124,7 @@ dist
 
 # macOS
 .DS_Store
+._*
 
 # yarn v2
 .yarn/cache

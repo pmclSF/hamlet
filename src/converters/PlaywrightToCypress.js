@@ -81,7 +81,7 @@ export class PlaywrightToCypress extends BaseConverter {
       'await expect\\(([^)]+)\\)\\.toHaveText\\(([^)]+)\\)':
         '$1.should("have.text", $2)',
       'await expect\\(([^)]+)\\)\\.toContainText\\(([^)]+)\\)':
-        '$1.should("contain", $2)',
+        '$1.should("contain.text", $2)',
       'await expect\\(([^)]+)\\)\\.toHaveValue\\(([^)]+)\\)':
         '$1.should("have.value", $2)',
       'await expect\\(([^)]+)\\)\\.toHaveAttribute\\(([^,\n]+),\\s*([^)]+)\\)':
@@ -139,9 +139,11 @@ export class PlaywrightToCypress extends BaseConverter {
     // Transform test callbacks
     result = this.transformTestCallbacks(result);
 
-    // Add Cypress-specific setup
-    const setup = this.getSetup();
-    result = setup + result;
+    // Add Cypress-specific setup (avoid duplication on round-trip)
+    if (!result.includes('/// <reference types="cypress" />')) {
+      const setup = this.getSetup();
+      result = setup + result;
+    }
 
     // Clean up
     result = this.cleanupOutput(result);
@@ -157,6 +159,44 @@ export class PlaywrightToCypress extends BaseConverter {
    */
   convertPlaywrightCommands(content) {
     let result = content;
+
+    // --- Restore annotated page.route() → cy.intercept() ---
+    // page.route(url, route => route.fulfill(response)) /* @hamlet:intercept('METHOD').as("alias") */
+    result = result.replace(
+      /await page\.route\(([^,\n]+),\s*route\s*=>\s*route\.fulfill\(([^)]+)\)\)\s*\/\*\s*@hamlet:intercept\(([^)]+)\)\.as\(["']([^"']+)["']\)\s*\*\//g,
+      'cy.intercept($3, $1, $2).as(\'$4\')'
+    );
+    // page.route(url, route => route.continue()) /* @hamlet:intercept('METHOD').as("alias") */
+    result = result.replace(
+      /await page\.route\(([^,\n]+),\s*route\s*=>\s*route\.continue\(\)\)\s*\/\*\s*@hamlet:intercept\(([^)]+)\)\.as\(["']([^"']+)["']\)\s*\*\//g,
+      'cy.intercept($2, $1).as(\'$3\')'
+    );
+    // page.route(url, route => route.continue()) /* @hamlet:as("alias") */
+    result = result.replace(
+      /await page\.route\(([^,\n]+),\s*route\s*=>\s*route\.continue\(\)\)\s*\/\*\s*@hamlet:as\(["']([^"']+)["']\)\s*\*\//g,
+      'cy.intercept($1).as(\'$2\')'
+    );
+    // page.route(url, (route) => { /* @hamlet:intercept('METHOD') */
+    result = result.replace(
+      /await page\.route\(([^,\n]+),\s*\(route\)\s*=>\s*\{\s*\/\*\s*@hamlet:intercept\(([^)]+)\)\s*\*\//g,
+      'cy.intercept($2, $1, (req) => {'
+    );
+    // page.route(url, route => route.fulfill(response)) — no annotation
+    result = result.replace(
+      /await page\.route\(([^,\n]+),\s*route\s*=>\s*route\.fulfill\(([^)]+)\)\)/g,
+      'cy.intercept($1, $2)'
+    );
+    // page.route(url, route => route.continue()) — no annotation
+    result = result.replace(
+      /await page\.route\(([^,\n]+),\s*route\s*=>\s*route\.continue\(\)\)/g,
+      'cy.intercept($1)'
+    );
+
+    // --- Restore page.waitForResponse() → cy.wait() ---
+    result = result.replace(
+      /await page\.waitForResponse\(\s*response\s*=>\s*response\.url\(\)\.includes\(["']([^"']+)["']\)\s*\)/g,
+      "cy.wait('@$1')"
+    );
 
     // Convert assertions first (before removing await)
     // Note: Using [^()\n]+ to prevent ReDoS by excluding nested parens
@@ -188,7 +228,7 @@ export class PlaywrightToCypress extends BaseConverter {
 
     result = result.replace(
       /await expect\(page\.locator\(([^()\n]+)\)\)\.toContainText\(([^()\n]+)\)/g,
-      "cy.get($1).should('contain', $2)"
+      "cy.get($1).should('contain.text', $2)"
     );
 
     result = result.replace(
@@ -216,6 +256,14 @@ export class PlaywrightToCypress extends BaseConverter {
       "cy.get($1).should('be.enabled')"
     );
 
+    // toHaveCount with /* at least N */ comment → have.length.greaterThan (MUST be before plain toHaveCount)
+    result = result.replace(
+      /await expect\(page\.locator\(([^()\n]+)\)\)\.toHaveCount\((\d+)\)\s*\/\*\s*at least \d+\s*\*\//g,
+      (match, sel, count) => {
+        const n = parseInt(count) - 1;
+        return `cy.get(${sel}).should('have.length.greaterThan', ${n})`;
+      }
+    );
     result = result.replace(
       /await expect\(page\.locator\(([^()\n]+)\)\)\.toHaveCount\((\d+)\)/g,
       "cy.get($1).should('have.length', $2)"
@@ -226,14 +274,49 @@ export class PlaywrightToCypress extends BaseConverter {
       "cy.get($1).should('have.attr', $2, $3)"
     );
 
-    // Convert page URL/title assertions
+    // toBeEmpty / not.toBeEmpty
     result = result.replace(
-      /await expect\(page\)\.toHaveURL\(([^()\n]+)\)/g,
+      /await expect\(page\.locator\(([^()\n]+)\)\)\.not\.toBeEmpty\(\)/g,
+      "cy.get($1).should('not.be.empty')"
+    );
+    result = result.replace(
+      /await expect\(page\.locator\(([^()\n]+)\)\)\.toBeEmpty\(\)/g,
+      "cy.get($1).should('be.empty')"
+    );
+    // expect(page.locator(...)).not.toBeEmpty() without await
+    result = result.replace(
+      /expect\(page\.locator\(([^()\n]+)\)\)\.not\.toBeEmpty\(\)/g,
+      "cy.get($1).should('not.be.empty')"
+    );
+    // not.toHaveClass
+    result = result.replace(
+      /await expect\(page\.locator\(([^()\n]+)\)\)\.not\.toHaveClass\(([^()\n]+)\)/g,
+      "cy.get($1).should('not.have.class', $2)"
+    );
+    // toHaveCSS
+    result = result.replace(
+      /await expect\(page\.locator\(([^()\n]+)\)\)\.toHaveCSS\(([^,()\n]+),\s*([^()\n]+)\)/g,
+      "cy.get($1).should('have.css', $2, $3)"
+    );
+    // (toHaveCount with /* at least */ is handled earlier, before plain toHaveCount)
+
+    // Convert page URL/title assertions (with and without await)
+    // expect(page).toHaveURL(new RegExp(path)) → cy.url().should('include', path)
+    result = result.replace(
+      /(?:await )?expect\(page\)\.toHaveURL\(new RegExp\(([^)]+)\)\)/g,
+      "cy.url().should('include', $1)"
+    );
+    result = result.replace(
+      /(?:await )?expect\(page\)\.toHaveURL\(([^()\n]+)\)/g,
       "cy.url().should('include', $1)"
     );
 
     result = result.replace(
-      /await expect\(page\)\.toHaveTitle\(([^()\n]+)\)/g,
+      /(?:await )?expect\(page\)\.toHaveTitle\(new RegExp\(([^)]+)\)\)/g,
+      "cy.title().should('include', $1)"
+    );
+    result = result.replace(
+      /(?:await )?expect\(page\)\.toHaveTitle\(([^()\n]+)\)/g,
       "cy.title().should('eq', $1)"
     );
 
@@ -334,6 +417,46 @@ export class PlaywrightToCypress extends BaseConverter {
       'cy.get($1).eq($2).click()'
     );
 
+    // Convert page.locator().focus/blur/hover (missing from original)
+    result = result.replace(
+      /await page\.locator\(([^)]+)\)\.focus\(\)/g,
+      'cy.get($1).focus()'
+    );
+    result = result.replace(
+      /await page\.locator\(([^)]+)\)\.blur\(\)/g,
+      'cy.get($1).blur()'
+    );
+    result = result.replace(
+      /await page\.locator\(([^)]+)\)\.hover\(\)/g,
+      "cy.get($1).trigger('mouseover')"
+    );
+    result = result.replace(
+      /await page\.locator\(([^)]+)\)\.scrollIntoViewIfNeeded\(\)/g,
+      'cy.get($1).scrollIntoView()'
+    );
+    result = result.replace(
+      /await page\.locator\(([^)]+)\)\.textContent\(\)/g,
+      "cy.get($1).invoke('text')"
+    );
+    result = result.replace(
+      /await page\.locator\(([^)]+)\)\.getAttribute\(([^)]+)\)/g,
+      "cy.get($1).invoke('attr', $2)"
+    );
+
+    // Convert page.locator().first/last/nth chains (with click)
+    result = result.replace(
+      /page\.locator\(([^)]+)\)\.first\(\)\.click\(\)/g,
+      'cy.get($1).first().click()'
+    );
+    result = result.replace(
+      /page\.locator\(([^)]+)\)\.last\(\)\.click\(\)/g,
+      'cy.get($1).last().click()'
+    );
+    result = result.replace(
+      /page\.locator\(([^)]+)\)\.nth\((\d+)\)\.click\(\)/g,
+      'cy.get($1).eq($2).click()'
+    );
+
     // Convert page.locator().first() (standalone)
     result = result.replace(
       /page\.locator\(([^)]+)\)\.first\(\)/g,
@@ -352,6 +475,43 @@ export class PlaywrightToCypress extends BaseConverter {
       'cy.get($1).eq($2)'
     );
 
+    // Standalone page.locator(sel) → cy.get(sel) (catch-all for remaining)
+    result = result.replace(/page\.locator\(([^)]+)\)/g, 'cy.get($1)');
+
+    // Standalone page.getByText(sel) → cy.contains(sel)
+    result = result.replace(/page\.getByText\(([^)]+)\)/g, 'cy.contains($1)');
+
+    // Chained .locator(sel) → .find(sel)
+    result = result.replace(/\.locator\(([^)]+)\)/g, '.find($1)');
+
+    // .nth(n) → .eq(n)
+    result = result.replace(/\.nth\((\d+)\)/g, '.eq($1)');
+
+    // .click({ button: 'right' }) → .rightclick()
+    result = result.replace(
+      /\.click\(\{\s*button:\s*['"]right['"]\s*\}\)/g,
+      '.rightclick()'
+    );
+
+    // .scrollIntoViewIfNeeded() → .scrollIntoView()
+    result = result.replace(/\.scrollIntoViewIfNeeded\(\)/g, '.scrollIntoView()');
+
+    // .dispatchEvent(event) → .trigger(event)
+    result = result.replace(/\.dispatchEvent\(([^)]+)\)/g, '.trigger($1)');
+
+    // .filter({ hasNot: page.locator(sel) }) → .not(sel)
+    result = result.replace(
+      /\.filter\(\{\s*hasNot:\s*(?:page\.locator|cy\.get)\(([^)]+)\)\s*\}\)/g,
+      '.not($1)'
+    );
+
+    // Restore cy.wrap() for bare jQuery-like variables with .should()
+    // $card.should(...) → cy.wrap($card).should(...)
+    result = result.replace(
+      /(\$\w+)\.should\(/g,
+      'cy.wrap($1).should('
+    );
+
     return result;
   }
 
@@ -366,6 +526,15 @@ export class PlaywrightToCypress extends BaseConverter {
     // Convert describe
     result = result.replace(/test\.describe\.only\(/g, 'describe.only(');
     result = result.replace(/test\.describe\.skip\(/g, 'describe.skip(');
+    // Restore context() from annotated test.describe
+    result = result.replace(
+      /test\.describe\(\s*\/\* @hamlet:was-context \*\//g,
+      'context('
+    );
+    result = result.replace(
+      /describe\(\s*\/\* @hamlet:was-context \*\//g,
+      'context('
+    );
     result = result.replace(/test\.describe\(/g, 'describe(');
 
     // Convert test
@@ -378,6 +547,12 @@ export class PlaywrightToCypress extends BaseConverter {
     result = result.replace(/test\.afterAll\(/g, 'after(');
     result = result.replace(/test\.beforeEach\(/g, 'beforeEach(');
     result = result.replace(/test\.afterEach\(/g, 'afterEach(');
+
+    // Strip HAMLET-TODO comment blocks from forward conversion
+    result = result.replace(
+      /^[ \t]*\/\/ HAMLET-TODO \[[^\]]+\]:.*\n(?:[ \t]*\n)*(?:[ \t]*\/\/ (?:Original|Manual action required):.*\n(?:[ \t]*\n)*)*/gm,
+      ''
+    );
 
     return result;
   }
