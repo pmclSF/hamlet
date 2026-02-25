@@ -202,7 +202,9 @@ async function checkTestFiles(resolved) {
   const scanner = new Scanner();
   const classifier = new FileClassifier();
 
-  const files = await scanner.scan(resolved);
+  const files = await scanner.scan(resolved, {
+    ignore: ['benchmarks', 'testing', 'vendor', 'third_party', '.venv', 'venv'],
+  });
   const frameworks = {};
   let testFileCount = 0;
   let scannedCount = 0;
