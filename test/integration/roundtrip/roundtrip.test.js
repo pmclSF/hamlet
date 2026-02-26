@@ -13,7 +13,11 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { convert, parseStructure, assertSemanticEquivalence } from './roundtrip.helper.js';
+import {
+  convert,
+  parseStructure,
+  assertSemanticEquivalence,
+} from './roundtrip.helper.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const fixturesDir = path.resolve(__dirname, 'fixtures');
@@ -30,9 +34,16 @@ const ROUND_TRIP_PAIRS = [
   { dir: 'cypress-playwright', from: 'cypress', to: 'playwright', ext: 'js' },
   { dir: 'cypress-wdio', from: 'cypress', to: 'webdriverio', ext: 'js' },
   { dir: 'playwright-wdio', from: 'playwright', to: 'webdriverio', ext: 'js' },
-  { dir: 'playwright-puppeteer', from: 'playwright', to: 'puppeteer', ext: 'js' },
+  {
+    dir: 'playwright-puppeteer',
+    from: 'playwright',
+    to: 'puppeteer',
+    ext: 'js',
+  },
   { dir: 'junit5-testng', from: 'junit5', to: 'testng', ext: 'java' },
   { dir: 'pytest-unittest', from: 'pytest', to: 'unittest', ext: 'py' },
+  { dir: 'cypress-selenium', from: 'cypress', to: 'selenium', ext: 'js' },
+  { dir: 'playwright-selenium', from: 'playwright', to: 'selenium', ext: 'js' },
 ];
 
 const COMPLEXITY_LEVELS = ['simple', 'medium', 'complex'];
@@ -40,8 +51,19 @@ const COMPLEXITY_LEVELS = ['simple', 'medium', 'complex'];
 // ── One-way conversion directions (no reverse) ──────────────────────
 
 const ONE_WAY_DIRECTIONS = [
-  { fixture: 'jest-mocha/simple.input.js', from: 'jest', to: 'vitest', framework: 'jest' },
-  { fixture: 'junit5-testng/simple.input.java', from: 'junit4', to: 'junit5', framework: 'junit4', note: 'using junit5 fixture as a proxy' },
+  {
+    fixture: 'jest-mocha/simple.input.js',
+    from: 'jest',
+    to: 'vitest',
+    framework: 'jest',
+  },
+  {
+    fixture: 'junit5-testng/simple.input.java',
+    from: 'junit4',
+    to: 'junit5',
+    framework: 'junit4',
+    note: 'using junit5 fixture as a proxy',
+  },
 ];
 
 // ── Round-trip tests ─────────────────────────────────────────────────
@@ -76,17 +98,24 @@ describe('Round-Trip Testing', () => {
           const originalStructure = parseStructure(original, pair.from);
           const roundTrippedStructure = parseStructure(reverse.code, pair.from);
 
-          // Paradigm crossings and Java round-trips get more tolerance
-          // (ParameterizedTest expansion, paradigm-crossing structure loss)
-          const isPrdmCrossing = (pair.from === 'pytest' || pair.from === 'unittest');
-          const isJava = (pair.from === 'junit5' || pair.from === 'testng');
-          const tolerance = isPrdmCrossing || isJava
-            ? { testTolerance: 20, assertionTolerance: 10 }
-            : complexity === 'complex'
-              ? { testTolerance: 2, assertionTolerance: 3 }
-              : { testTolerance: 1, assertionTolerance: 2 };
+          // Paradigm crossings, Java round-trips, and selenium legacy
+          // converters get wider tolerance
+          const isPrdmCrossing =
+            pair.from === 'pytest' || pair.from === 'unittest';
+          const isJava = pair.from === 'junit5' || pair.from === 'testng';
+          const isSelenium = pair.to === 'selenium' || pair.from === 'selenium';
+          const tolerance =
+            isPrdmCrossing || isJava || isSelenium
+              ? { testTolerance: 20, assertionTolerance: 10 }
+              : complexity === 'complex'
+                ? { testTolerance: 2, assertionTolerance: 3 }
+                : { testTolerance: 1, assertionTolerance: 2 };
 
-          assertSemanticEquivalence(originalStructure, roundTrippedStructure, tolerance);
+          assertSemanticEquivalence(
+            originalStructure,
+            roundTrippedStructure,
+            tolerance
+          );
         });
       }
     });
@@ -101,7 +130,9 @@ describe('Round-Trip Testing', () => {
 
       const structure = parseStructure(result.code, 'vitest');
       const origStructure = parseStructure(original, 'jest');
-      expect(structure.testCount).toBeGreaterThanOrEqual(origStructure.testCount);
+      expect(structure.testCount).toBeGreaterThanOrEqual(
+        origStructure.testCount
+      );
     });
 
     it('nose2 → pytest produces valid output', async () => {

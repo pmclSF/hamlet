@@ -1,0 +1,146 @@
+{
+  "version": 1,
+  "generatedAt": "2026-02-26T22:50:32.880Z",
+  "pairs": {
+    "jest-mocha": {
+      "simple": {
+        "lineFidelity": 0.714,
+        "structuralFidelity": 1
+      },
+      "medium": {
+        "lineFidelity": 0.782,
+        "structuralFidelity": 1
+      },
+      "complex": {
+        "lineFidelity": 0.81,
+        "structuralFidelity": 1
+      }
+    },
+    "jest-jasmine": {
+      "simple": {
+        "lineFidelity": 0.75,
+        "structuralFidelity": 1
+      },
+      "medium": {
+        "lineFidelity": 0.836,
+        "structuralFidelity": 1
+      },
+      "complex": {
+        "lineFidelity": 0.75,
+        "structuralFidelity": 1
+      }
+    },
+    "cypress-playwright": {
+      "simple": {
+        "lineFidelity": 0.75,
+        "structuralFidelity": 1
+      },
+      "medium": {
+        "lineFidelity": 0.781,
+        "structuralFidelity": 1
+      },
+      "complex": {
+        "lineFidelity": 0.833,
+        "structuralFidelity": 1
+      }
+    },
+    "cypress-webdriverio": {
+      "simple": {
+        "lineFidelity": 0.857,
+        "structuralFidelity": 1
+      },
+      "medium": {
+        "lineFidelity": 0.719,
+        "structuralFidelity": 1
+      },
+      "complex": {
+        "lineFidelity": 0.762,
+        "structuralFidelity": 1
+      }
+    },
+    "playwright-webdriverio": {
+      "simple": {
+        "lineFidelity": 0.824,
+        "structuralFidelity": 1
+      },
+      "medium": {
+        "lineFidelity": 0.829,
+        "structuralFidelity": 1
+      },
+      "complex": {
+        "lineFidelity": 0.807,
+        "structuralFidelity": 1
+      }
+    },
+    "playwright-puppeteer": {
+      "simple": {
+        "lineFidelity": 0.789,
+        "structuralFidelity": 1
+      },
+      "medium": {
+        "lineFidelity": 0.816,
+        "structuralFidelity": 1
+      },
+      "complex": {
+        "lineFidelity": 0.833,
+        "structuralFidelity": 1
+      }
+    },
+    "junit5-testng": {
+      "simple": {
+        "lineFidelity": 0.757,
+        "structuralFidelity": 1
+      },
+      "medium": {
+        "lineFidelity": 0.769,
+        "structuralFidelity": 1
+      },
+      "complex": {
+        "lineFidelity": 0.825,
+        "structuralFidelity": 1
+      }
+    },
+    "pytest-unittest": {
+      "simple": {
+        "lineFidelity": 0.588,
+        "structuralFidelity": 1
+      },
+      "medium": {
+        "lineFidelity": 0.659,
+        "structuralFidelity": 1
+      },
+      "complex": {
+        "lineFidelity": 0.795,
+        "structuralFidelity": 1
+      }
+    },
+    "cypress-selenium": {
+      "simple": {
+        "lineFidelity": 0.75,
+        "structuralFidelity": 1
+      },
+      "medium": {
+        "lineFidelity": 0.714,
+        "structuralFidelity": 1
+      },
+      "complex": {
+        "lineFidelity": 0.826,
+        "structuralFidelity": 1
+      }
+    },
+    "playwright-selenium": {
+      "simple": {
+        "lineFidelity": 0.52,
+        "structuralFidelity": 1
+      },
+      "medium": {
+        "lineFidelity": 0.689,
+        "structuralFidelity": 1
+      },
+      "complex": {
+        "lineFidelity": 0.72,
+        "structuralFidelity": 1
+      }
+    }
+  }
+}
