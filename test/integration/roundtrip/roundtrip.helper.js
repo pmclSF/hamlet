@@ -31,6 +31,7 @@ const TEST_PATTERNS = {
   jasmine: [/\bit\s*\(/, /\bfit\s*\(/],
   cypress: [/\bit\s*\(/],
   playwright: [/\btest\s*\(/, /\btest\.describe/],
+  selenium: [/\bit\s*\(/, /\btest\s*\(/],
   webdriverio: [/\bit\s*\(/, /\btest\s*\(/],
   puppeteer: [/\bit\s*\(/, /\btest\s*\(/],
   testcafe: [/\btest\s*\(/],
@@ -48,6 +49,7 @@ const SUITE_PATTERNS = {
   jasmine: [/\bdescribe\s*\(/, /\bfdescribe\s*\(/],
   cypress: [/\bdescribe\s*\(/, /\bcontext\s*\(/],
   playwright: [/\btest\.describe\s*\(/],
+  selenium: [/\bdescribe\s*\(/],
   webdriverio: [/\bdescribe\s*\(/],
   puppeteer: [/\bdescribe\s*\(/],
   testcafe: [/\bfixture\s*[(`]/],
@@ -65,6 +67,7 @@ const ASSERTION_PATTERNS = {
   jasmine: [/\bexpect\s*\(/],
   cypress: [/\.should\s*\(/, /\bexpect\s*\(/],
   playwright: [/\bexpect\s*\(/],
+  selenium: [/\bexpect\s*\(/, /\bassert\s*[.(]/],
   webdriverio: [/\bexpect\s*\(/, /\.should\b/],
   puppeteer: [/\bexpect\s*\(/],
   testcafe: [/\bt\.expect\s*\(/],
@@ -76,20 +79,71 @@ const ASSERTION_PATTERNS = {
 };
 
 const HOOK_PATTERNS = {
-  jest: [/\bbeforeEach\s*\(/, /\bafterEach\s*\(/, /\bbeforeAll\s*\(/, /\bafterAll\s*\(/],
-  vitest: [/\bbeforeEach\s*\(/, /\bafterEach\s*\(/, /\bbeforeAll\s*\(/, /\bafterAll\s*\(/],
-  mocha: [/\bbefore\s*\(/, /\bafter\s*\(/, /\bbeforeEach\s*\(/, /\bafterEach\s*\(/],
-  jasmine: [/\bbeforeEach\s*\(/, /\bafterEach\s*\(/, /\bbeforeAll\s*\(/, /\bafterAll\s*\(/],
-  cypress: [/\bbefore\s*\(/, /\bafter\s*\(/, /\bbeforeEach\s*\(/, /\bafterEach\s*\(/],
-  playwright: [/\btest\.beforeEach\s*\(/, /\btest\.afterEach\s*\(/, /\btest\.beforeAll\s*\(/, /\btest\.afterAll\s*\(/],
-  webdriverio: [/\bbefore\s*\(/, /\bafter\s*\(/, /\bbeforeEach\s*\(/, /\bafterEach\s*\(/],
-  puppeteer: [/\bbeforeAll\s*\(/, /\bafterAll\s*\(/, /\bbeforeEach\s*\(/, /\bafterEach\s*\(/],
+  jest: [
+    /\bbeforeEach\s*\(/,
+    /\bafterEach\s*\(/,
+    /\bbeforeAll\s*\(/,
+    /\bafterAll\s*\(/,
+  ],
+  vitest: [
+    /\bbeforeEach\s*\(/,
+    /\bafterEach\s*\(/,
+    /\bbeforeAll\s*\(/,
+    /\bafterAll\s*\(/,
+  ],
+  mocha: [
+    /\bbefore\s*\(/,
+    /\bafter\s*\(/,
+    /\bbeforeEach\s*\(/,
+    /\bafterEach\s*\(/,
+  ],
+  jasmine: [
+    /\bbeforeEach\s*\(/,
+    /\bafterEach\s*\(/,
+    /\bbeforeAll\s*\(/,
+    /\bafterAll\s*\(/,
+  ],
+  cypress: [
+    /\bbefore\s*\(/,
+    /\bafter\s*\(/,
+    /\bbeforeEach\s*\(/,
+    /\bafterEach\s*\(/,
+  ],
+  playwright: [
+    /\btest\.beforeEach\s*\(/,
+    /\btest\.afterEach\s*\(/,
+    /\btest\.beforeAll\s*\(/,
+    /\btest\.afterAll\s*\(/,
+  ],
+  selenium: [
+    /\bbeforeAll\s*\(/,
+    /\bafterAll\s*\(/,
+    /\bbeforeEach\s*\(/,
+    /\bafterEach\s*\(/,
+  ],
+  webdriverio: [
+    /\bbefore\s*\(/,
+    /\bafter\s*\(/,
+    /\bbeforeEach\s*\(/,
+    /\bafterEach\s*\(/,
+  ],
+  puppeteer: [
+    /\bbeforeAll\s*\(/,
+    /\bafterAll\s*\(/,
+    /\bbeforeEach\s*\(/,
+    /\bafterEach\s*\(/,
+  ],
   testcafe: [/\bfixture\b.*\bbefore\b/, /\bfixture\b.*\bafter\b/],
   junit4: [/@Before\b/, /@After\b/, /@BeforeClass/, /@AfterClass/],
   junit5: [/@BeforeEach/, /@AfterEach/, /@BeforeAll/, /@AfterAll/],
   testng: [/@BeforeMethod/, /@AfterMethod/, /@BeforeClass/, /@AfterClass/],
   pytest: [/@pytest\.fixture/],
-  unittest: [/\bdef setUp\b/, /\bdef tearDown\b/, /\bdef setUpClass\b/, /\bdef tearDownClass\b/],
+  unittest: [
+    /\bdef setUp\b/,
+    /\bdef tearDown\b/,
+    /\bdef setUpClass\b/,
+    /\bdef tearDownClass\b/,
+  ],
 };
 
 /**
@@ -98,7 +152,9 @@ const HOOK_PATTERNS = {
 function countMatches(content, patterns) {
   let total = 0;
   for (const pat of patterns) {
-    const matches = content.match(new RegExp(pat.source, 'g' + (pat.flags || '')));
+    const matches = content.match(
+      new RegExp(pat.source, 'g' + (pat.flags || ''))
+    );
     if (matches) total += matches.length;
   }
   return total;
@@ -128,12 +184,79 @@ export function parseStructure(content, framework) {
  * @param {number} [options.testTolerance=0] - Allowed difference in test count
  * @param {number} [options.assertionTolerance=0] - Allowed difference in assertion count
  */
-export function assertSemanticEquivalence(original, roundTripped, options = {}) {
+export function assertSemanticEquivalence(
+  original,
+  roundTripped,
+  options = {}
+) {
   const testTol = options.testTolerance || 0;
   const assertTol = options.assertionTolerance || 0;
 
-  expect(roundTripped.suiteCount).toBeGreaterThanOrEqual(original.suiteCount - 1);
-  expect(roundTripped.testCount).toBeGreaterThanOrEqual(original.testCount - testTol);
-  expect(roundTripped.testCount).toBeLessThanOrEqual(original.testCount + testTol);
-  expect(roundTripped.assertionCount).toBeGreaterThanOrEqual(original.assertionCount - assertTol);
+  expect(roundTripped.suiteCount).toBeGreaterThanOrEqual(
+    original.suiteCount - 1
+  );
+  expect(roundTripped.testCount).toBeGreaterThanOrEqual(
+    original.testCount - testTol
+  );
+  expect(roundTripped.testCount).toBeLessThanOrEqual(
+    original.testCount + testTol
+  );
+  expect(roundTripped.assertionCount).toBeGreaterThanOrEqual(
+    original.assertionCount - assertTol
+  );
+}
+
+/**
+ * Calculate line-level fidelity between original and round-tripped output.
+ * Uses set-based matching of trimmed non-empty lines.
+ * @param {string} original
+ * @param {string} roundtripped
+ * @returns {number} Fidelity score between 0.0 and 1.0
+ */
+export function calculateFidelity(original, roundtripped) {
+  const origLines = original.split('\n');
+  const rtLines = roundtripped.split('\n');
+
+  let matches = 0;
+  const rtSet = new Set(rtLines.map((l) => l.trim()));
+  for (const line of origLines) {
+    if (rtSet.has(line.trim()) && line.trim().length > 0) {
+      matches++;
+    }
+  }
+
+  const maxLines = Math.max(origLines.length, rtLines.length);
+  if (maxLines === 0) return 1.0;
+
+  return matches / maxLines;
+}
+
+/**
+ * Calculate structural fidelity (describe/it/test/assert blocks preserved).
+ * @param {string} original
+ * @param {string} roundtripped
+ * @returns {number} Fidelity score between 0.0 and 1.0
+ */
+export function calculateStructuralFidelity(original, roundtripped) {
+  const structurePatterns = [
+    /\b(describe|it|test|beforeEach|afterEach|beforeAll|afterAll)\s*\(/g,
+    /\b(expect)\s*\(/g,
+    /@(Test|Before|After|BeforeEach|AfterEach|BeforeAll|AfterAll)\b/g,
+    /\b(def test_\w+|class \w+.*TestCase|assert\s)/g,
+  ];
+
+  let origCount = 0;
+  let rtCount = 0;
+
+  for (const pat of structurePatterns) {
+    origCount += (original.match(pat) || []).length;
+    pat.lastIndex = 0;
+    rtCount += (roundtripped.match(pat) || []).length;
+    pat.lastIndex = 0;
+  }
+
+  if (origCount === 0 && rtCount === 0) return 1.0;
+  if (origCount === 0) return 0;
+
+  return Math.min(rtCount / origCount, 1.0);
 }
