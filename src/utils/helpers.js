@@ -67,6 +67,7 @@ export const fileUtils = {
       const entries = await fs.readdir(directory, { withFileTypes: true });
 
       for (const entry of entries) {
+        if (entry.name.startsWith('._')) continue; // skip macOS resource forks
         const fullPath = path.join(directory, entry.name);
 
         if (entry.isDirectory()) {

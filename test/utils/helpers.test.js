@@ -104,7 +104,7 @@ describe('fileUtils', () => {
 
       await fileUtils.cleanDir(tmpDir, /\.json$/);
 
-      const entries = await fs.readdir(tmpDir);
+      const entries = (await fs.readdir(tmpDir)).filter(e => !e.startsWith('._'));
       expect(entries).toEqual(['keep.json']);
     });
 
