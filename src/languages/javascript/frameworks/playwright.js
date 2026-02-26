@@ -65,11 +65,29 @@ function parse(source) {
 function emit(ir, source) {
   let result = source;
 
+  // Strip incoming HAMLET-TODO blocks (from previous round-trip step)
+  result = result.replace(
+    /^[ \t]*\/\/ HAMLET-TODO \[[^\]]+\]:.*\n(?:[ \t]*\n)*(?:[ \t]*\/\/ (?:Original|Manual action required):.*\n(?:[ \t]*\n)*)*/gm,
+    ''
+  );
+  result = result.replace(
+    /^[ \t]*\/\*\s*HAMLET-TODO:.*?\*\/\s*\n?/gm,
+    ''
+  );
+  // Strip Cypress reference type directive (from round-trip)
+  result = result.replace(/^\/\/\/\s*<reference types="cypress"\s*\/>\s*\n?/gm, '');
+
   // Detect source framework
   const isCypressSource = /\bcy\./.test(source);
   const isWdioSource =
-    /\bbrowser\.url\s*\(/.test(source) ||
-    (/\$\(/.test(source) && /\.setValue\s*\(/.test(source));
+    /\bbrowser\.(url|getUrl|getTitle|pause|execute|refresh|back|forward|keys|setCookies|getCookies|deleteCookies|setWindowSize)\s*\(/.test(
+      source
+    ) ||
+    /from\s+['"]@wdio\/globals['"]/.test(source) ||
+    (/\$\(/.test(source) &&
+      /\.(setValue|clearValue|moveTo|getText|isDisplayed|waitForDisplayed|selectByVisibleText|doubleClick)\s*\(/.test(
+        source
+      ));
   const isPuppeteerSource =
     /puppeteer\.launch/.test(source) ||
     /require\(['"]puppeteer['"]\)/.test(source) ||
@@ -242,6 +260,11 @@ function convertCypressCommands(content) {
     /cy\.get\(([^()\n]+)\)\.should\(['"]have\.text['"],\s*([^()\n]+)\)/g,
     'await expect(page.locator($1)).toHaveText($2)'
   );
+  // contain.text (more specific — must be before 'contain')
+  result = result.replace(
+    /cy\.get\(([^()\n]+)\)\.should\(['"]contain\.text['"],\s*([^()\n]+)\)/g,
+    'await expect(page.locator($1)).toContainText($2)'
+  );
   result = result.replace(
     /cy\.get\(([^()\n]+)\)\.should\(['"]contain['"],\s*([^()\n]+)\)/g,
     'await expect(page.locator($1)).toContainText($2)'
@@ -273,6 +296,49 @@ function convertCypressCommands(content) {
   result = result.replace(
     /cy\.get\(([^)]+)\)\.should\(['"]have\.attr['"],\s*([^,\n]+),\s*([^)]+)\)/g,
     'await expect(page.locator($1)).toHaveAttribute($2, $3)'
+  );
+  // contain.text → toContainText (alias for 'contain')
+  result = result.replace(
+    /cy\.get\(([^()\n]+)\)\.should\(['"]contain\.text['"],\s*([^()\n]+)\)/g,
+    'await expect(page.locator($1)).toContainText($2)'
+  );
+  // not.be.empty → element has content
+  result = result.replace(
+    /cy\.get\(([^()\n]+)\)\.should\(['"]not\.be\.empty['"]\)/g,
+    'await expect(page.locator($1)).not.toBeEmpty()'
+  );
+  // have.length.greaterThan → toHaveCount with { min }
+  result = result.replace(
+    /cy\.get\(([^)]+)\)\.should\(['"]have\.length\.greaterThan['"],\s*(\d+)\)/g,
+    (match, sel, n) => {
+      const min = parseInt(n) + 1;
+      return `await expect(page.locator(${sel})).toHaveCount(${min}) /* at least ${min} */`;
+    }
+  );
+  // have.length.at.least → toHaveCount with minimum
+  result = result.replace(
+    /cy\.get\(([^)]+)\)\.should\(['"]have\.length\.at\.least['"],\s*(\d+)\)/g,
+    'await expect(page.locator($1)).toHaveCount($2) /* at least $2 */'
+  );
+  // not.have.class → negated class assertion
+  result = result.replace(
+    /cy\.get\(([^()\n]+)\)\.should\(['"]not\.have\.class['"],\s*([^()\n]+)\)/g,
+    'await expect(page.locator($1)).not.toHaveClass($2)'
+  );
+  // be.empty → element is empty
+  result = result.replace(
+    /cy\.get\(([^()\n]+)\)\.should\(['"]be\.empty['"]\)/g,
+    'await expect(page.locator($1)).toBeEmpty()'
+  );
+  // have.css → CSS property assertion
+  result = result.replace(
+    /cy\.get\(([^()\n]+)\)\.should\(['"]have\.css['"],\s*([^,\n]+),\s*([^)]+)\)/g,
+    'await expect(page.locator($1)).toHaveCSS($2, $3)'
+  );
+  // include.text → toContainText (another alias)
+  result = result.replace(
+    /cy\.get\(([^()\n]+)\)\.should\(['"]include\.text['"],\s*([^()\n]+)\)/g,
+    'await expect(page.locator($1)).toContainText($2)'
   );
 
   // --- Composite cy.get().action() chains ---

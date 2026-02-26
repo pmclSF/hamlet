@@ -170,6 +170,16 @@ function parse(source) {
 function emit(_ir, source) {
   let result = source;
 
+  // Strip incoming HAMLET-TODO blocks (from previous round-trip step)
+  result = result.replace(
+    /^[ \t]*\/\/ HAMLET-TODO \[[^\]]+\]:.*\n(?:[ \t]*\n)*(?:[ \t]*\/\/ (?:Original|Manual action required):.*\n(?:[ \t]*\n)*)*/gm,
+    ''
+  );
+  result = result.replace(
+    /^[ \t]*\/\*\s*HAMLET-TODO:.*?\*\/\s*\n?/gm,
+    ''
+  );
+
   // Detect source framework
   const isPlaywrightSource =
     /from\s+['"]@playwright\/test['"]/.test(source) ||
@@ -456,6 +466,11 @@ function convertWdioToCypress(content) {
   // --- Browser API ---
 
   result = result.replace(/await browser\.pause\(([^)]+)\)/g, 'cy.wait($1)');
+  // Specific execute patterns before generic (localStorage.clear, etc.)
+  result = result.replace(
+    /await browser\.execute\(\(\)\s*=>\s*localStorage\.clear\(\)\)/g,
+    'cy.clearLocalStorage()'
+  );
   result = result.replace(
     /await browser\.execute\(([^)]*)\)/g,
     'cy.window().then($1)'
@@ -477,6 +492,10 @@ function convertWdioToCypress(content) {
     'cy.clearCookies()'
   );
   result = result.replace(/await browser\.getCookies\(\)/g, 'cy.getCookies()');
+
+  // --- Console/log ---
+
+  result = result.replace(/console\.log\(([^)]+)\)/g, 'cy.log($1)');
 
   // --- Unconvertible: browser.mock ---
 
