@@ -13,6 +13,10 @@ export default {
     '<rootDir>/test/**/*.spec.js',
     '<rootDir>/test/**/*.test.js'
   ],
+  modulePathIgnorePatterns: [
+    '<rootDir>/benchmarks/',
+    '<rootDir>/testing/',
+  ],
   testPathIgnorePatterns: [
     '/node_modules/',
     '<rootDir>/test/output/',

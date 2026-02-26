@@ -133,6 +133,14 @@ dist
 .yarn/install-state.gz
 .pnp.*
 
+# Benchmark cloned repos (downloaded via scripts/download-benchmarks.sh)
+benchmarks/cypress-playwright/
+benchmarks/jest-vitest/
+benchmarks/vitest/
+benchmarks/mocha-jasmine-etc/
+benchmarks/java/
+benchmarks/python/
+
 # Test output (generated during test runs)
 test/output/
 test/fixtures/
