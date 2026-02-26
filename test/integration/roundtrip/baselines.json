@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-02-26T19:22:29.441Z",
+  "generatedAt": "2026-02-26T19:28:48.100Z",
   "pairs": {
     "jest-mocha": {
       "simple": {
@@ -111,6 +111,34 @@
       },
       "complex": {
         "lineFidelity": 0.795,
+        "structuralFidelity": 1
+      }
+    },
+    "cypress-selenium": {
+      "simple": {
+        "lineFidelity": 0.75,
+        "structuralFidelity": 1
+      },
+      "medium": {
+        "lineFidelity": 0.714,
+        "structuralFidelity": 1
+      },
+      "complex": {
+        "lineFidelity": 0.826,
+        "structuralFidelity": 1
+      }
+    },
+    "playwright-selenium": {
+      "simple": {
+        "lineFidelity": 0.52,
+        "structuralFidelity": 1
+      },
+      "medium": {
+        "lineFidelity": 0.689,
+        "structuralFidelity": 1
+      },
+      "complex": {
+        "lineFidelity": 0.72,
         "structuralFidelity": 1
       }
     }
