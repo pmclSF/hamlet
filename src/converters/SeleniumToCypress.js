@@ -115,8 +115,10 @@ export class SeleniumToCypress extends BaseConverter {
     // Transform test structure
     result = this.transformTestStructure(result);
 
-    // Add Cypress reference
-    result = this.getSetup() + result;
+    // Add Cypress reference (avoid duplication on round-trip)
+    if (!result.includes('/// <reference types="cypress" />')) {
+      result = this.getSetup() + result;
+    }
 
     // Clean up empty lines
     result = result.replace(/\n{3,}/g, '\n\n').trim() + '\n';
@@ -151,15 +153,15 @@ export class SeleniumToCypress extends BaseConverter {
     // Remove driver variable declaration
     result = result.replace(/let\s+driver;?\n?/g, '');
 
-    // Remove beforeAll with driver setup
+    // Remove beforeAll with driver setup (single-line and multi-line)
     result = result.replace(
-      /beforeAll\s*\(\s*async\s*\(\)\s*=>\s*\{[^{}\n]*new\s+Builder[^{}\n]*\}\s*\);?\n?/g,
+      /beforeAll\s*\(\s*async\s*\(\)\s*=>\s*\{[^{}]*new\s+Builder[^{}]*\}\s*\);?\n?/g,
       ''
     );
 
-    // Remove afterAll with driver quit
+    // Remove afterAll with driver quit (single-line and multi-line)
     result = result.replace(
-      /afterAll\s*\(\s*async\s*\(\)\s*=>\s*\{[^{}\n]*driver\.quit[^{}\n]*\}\s*\);?\n?/g,
+      /afterAll\s*\(\s*async\s*\(\)\s*=>\s*\{[^{}]*driver\.quit[^{}]*\}\s*\);?\n?/g,
       ''
     );
 
@@ -317,6 +319,12 @@ export class SeleniumToCypress extends BaseConverter {
     result = result.replace(
       /const\s+select\s*=\s*await\s+driver\.findElement\s*\(\s*By\.css\s*\(([^)]+)\)\s*\);\s*\n?\s*await\s+select\.findElement\s*\(\s*By\.css\s*\(\s*`option\[value=\$\{([^}]+)\}\]`\s*\)\s*\)\.click\s*\(\s*\)/g,
       'cy.get($1).select($2)'
+    );
+
+    // Strip HAMLET-TODO comment blocks from forward conversion
+    result = result.replace(
+      /^[ \t]*\/\/ HAMLET-TODO \[[^\]]+\]:.*\n(?:[ \t]*\n)*(?:[ \t]*\/\/ (?:Original|Manual action required):.*\n(?:[ \t]*\n)*)*/gm,
+      ''
     );
 
     return result;

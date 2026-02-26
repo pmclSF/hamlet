@@ -434,7 +434,7 @@ function emit(_ir, source) {
   // Restore jest mock cleanup from Jasmine auto-clean comment
   result = result.replace(
     /\/\/ Jasmine spies are auto-cleaned between specs/g,
-    'jest.restoreAllMocks()'
+    'jest.restoreAllMocks();'
   );
 
   // --- Phase 1: Remove source-framework imports ---

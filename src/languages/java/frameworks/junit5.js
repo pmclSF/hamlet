@@ -471,6 +471,12 @@ function reorderAssertionArgs(source, methodName, arityWithMessage) {
 function emit(_ir, source) {
   let result = source;
 
+  // Strip incoming HAMLET-TODO blocks (from previous round-trip step)
+  result = result.replace(
+    /^[ \t]*\/\/ HAMLET-TODO \[[^\]]+\]:.*\n(?:[ \t]*\n)*(?:[ \t]*\/\/ (?:Original|Manual action required):.*\n(?:[ \t]*\n)*)*/gm,
+    ''
+  );
+
   // Detect source framework to apply only relevant phases
   const isJUnit4Source =
     /import\s+org\.junit\./.test(source) &&
