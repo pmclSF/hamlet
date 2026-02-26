@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-02-26T19:28:48.100Z",
+  "generatedAt": "2026-02-26T22:50:32.880Z",
   "pairs": {
     "jest-mocha": {
       "simple": {
@@ -12,7 +12,7 @@
         "structuralFidelity": 1
       },
       "complex": {
-        "lineFidelity": 0.817,
+        "lineFidelity": 0.81,
         "structuralFidelity": 1
       }
     },
