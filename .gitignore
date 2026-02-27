@@ -140,6 +140,12 @@ benchmarks/vitest/
 benchmarks/mocha-jasmine-etc/
 benchmarks/java/
 benchmarks/python/
+benchmarks/results/
+benchmarks/run-benchmark.sh
+
+# Large local-only directories
+hamlet/
+testing/
 
 # Test output (generated during test runs)
 test/output/
