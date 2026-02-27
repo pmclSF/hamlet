@@ -164,17 +164,17 @@ export class PlaywrightToCypress extends BaseConverter {
     // page.route(url, route => route.fulfill(response)) /* @hamlet:intercept('METHOD').as("alias") */
     result = result.replace(
       /await page\.route\(([^,\n]+),\s*route\s*=>\s*route\.fulfill\(([^)]+)\)\)\s*\/\*\s*@hamlet:intercept\(([^)]+)\)\.as\(["']([^"']+)["']\)\s*\*\//g,
-      'cy.intercept($3, $1, $2).as(\'$4\')'
+      "cy.intercept($3, $1, $2).as('$4')"
     );
     // page.route(url, route => route.continue()) /* @hamlet:intercept('METHOD').as("alias") */
     result = result.replace(
       /await page\.route\(([^,\n]+),\s*route\s*=>\s*route\.continue\(\)\)\s*\/\*\s*@hamlet:intercept\(([^)]+)\)\.as\(["']([^"']+)["']\)\s*\*\//g,
-      'cy.intercept($2, $1).as(\'$3\')'
+      "cy.intercept($2, $1).as('$3')"
     );
     // page.route(url, route => route.continue()) /* @hamlet:as("alias") */
     result = result.replace(
       /await page\.route\(([^,\n]+),\s*route\s*=>\s*route\.continue\(\)\)\s*\/\*\s*@hamlet:as\(["']([^"']+)["']\)\s*\*\//g,
-      'cy.intercept($1).as(\'$2\')'
+      "cy.intercept($1).as('$2')"
     );
     // page.route(url, (route) => { /* @hamlet:intercept('METHOD') */
     result = result.replace(
@@ -494,7 +494,10 @@ export class PlaywrightToCypress extends BaseConverter {
     );
 
     // .scrollIntoViewIfNeeded() → .scrollIntoView()
-    result = result.replace(/\.scrollIntoViewIfNeeded\(\)/g, '.scrollIntoView()');
+    result = result.replace(
+      /\.scrollIntoViewIfNeeded\(\)/g,
+      '.scrollIntoView()'
+    );
 
     // .dispatchEvent(event) → .trigger(event)
     result = result.replace(/\.dispatchEvent\(([^)]+)\)/g, '.trigger($1)');
@@ -507,10 +510,7 @@ export class PlaywrightToCypress extends BaseConverter {
 
     // Restore cy.wrap() for bare jQuery-like variables with .should()
     // $card.should(...) → cy.wrap($card).should(...)
-    result = result.replace(
-      /(\$\w+)\.should\(/g,
-      'cy.wrap($1).should('
-    );
+    result = result.replace(/(\$\w+)\.should\(/g, 'cy.wrap($1).should(');
 
     return result;
   }

@@ -446,15 +446,10 @@ function convertAssertions(result) {
         expr = topParts.slice(0, -1).join(', ');
       }
     }
-    const msgAnnotation = assertMsg
-      ? `  # @hamlet:msg(${assertMsg})`
-      : '';
+    const msgAnnotation = assertMsg ? `  # @hamlet:msg(${assertMsg})` : '';
 
     // Strip string contents for safe operator detection (avoid matching > inside strings)
-    const safe = expr.replace(
-      /(["'])(?:(?!\1|\\).|\\.)*\1/g,
-      (_m, q) => q + q
-    );
+    const safe = expr.replace(/(["'])(?:(?!\1|\\).|\\.)*\1/g, (_m, q) => q + q);
 
     // Order matters: most specific patterns first
 
