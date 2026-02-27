@@ -1,6 +1,6 @@
 import fs from 'fs/promises';
 import path from 'path';
-import { exec } from 'child_process';
+import { execFile } from 'child_process';
 import { promisify } from 'util';
 import glob from 'fast-glob';
 import {
@@ -16,8 +16,54 @@ import { TestMapper } from './mapper.js';
 import { ConversionReporter } from '../utils/reporter.js';
 import { fileUtils, logUtils } from '../utils/helpers.js';
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 const logger = logUtils.createLogger('RepoConverter');
+
+/**
+ * Validate a repository URL to prevent command injection.
+ * Allows https://, http://, and git@ (SSH) URLs that look like valid git repos.
+ * @param {string} url - Repository URL to validate
+ * @throws {Error} If the URL is invalid or contains dangerous characters
+ */
+export function validateRepoUrl(url) {
+  if (typeof url !== 'string' || !url) {
+    throw new Error('Invalid repository URL: must be a non-empty string');
+  }
+
+  // Reject null bytes, control characters, and shell metacharacters
+  // eslint-disable-next-line no-control-regex
+  if (/[\0\x01-\x1f]/.test(url) || /[;`|&$(){}[\]!#~]/.test(url)) {
+    throw new Error('Invalid repository URL: contains disallowed characters');
+  }
+
+  // Must start with a recognized protocol or SSH prefix
+  if (
+    !url.startsWith('https://') &&
+    !url.startsWith('http://') &&
+    !url.startsWith('git@')
+  ) {
+    throw new Error(
+      'Invalid repository URL: must start with https://, http://, or git@'
+    );
+  }
+
+  // Basic structural check: host/path pattern, optional .git suffix
+  if (url.startsWith('git@')) {
+    // SSH: git@host:org/repo.git
+    if (!/^git@[\w.-]+:[\w./_-]+(\.git)?$/.test(url)) {
+      throw new Error(
+        'Invalid repository URL: does not match expected SSH pattern'
+      );
+    }
+  } else {
+    // HTTPS/HTTP: protocol://host/path with optional .git
+    if (!/^https?:\/\/[\w.-]+(:\d+)?\/[\w./_-]+(\.git)?$/.test(url)) {
+      throw new Error(
+        'Invalid repository URL: does not match expected URL pattern'
+      );
+    }
+  }
+}
 
 export class RepositoryConverter {
   constructor(options = {}) {
@@ -116,11 +162,13 @@ export class RepositoryConverter {
    * @returns {Promise<string>} - Path to cloned repository
    */
   async cloneRepository(repoUrl) {
+    validateRepoUrl(repoUrl);
+
     const tempDir = path.join(process.cwd(), this.options.tempDir);
     await fs.mkdir(tempDir, { recursive: true });
 
     logger.info('Cloning repository...');
-    await execAsync(`git clone ${repoUrl} ${tempDir}`);
+    await execFileAsync('git', ['clone', '--', repoUrl, tempDir]);
 
     return tempDir;
   }
@@ -272,6 +320,9 @@ export async function convertRepository(repoPath, outputPath, options = {}) {
     // Clone repository if it's a URL
     const isRemoteRepo =
       repoPath.startsWith('http') || repoPath.startsWith('git@');
+    if (isRemoteRepo) {
+      validateRepoUrl(repoPath);
+    }
     const workingPath = isRemoteRepo
       ? await repoConverter.cloneRepository(repoPath)
       : repoPath;

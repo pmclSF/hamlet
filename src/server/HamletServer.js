@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import http from 'node:http';
 import fs from 'node:fs/promises';
 import nodePath from 'node:path';
@@ -64,6 +65,7 @@ export class HamletServer {
     this._serveUI = serveUI;
     this._enableOpen = enableOpen;
     this._server = null;
+    this._sessionToken = crypto.randomUUID();
     /** @type {Map<string, { mime: string, content: Buffer }>} */
     this._staticCache = new Map();
     this._staticCacheBytes = 0;
@@ -75,6 +77,8 @@ export class HamletServer {
    */
   start() {
     const resolvedRoot = nodePath.resolve(this._root);
+
+    const sessionToken = this._sessionToken;
 
     return new Promise((resolve, reject) => {
       const router = new Router();
@@ -99,8 +103,32 @@ export class HamletServer {
           return;
         }
 
-        // Attach project root for handlers
+        // Security response headers
+        res.setHeader('X-Content-Type-Options', 'nosniff');
+        res.setHeader('X-Frame-Options', 'DENY');
+        res.setHeader('Referrer-Policy', 'no-referrer');
+        res.setHeader('Cache-Control', 'no-store');
+        res.setHeader('Content-Security-Policy', "default-src 'none'");
+
+        // Handle CORS preflight — deny cross-origin
+        if (req.method === 'OPTIONS') {
+          res.writeHead(204);
+          res.end();
+          return;
+        }
+
+        // Attach project root and session token for handlers
         req.serverRoot = resolvedRoot;
+        req.sessionToken = sessionToken;
+
+        // CSRF protection: require session token on POST requests
+        if (req.method === 'POST') {
+          const provided = req.headers['x-hamlet-token'];
+          if (provided !== sessionToken) {
+            sendJson(res, 401, { error: 'Missing or invalid session token' });
+            return;
+          }
+        }
 
         try {
           const matched = await router.dispatch(req, res);
@@ -126,6 +154,7 @@ export class HamletServer {
 
       this._server.listen(this._port, '127.0.0.1', () => {
         const addr = this._server.address();
+        process.stderr.write(`Session token: ${sessionToken}\n`);
         resolve(`http://127.0.0.1:${addr.port}`);
       });
 
@@ -208,6 +237,14 @@ export class HamletServer {
   get address() {
     const addr = this._server && this._server.address();
     return addr ? addr.port : null;
+  }
+
+  /**
+   * The session token required for POST requests.
+   * @returns {string}
+   */
+  get token() {
+    return this._sessionToken;
   }
 
   /**
