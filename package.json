@@ -55,7 +55,8 @@
     "lint-staged": "lint-staged",
     "test:staged": "jest --findRelatedTests",
     "typecheck": "tsc --noEmit -p test/types/tsconfig.json",
-    "release:verify": "npm run format:check && npm run lint && npm test && npm run typecheck && node scripts/verify-pack.js"
+    "release:verify": "npm run format:check && npm run lint && npm test && npm run typecheck && node scripts/verify-pack.js",
+    "prepublishOnly": "npm run format:check && npm run lint && npm test && npm run typecheck"
   },
   "keywords": [
     "playwright",
