@@ -22,7 +22,17 @@
   },
   "files": [
     "bin",
-    "src",
+    "src/cli",
+    "src/converter",
+    "src/converters",
+    "src/core",
+    "src/languages",
+    "src/patterns",
+    "src/server",
+    "src/ui",
+    "src/utils",
+    "src/types",
+    "src/index.js",
     "README.md",
     "LICENSE"
   ],
