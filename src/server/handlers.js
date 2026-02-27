@@ -36,11 +36,12 @@ function buildOutputFilename(sourceBasename, toFramework) {
 
 // ── Handlers ─────────────────────────────────────────────────────────
 
-export function handleHealth(_req, res) {
+export function handleHealth(req, res) {
   sendJson(res, 200, {
     status: 'ok',
     version,
     uptime: Math.round((Date.now() - serverStart) / 1000),
+    root: req.serverRoot || '.',
   });
 }
 
@@ -183,6 +184,20 @@ export async function handleOpen(req, res) {
     }
     sendJson(res, 200, { opened: filePath });
   });
+}
+
+export async function handleFile(req, res) {
+  const url = new URL(req.url, 'http://localhost');
+  const filePath = url.searchParams.get('path');
+  if (!filePath) {
+    return sendJson(res, 400, { error: 'Missing path query parameter' });
+  }
+  try {
+    const content = await fs.readFile(path.resolve(filePath), 'utf8');
+    sendJson(res, 200, { path: filePath, content });
+  } catch (err) {
+    sendJson(res, 404, { error: `Cannot read file: ${err.message}` });
+  }
 }
 
 // ── Conversion job runner ────────────────────────────────────────────
