@@ -167,18 +167,38 @@ hamlet reset -d <directory> --yes
 
 ### `serve`
 
-Start the built-in web UI server for interactive conversion.
+Start the API server. Exposes REST endpoints for programmatic access but does not serve the browser UI.
 
 ```bash
 hamlet serve [options]
 ```
 
-### `open`
+**Options:**
+- `-p, --port <number>`: Port to listen on (0 = random, default: 0)
+- `--root <path>`: Project root directory (default: `.`)
 
-Start the server and open the web UI in your browser.
+**Example:**
+```bash
+hamlet serve --port 3000 --root ./my-project
+```
+
+### `ui`
+
+Start the server with the browser UI and open it automatically.
 
 ```bash
-hamlet open [options]
+hamlet ui [options]
+```
+
+**Options:**
+- `-p, --port <number>`: Port to listen on (0 = random, default: 0)
+- `--root <path>`: Project root directory (default: `.`)
+- `--no-open`: Don't auto-open browser
+
+**Example:**
+```bash
+hamlet ui --root ./my-project
+hamlet ui --port 8080 --no-open
 ```
 
 ## Global Options

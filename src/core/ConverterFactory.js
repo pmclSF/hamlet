@@ -48,7 +48,7 @@ const FRAMEWORK_LANGUAGE = {
  * cannot be used directly as a filename (e.g., Node reserved words).
  */
 const FRAMEWORK_FILE_OVERRIDE = {
-  unittest: "unittest_fw",
+  unittest: 'unittest_fw',
 };
 
 /**
@@ -97,19 +97,19 @@ export class ConverterFactory {
     if (this.initialized) return;
 
     const converterModules = [
-      ["cypress-selenium", () => import("../converters/CypressToSelenium.js")],
+      ['cypress-selenium', () => import('../converters/CypressToSelenium.js')],
       [
-        "playwright-cypress",
-        () => import("../converters/PlaywrightToCypress.js"),
+        'playwright-cypress',
+        () => import('../converters/PlaywrightToCypress.js'),
       ],
       [
-        "playwright-selenium",
-        () => import("../converters/PlaywrightToSelenium.js"),
+        'playwright-selenium',
+        () => import('../converters/PlaywrightToSelenium.js'),
       ],
-      ["selenium-cypress", () => import("../converters/SeleniumToCypress.js")],
+      ['selenium-cypress', () => import('../converters/SeleniumToCypress.js')],
       [
-        "selenium-playwright",
-        () => import("../converters/SeleniumToPlaywright.js"),
+        'selenium-playwright',
+        () => import('../converters/SeleniumToPlaywright.js'),
       ],
     ];
 
@@ -142,16 +142,16 @@ export class ConverterFactory {
     const validFrameworks = Object.values(FRAMEWORKS);
     if (!validFrameworks.includes(fromLower)) {
       throw new Error(
-        `Invalid source framework: ${from}. Valid options: ${validFrameworks.join(', ')}`,
+        `Invalid source framework: ${from}. Valid options: ${validFrameworks.join(', ')}`
       );
     }
     if (!validFrameworks.includes(toLower)) {
       throw new Error(
-        `Invalid target framework: ${to}. Valid options: ${validFrameworks.join(', ')}`,
+        `Invalid target framework: ${to}. Valid options: ${validFrameworks.join(', ')}`
       );
     }
     if (fromLower === toLower) {
-      throw new Error("Source and target frameworks must be different");
+      throw new Error('Source and target frameworks must be different');
     }
 
     const key = `${fromLower}-${toLower}`;
@@ -166,7 +166,7 @@ export class ConverterFactory {
     if (!loader) {
       throw new Error(
         `Unsupported conversion: ${from} to ${to}. ` +
-          `Supported conversions: ${this.getSupportedConversions().join(', ')}`,
+          `Supported conversions: ${this.getSupportedConversions().join(', ')}`
       );
     }
 
@@ -191,7 +191,7 @@ export class ConverterFactory {
    * @returns {Promise<import('./PipelineConverter.js').PipelineConverter>}
    */
   static async _createPipelineConverter(from, to, options) {
-    const { PipelineConverter } = await import("./PipelineConverter.js");
+    const { PipelineConverter } = await import('./PipelineConverter.js');
 
     // Load framework definitions based on direction
     const definitions = await this._loadFrameworkDefinitions(from, to);
@@ -209,7 +209,7 @@ export class ConverterFactory {
     const definitions = [];
 
     for (const name of names) {
-      const language = FRAMEWORK_LANGUAGE[name] || "javascript";
+      const language = FRAMEWORK_LANGUAGE[name] || 'javascript';
       const fileName = FRAMEWORK_FILE_OVERRIDE[name] || name;
       const mod = await import(
         `../languages/${language}/frameworks/${fileName}.js`

@@ -131,6 +131,8 @@ hamlet doctor            # Run diagnostics
 hamlet status -d .       # Show current migration progress
 hamlet checklist -d .    # Generate migration checklist
 hamlet reset -d . --yes  # Clear migration state
+hamlet serve             # Start the API server
+hamlet ui                # Open the browser UI for interactive conversion
 ```
 
 ## Options
