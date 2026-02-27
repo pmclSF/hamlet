@@ -10,6 +10,9 @@
       "types": "./src/types/index.d.ts",
       "import": "./src/index.js"
     },
+    "./internals": {
+      "import": "./src/internals.js"
+    },
     "./converters": {
       "import": "./src/converters/index.js"
     },
@@ -33,6 +36,7 @@
     "src/utils",
     "src/types",
     "src/index.js",
+    "src/internals.js",
     "README.md",
     "LICENSE"
   ],
