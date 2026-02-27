@@ -103,12 +103,11 @@ export class HamletServer {
           return;
         }
 
-        // Security response headers
+        // Security response headers (CSP set per-route below)
         res.setHeader('X-Content-Type-Options', 'nosniff');
         res.setHeader('X-Frame-Options', 'DENY');
         res.setHeader('Referrer-Policy', 'no-referrer');
         res.setHeader('Cache-Control', 'no-store');
-        res.setHeader('Content-Security-Policy', "default-src 'none'");
 
         // Handle CORS preflight — deny cross-origin
         if (req.method === 'OPTIONS') {
@@ -131,11 +130,22 @@ export class HamletServer {
         }
 
         try {
+          const pathname = new URL(req.url, `http://${req.headers.host}`)
+            .pathname;
+          const isUI = this._serveUI && !pathname.startsWith('/api/');
+
+          if (isUI) {
+            res.setHeader(
+              'Content-Security-Policy',
+              "default-src 'self'; connect-src 'self'; style-src 'self'; script-src 'self'; img-src 'self' blob:; object-src 'none'; frame-ancestors 'none'"
+            );
+          } else {
+            res.setHeader('Content-Security-Policy', "default-src 'none'");
+          }
+
           const matched = await router.dispatch(req, res);
           if (!matched) {
-            const pathname = new URL(req.url, `http://${req.headers.host}`)
-              .pathname;
-            if (this._serveUI && !pathname.startsWith('/api/')) {
+            if (isUI) {
               await this._serveStatic(req, res);
             } else {
               sendJson(res, 404, { error: 'Not found' });

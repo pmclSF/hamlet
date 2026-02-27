@@ -1,11 +1,16 @@
 /* global EventSource, document */
 const BASE = '';
 
+let _sessionToken = null;
+
 async function request(method, path, body) {
   const opts = {
     method,
     headers: { 'Content-Type': 'application/json' },
   };
+  if (method === 'POST' && _sessionToken) {
+    opts.headers['x-hamlet-token'] = _sessionToken;
+  }
   if (body) opts.body = JSON.stringify(body);
   const res = await fetch(`${BASE}${path}`, opts);
   const data = await res.json();
@@ -14,7 +19,9 @@ async function request(method, path, body) {
 }
 
 export async function getHealth() {
-  return request('GET', '/api/health');
+  const data = await request('GET', '/api/health');
+  if (data.token) _sessionToken = data.token;
+  return data;
 }
 
 export async function analyze(root, options = {}) {
