@@ -4,6 +4,7 @@ import { execFile } from 'node:child_process';
 import { createRequire } from 'module';
 import { sendJson } from './router.js';
 import { safePath } from './pathUtils.js';
+import { countTodos, buildOutputFilename } from '../cli/outputHelpers.js';
 import {
   createJob,
   getJob,
@@ -17,23 +18,6 @@ const __require = createRequire(import.meta.url);
 const version = __require('../../package.json').version;
 
 const serverStart = Date.now();
-
-// ── Duplicated helpers (see plan — avoids touching bin/hamlet.js) ────
-
-function countTodos(content) {
-  const matches = content.match(/HAMLET-TODO/g);
-  return matches ? matches.length : 0;
-}
-
-function buildOutputFilename(sourceBasename, toFramework) {
-  const ext = path.extname(sourceBasename);
-  const base = path.basename(sourceBasename, ext);
-  const cleanBase = base.replace(/\.(cy|spec|test)$/, '');
-  if (ext === '.py' || ext === '.java') return cleanBase + ext;
-  if (toFramework === 'cypress') return cleanBase + '.cy.js';
-  if (toFramework === 'playwright') return cleanBase + '.spec.js';
-  return cleanBase + '.test.js';
-}
 
 // ── Handlers ─────────────────────────────────────────────────────────
 
