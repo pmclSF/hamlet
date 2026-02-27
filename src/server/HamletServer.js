@@ -131,10 +131,13 @@ export class HamletServer {
    */
   _serveStatic(req, res) {
     const url = new URL(req.url, `http://${req.headers.host}`);
-    let filePath = nodePath.join(UI_DIR, url.pathname);
+    const filePath = nodePath.resolve(nodePath.join(UI_DIR, url.pathname));
 
-    // Prevent path traversal
-    if (!filePath.startsWith(UI_DIR)) {
+    // Prevent path traversal — same boundary check as safePath()
+    if (
+      filePath !== UI_DIR &&
+      !filePath.startsWith(UI_DIR + nodePath.sep)
+    ) {
       sendJson(res, 403, { error: 'Forbidden' });
       return;
     }
