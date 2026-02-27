@@ -12,7 +12,23 @@ coverage/
 .editorconfig
 .husky/
 commitlint.config.js
+commitlint.config.cjs
 tsconfig.json
+playwright.config.js
+
+# Internal / agent docs
+CLAUDE.md
+DESIGN.md
+
+# Dev-only directories
+docs/
+config/
+scripts/
+benchmarks/
+
+# Large untracked dirs (defense-in-depth)
+testing/
+hamlet/
 
 # IDE/Editor
 .vscode/
