@@ -31,8 +31,6 @@
     "src/core",
     "src/languages",
     "src/patterns",
-    "src/server",
-    "src/ui",
     "src/utils",
     "src/types",
     "src/index.js",

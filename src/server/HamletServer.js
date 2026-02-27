@@ -134,10 +134,7 @@ export class HamletServer {
     const filePath = nodePath.resolve(nodePath.join(UI_DIR, url.pathname));
 
     // Prevent path traversal — same boundary check as safePath()
-    if (
-      filePath !== UI_DIR &&
-      !filePath.startsWith(UI_DIR + nodePath.sep)
-    ) {
+    if (filePath !== UI_DIR && !filePath.startsWith(UI_DIR + nodePath.sep)) {
       sendJson(res, 403, { error: 'Forbidden' });
       return;
     }
