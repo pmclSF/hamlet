@@ -13,9 +13,9 @@ import {
   convertRepository,
   validateTests,
   generateReport,
-  TestValidator,
   ConversionReporter,
 } from '../src/index.js';
+import { TestValidator } from '../src/converter/validator.js';
 import { ConverterFactory, FRAMEWORKS } from '../src/core/ConverterFactory.js';
 import { FrameworkDetector } from '../src/core/FrameworkDetector.js';
 import {
@@ -55,23 +55,12 @@ const FRAMEWORK_LANGUAGE = {
   testcafe: 'javascript',
 };
 
-// ── Output filename helpers ──────────────────────────────────────────
-function getTargetExtension(toFramework, originalExt) {
-  if (originalExt === '.py' || originalExt === '.java') return originalExt;
-  if (toFramework === 'cypress') return '.cy' + (originalExt || '.js');
-  if (toFramework === 'playwright') return '.spec' + (originalExt || '.js');
-  return '.test' + (originalExt || '.js');
-}
-
-function buildOutputFilename(sourceBasename, toFramework) {
-  const ext = path.extname(sourceBasename);
-  const base = path.basename(sourceBasename, ext);
-  const cleanBase = base.replace(/\.(cy|spec|test)$/, '');
-  if (ext === '.py' || ext === '.java') return cleanBase + ext;
-  if (toFramework === 'cypress') return cleanBase + '.cy.js';
-  if (toFramework === 'playwright') return cleanBase + '.spec.js';
-  return cleanBase + '.test.js';
-}
+// ── Output filename helpers (shared with server handlers) ────────────
+import {
+  getTargetExtension,
+  buildOutputFilename,
+  countTodos,
+} from '../src/cli/outputHelpers.js';
 
 // ── Progress display ─────────────────────────────────────────────────
 function showProgress(current, total, currentFile) {
@@ -91,11 +80,6 @@ function clearProgress() {
 
 function shouldShowStack() {
   return program.opts().debug || !!process.env.DEBUG;
-}
-
-function countTodos(content) {
-  const matches = content.match(/HAMLET-TODO/g);
-  return matches ? matches.length : 0;
 }
 
 // ── Extracted convertAction ──────────────────────────────────────────

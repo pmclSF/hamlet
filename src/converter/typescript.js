@@ -1,7 +1,26 @@
 import fs from 'fs/promises';
 import path from 'path';
 import chalk from 'chalk';
-import ts from 'typescript';
+
+let _ts = null;
+
+/**
+ * Lazily load the TypeScript compiler. It is an optional dependency — only
+ * needed when converting TypeScript source files or generating type defs.
+ * @returns {Promise<import('typescript')>}
+ */
+async function loadTs() {
+  if (_ts) return _ts;
+  try {
+    _ts = (await import('typescript')).default;
+  } catch (_e) {
+    throw new Error(
+      'Optional dependency "typescript" is required for TypeScript conversion. ' +
+        'Install it with: npm install typescript'
+    );
+  }
+  return _ts;
+}
 
 /**
  * Handles TypeScript conversion and type generation for Cypress to Playwright
@@ -59,6 +78,7 @@ export class TypeScriptConverter {
    * @param {string} outputPath - Output directory path
    */
   async convertProject(sourcePath, outputPath) {
+    await loadTs();
     try {
       console.log(chalk.blue('\nStarting TypeScript conversion...'));
 
@@ -88,12 +108,12 @@ export class TypeScriptConverter {
   /**
    * Create TypeScript program
    * @param {string} sourcePath - Source directory path
-   * @returns {ts.Program} - TypeScript program
+   * @returns {_ts.Program} - TypeScript program
    */
   createProgram(sourcePath) {
-    const configPath = ts.findConfigFile(
+    const configPath = _ts.findConfigFile(
       sourcePath,
-      ts.sys.fileExists,
+      _ts.sys.fileExists,
       'tsconfig.json'
     );
 
@@ -101,20 +121,20 @@ export class TypeScriptConverter {
       throw new Error('Could not find tsconfig.json');
     }
 
-    const { config } = ts.readConfigFile(configPath, ts.sys.readFile);
-    const { options, fileNames } = ts.parseJsonConfigFileContent(
+    const { config } = _ts.readConfigFile(configPath, _ts.sys.readFile);
+    const { options, fileNames } = _ts.parseJsonConfigFileContent(
       config,
-      ts.sys,
+      _ts.sys,
       path.dirname(configPath)
     );
 
-    return ts.createProgram(fileNames, options);
+    return _ts.createProgram(fileNames, options);
   }
 
   /**
    * Convert a single TypeScript source file
-   * @param {ts.SourceFile} sourceFile - TypeScript source file
-   * @param {ts.TypeChecker} typeChecker - Type checker
+   * @param {_ts.SourceFile} sourceFile - TypeScript source file
+   * @param {_ts.TypeChecker} typeChecker - Type checker
    * @param {string} outputPath - Output directory path
    */
   async convertSourceFile(sourceFile, typeChecker, outputPath) {
@@ -143,56 +163,59 @@ export class TypeScriptConverter {
 
   /**
    * Transform TypeScript source file
-   * @param {ts.SourceFile} sourceFile - Source file
-   * @param {ts.TypeChecker} typeChecker - Type checker
+   * @param {_ts.SourceFile} sourceFile - Source file
+   * @param {_ts.TypeChecker} typeChecker - Type checker
    * @returns {string} - Transformed source code
    */
   transformSourceFile(sourceFile, typeChecker) {
     const transformer = (context) => {
       const visit = (node) => {
         // Convert type references
-        if (ts.isTypeReferenceNode(node)) {
+        if (_ts.isTypeReferenceNode(node)) {
           return this.transformTypeReference(node);
         }
 
         // Convert interfaces
-        if (ts.isInterfaceDeclaration(node)) {
+        if (_ts.isInterfaceDeclaration(node)) {
           return this.transformInterface(node);
         }
 
         // Convert method calls
-        if (ts.isCallExpression(node)) {
+        if (_ts.isCallExpression(node)) {
           return this.transformMethodCall(node, typeChecker);
         }
 
         // Convert imports
-        if (ts.isImportDeclaration(node)) {
+        if (_ts.isImportDeclaration(node)) {
           return this.transformImport(node);
         }
 
-        return ts.visitEachChild(node, visit, context);
+        return _ts.visitEachChild(node, visit, context);
       };
 
-      return (node) => ts.visitNode(node, visit);
+      return (node) => _ts.visitNode(node, visit);
     };
 
-    const result = ts.transform(sourceFile, [transformer]);
-    const printer = ts.createPrinter({ newLine: ts.NewLineKind.LineFeed });
+    const result = _ts.transform(sourceFile, [transformer]);
+    const printer = _ts.createPrinter({ newLine: _ts.NewLineKind.LineFeed });
 
     return printer.printFile(result.transformed[0]);
   }
 
   /**
    * Transform type reference
-   * @param {ts.TypeReferenceNode} node - Type reference node
-   * @returns {ts.Node} - Transformed node
+   * @param {_ts.TypeReferenceNode} node - Type reference node
+   * @returns {_ts.Node} - Transformed node
    */
   transformTypeReference(node) {
     const typeName = node.typeName.getText();
     const mappedType = this.typeMap.get(typeName);
 
     if (mappedType) {
-      return ts.factory.createTypeReferenceNode(mappedType, node.typeArguments);
+      return _ts.factory.createTypeReferenceNode(
+        mappedType,
+        node.typeArguments
+      );
     }
 
     return node;
@@ -200,15 +223,15 @@ export class TypeScriptConverter {
 
   /**
    * Transform interface declaration
-   * @param {ts.InterfaceDeclaration} node - Interface declaration
-   * @returns {ts.Node} - Transformed node
+   * @param {_ts.InterfaceDeclaration} node - Interface declaration
+   * @returns {_ts.Node} - Transformed node
    */
   transformInterface(node) {
     const interfaceName = node.name.getText();
     const mappedInterface = this.interfaceMap.get(interfaceName);
 
     if (mappedInterface) {
-      return ts.factory.createInterfaceDeclaration(
+      return _ts.factory.createInterfaceDeclaration(
         node.decorators,
         node.modifiers,
         mappedInterface,
@@ -223,21 +246,21 @@ export class TypeScriptConverter {
 
   /**
    * Transform method call
-   * @param {ts.CallExpression} node - Call expression node
-   * @param {ts.TypeChecker} typeChecker - Type checker
-   * @returns {ts.Node} - Transformed node
+   * @param {_ts.CallExpression} node - Call expression node
+   * @param {_ts.TypeChecker} typeChecker - Type checker
+   * @returns {_ts.Node} - Transformed node
    */
   transformMethodCall(node, typeChecker) {
     const signature = typeChecker.getResolvedSignature(node);
     if (signature) {
       const { declaration } = signature;
-      if (declaration && ts.isMethodDeclaration(declaration)) {
+      if (declaration && _ts.isMethodDeclaration(declaration)) {
         const methodName = declaration.name.getText();
         // Transform Cypress method calls to Playwright equivalents
         const transformedName = this.transformMethodName(methodName);
         if (transformedName !== methodName) {
-          return ts.factory.createCallExpression(
-            ts.factory.createIdentifier(transformedName),
+          return _ts.factory.createCallExpression(
+            _ts.factory.createIdentifier(transformedName),
             node.typeArguments,
             node.arguments
           );
@@ -249,19 +272,19 @@ export class TypeScriptConverter {
 
   /**
    * Transform import declaration
-   * @param {ts.ImportDeclaration} node - Import declaration
-   * @returns {ts.Node} - Transformed node
+   * @param {_ts.ImportDeclaration} node - Import declaration
+   * @returns {_ts.Node} - Transformed node
    */
   transformImport(node) {
     const importPath = node.moduleSpecifier.getText().replace(/['"]/g, '');
 
     // Transform Cypress imports to Playwright
     if (importPath.includes('cypress')) {
-      return ts.factory.createImportDeclaration(
+      return _ts.factory.createImportDeclaration(
         node.decorators,
         node.modifiers,
         node.importClause,
-        ts.factory.createStringLiteral('@playwright/test')
+        _ts.factory.createStringLiteral('@playwright/test')
       );
     }
 
@@ -297,7 +320,7 @@ export class TypeScriptConverter {
 
   /**
    * Generate type definitions
-   * @param {ts.Program} program - TypeScript program
+   * @param {_ts.Program} program - TypeScript program
    * @param {string} outputPath - Output directory path
    */
   async generateTypeDefinitions(program, outputPath) {
@@ -307,10 +330,10 @@ export class TypeScriptConverter {
     // Collect type information from all source files
     for (const sourceFile of program.getSourceFiles()) {
       if (!sourceFile.isDeclarationFile) {
-        ts.forEachChild(sourceFile, (node) => {
+        _ts.forEachChild(sourceFile, (node) => {
           if (
-            ts.isInterfaceDeclaration(node) ||
-            ts.isTypeAliasDeclaration(node)
+            _ts.isInterfaceDeclaration(node) ||
+            _ts.isTypeAliasDeclaration(node)
           ) {
             const symbol = typeChecker.getSymbolAtLocation(node.name);
             if (symbol) {
@@ -326,7 +349,8 @@ export class TypeScriptConverter {
     }
 
     // Generate type definition file
-    const dtsContent = this.generateDefinitionFileContent(typeDefinitions);
+    const dtsContent =
+      await this.generateDefinitionFileContent(typeDefinitions);
     const dtsPath = path.join(outputPath, 'playwright.d.ts');
 
     await fs.writeFile(dtsPath, dtsContent);
@@ -338,15 +362,16 @@ export class TypeScriptConverter {
    * @param {Map} typeDefinitions - Collected type definitions
    * @returns {string} - Type definition file content
    */
-  generateDefinitionFileContent(typeDefinitions) {
+  async generateDefinitionFileContent(typeDefinitions) {
+    await loadTs();
     let content = '// Generated type definitions for Playwright tests\n\n';
     content +=
       "import { test, expect, Page, Locator } from '@playwright/test';\n\n";
 
     for (const [name, { kind, type }] of typeDefinitions) {
-      if (kind === ts.SyntaxKind.InterfaceDeclaration) {
+      if (kind === _ts.SyntaxKind.InterfaceDeclaration) {
         content += `interface ${name} ${type}\n\n`;
-      } else if (kind === ts.SyntaxKind.TypeAliasDeclaration) {
+      } else if (kind === _ts.SyntaxKind.TypeAliasDeclaration) {
         content += `type ${name} = ${type};\n\n`;
       }
     }

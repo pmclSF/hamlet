@@ -3,6 +3,8 @@ import path from 'path';
 import { execFile } from 'node:child_process';
 import { createRequire } from 'module';
 import { sendJson } from './router.js';
+import { safePath } from './pathUtils.js';
+import { countTodos, buildOutputFilename } from '../cli/outputHelpers.js';
 import {
   createJob,
   getJob,
@@ -16,23 +18,6 @@ const __require = createRequire(import.meta.url);
 const version = __require('../../package.json').version;
 
 const serverStart = Date.now();
-
-// ── Duplicated helpers (see plan — avoids touching bin/hamlet.js) ────
-
-function countTodos(content) {
-  const matches = content.match(/HAMLET-TODO/g);
-  return matches ? matches.length : 0;
-}
-
-function buildOutputFilename(sourceBasename, toFramework) {
-  const ext = path.extname(sourceBasename);
-  const base = path.basename(sourceBasename, ext);
-  const cleanBase = base.replace(/\.(cy|spec|test)$/, '');
-  if (ext === '.py' || ext === '.java') return cleanBase + ext;
-  if (toFramework === 'cypress') return cleanBase + '.cy.js';
-  if (toFramework === 'playwright') return cleanBase + '.spec.js';
-  return cleanBase + '.test.js';
-}
 
 // ── Handlers ─────────────────────────────────────────────────────────
 
@@ -164,25 +149,40 @@ export async function handleOpen(req, res) {
     return sendJson(res, 400, { error: 'Missing required field: path' });
   }
 
+  // Reject URL schemes — only allow filesystem paths
+  if (/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(filePath)) {
+    return sendJson(res, 400, {
+      error: 'URL schemes are not allowed, only filesystem paths',
+    });
+  }
+
+  // Restrict to project root
+  let resolved;
+  try {
+    resolved = safePath(filePath, req.serverRoot);
+  } catch (_e) {
+    return sendJson(res, 403, { error: 'Path outside project root' });
+  }
+
   const platform = process.platform;
   let cmd;
   let args;
   if (platform === 'darwin') {
     cmd = 'open';
-    args = [filePath];
+    args = [resolved];
   } else if (platform === 'win32') {
     cmd = 'cmd';
-    args = ['/c', 'start', '', filePath];
+    args = ['/c', 'start', '', resolved];
   } else {
     cmd = 'xdg-open';
-    args = [filePath];
+    args = [resolved];
   }
 
   execFile(cmd, args, (err) => {
     if (err) {
       return sendJson(res, 500, { error: `Failed to open: ${err.message}` });
     }
-    sendJson(res, 200, { opened: filePath });
+    sendJson(res, 200, { opened: resolved });
   });
 }
 
@@ -192,8 +192,16 @@ export async function handleFile(req, res) {
   if (!filePath) {
     return sendJson(res, 400, { error: 'Missing path query parameter' });
   }
+
+  let resolved;
   try {
-    const content = await fs.readFile(path.resolve(filePath), 'utf8');
+    resolved = safePath(filePath, req.serverRoot);
+  } catch (_e) {
+    return sendJson(res, 403, { error: 'Path outside project root' });
+  }
+
+  try {
+    const content = await fs.readFile(resolved, 'utf8');
     sendJson(res, 200, { path: filePath, content });
   } catch (err) {
     sendJson(res, 404, { error: `Cannot read file: ${err.message}` });
@@ -208,8 +216,14 @@ export async function handlePreview(req, res) {
     });
   }
 
+  let resolved;
   try {
-    const resolved = path.resolve(sourcePath);
+    resolved = safePath(sourcePath, req.serverRoot);
+  } catch (_e) {
+    return sendJson(res, 403, { error: 'Path outside project root' });
+  }
+
+  try {
     const source = await fs.readFile(resolved, 'utf8');
 
     const { ConverterFactory } = await import('../core/ConverterFactory.js');

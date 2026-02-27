@@ -43,11 +43,22 @@ export class HamletServer {
    * @param {number} [options.port=0] - Port to bind (0 = random)
    * @param {string} [options.root='.'] - Project root directory
    * @param {boolean} [options.serveUI=false] - Serve browser UI static files
+   * @param {boolean} [options.enableOpen=false] - Enable /api/open endpoint.
+   *   Disabled by default because it invokes OS-level open/xdg-open on
+   *   user-supplied paths, which could be abused by any local network caller
+   *   to launch arbitrary applications or URLs. When enabled, paths are
+   *   restricted to the project root.
    */
-  constructor({ port = 0, root = '.', serveUI = false } = {}) {
+  constructor({
+    port = 0,
+    root = '.',
+    serveUI = false,
+    enableOpen = false,
+  } = {}) {
     this._port = port;
     this._root = root;
     this._serveUI = serveUI;
+    this._enableOpen = enableOpen;
     this._server = null;
   }
 
@@ -68,7 +79,9 @@ export class HamletServer {
       router.get('/api/jobs/:id', handleGetJob);
       router.get('/api/jobs/:id/stream', handleJobStream);
       router.get('/api/artifacts/:jobId', handleArtifacts);
-      router.post('/api/open', handleOpen);
+      if (this._enableOpen) {
+        router.post('/api/open', handleOpen);
+      }
       router.post('/api/preview', handlePreview);
       router.get('/api/file', handleFile);
 
@@ -94,7 +107,9 @@ export class HamletServer {
             }
           }
         } catch (err) {
-          if (err instanceof SyntaxError) {
+          if (err.statusCode) {
+            sendJson(res, err.statusCode, { error: err.message });
+          } else if (err instanceof SyntaxError) {
             sendJson(res, 400, { error: err.message });
           } else {
             sendJson(res, 500, { error: err.message });

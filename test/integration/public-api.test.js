@@ -24,34 +24,12 @@ describe('Public API exports', () => {
   });
 
   describe('classes', () => {
-    it.each([
-      'RepositoryConverter',
-      'BatchProcessor',
-      'DependencyAnalyzer',
-      'TestMetadataCollector',
-      'TestValidator',
-      'TypeScriptConverter',
-      'PluginConverter',
-      'VisualComparison',
-      'TestMapper',
-      'ConversionReporter',
-    ])('should export %s as a function (class)', (name) => {
-      expect(typeof api[name]).toBe('function');
-    });
-  });
-
-  describe('utility namespaces', () => {
-    it.each([
-      'fileUtils',
-      'stringUtils',
-      'codeUtils',
-      'testUtils',
-      'reportUtils',
-      'logUtils',
-    ])('should export %s as an object', (name) => {
-      expect(typeof api[name]).toBe('object');
-      expect(api[name]).not.toBeNull();
-    });
+    it.each(['RepositoryConverter', 'BatchProcessor', 'ConversionReporter'])(
+      'should export %s as a function (class)',
+      (name) => {
+        expect(typeof api[name]).toBe('function');
+      }
+    );
   });
 
   describe('constants', () => {
@@ -74,7 +52,7 @@ describe('Public API exports', () => {
 
   it('should export exactly the expected number of symbols', () => {
     const exportCount = Object.keys(api).length;
-    // 7 functions + 10 classes + 6 utility namespaces + 3 constants = 26
-    expect(exportCount).toBe(26);
+    // 7 functions + 3 classes + 3 constants = 13
+    expect(exportCount).toBe(13);
   });
 });
