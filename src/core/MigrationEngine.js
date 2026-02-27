@@ -113,8 +113,14 @@ export class MigrationEngine {
     const results = [];
     const renames = new Map();
 
+    // Build index for O(1) lookup instead of O(N) per file
+    const fileMap = new Map();
+    for (const f of files) {
+      fileMap.set(f.path, f);
+    }
+
     for (const filePath of sortedPaths) {
-      const file = files.find((f) => f.path === filePath);
+      const file = fileMap.get(filePath);
       if (!file) continue;
 
       // Skip non-convertible types (config files handled separately below)
