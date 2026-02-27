@@ -287,6 +287,16 @@ export class ConverterFactory {
   }
 
   /**
+   * Check if a conversion direction is backed by the new pipeline.
+   * @param {string} from - Source framework
+   * @param {string} to - Target framework
+   * @returns {boolean}
+   */
+  static isPipelineBacked(from, to) {
+    return PIPELINE_DIRECTIONS.has(`${from.toLowerCase()}-${to.toLowerCase()}`);
+  }
+
+  /**
    * Get all supported frameworks
    * @returns {string[]}
    */
