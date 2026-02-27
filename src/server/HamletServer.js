@@ -83,10 +83,8 @@ export class HamletServer {
         try {
           const matched = await router.dispatch(req, res);
           if (!matched) {
-            const pathname = new URL(
-              req.url,
-              `http://${req.headers.host}`
-            ).pathname;
+            const pathname = new URL(req.url, `http://${req.headers.host}`)
+              .pathname;
             if (this._serveUI && !pathname.startsWith('/api/')) {
               this._serveStatic(req, res);
             } else {
