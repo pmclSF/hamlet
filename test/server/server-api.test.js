@@ -10,13 +10,28 @@ const FIXTURES_ANALYZE = path.resolve(__dirname, '../fixtures/analyze');
 const FIXTURES_CONVERT = path.resolve(__dirname, '../fixtures/convert');
 const OUTPUT_DIR = path.resolve(__dirname, '../output/server-test');
 
+/** Helper: POST with session token and JSON body. */
+function postJson(baseUrl, path, body, token, extraHeaders = {}) {
+  return fetch(`${baseUrl}${path}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Hamlet-Token': token,
+      ...extraHeaders,
+    },
+    body: JSON.stringify(body),
+  });
+}
+
 describe('HamletServer API', () => {
   let server;
   let baseUrl;
+  let token;
 
   beforeAll(async () => {
     server = new HamletServer({ port: 0 });
     baseUrl = await server.start();
+    token = server.token;
   });
 
   afterAll(async () => {
@@ -43,11 +58,9 @@ describe('HamletServer API', () => {
 
   describe('POST /api/analyze', () => {
     it('should return a valid analysis report', async () => {
-      const res = await fetch(`${baseUrl}/api/analyze`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ root: FIXTURES_ANALYZE }),
-      });
+      const res = await postJson(baseUrl, '/api/analyze', {
+        root: FIXTURES_ANALYZE,
+      }, token);
       expect(res.status).toBe(200);
 
       const body = await res.json();
@@ -59,11 +72,7 @@ describe('HamletServer API', () => {
     });
 
     it('should return 400 when root is missing', async () => {
-      const res = await fetch(`${baseUrl}/api/analyze`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({}),
-      });
+      const res = await postJson(baseUrl, '/api/analyze', {}, token);
       expect(res.status).toBe(400);
 
       const body = await res.json();
@@ -73,16 +82,12 @@ describe('HamletServer API', () => {
 
   describe('POST /api/convert', () => {
     it('should return 202 with a jobId', async () => {
-      const res = await fetch(`${baseUrl}/api/convert`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          root: FIXTURES_CONVERT,
-          direction: { from: 'jest', to: 'vitest' },
-          outputMode: 'out-dir',
-          outputDir: OUTPUT_DIR,
-        }),
-      });
+      const res = await postJson(baseUrl, '/api/convert', {
+        root: FIXTURES_CONVERT,
+        direction: { from: 'jest', to: 'vitest' },
+        outputMode: 'out-dir',
+        outputDir: OUTPUT_DIR,
+      }, token);
       expect(res.status).toBe(202);
 
       const body = await res.json();
@@ -91,11 +96,9 @@ describe('HamletServer API', () => {
     });
 
     it('should return 400 when required fields are missing', async () => {
-      const res = await fetch(`${baseUrl}/api/convert`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ root: FIXTURES_CONVERT }),
-      });
+      const res = await postJson(baseUrl, '/api/convert', {
+        root: FIXTURES_CONVERT,
+      }, token);
       expect(res.status).toBe(400);
 
       const body = await res.json();
@@ -106,16 +109,12 @@ describe('HamletServer API', () => {
   describe('GET /api/jobs/:id', () => {
     it('should return job status after conversion completes', async () => {
       // Start a conversion job
-      const createRes = await fetch(`${baseUrl}/api/convert`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          root: FIXTURES_CONVERT,
-          direction: { from: 'jest', to: 'vitest' },
-          outputMode: 'out-dir',
-          outputDir: OUTPUT_DIR,
-        }),
-      });
+      const createRes = await postJson(baseUrl, '/api/convert', {
+        root: FIXTURES_CONVERT,
+        direction: { from: 'jest', to: 'vitest' },
+        outputMode: 'out-dir',
+        outputDir: OUTPUT_DIR,
+      }, token);
       const { jobId } = await createRes.json();
 
       // Poll until completed or failed (max 10 seconds)
@@ -143,16 +142,12 @@ describe('HamletServer API', () => {
   describe('GET /api/jobs/:id/stream', () => {
     it('should return SSE content-type and event data', async () => {
       // Start a conversion job
-      const createRes = await fetch(`${baseUrl}/api/convert`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          root: FIXTURES_CONVERT,
-          direction: { from: 'jest', to: 'vitest' },
-          outputMode: 'out-dir',
-          outputDir: OUTPUT_DIR,
-        }),
-      });
+      const createRes = await postJson(baseUrl, '/api/convert', {
+        root: FIXTURES_CONVERT,
+        direction: { from: 'jest', to: 'vitest' },
+        outputMode: 'out-dir',
+        outputDir: OUTPUT_DIR,
+      }, token);
       const { jobId } = await createRes.json();
 
       // Wait a moment for the job to produce events
@@ -170,16 +165,12 @@ describe('HamletServer API', () => {
   describe('GET /api/artifacts/:jobId', () => {
     it('should return file paths from a completed job', async () => {
       // Start a conversion job
-      const createRes = await fetch(`${baseUrl}/api/convert`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          root: FIXTURES_CONVERT,
-          direction: { from: 'jest', to: 'vitest' },
-          outputMode: 'out-dir',
-          outputDir: path.join(OUTPUT_DIR, 'artifacts-test'),
-        }),
-      });
+      const createRes = await postJson(baseUrl, '/api/convert', {
+        root: FIXTURES_CONVERT,
+        direction: { from: 'jest', to: 'vitest' },
+        outputMode: 'out-dir',
+        outputDir: path.join(OUTPUT_DIR, 'artifacts-test'),
+      }, token);
       const { jobId } = await createRes.json();
 
       // Poll until done
@@ -210,7 +201,10 @@ describe('HamletServer API', () => {
     it('should return 400 for invalid JSON body', async () => {
       const res = await fetch(`${baseUrl}/api/analyze`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Hamlet-Token': token,
+        },
         body: '{invalid json',
       });
       expect(res.status).toBe(400);
@@ -242,7 +236,10 @@ describe('HamletServer API', () => {
       const largeBody = JSON.stringify({ root: 'x'.repeat(2 * 1024 * 1024) });
       const res = await fetch(`${baseUrl}/api/analyze`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Hamlet-Token': token,
+        },
         body: largeBody,
       });
       expect(res.status).toBe(413);
@@ -254,11 +251,12 @@ describe('HamletServer API', () => {
 
   describe('POST /api/open', () => {
     it('should return 404 when enableOpen is not set (default)', async () => {
-      const res = await fetch(`${baseUrl}/api/open`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ path: '/some/file' }),
-      });
+      const res = await postJson(
+        baseUrl,
+        '/api/open',
+        { path: '/some/file' },
+        token
+      );
       // Route is not registered, so it falls through to 404
       expect(res.status).toBe(404);
     });
@@ -266,12 +264,104 @@ describe('HamletServer API', () => {
 
   describe('POST /api/preview', () => {
     it('should return 400 when required fields are missing', async () => {
-      const res = await fetch(`${baseUrl}/api/preview`, {
+      const res = await postJson(
+        baseUrl,
+        '/api/preview',
+        { sourcePath: 'test.js' },
+        token
+      );
+      expect(res.status).toBe(400);
+    });
+  });
+
+  describe('CSRF protection', () => {
+    it('should return 401 for POST without session token', async () => {
+      const res = await fetch(`${baseUrl}/api/analyze`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sourcePath: 'test.js' }),
+        body: JSON.stringify({ root: FIXTURES_ANALYZE }),
       });
-      expect(res.status).toBe(400);
+      expect(res.status).toBe(401);
+
+      const body = await res.json();
+      expect(body.error).toContain('session token');
+    });
+
+    it('should return 401 for POST with wrong session token', async () => {
+      const res = await fetch(`${baseUrl}/api/analyze`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Hamlet-Token': 'wrong-token',
+        },
+        body: JSON.stringify({ root: FIXTURES_ANALYZE }),
+      });
+      expect(res.status).toBe(401);
+    });
+
+    it('should expose token in GET /api/health for local clients', async () => {
+      const res = await fetch(`${baseUrl}/api/health`);
+      const body = await res.json();
+      expect(body.token).toBe(token);
+    });
+  });
+
+  describe('path traversal protection', () => {
+    it('should return 403 for POST /api/analyze with absolute escape', async () => {
+      const res = await postJson(
+        baseUrl,
+        '/api/analyze',
+        { root: '/etc' },
+        token
+      );
+      expect(res.status).toBe(403);
+
+      const body = await res.json();
+      expect(body.error).toContain('outside project root');
+    });
+
+    it('should return 403 for POST /api/analyze with relative escape', async () => {
+      const res = await postJson(
+        baseUrl,
+        '/api/analyze',
+        { root: '../../etc' },
+        token
+      );
+      expect(res.status).toBe(403);
+    });
+
+    it('should return 403 for POST /api/convert with root escape', async () => {
+      const res = await postJson(
+        baseUrl,
+        '/api/convert',
+        {
+          root: '/etc',
+          direction: { from: 'jest', to: 'vitest' },
+          outputMode: 'out-dir',
+        },
+        token
+      );
+      expect(res.status).toBe(403);
+    });
+  });
+
+  describe('security response headers', () => {
+    it('should include security headers on API responses', async () => {
+      const res = await fetch(`${baseUrl}/api/health`);
+      expect(res.headers.get('x-content-type-options')).toBe('nosniff');
+      expect(res.headers.get('x-frame-options')).toBe('DENY');
+      expect(res.headers.get('referrer-policy')).toBe('no-referrer');
+      expect(res.headers.get('cache-control')).toBe('no-store');
+      expect(res.headers.get('content-security-policy')).toBe(
+        "default-src 'none'"
+      );
+    });
+
+    it('should return 204 for OPTIONS preflight', async () => {
+      const res = await fetch(`${baseUrl}/api/health`, {
+        method: 'OPTIONS',
+      });
+      expect(res.status).toBe(204);
     });
   });
 });
