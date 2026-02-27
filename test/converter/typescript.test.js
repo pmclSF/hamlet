@@ -13,11 +13,15 @@ describe('TypeScriptConverter', () => {
       expect(converter.typeMap).toBeInstanceOf(Map);
       expect(converter.typeMap.get('Cypress.Chainable')).toBe('Locator');
       expect(converter.typeMap.get('cy.wrap')).toBe('Promise');
-      expect(converter.typeMap.get('Cypress.Config')).toBe('PlaywrightTestConfig');
+      expect(converter.typeMap.get('Cypress.Config')).toBe(
+        'PlaywrightTestConfig'
+      );
       expect(converter.typeMap.get('cy.stub')).toBe('Mock');
       expect(converter.typeMap.get('cy.spy')).toBe('Mock');
       expect(converter.typeMap.get('Cypress.Browser')).toBe('BrowserContext');
-      expect(converter.typeMap.get('Cypress.ElementHandle')).toBe('ElementHandle');
+      expect(converter.typeMap.get('Cypress.ElementHandle')).toBe(
+        'ElementHandle'
+      );
       expect(converter.typeMap.get('Cypress.Cookie')).toBe('Cookie');
       expect(converter.typeMap.get('Cypress.Response')).toBe('APIResponse');
       expect(converter.typeMap.get('Cypress.AUTWindow')).toBe('Page');
@@ -25,9 +29,15 @@ describe('TypeScriptConverter', () => {
 
     it('should initialize interfaceMap with Cypress to Playwright interface mappings', () => {
       expect(converter.interfaceMap).toBeInstanceOf(Map);
-      expect(converter.interfaceMap.get('CypressConfiguration')).toBe('PlaywrightTestConfig');
-      expect(converter.interfaceMap.get('CypressPlugin')).toBe('PlaywrightPlugin');
-      expect(converter.interfaceMap.get('CypressCommand')).toBe('PlaywrightTest');
+      expect(converter.interfaceMap.get('CypressConfiguration')).toBe(
+        'PlaywrightTestConfig'
+      );
+      expect(converter.interfaceMap.get('CypressPlugin')).toBe(
+        'PlaywrightPlugin'
+      );
+      expect(converter.interfaceMap.get('CypressCommand')).toBe(
+        'PlaywrightTest'
+      );
       expect(converter.interfaceMap.get('CypressFixture')).toBe('TestFixture');
     });
 
@@ -76,7 +86,9 @@ describe('TypeScriptConverter', () => {
     });
 
     it('should return original name for unmapped methods', () => {
-      expect(converter.transformMethodName('customMethod')).toBe('customMethod');
+      expect(converter.transformMethodName('customMethod')).toBe(
+        'customMethod'
+      );
       expect(converter.transformMethodName('doSomething')).toBe('doSomething');
     });
 
@@ -99,51 +111,55 @@ describe('TypeScriptConverter', () => {
   });
 
   describe('generateDefinitionFileContent', () => {
-    it('should generate header with Playwright imports', () => {
-      const content = converter.generateDefinitionFileContent(new Map());
-      expect(content).toContain('// Generated type definitions for Playwright tests');
-      expect(content).toContain("import { test, expect, Page, Locator } from '@playwright/test';");
+    it('should generate header with Playwright imports', async () => {
+      const content = await converter.generateDefinitionFileContent(new Map());
+      expect(content).toContain(
+        '// Generated type definitions for Playwright tests'
+      );
+      expect(content).toContain(
+        "import { test, expect, Page, Locator } from '@playwright/test';"
+      );
     });
 
-    it('should generate interface declarations', () => {
+    it('should generate interface declarations', async () => {
       const typeDefs = new Map();
       typeDefs.set('LoginPage', {
         kind: ts.SyntaxKind.InterfaceDeclaration,
-        type: '{ username: string; password: string; }'
+        type: '{ username: string; password: string; }',
       });
 
-      const content = converter.generateDefinitionFileContent(typeDefs);
+      const content = await converter.generateDefinitionFileContent(typeDefs);
       expect(content).toContain('interface LoginPage');
     });
 
-    it('should generate type alias declarations', () => {
+    it('should generate type alias declarations', async () => {
       const typeDefs = new Map();
       typeDefs.set('UserId', {
         kind: ts.SyntaxKind.TypeAliasDeclaration,
-        type: 'string'
+        type: 'string',
       });
 
-      const content = converter.generateDefinitionFileContent(typeDefs);
+      const content = await converter.generateDefinitionFileContent(typeDefs);
       expect(content).toContain('type UserId = string;');
     });
 
-    it('should handle empty type definitions', () => {
-      const content = converter.generateDefinitionFileContent(new Map());
+    it('should handle empty type definitions', async () => {
+      const content = await converter.generateDefinitionFileContent(new Map());
       expect(content).toContain('// Generated type definitions');
     });
 
-    it('should handle mixed definitions', () => {
+    it('should handle mixed definitions', async () => {
       const typeDefs = new Map();
       typeDefs.set('Config', {
         kind: ts.SyntaxKind.InterfaceDeclaration,
-        type: '{ timeout: number; }'
+        type: '{ timeout: number; }',
       });
       typeDefs.set('TestId', {
         kind: ts.SyntaxKind.TypeAliasDeclaration,
-        type: 'string | number'
+        type: 'string | number',
       });
 
-      const content = converter.generateDefinitionFileContent(typeDefs);
+      const content = await converter.generateDefinitionFileContent(typeDefs);
       expect(content).toContain('interface Config');
       expect(content).toContain('type TestId = string | number;');
     });
