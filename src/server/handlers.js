@@ -149,8 +149,12 @@ export async function handleOpen(req, res) {
     return sendJson(res, 400, { error: 'Missing required field: path' });
   }
 
-  // Reject URL schemes — only allow filesystem paths
-  if (/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(filePath)) {
+  // Reject URL schemes — only allow filesystem paths.
+  // Single-letter prefixes followed by :\ or :/ are Windows drive letters, not schemes.
+  if (
+    /^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(filePath) &&
+    !/^[a-zA-Z]:[/\\]/.test(filePath)
+  ) {
     return sendJson(res, 400, {
       error: 'URL schemes are not allowed, only filesystem paths',
     });
