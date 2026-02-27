@@ -56,12 +56,16 @@ describe('DependencyAnalyzer', () => {
 
   describe('extractImportSpecifiers', () => {
     it('should extract specifiers from named import', () => {
-      const specifiers = analyzer.extractImportSpecifiers("import { a, b, c } from 'mod'");
+      const specifiers = analyzer.extractImportSpecifiers(
+        "import { a, b, c } from 'mod'"
+      );
       expect(specifiers).toEqual(['a', 'b', 'c']);
     });
 
     it('should return empty for default import', () => {
-      const specifiers = analyzer.extractImportSpecifiers("import x from 'mod'");
+      const specifiers = analyzer.extractImportSpecifiers(
+        "import x from 'mod'"
+      );
       expect(specifiers).toEqual([]);
     });
   });
@@ -130,7 +134,7 @@ describe('DependencyAnalyzer', () => {
         customCommands: [],
         fixtures: [],
         pageObjects: [],
-        dependencies: []
+        dependencies: [],
       });
 
       const tree = analyzer.getDependencyTree('/test.js');
@@ -144,7 +148,9 @@ describe('DependencyAnalyzer', () => {
     it('should return Cypress to Playwright import mappings', () => {
       const importMap = analyzer.generateImportMap();
       expect(importMap).toBeInstanceOf(Map);
-      expect(importMap.get('@cypress/react')).toBe('@playwright/experimental-ct-react');
+      expect(importMap.get('@cypress/react')).toBe(
+        '@playwright/experimental-ct-react'
+      );
       expect(importMap.get('cypress-axe')).toBe('axe-playwright');
     });
   });
@@ -164,6 +170,45 @@ describe('DependencyAnalyzer', () => {
 
       const circular = analyzer.findCircularDependencies('a.js');
       expect(circular.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('analyzeDependenciesFromContent', () => {
+    it('should analyze dependencies from pre-read content', () => {
+      const content = `
+        import { test } from '@playwright/test';
+        cy.fixture('users.json');
+      `;
+      const result = analyzer.analyzeDependenciesFromContent(
+        '/fake/test.js',
+        content
+      );
+      expect(result.imports).toHaveLength(1);
+      expect(result.imports[0].source).toBe('@playwright/test');
+      expect(result.fixtures).toHaveLength(1);
+      expect(result.fixtures[0].name).toBe('users.json');
+    });
+
+    it('should store analysis in the internal map', () => {
+      const content = "import fs from 'fs';";
+      analyzer.analyzeDependenciesFromContent('/fake/file.js', content);
+      expect(analyzer.getDependencyTree('/fake/file.js')).not.toBeNull();
+    });
+
+    it('should return same structure as analyzeDependencies', () => {
+      const content = `
+        import path from 'path';
+        Cypress.Commands.add('login', { prevSubject: true }, function() {});
+      `;
+      const result = analyzer.analyzeDependenciesFromContent(
+        '/fake/cmd.js',
+        content
+      );
+      expect(result).toHaveProperty('imports');
+      expect(result).toHaveProperty('customCommands');
+      expect(result).toHaveProperty('fixtures');
+      expect(result).toHaveProperty('pageObjects');
+      expect(result).toHaveProperty('dependencies');
     });
   });
 });

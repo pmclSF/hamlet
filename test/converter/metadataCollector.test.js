@@ -29,7 +29,9 @@ describe('TestMetadataCollector', () => {
     });
 
     it('should detect component tests', () => {
-      expect(collector.detectTestType('cy.mount(<Component />)')).toBe('component');
+      expect(collector.detectTestType('cy.mount(<Component />)')).toBe(
+        'component'
+      );
     });
 
     it('should detect api tests', () => {
@@ -162,11 +164,15 @@ describe('TestMetadataCollector', () => {
     });
 
     it('should identify visibility assertions', () => {
-      expect(collector.getAssertionType('should("be.visible")')).toBe('visibility');
+      expect(collector.getAssertionType('should("be.visible")')).toBe(
+        'visibility'
+      );
     });
 
     it('should identify text assertions', () => {
-      expect(collector.getAssertionType('should("have.text", "hello")')).toBe('text');
+      expect(collector.getAssertionType('should("have.text", "hello")')).toBe(
+        'text'
+      );
     });
 
     it('should return other for unrecognized assertions', () => {
@@ -250,7 +256,8 @@ describe('TestMetadataCollector', () => {
     });
 
     it('should extract multiple interaction types', () => {
-      const content = 'cy.click(); cy.type("hello"); cy.select("option"); cy.check(); cy.hover();';
+      const content =
+        'cy.click(); cy.type("hello"); cy.select("option"); cy.check(); cy.hover();';
       const interactions = collector.extractInteractions(content);
       expect(interactions.length).toBe(5);
     });
@@ -272,7 +279,7 @@ describe('TestMetadataCollector', () => {
         { type: 'e2e' },
         { type: 'e2e' },
         { type: 'api' },
-        { type: 'component' }
+        { type: 'component' },
       ];
       const summary = collector.summarizeTypes(tests);
       expect(summary.e2e).toBe(2);
@@ -290,7 +297,7 @@ describe('TestMetadataCollector', () => {
       const tests = [
         { tags: ['smoke', 'regression'] },
         { tags: ['smoke', 'e2e'] },
-        { tags: ['regression'] }
+        { tags: ['regression'] },
       ];
       const summary = collector.summarizeTags(tests);
       expect(summary.smoke).toBe(2);
@@ -306,8 +313,12 @@ describe('TestMetadataCollector', () => {
   describe('summarizeComplexity', () => {
     it('should calculate average complexity metrics', () => {
       const tests = [
-        { complexity: { assertions: 2, commands: 4, conditionals: 0, hooks: 1 } },
-        { complexity: { assertions: 4, commands: 6, conditionals: 2, hooks: 3 } }
+        {
+          complexity: { assertions: 2, commands: 4, conditionals: 0, hooks: 1 },
+        },
+        {
+          complexity: { assertions: 4, commands: 6, conditionals: 2, hooks: 3 },
+        },
       ];
       const summary = collector.summarizeComplexity(tests);
       expect(summary.averageAssertions).toBe(3);
@@ -331,7 +342,7 @@ describe('TestMetadataCollector', () => {
         tags: ['smoke'],
         suites: [{ name: 'Suite' }],
         cases: [{ name: 'Test' }],
-        complexity: { assertions: 2, commands: 3, conditionals: 0, hooks: 1 }
+        complexity: { assertions: 2, commands: 3, conditionals: 0, hooks: 1 },
       });
 
       const report = collector.generateReport();
@@ -339,6 +350,53 @@ describe('TestMetadataCollector', () => {
       expect(report.summary.types.e2e).toBe(1);
       expect(report.tests).toHaveLength(1);
       expect(report.tests[0].path).toBe('/test.js');
+    });
+  });
+
+  describe('collectMetadataFromContent', () => {
+    // Use a real file path so getLastModified() can stat it
+    const realPath = new URL(import.meta.url).pathname;
+
+    it('should collect metadata from pre-read content', async () => {
+      const content = `
+        describe('Login', () => {
+          it('should visit page', () => {
+            cy.visit('/login');
+            expect(true).toBe(true);
+          });
+        });
+      `;
+      const metadata = await collector.collectMetadataFromContent(
+        realPath,
+        content
+      );
+      expect(metadata.path).toBe(realPath);
+      expect(metadata.type).toBe('e2e');
+      expect(metadata.suites).toHaveLength(1);
+      expect(metadata.cases).toHaveLength(1);
+    });
+
+    it('should produce same result as collectMetadata would for same content', async () => {
+      const content = `
+        describe('API test', () => {
+          it('makes request', () => {
+            cy.request('/api/data');
+          });
+        });
+      `;
+      const result = await collector.collectMetadataFromContent(
+        realPath,
+        content
+      );
+      expect(result.type).toBe('api');
+      expect(result.suites[0].name).toBe('API test');
+      expect(result.cases[0].name).toBe('makes request');
+    });
+
+    it('should store metadata in the internal map', async () => {
+      const content = 'const x = 1;';
+      await collector.collectMetadataFromContent(realPath, content);
+      expect(collector.getMetadata(realPath)).not.toBeNull();
     });
   });
 });

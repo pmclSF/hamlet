@@ -263,4 +263,15 @@ describe('HamletServer API', () => {
       expect(res.status).toBe(404);
     });
   });
+
+  describe('POST /api/preview', () => {
+    it('should return 400 when required fields are missing', async () => {
+      const res = await fetch(`${baseUrl}/api/preview`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sourcePath: 'test.js' }),
+      });
+      expect(res.status).toBe(400);
+    });
+  });
 });
