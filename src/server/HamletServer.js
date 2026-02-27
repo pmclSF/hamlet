@@ -1,5 +1,5 @@
 import http from 'node:http';
-import fsSync from 'node:fs';
+import fs from 'node:fs/promises';
 import nodePath from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Router, sendJson } from './router.js';
@@ -29,6 +29,10 @@ const MIME_TYPES = {
   '.png': 'image/png',
   '.ico': 'image/x-icon',
 };
+
+/** Bounded static file cache — FIFO eviction at 50 entries or 5 MB total. */
+const CACHE_MAX_ENTRIES = 50;
+const CACHE_MAX_BYTES = 5 * 1024 * 1024;
 
 function isLocalhostHost(header) {
   if (!header) return false;
@@ -60,6 +64,9 @@ export class HamletServer {
     this._serveUI = serveUI;
     this._enableOpen = enableOpen;
     this._server = null;
+    /** @type {Map<string, { mime: string, content: Buffer }>} */
+    this._staticCache = new Map();
+    this._staticCacheBytes = 0;
   }
 
   /**
@@ -101,7 +108,7 @@ export class HamletServer {
             const pathname = new URL(req.url, `http://${req.headers.host}`)
               .pathname;
             if (this._serveUI && !pathname.startsWith('/api/')) {
-              this._serveStatic(req, res);
+              await this._serveStatic(req, res);
             } else {
               sendJson(res, 404, { error: 'Not found' });
             }
@@ -129,7 +136,7 @@ export class HamletServer {
   /**
    * Serve static files from the UI directory, with SPA fallback.
    */
-  _serveStatic(req, res) {
+  async _serveStatic(req, res) {
     const url = new URL(req.url, `http://${req.headers.host}`);
     const filePath = nodePath.resolve(nodePath.join(UI_DIR, url.pathname));
 
@@ -139,13 +146,22 @@ export class HamletServer {
       return;
     }
 
-    // Check if file exists
+    // Serve from cache if available
+    const cached = this._staticCache.get(filePath);
+    if (cached) {
+      res.writeHead(200, { 'Content-Type': cached.mime });
+      res.end(cached.content);
+      return;
+    }
+
+    // Check if file exists (async)
     try {
-      const stat = fsSync.statSync(filePath);
+      const stat = await fs.stat(filePath);
       if (stat.isFile()) {
         const ext = nodePath.extname(filePath);
         const mime = MIME_TYPES[ext] || 'application/octet-stream';
-        const content = fsSync.readFileSync(filePath);
+        const content = await fs.readFile(filePath);
+        this._cacheFile(filePath, mime, content);
         res.writeHead(200, { 'Content-Type': mime });
         res.end(content);
         return;
@@ -157,12 +173,32 @@ export class HamletServer {
     // SPA fallback: serve index.html
     try {
       const indexPath = nodePath.join(UI_DIR, 'index.html');
-      const content = fsSync.readFileSync(indexPath);
+      const content = await fs.readFile(indexPath);
+      this._cacheFile(indexPath, 'text/html; charset=utf-8', content);
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
       res.end(content);
     } catch (_e) {
       sendJson(res, 404, { error: 'UI files not found' });
     }
+  }
+
+  /**
+   * Add a file to the bounded static cache with FIFO eviction.
+   */
+  _cacheFile(filePath, mime, content) {
+    if (content.length > CACHE_MAX_BYTES) return; // Single file too large
+    // Evict until under limits
+    while (
+      this._staticCache.size >= CACHE_MAX_ENTRIES ||
+      this._staticCacheBytes + content.length > CACHE_MAX_BYTES
+    ) {
+      const oldest = this._staticCache.keys().next().value;
+      if (oldest === undefined) break;
+      this._staticCacheBytes -= this._staticCache.get(oldest).content.length;
+      this._staticCache.delete(oldest);
+    }
+    this._staticCache.set(filePath, { mime, content });
+    this._staticCacheBytes += content.length;
   }
 
   /**
