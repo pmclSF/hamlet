@@ -8,16 +8,7 @@ import { createRequire } from 'module';
 import fs from 'fs/promises';
 import path from 'path';
 import fg from 'fast-glob';
-import {
-  convertFile,
-  convertRepository,
-  validateTests,
-  generateReport,
-  ConversionReporter,
-} from '../src/index.js';
-import { TestValidator } from '../src/converter/validator.js';
 import { ConverterFactory, FRAMEWORKS } from '../src/core/ConverterFactory.js';
-import { FrameworkDetector } from '../src/core/FrameworkDetector.js';
 import {
   SHORTHANDS,
   CONVERSION_CATEGORIES,
@@ -187,6 +178,9 @@ async function convertAction(source, options) {
   // Auto-detect framework if requested
   if (options.autoDetect) {
     try {
+      const { FrameworkDetector } = await import(
+        '../src/core/FrameworkDetector.js'
+      );
       const content = await fs.readFile(source, 'utf8');
       const detection = FrameworkDetector.detectFromContent(content);
       if (detection.framework && detection.confidence > 0.5) {
@@ -643,6 +637,7 @@ async function convertAction(source, options) {
     (source.includes('github.com') || source.includes('gitlab.com'));
 
   if (isRepository) {
+    const { convertRepository } = await import('../src/index.js');
     await convertRepository(source, options.output, {
       ...options,
       converter,
@@ -974,6 +969,7 @@ async function convertAction(source, options) {
     if (!quiet && !jsonOutput) {
       console.log(chalk.blue('\nValidating converted tests...'));
     }
+    const { validateTests } = await import('../src/index.js');
     await validateTests(options.output);
   }
 
@@ -981,6 +977,7 @@ async function convertAction(source, options) {
     if (!quiet && !jsonOutput) {
       console.log(chalk.blue('\nGenerating report...'));
     }
+    const { generateReport } = await import('../src/index.js');
     await generateReport(options.output, options.report);
   }
 
@@ -1084,6 +1081,10 @@ program
   .option('--dry-run', 'Show what would be converted without making changes')
   .option('--plan', 'Show structured conversion plan')
   .option('--auto-detect', 'Auto-detect source framework from file content')
+  .option(
+    '--strict-validate',
+    'Enable parser-based syntax validation of converted output'
+  )
   .option('-q, --quiet', 'Suppress non-error output')
   .option('--verbose', 'Detailed output')
   .option('--json', 'JSON output')
@@ -1304,6 +1305,9 @@ program
   .argument('<file>', 'Test file to analyze')
   .action(async (file) => {
     try {
+      const { FrameworkDetector } = await import(
+        '../src/core/FrameworkDetector.js'
+      );
       const content = await fs.readFile(file, 'utf8');
       const result = FrameworkDetector.detect(content, file);
 
@@ -1348,10 +1352,12 @@ program
   .action(async (testPath, options) => {
     try {
       console.log(chalk.blue(`Validating ${options.framework} tests...`));
+      const { TestValidator } = await import('../src/converter/validator.js');
       const validator = new TestValidator();
       const results = await validator.validateConvertedTests(testPath);
 
       if (options.report) {
+        const { generateReport } = await import('../src/index.js');
         await generateReport(testPath, options.report, results);
       }
 
@@ -1432,6 +1438,10 @@ program
   .option('--retry-failed', 'Retry only previously failed files')
   .option('--dry-run', 'Preview migration without making changes')
   .option('--plan', 'Show structured migration plan')
+  .option(
+    '--strict-validate',
+    'Enable parser-based syntax validation of converted output'
+  )
   .action(async (dir, options) => {
     try {
       if (options.dryRun || options.plan) {
@@ -1519,6 +1529,7 @@ program
         output: options.output,
         continue: options.continue,
         retryFailed: options.retryFailed,
+        strictValidate: options.strictValidate || false,
         onProgress: (file, status, confidence) => {
           const icon =
             status === 'converted'

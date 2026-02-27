@@ -20,7 +20,7 @@ describe('VisualComparison', () => {
         threshold: 0.05,
         includeLogs: false,
         saveSnapshots: false,
-        snapshotDir: 'custom-snapshots'
+        snapshotDir: 'custom-snapshots',
       });
       expect(custom.options.threshold).toBe(0.05);
       expect(custom.options.includeLogs).toBe(false);
@@ -36,28 +36,53 @@ describe('VisualComparison', () => {
     });
   });
 
+  describe('lazy dependency loading', () => {
+    it('should not require pngjs/pixelmatch for name-matching operations', () => {
+      const vc = new VisualComparison();
+      // These methods must work without triggering image dep loading
+      const match = vc.findMatchingScreenshot('/shots/cypress-login.png', [
+        '/shots/playwright-login.png',
+      ]);
+      expect(match).toBe('/shots/playwright-login.png');
+      expect(vc.calculateNameSimilarity('login', 'login')).toBe(1);
+      expect(vc.levenshteinDistance('abc', 'abc')).toBe(0);
+    });
+  });
+
   describe('calculateNameSimilarity', () => {
     it('should return 1 for identical names', () => {
       expect(comparison.calculateNameSimilarity('login', 'login')).toBe(1);
     });
 
     it('should strip cypress/playwright prefixes', () => {
-      const similarity = comparison.calculateNameSimilarity('cypress-login', 'playwright-login');
+      const similarity = comparison.calculateNameSimilarity(
+        'cypress-login',
+        'playwright-login'
+      );
       expect(similarity).toBe(1);
     });
 
     it('should strip screenshot suffixes', () => {
-      const similarity = comparison.calculateNameSimilarity('login-screenshot', 'login');
+      const similarity = comparison.calculateNameSimilarity(
+        'login-screenshot',
+        'login'
+      );
       expect(similarity).toBe(1);
     });
 
     it('should return high similarity for similar names', () => {
-      const similarity = comparison.calculateNameSimilarity('login-page', 'login-pag');
+      const similarity = comparison.calculateNameSimilarity(
+        'login-page',
+        'login-pag'
+      );
       expect(similarity).toBeGreaterThan(0.8);
     });
 
     it('should return low similarity for different names', () => {
-      const similarity = comparison.calculateNameSimilarity('login', 'dashboard');
+      const similarity = comparison.calculateNameSimilarity(
+        'login',
+        'dashboard'
+      );
       expect(similarity).toBeLessThan(0.5);
     });
   });
@@ -85,6 +110,20 @@ describe('VisualComparison', () => {
       expect(comparison.levenshteinDistance('abc', 'abcd')).toBe(1);
       expect(comparison.levenshteinDistance('abcd', 'abc')).toBe(1);
     });
+
+    it('should bail out early when maxDistance is exceeded', () => {
+      // "abc" vs "xyz" has distance 3, maxDistance 1 should bail
+      const result = comparison.levenshteinDistance('abc', 'xyz', 1);
+      expect(result).toBeGreaterThan(1);
+    });
+
+    it('should return exact distance when within maxDistance', () => {
+      expect(comparison.levenshteinDistance('hello', 'hallo', 5)).toBe(1);
+    });
+
+    it('should handle str2 shorter than str1 (swap)', () => {
+      expect(comparison.levenshteinDistance('abcdef', 'abc')).toBe(3);
+    });
   });
 
   describe('findMatchingScreenshot', () => {
@@ -92,21 +131,30 @@ describe('VisualComparison', () => {
       const cypressShot = '/screenshots/cypress-login.png';
       const playwrightShots = [
         '/screenshots/playwright-login.png',
-        '/screenshots/playwright-dashboard.png'
+        '/screenshots/playwright-dashboard.png',
       ];
-      const match = comparison.findMatchingScreenshot(cypressShot, playwrightShots);
+      const match = comparison.findMatchingScreenshot(
+        cypressShot,
+        playwrightShots
+      );
       expect(match).toBe('/screenshots/playwright-login.png');
     });
 
     it('should return undefined when no match found', () => {
       const cypressShot = '/screenshots/cypress-login.png';
       const playwrightShots = ['/screenshots/playwright-dashboard.png'];
-      const match = comparison.findMatchingScreenshot(cypressShot, playwrightShots);
+      const match = comparison.findMatchingScreenshot(
+        cypressShot,
+        playwrightShots
+      );
       expect(match).toBeUndefined();
     });
 
     it('should handle empty playwright shots array', () => {
-      const match = comparison.findMatchingScreenshot('/screenshots/login.png', []);
+      const match = comparison.findMatchingScreenshot(
+        '/screenshots/login.png',
+        []
+      );
       expect(match).toBeUndefined();
     });
   });
@@ -150,7 +198,7 @@ describe('VisualComparison', () => {
         cypressShot: '/a.png',
         playwrightShot: '/b.png',
         diffRatio: 0.05,
-        passed: true
+        passed: true,
       });
 
       const report = await comparison.generateReport();
@@ -169,10 +217,10 @@ describe('VisualComparison', () => {
             playwrightShot: '/playwright/login.png',
             diffRatio: 0,
             diffPath: null,
-            passed: true
-          }
+            passed: true,
+          },
         ],
-        errors: []
+        errors: [],
       };
 
       const html = await comparison.generateHtmlReport(report);
@@ -187,7 +235,7 @@ describe('VisualComparison', () => {
       const report = {
         summary: { total: 0, matches: 0, mismatches: 0, errors: 1 },
         comparisons: [],
-        errors: [{ type: 'missing', message: 'No matching screenshot' }]
+        errors: [{ type: 'missing', message: 'No matching screenshot' }],
       };
 
       const html = await comparison.generateHtmlReport(report);

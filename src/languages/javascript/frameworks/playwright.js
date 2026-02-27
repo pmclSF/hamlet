@@ -712,7 +712,9 @@ function convertCypressCommands(content) {
       id: 'FIXTURE',
       description: 'No direct Playwright equivalent for cy.fixture()',
       original: 'cy.fixture($1)',
-      action: 'Use fs.readFileSync() or import JSON directly',
+      action:
+        'Use fs.readFileSync() to load fixture data, import JSON directly, ' +
+        'or use test.use({ storageState }) for auth/session fixtures',
     })
   );
   result = result.replace(

@@ -16,12 +16,18 @@ export class IRNode {
    * @param {Object|null} props.sourceLocation - { line, column, endLine, endColumn }
    * @param {'converted'|'unconvertible'|'warning'} props.confidence
    * @param {string} props.originalSource - Original source text for this node
+   * @param {boolean} props.requiresAsync - Node requires async transformation
+   * @param {boolean} props.hasTimingDependency - Node has timing-sensitive behavior
+   * @param {boolean} props.frameworkSpecific - Node uses framework-specific API with no equivalent
    */
   constructor(type, props = {}) {
     this.type = type;
     this.sourceLocation = props.sourceLocation || null;
     this.confidence = props.confidence || 'converted';
     this.originalSource = props.originalSource || '';
+    this.requiresAsync = props.requiresAsync || false;
+    this.hasTimingDependency = props.hasTimingDependency || false;
+    this.frameworkSpecific = props.frameworkSpecific || false;
   }
 }
 

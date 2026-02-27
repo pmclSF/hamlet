@@ -82,9 +82,10 @@ function parse(source) {
  *
  * @param {TestFile} ir - Parsed IR tree (for scoring metadata)
  * @param {string} source - Original source code (Jest)
+ * @param {Object} [transformContext] - Pre-scanned construct flags from pipeline
  * @returns {string} Converted Vitest source code
  */
-function emit(ir, source) {
+function emit(ir, source, transformContext) {
   let result = source;
   const warnings = [];
   const todos = [];
@@ -136,9 +137,33 @@ function emit(ir, source) {
   result = result.replace(/\bjest\.resetModules\b/g, 'vi.resetModules');
   result = result.replace(/\bjest\.isMockFunction\b/g, 'vi.isMockFunction');
 
+  // jest.unmock → vi.unmock
+  result = result.replace(/\bjest\.unmock\b/g, 'vi.unmock');
+
+  // jest.doMock → vi.doMock
+  result = result.replace(/\bjest\.doMock\b/g, 'vi.doMock');
+
+  // jest.deepUnmock → vi.unmock (Vitest has no deepUnmock, vi.unmock is closest)
+  result = result.replace(/\bjest\.deepUnmock\b/g, 'vi.unmock');
+
   // jest.mock() → vi.mock() (simple case without special options)
   // Must run after virtual mock handling
   result = result.replace(/\bjest\.mock\b/g, 'vi.mock');
+
+  // jest.isolateModules → HAMLET-TODO (no direct Vitest equivalent)
+  result = result.replace(/\bjest\.isolateModules\s*\(/g, (match) => {
+    return (
+      formatter.formatTodo({
+        id: 'UNCONVERTIBLE-ISOLATE-MODULES',
+        description: 'jest.isolateModules has no direct Vitest equivalent',
+        original: match.trim(),
+        action:
+          'Use vi.resetModules() before vi.importActual(), or restructure test isolation',
+      }) +
+      '\n' +
+      match
+    );
+  });
 
   // --- Phase 3: Add warning comments for known behavioral differences ---
 
@@ -158,6 +183,9 @@ function emit(ir, source) {
       '__mocks__ directory convention: verify mock file resolution in Vitest'
     );
   }
+
+  // Warn about done() callback pattern — should be async/await
+  result = addDoneCallbackWarning(result, warnings);
 
   // --- Phase 4: Generate and add import statement ---
 
@@ -199,17 +227,19 @@ function convertRequireActual(source) {
   // First, handle standalone jest.requireActual references
   result = result.replace(/\bjest\.requireActual\b/g, 'await vi.importActual');
 
-  // If we converted any requireActual, the containing jest.mock factory
-  // must become async. Look for vi.mock (already converted) with non-async factory.
+  // If we converted any requireActual, the containing mock factory
+  // must become async. At this point jest.mock has NOT yet been renamed
+  // to vi.mock (that happens in Phase 2), so match both prefixes.
   if (/await vi\.importActual/.test(result)) {
-    // Convert: vi.mock('path', () => { → vi.mock('path', async () => {
+    // Convert: jest.mock('path', () => { → jest.mock('path', async () => {
+    // Also:   vi.mock('path', () => { → vi.mock('path', async () => {
     result = result.replace(
-      /(vi\.mock\s*\([^,]+,\s*)(\(\)\s*=>)/g,
+      /((?:jest|vi)\.mock\s*\([^,]+,\s*)(\(\)\s*=>)/g,
       '$1async $2'
     );
-    // Also handle: vi.mock('path', function() → vi.mock('path', async function()
+    // Also handle: jest.mock('path', function() → jest.mock('path', async function()
     result = result.replace(
-      /(vi\.mock\s*\([^,]+,\s*)(function\s*\()/g,
+      /((?:jest|vi)\.mock\s*\([^,]+,\s*)(function\s*\()/g,
       '$1async $2'
     );
   }
@@ -336,7 +366,8 @@ function addSnapshotWarning(source, warnings) {
     ) {
       const warning =
         '// HAMLET-WARNING: Snapshot file location and format may differ between\n' +
-        '// Jest (__snapshots__/*.snap) and Vitest. Re-run tests to regenerate snapshots.';
+        '// Jest (__snapshots__/*.snap) and Vitest. Run `vitest --update` to\n' +
+        '// regenerate snapshots after migration.';
       // Insert warning before the first snapshot assertion only
       const describeIdx = findPrecedingDescribe(lines, i);
       if (
@@ -465,6 +496,41 @@ function prependImport(source, vitestImport) {
     !lines[insertIdx + 1].trim().startsWith('import')
   ) {
     lines.splice(insertIdx + 1, 0, '');
+  }
+
+  return lines.join('\n');
+}
+
+/**
+ * Add warning for done() callback patterns that should become async/await.
+ */
+function addDoneCallbackWarning(source, warnings) {
+  // Match: it('name', (done) => { or it('name', function(done) {
+  // Also handles async variants: async (done) =>, async function(done)
+  const doneCallbackRe =
+    /\b(?:it|test)\s*\([^,]+,\s*(?:async\s+)?(?:\(done\)|function\s*\(done\))/;
+  if (!doneCallbackRe.test(source)) {
+    return source;
+  }
+
+  const lines = source.split('\n');
+  let warned = false;
+
+  for (let i = 0; i < lines.length; i++) {
+    if (doneCallbackRe.test(lines[i]) && !lines[i].includes('HAMLET')) {
+      const warning = formatter.formatWarning({
+        description:
+          'done() callback pattern detected. Vitest supports done() but ' +
+          'async/await is preferred. Consider refactoring to async/await.',
+        original: lines[i].trim(),
+      });
+      lines.splice(i, 0, warning);
+      i++; // Skip past the inserted warning
+      if (!warned) {
+        warnings.push('done() callback should be converted to async/await');
+        warned = true;
+      }
+    }
   }
 
   return lines.join('\n');

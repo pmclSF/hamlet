@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 
 describe('StreamProcessor', () => {
+// HAMLET-WARNING: done() callback pattern detected. Vitest supports done() but async/await is preferred. Consider refactoring to async/await.
+// Original: it('should validate each chunk in the callback', (done) => {
   it('should validate each chunk in the callback', (done) => {
     const stream = createStream([1, 2, 3]);
     const results = [];

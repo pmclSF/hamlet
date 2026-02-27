@@ -13,8 +13,8 @@ export const interactionPatterns = {
       '\\.rightclick\\(\\)': '.RIGHT_CLICK()',
 
       // Input
-      '\\.type\\(([^)]+)\\)': '.TYPE($1)',
-      '\\.type\\(([^,]+),\\s*\\{[^}]*delay:\\s*(\\d+)[^}]*\\}\\)':
+      '\\.type\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)': '.TYPE($1)',
+      '\\.type\\(([^,()]*(?:\\([^()]*\\)[^,()]*)*),\\s*\\{[^}]*delay:\\s*(\\d+)[^}]*\\}\\)':
         '.TYPE_SLOW($1, $2)',
       '\\.clear\\(\\)': '.CLEAR()',
       '\\.focus\\(\\)': '.FOCUS()',
@@ -23,7 +23,7 @@ export const interactionPatterns = {
       // Form elements
       '\\.check\\(\\)': '.CHECK()',
       '\\.uncheck\\(\\)': '.UNCHECK()',
-      '\\.select\\(([^)]+)\\)': '.SELECT_OPTION($1)',
+      '\\.select\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)': '.SELECT_OPTION($1)',
 
       // Mouse actions
       '\\.trigger\\([\'"]mouseover[\'"]\\)': '.HOVER()',
@@ -33,17 +33,17 @@ export const interactionPatterns = {
       '\\.trigger\\([\'"]mouseup[\'"]\\)': '.MOUSE_UP()',
 
       // Scrolling
-      '\\.scrollTo\\(([^)]+)\\)': '.SCROLL_TO($1)',
+      '\\.scrollTo\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)': '.SCROLL_TO($1)',
       '\\.scrollIntoView\\(\\)': '.SCROLL_INTO_VIEW()',
 
       // Drag and drop
-      '\\.drag\\(([^)]+)\\)': '.DRAG($1)',
+      '\\.drag\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)': '.DRAG($1)',
       '\\.trigger\\([\'"]dragstart[\'"]\\)': '.DRAG_START()',
       '\\.trigger\\([\'"]drop[\'"]\\)': '.DROP()',
 
       // File upload
-      '\\.selectFile\\(([^)]+)\\)': '.UPLOAD_FILE($1)',
-      '\\.attachFile\\(([^)]+)\\)': '.UPLOAD_FILE($1)',
+      '\\.selectFile\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)': '.UPLOAD_FILE($1)',
+      '\\.attachFile\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)': '.UPLOAD_FILE($1)',
     },
 
     generators: {
@@ -82,8 +82,8 @@ export const interactionPatterns = {
         '.RIGHT_CLICK()',
 
       // Input
-      '\\.fill\\(([^)]+)\\)': '.TYPE($1)',
-      '\\.type\\(([^)]+)\\)': '.TYPE_CHAR($1)',
+      '\\.fill\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)': '.TYPE($1)',
+      '\\.type\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)': '.TYPE_CHAR($1)',
       '\\.clear\\(\\)': '.CLEAR()',
       '\\.focus\\(\\)': '.FOCUS()',
       '\\.blur\\(\\)': '.BLUR()',
@@ -91,7 +91,8 @@ export const interactionPatterns = {
       // Form elements
       '\\.check\\(\\)': '.CHECK()',
       '\\.uncheck\\(\\)': '.UNCHECK()',
-      '\\.selectOption\\(([^)]+)\\)': '.SELECT_OPTION($1)',
+      '\\.selectOption\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)':
+        '.SELECT_OPTION($1)',
 
       // Mouse actions
       '\\.hover\\(\\)': '.HOVER()',
@@ -100,10 +101,11 @@ export const interactionPatterns = {
       '\\.scrollIntoViewIfNeeded\\(\\)': '.SCROLL_INTO_VIEW()',
 
       // Drag and drop
-      '\\.dragTo\\(([^)]+)\\)': '.DRAG($1)',
+      '\\.dragTo\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)': '.DRAG($1)',
 
       // File upload
-      '\\.setInputFiles\\(([^)]+)\\)': '.UPLOAD_FILE($1)',
+      '\\.setInputFiles\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)':
+        '.UPLOAD_FILE($1)',
     },
 
     generators: {
@@ -139,13 +141,13 @@ export const interactionPatterns = {
       '\\.click\\(\\)': '.CLICK()',
 
       // Input
-      '\\.sendKeys\\(([^)]+)\\)': '.TYPE($1)',
+      '\\.sendKeys\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)': '.TYPE($1)',
       '\\.clear\\(\\)': '.CLEAR()',
 
       // Form (Select class)
-      'new Select\\(([^)]+)\\)\\.selectByVisibleText\\(([^)]+)\\)':
+      'new Select\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)\\.selectByVisibleText\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)':
         'SELECT_OPTION_IN($1, $2)',
-      'new Select\\(([^)]+)\\)\\.selectByValue\\(([^)]+)\\)':
+      'new Select\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)\\.selectByValue\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)':
         'SELECT_BY_VALUE_IN($1, $2)',
     },
 
@@ -197,23 +199,23 @@ export const directMappings = {
     '\\.click\\(\\)': '.click()',
     '\\.dblclick\\(\\)': '.dblclick()',
     '\\.rightclick\\(\\)': '.click({ button: "right" })',
-    '\\.type\\(([^)]+)\\)': '.fill($1)',
+    '\\.type\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)': '.fill($1)',
     '\\.clear\\(\\)': '.clear()',
     '\\.focus\\(\\)': '.focus()',
     '\\.blur\\(\\)': '.blur()',
     '\\.check\\(\\)': '.check()',
     '\\.uncheck\\(\\)': '.uncheck()',
-    '\\.select\\(([^)]+)\\)': '.selectOption($1)',
+    '\\.select\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)': '.selectOption($1)',
     '\\.trigger\\([\'"]mouseover[\'"]\\)': '.hover()',
     '\\.trigger\\([\'"]mouseenter[\'"]\\)': '.hover()',
     '\\.scrollIntoView\\(\\)': '.scrollIntoViewIfNeeded()',
-    '\\.selectFile\\(([^)]+)\\)': '.setInputFiles($1)',
-    '\\.attachFile\\(([^)]+)\\)': '.setInputFiles($1)',
+    '\\.selectFile\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)': '.setInputFiles($1)',
+    '\\.attachFile\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)': '.setInputFiles($1)',
   },
 
   'cypress-selenium': {
     '\\.click\\(\\)': '.click()',
-    '\\.type\\(([^)]+)\\)': '.sendKeys($1)',
+    '\\.type\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)': '.sendKeys($1)',
     '\\.clear\\(\\)': '.clear()',
     '\\.check\\(\\)': '.click()',
     '\\.uncheck\\(\\)': '.click()',
@@ -225,36 +227,36 @@ export const directMappings = {
     '\\.click\\(\\)': '.click()',
     '\\.dblclick\\(\\)': '.dblclick()',
     '\\.click\\(\\{\\s*button:\\s*[\'"]right[\'"]\\s*\\}\\)': '.rightclick()',
-    '\\.fill\\(([^)]+)\\)': '.type($1)',
+    '\\.fill\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)': '.type($1)',
     '\\.clear\\(\\)': '.clear()',
     '\\.focus\\(\\)': '.focus()',
     '\\.blur\\(\\)': '.blur()',
     '\\.check\\(\\)': '.check()',
     '\\.uncheck\\(\\)': '.uncheck()',
-    '\\.selectOption\\(([^)]+)\\)': '.select($1)',
+    '\\.selectOption\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)': '.select($1)',
     '\\.hover\\(\\)': '.trigger("mouseover")',
     '\\.scrollIntoViewIfNeeded\\(\\)': '.scrollIntoView()',
-    '\\.setInputFiles\\(([^)]+)\\)': '.selectFile($1)',
+    '\\.setInputFiles\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)': '.selectFile($1)',
   },
 
   'playwright-selenium': {
     '\\.click\\(\\)': '.click()',
-    '\\.fill\\(([^)]+)\\)': '.sendKeys($1)',
+    '\\.fill\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)': '.sendKeys($1)',
     '\\.clear\\(\\)': '.clear()',
     '\\.check\\(\\)': '.click()',
     '\\.uncheck\\(\\)': '.click()',
-    '\\.setInputFiles\\(([^)]+)\\)': '.sendKeys($1)',
+    '\\.setInputFiles\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)': '.sendKeys($1)',
   },
 
   'selenium-cypress': {
     '\\.click\\(\\)': '.click()',
-    '\\.sendKeys\\(([^)]+)\\)': '.type($1)',
+    '\\.sendKeys\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)': '.type($1)',
     '\\.clear\\(\\)': '.clear()',
   },
 
   'selenium-playwright': {
     '\\.click\\(\\)': '.click()',
-    '\\.sendKeys\\(([^)]+)\\)': '.fill($1)',
+    '\\.sendKeys\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)': '.fill($1)',
     '\\.clear\\(\\)': '.clear()',
   },
 };

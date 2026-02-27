@@ -13,11 +13,11 @@ export const waitPatterns = {
       'cy\\.wait\\([\'"]@([^\'"]+)[\'"]\\)': 'WAIT_FOR_ALIAS($1)',
 
       // Network waits
-      'cy\\.intercept\\(([^)]+)\\)\\.as\\([\'"]([^\'"]+)[\'"]\\)':
+      'cy\\.intercept\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)\\.as\\([\'"]([^\'"]+)[\'"]\\)':
         'INTERCEPT_AS($1, $2)',
 
       // Element waits (implicit in Cypress via retry-ability)
-      'cy\\.get\\(([^)]+),\\s*\\{\\s*timeout:\\s*(\\d+)\\s*\\}\\)':
+      'cy\\.get\\(([^()]*(?:\\([^()]*\\)[^()]*)*),\\s*\\{\\s*timeout:\\s*(\\d+)\\s*\\}\\)':
         'WAIT_FOR_ELEMENT($1, $2)',
     },
 
@@ -47,18 +47,20 @@ export const waitPatterns = {
       'await page\\.waitForTimeout\\((\\d+)\\)': 'WAIT($1)',
 
       // Element waits
-      'await page\\.waitForSelector\\(([^)]+)\\)': 'WAIT_FOR_ELEMENT($1)',
-      'await page\\.waitForSelector\\(([^,]+),\\s*\\{\\s*state:\\s*[\'"]visible[\'"]\\s*\\}\\)':
+      'await page\\.waitForSelector\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)':
+        'WAIT_FOR_ELEMENT($1)',
+      'await page\\.waitForSelector\\(([^,()]*(?:\\([^()]*\\)[^,()]*)*),\\s*\\{\\s*state:\\s*[\'"]visible[\'"]\\s*\\}\\)':
         'WAIT_FOR_VISIBLE($1)',
-      'await page\\.waitForSelector\\(([^,]+),\\s*\\{\\s*state:\\s*[\'"]hidden[\'"]\\s*\\}\\)':
+      'await page\\.waitForSelector\\(([^,()]*(?:\\([^()]*\\)[^,()]*)*),\\s*\\{\\s*state:\\s*[\'"]hidden[\'"]\\s*\\}\\)':
         'WAIT_FOR_HIDDEN($1)',
-      'await page\\.waitForSelector\\(([^,]+),\\s*\\{\\s*state:\\s*[\'"]attached[\'"]\\s*\\}\\)':
+      'await page\\.waitForSelector\\(([^,()]*(?:\\([^()]*\\)[^,()]*)*),\\s*\\{\\s*state:\\s*[\'"]attached[\'"]\\s*\\}\\)':
         'WAIT_FOR_ATTACHED($1)',
-      'await page\\.waitForSelector\\(([^,]+),\\s*\\{\\s*state:\\s*[\'"]detached[\'"]\\s*\\}\\)':
+      'await page\\.waitForSelector\\(([^,()]*(?:\\([^()]*\\)[^,()]*)*),\\s*\\{\\s*state:\\s*[\'"]detached[\'"]\\s*\\}\\)':
         'WAIT_FOR_DETACHED($1)',
 
       // Page waits
-      'await page\\.waitForURL\\(([^)]+)\\)': 'WAIT_FOR_URL($1)',
+      'await page\\.waitForURL\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)':
+        'WAIT_FOR_URL($1)',
       'await page\\.waitForLoadState\\([\'"]networkidle[\'"]\\)':
         'WAIT_FOR_NETWORK_IDLE()',
       'await page\\.waitForLoadState\\([\'"]domcontentloaded[\'"]\\)':
@@ -66,11 +68,14 @@ export const waitPatterns = {
       'await page\\.waitForLoadState\\([\'"]load[\'"]\\)': 'WAIT_FOR_LOAD()',
 
       // Network waits
-      'await page\\.waitForResponse\\(([^)]+)\\)': 'WAIT_FOR_RESPONSE($1)',
-      'await page\\.waitForRequest\\(([^)]+)\\)': 'WAIT_FOR_REQUEST($1)',
+      'await page\\.waitForResponse\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)':
+        'WAIT_FOR_RESPONSE($1)',
+      'await page\\.waitForRequest\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)':
+        'WAIT_FOR_REQUEST($1)',
 
       // Function waits
-      'await page\\.waitForFunction\\(([^)]+)\\)': 'WAIT_FOR_FUNCTION($1)',
+      'await page\\.waitForFunction\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)':
+        'WAIT_FOR_FUNCTION($1)',
     },
 
     generators: {
@@ -117,21 +122,21 @@ export const waitPatterns = {
       'await driver\\.sleep\\((\\d+)\\)': 'WAIT($1)',
 
       // Explicit waits
-      'await driver\\.wait\\(until\\.elementLocated\\(([^)]+)\\),\\s*(\\d+)\\)':
+      'await driver\\.wait\\(until\\.elementLocated\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\),\\s*(\\d+)\\)':
         'WAIT_FOR_ELEMENT($1, $2)',
-      'await driver\\.wait\\(until\\.elementIsVisible\\(([^)]+)\\),\\s*(\\d+)\\)':
+      'await driver\\.wait\\(until\\.elementIsVisible\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\),\\s*(\\d+)\\)':
         'WAIT_FOR_VISIBLE($1, $2)',
-      'await driver\\.wait\\(until\\.elementIsNotVisible\\(([^)]+)\\),\\s*(\\d+)\\)':
+      'await driver\\.wait\\(until\\.elementIsNotVisible\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\),\\s*(\\d+)\\)':
         'WAIT_FOR_HIDDEN($1, $2)',
-      'await driver\\.wait\\(until\\.elementIsEnabled\\(([^)]+)\\),\\s*(\\d+)\\)':
+      'await driver\\.wait\\(until\\.elementIsEnabled\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\),\\s*(\\d+)\\)':
         'WAIT_FOR_ENABLED($1, $2)',
-      'await driver\\.wait\\(until\\.elementTextContains\\(([^,]+),\\s*([^)]+)\\),\\s*(\\d+)\\)':
+      'await driver\\.wait\\(until\\.elementTextContains\\(([^,()]*(?:\\([^()]*\\)[^,()]*)*),\\s*([^()]*(?:\\([^()]*\\)[^()]*)*)\\),\\s*(\\d+)\\)':
         'WAIT_FOR_TEXT($1, $2, $3)',
-      'await driver\\.wait\\(until\\.urlContains\\(([^)]+)\\),\\s*(\\d+)\\)':
+      'await driver\\.wait\\(until\\.urlContains\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\),\\s*(\\d+)\\)':
         'WAIT_FOR_URL($1)',
-      'await driver\\.wait\\(until\\.titleContains\\(([^)]+)\\),\\s*(\\d+)\\)':
+      'await driver\\.wait\\(until\\.titleContains\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\),\\s*(\\d+)\\)':
         'WAIT_FOR_TITLE($1)',
-      'await driver\\.wait\\(until\\.stalenessOf\\(([^)]+)\\),\\s*(\\d+)\\)':
+      'await driver\\.wait\\(until\\.stalenessOf\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\),\\s*(\\d+)\\)':
         'WAIT_FOR_STALE($1)',
       'await driver\\.wait\\(until\\.alertIsPresent\\(\\),\\s*(\\d+)\\)':
         'WAIT_FOR_ALERT()',
@@ -187,7 +192,7 @@ export const directMappings = {
     'cy\\.wait\\((\\d+)\\)': 'await page.waitForTimeout($1)',
     'cy\\.wait\\([\'"]@([^\'"]+)[\'"]\\)':
       'await page.waitForResponse(response => response.url().includes("$1"))',
-    'cy\\.intercept\\(([^)]+)\\)\\.as\\([\'"]([^\'"]+)[\'"]\\)':
+    'cy\\.intercept\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)\\.as\\([\'"]([^\'"]+)[\'"]\\)':
       'await page.route($1, route => route.continue())',
   },
 
@@ -199,34 +204,36 @@ export const directMappings = {
 
   'playwright-cypress': {
     'await page\\.waitForTimeout\\((\\d+)\\)': 'cy.wait($1)',
-    'await page\\.waitForSelector\\(([^)]+)\\)': 'cy.get($1)',
-    'await page\\.waitForURL\\(([^)]+)\\)': 'cy.url().should("include", $1)',
+    'await page\\.waitForSelector\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)':
+      'cy.get($1)',
+    'await page\\.waitForURL\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)':
+      'cy.url().should("include", $1)',
     'await page\\.waitForLoadState\\([\'"]networkidle[\'"]\\)': 'cy.wait(1000)',
   },
 
   'playwright-selenium': {
     'await page\\.waitForTimeout\\((\\d+)\\)': 'await driver.sleep($1)',
-    'await page\\.waitForSelector\\(([^)]+)\\)':
+    'await page\\.waitForSelector\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)':
       'await driver.wait(until.elementLocated(By.css($1)), 10000)',
-    'await page\\.waitForURL\\(([^)]+)\\)':
+    'await page\\.waitForURL\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)':
       'await driver.wait(until.urlContains($1), 10000)',
   },
 
   'selenium-cypress': {
     'await driver\\.sleep\\((\\d+)\\)': 'cy.wait($1)',
-    'await driver\\.wait\\(until\\.elementLocated\\(([^)]+)\\),\\s*(\\d+)\\)':
+    'await driver\\.wait\\(until\\.elementLocated\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\),\\s*(\\d+)\\)':
       'cy.get($1, { timeout: $2 })',
-    'await driver\\.wait\\(until\\.elementIsVisible\\(([^)]+)\\),\\s*(\\d+)\\)':
+    'await driver\\.wait\\(until\\.elementIsVisible\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\),\\s*(\\d+)\\)':
       'cy.get($1, { timeout: $2 }).should("be.visible")',
   },
 
   'selenium-playwright': {
     'await driver\\.sleep\\((\\d+)\\)': 'await page.waitForTimeout($1)',
-    'await driver\\.wait\\(until\\.elementLocated\\(([^)]+)\\),\\s*(\\d+)\\)':
+    'await driver\\.wait\\(until\\.elementLocated\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\),\\s*(\\d+)\\)':
       'await page.waitForSelector($1, { timeout: $2 })',
-    'await driver\\.wait\\(until\\.elementIsVisible\\(([^)]+)\\),\\s*(\\d+)\\)':
+    'await driver\\.wait\\(until\\.elementIsVisible\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\),\\s*(\\d+)\\)':
       'await page.waitForSelector($1, { state: "visible", timeout: $2 })',
-    'await driver\\.wait\\(until\\.urlContains\\(([^)]+)\\),\\s*(\\d+)\\)':
+    'await driver\\.wait\\(until\\.urlContains\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\),\\s*(\\d+)\\)':
       'await page.waitForURL($1)',
   },
 };

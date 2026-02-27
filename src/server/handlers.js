@@ -19,6 +19,12 @@ const version = __require('../../package.json').version;
 
 const serverStart = Date.now();
 
+/** Maximum combined size of source + converted in preview responses. */
+const MAX_PREVIEW_BYTES = 512 * 1024;
+
+/** Maximum concurrent file conversions in a server job. */
+const MAX_CONCURRENCY = 8;
+
 // ── Handlers ─────────────────────────────────────────────────────────
 
 export function handleHealth(req, res) {
@@ -234,7 +240,16 @@ export async function handlePreview(req, res) {
     const converter = await ConverterFactory.createConverter(from, to);
     const converted = await converter.convert(source);
 
-    sendJson(res, 200, { sourcePath, from, to, source, converted });
+    const response = { sourcePath, from, to, source, converted };
+
+    if (source.length + converted.length > MAX_PREVIEW_BYTES) {
+      const half = Math.floor(MAX_PREVIEW_BYTES / 2);
+      response.source = source.slice(0, half);
+      response.converted = converted.slice(0, half);
+      response.truncated = true;
+    }
+
+    sendJson(res, 200, response);
   } catch (err) {
     sendJson(res, 500, { error: err.message });
   }
@@ -303,9 +318,14 @@ async function _runConversionJob(jobId) {
 
     // Create converter
     const converter = await ConverterFactory.createConverter(from, to);
-    const resultFiles = [];
+    const resultFiles = new Array(testFiles.length);
 
-    for (const file of testFiles) {
+    // Process files with bounded concurrency
+    const pending = new Set();
+    let nextIndex = 0;
+
+    const processFile = async (index) => {
+      const file = testFiles[index];
       const relPath =
         file.relativePath || path.relative(resolvedRoot, file.path);
       try {
@@ -330,22 +350,33 @@ async function _runConversionJob(jobId) {
         await fs.mkdir(path.dirname(outputPath), { recursive: true });
         await fs.writeFile(outputPath, converted, 'utf8');
 
-        resultFiles.push({
+        resultFiles[index] = {
           source: relPath,
           outputPath,
           status: 'converted',
           todosAdded: todos,
-        });
+        };
         appendLog(jobId, `Converted: ${relPath}`);
       } catch (err) {
-        resultFiles.push({
+        resultFiles[index] = {
           source: relPath,
           outputPath: null,
           status: 'failed',
           error: err.message,
           todosAdded: 0,
-        });
+        };
         appendLog(jobId, `Failed: ${relPath} — ${err.message}`);
+      }
+    };
+
+    while (nextIndex < testFiles.length || pending.size > 0) {
+      while (nextIndex < testFiles.length && pending.size < MAX_CONCURRENCY) {
+        const idx = nextIndex++;
+        const p = processFile(idx).then(() => pending.delete(p));
+        pending.add(p);
+      }
+      if (pending.size > 0) {
+        await Promise.race(pending);
       }
     }
 

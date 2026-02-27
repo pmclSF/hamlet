@@ -21,24 +21,33 @@ export class TestMetadataCollector {
   async collectMetadata(testPath) {
     try {
       const content = await fs.readFile(testPath, 'utf8');
-
-      const metadata = {
-        path: testPath,
-        type: this.detectTestType(content),
-        suites: this.extractTestSuites(content),
-        cases: this.extractTestCases(content),
-        tags: this.extractTags(content),
-        complexity: this.calculateComplexity(content),
-        coverage: this.extractCoverage(content),
-        lastModified: await this.getLastModified(testPath),
-      };
-
-      this.metadata.set(testPath, metadata);
-      return metadata;
+      return this.collectMetadataFromContent(testPath, content);
     } catch (error) {
       logger.error(`Failed to collect metadata for ${testPath}:`, error);
       throw error;
     }
+  }
+
+  /**
+   * Collect metadata from pre-read content (avoids redundant file reads).
+   * @param {string} testPath - Path to test file
+   * @param {string} content - File content already read
+   * @returns {Promise<Object>} - Test metadata
+   */
+  async collectMetadataFromContent(testPath, content) {
+    const metadata = {
+      path: testPath,
+      type: this.detectTestType(content),
+      suites: this.extractTestSuites(content),
+      cases: this.extractTestCases(content),
+      tags: this.extractTags(content),
+      complexity: this.calculateComplexity(content),
+      coverage: this.extractCoverage(content),
+      lastModified: await this.getLastModified(testPath),
+    };
+
+    this.metadata.set(testPath, metadata);
+    return metadata;
   }
 
   /**

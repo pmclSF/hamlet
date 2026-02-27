@@ -9,6 +9,8 @@
  */
 
 import { ConfidenceScorer } from './ConfidenceScorer.js';
+import { OutputValidator } from './OutputValidator.js';
+import { walkIR } from './ir.js';
 
 export class ConversionPipeline {
   /**
@@ -17,6 +19,7 @@ export class ConversionPipeline {
   constructor(registry) {
     this.registry = registry;
     this.scorer = new ConfidenceScorer();
+    this.validator = new OutputValidator();
   }
 
   /**
@@ -59,14 +62,22 @@ export class ConversionPipeline {
     // 2. Parse — source framework parser produces IR
     const ir = sourceFw.parse(sourceCode);
 
-    // 3. Transform — structural transforms for cross-paradigm
+    // 3. Transform — Phase A pre-scan + structural transforms
     const transformedIr = this.transform(ir, sourceFw, targetFw);
 
+    // Collect construct flags from IR into transform context
+    const transformContext = this._buildTransformContext(transformedIr);
+
     // 4. Emit — target framework emitter produces code
-    const code = targetFw.emit(transformedIr, sourceCode);
+    const code = targetFw.emit(transformedIr, sourceCode, transformContext);
 
     // 5. Score — walk IR and compute confidence
     const report = this.scorer.score(transformedIr);
+    report.transformContext = transformContext;
+
+    // 6. Validate — check output for dangling references, balanced brackets, etc.
+    const validation = this.validator.validate(code, targetFrameworkName);
+    report.validation = validation;
 
     return { code, report };
   }
@@ -88,5 +99,39 @@ export class ConversionPipeline {
     // Cross-paradigm structural transforms will be added here
     // when we implement pytest→unittest, RSpec→Minitest, etc.
     return ir;
+  }
+
+  /**
+   * Phase A: Pre-scan IR to build a transform context from construct flags.
+   * The context is passed to emit() so emitters can make informed decisions
+   * without re-scanning the source text.
+   *
+   * @param {import('./ir.js').TestFile} ir
+   * @returns {Object} Transform context with aggregated flags
+   */
+  _buildTransformContext(ir) {
+    const context = {
+      hasRequireActual: false,
+      hasTimingDependency: false,
+      hasFrameworkSpecific: false,
+      asyncNodes: 0,
+      frameworkSpecificNodes: 0,
+    };
+
+    walkIR(ir, (node) => {
+      if (node.requiresAsync) {
+        context.hasRequireActual = true;
+        context.asyncNodes++;
+      }
+      if (node.hasTimingDependency) {
+        context.hasTimingDependency = true;
+      }
+      if (node.frameworkSpecific) {
+        context.hasFrameworkSpecific = true;
+        context.frameworkSpecificNodes++;
+      }
+    });
+
+    return context;
   }
 }

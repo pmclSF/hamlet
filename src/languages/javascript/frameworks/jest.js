@@ -148,6 +148,7 @@ function parse(source) {
         }
         i = j - 1;
       }
+      const hasRequireActual = /jest\.requireActual/.test(fullMock);
       const node = new MockCall({
         kind: hasVirtual
           ? 'mockModule'
@@ -159,6 +160,7 @@ function parse(source) {
         sourceLocation: loc,
         originalSource: fullMock,
         confidence: hasVirtual ? 'unconvertible' : 'converted',
+        requiresAsync: hasRequireActual,
       });
       allNodes.push(node);
       continue;
@@ -185,6 +187,7 @@ function parse(source) {
           sourceLocation: loc,
           originalSource: line,
           confidence: 'warning',
+          frameworkSpecific: true,
         })
       );
       continue;
@@ -472,6 +475,51 @@ function emit(ir, source) {
   });
 
   result = transformed.join('\n');
+
+  // --- File-level: done() callback detection (Mocha → Jest) ---
+  // Jest supports done() but async/await is preferred; warn the developer
+  const doneRe =
+    /\b(?:it|test)\s*\([^,]+,\s*(?:async\s+)?(?:function\s*\(done\)|\(done\)\s*=>)/;
+  if (doneRe.test(result)) {
+    const rLines = result.split('\n');
+    for (let li = 0; li < rLines.length; li++) {
+      if (doneRe.test(rLines[li]) && !rLines[li].includes('HAMLET')) {
+        const warning = formatter.formatWarning({
+          description:
+            'done() callback detected. Jest supports done() but async/await ' +
+            'is preferred. Consider refactoring to: async () => { await ... }',
+          original: rLines[li].trim(),
+        });
+        rLines.splice(li, 0, warning);
+        li++; // skip past inserted warning
+      }
+    }
+    result = rLines.join('\n');
+  }
+
+  // --- File-level: Warn about residual Chai chains that weren't converted ---
+  if (/\.to\.\w+\.\w+\.\w+/.test(result)) {
+    const rLines = result.split('\n');
+    for (let li = 0; li < rLines.length; li++) {
+      const trimmedLine = rLines[li].trim();
+      if (
+        /\.to\.\w+\.\w+\.\w+/.test(trimmedLine) &&
+        !trimmedLine.startsWith('//') &&
+        !trimmedLine.includes('HAMLET')
+      ) {
+        const warning = formatter.formatWarning({
+          description:
+            'Complex Chai chain detected that may not be fully converted. ' +
+            'Verify this assertion works correctly with Jest expect().',
+          original: trimmedLine,
+        });
+        rLines.splice(li, 0, warning);
+        li++;
+        break; // One warning per file is sufficient
+      }
+    }
+    result = rLines.join('\n');
+  }
 
   // --- File-level cleanup ---
   result = result.replace(/\n{3,}/g, '\n\n');

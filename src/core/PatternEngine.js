@@ -54,13 +54,60 @@ export class PatternEngine {
   }
 
   /**
+   * Protect string literals and comments from pattern replacement.
+   * Replaces strings and comments with placeholders so that regex
+   * patterns do not match inside them.
+   *
+   * @param {string} content - Source content
+   * @returns {{ protected: string, restore: (text: string) => string }}
+   * @private
+   */
+  _protectLiterals(content) {
+    const literals = [];
+
+    // Order matters: scan left-to-right, first match wins.
+    // 1. Multi-line comments  /* ... */
+    // 2. Single-line comments // ... (up to newline)
+    // 3. Template literals    ` ... ` (handles escaped backticks)
+    // 4. Double-quoted strings " ... "
+    // 5. Single-quoted strings ' ... '
+    const combined = new RegExp(
+      [
+        '/\\*[\\s\\S]*?\\*/',
+        '//[^\\n]*',
+        '`(?:[^`\\\\]|\\\\.)*`',
+        '"(?:[^"\\\\]|\\\\.)*"',
+        "'(?:[^'\\\\]|\\\\.)*'",
+      ].join('|'),
+      'g'
+    );
+
+    const protectedContent = content.replace(combined, (match) => {
+      const index = literals.length;
+      literals.push(match);
+      return `__HAMLET_LIT_${index}__`;
+    });
+
+    const restore = (text) => {
+      let restored = text;
+      for (let i = literals.length - 1; i >= 0; i--) {
+        restored = restored.split(`__HAMLET_LIT_${i}__`).join(literals[i]);
+      }
+      return restored;
+    };
+
+    return { protected: protectedContent, restore };
+  }
+
+  /**
    * Apply all patterns to content
    * @param {string} content - Source content
    * @param {string[]|null} categories - Categories to apply (null for all)
    * @returns {string} - Transformed content
    */
   applyPatterns(content, categories = null) {
-    let result = content;
+    const { protected: safeContent, restore } = this._protectLiterals(content);
+    let result = safeContent;
     const categoriesToApply = categories || Array.from(this.patterns.keys());
 
     for (const category of categoriesToApply) {
@@ -81,7 +128,7 @@ export class PatternEngine {
       }
     }
 
-    return result;
+    return restore(result);
   }
 
   /**
@@ -91,7 +138,8 @@ export class PatternEngine {
    * @returns {Object} - { result: string, changes: Array }
    */
   applyPatternsWithTracking(content, categories = null) {
-    let result = content;
+    const { protected: safeContent, restore } = this._protectLiterals(content);
+    let result = safeContent;
     const changes = [];
     const categoriesToApply = categories || Array.from(this.patterns.keys());
 
@@ -118,7 +166,7 @@ export class PatternEngine {
       }
     }
 
-    return { result, changes };
+    return { result: restore(result), changes };
   }
 
   /**

@@ -21,21 +21,30 @@ export class DependencyAnalyzer {
   async analyzeDependencies(testPath) {
     try {
       const content = await fs.readFile(testPath, 'utf8');
-
-      const analysis = {
-        imports: this.extractImports(content),
-        customCommands: this.extractCustomCommands(content),
-        fixtures: this.extractFixtures(content),
-        pageObjects: this.extractPageObjects(content),
-        dependencies: this.extractDependencies(content),
-      };
-
-      this.dependencies.set(testPath, analysis);
-      return analysis;
+      return this.analyzeDependenciesFromContent(testPath, content);
     } catch (error) {
       logger.error(`Failed to analyze ${testPath}:`, error);
       throw error;
     }
+  }
+
+  /**
+   * Analyze dependencies from pre-read content (avoids redundant file reads).
+   * @param {string} testPath - Path to test file
+   * @param {string} content - File content already read
+   * @returns {Object} - Dependency analysis
+   */
+  analyzeDependenciesFromContent(testPath, content) {
+    const analysis = {
+      imports: this.extractImports(content),
+      customCommands: this.extractCustomCommands(content),
+      fixtures: this.extractFixtures(content),
+      pageObjects: this.extractPageObjects(content),
+      dependencies: this.extractDependencies(content),
+    };
+
+    this.dependencies.set(testPath, analysis);
+    return analysis;
   }
 
   /**
