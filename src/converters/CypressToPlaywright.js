@@ -178,6 +178,9 @@ export class CypressToPlaywright extends BaseConverter {
     // Clean up and format
     result = this.cleanupOutput(result);
 
+    // Add retry semantics warning if .should() was converted to expect()
+    result = this.addRetryWarning(result);
+
     // Combine imports and content
     result = imports.join('\n') + '\n\n' + result;
 
@@ -723,6 +726,36 @@ export class CypressToPlaywright extends BaseConverter {
 
 export default defineConfig(${JSON.stringify(playwrightConfig, null, 2)});
 `;
+  }
+
+  /**
+   * Add warning about Cypress retry semantics when .should() was converted.
+   * Cypress .should() retries until timeout; Playwright expect() does not
+   * automatically retry unless using web-first assertions.
+   * @param {string} content
+   * @returns {string}
+   */
+  addRetryWarning(content) {
+    if (content.includes('HAMLET-WARNING')) return content;
+
+    const hasWebFirstAssertion =
+      content.includes('toBeVisible') ||
+      content.includes('toBeAttached') ||
+      content.includes('toBeHidden') ||
+      content.includes('toHaveText') ||
+      content.includes('toContainText') ||
+      content.includes('toHaveValue') ||
+      content.includes('toHaveCount');
+
+    if (!hasWebFirstAssertion) return content;
+
+    const warning =
+      '// HAMLET-WARNING: Cypress .should() chains retry until timeout.\n' +
+      '// Playwright web-first assertions (toBeVisible, toHaveText, etc.) also\n' +
+      '// auto-retry, but non-web assertions do not. Verify timeout behavior.';
+
+    // Prepend warning to the content
+    return warning + '\n' + content;
   }
 }
 
