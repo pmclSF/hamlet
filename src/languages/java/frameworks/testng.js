@@ -520,6 +520,12 @@ function convertAssertThrowsToTestNG(source) {
 function emit(_ir, source) {
   let result = source;
 
+  // Strip incoming HAMLET-TODO blocks (from previous round-trip step)
+  result = result.replace(
+    /^[ \t]*\/\/ HAMLET-TODO \[[^\]]+\]:.*\n(?:[ \t]*\n)*(?:[ \t]*\/\/ (?:Original|Manual action required):.*\n(?:[ \t]*\n)*)*/gm,
+    ''
+  );
+
   // --- Phase 1: Annotation renames ---
 
   result = result.replace(/@BeforeEach\b/g, '@BeforeMethod');
@@ -878,6 +884,7 @@ function emit(_ir, source) {
   // --- Cleanup ---
 
   result = result.replace(/\n{3,}/g, '\n\n');
+
   if (!result.endsWith('\n')) result += '\n';
 
   return result;

@@ -415,6 +415,12 @@ function parse(source) {
 function emit(_ir, source) {
   let result = source;
 
+  // Strip incoming HAMLET-TODO blocks (from previous round-trip step)
+  result = result.replace(
+    /^[ \t]*\/\/ HAMLET-TODO \[[^\]]+\]:.*\n(?:[ \t]*\n)*(?:[ \t]*\/\/ (?:Original|Manual action required):.*\n(?:[ \t]*\n)*)*/gm,
+    ''
+  );
+
   // --- Phase 1: Convert Jest mock API → Jasmine spies ---
 
   // jest.fn() → jasmine.createSpy()
@@ -473,6 +479,9 @@ function emit(_ir, source) {
 
   // .mock.calls[n] → .calls.argsFor(n)
   result = result.replace(/\.mock\.calls\[(\d+)\]/g, '.calls.argsFor($1)');
+
+  // .mock.calls (bare, not followed by [ or .length) → .calls.allArgs()
+  result = result.replace(/\.mock\.calls(?![\[.])/g, '.calls.allArgs()');
 
   // .mock.lastCall → .calls.mostRecent().args
   result = result.replace(/\.mock\.lastCall/g, '.calls.mostRecent().args');

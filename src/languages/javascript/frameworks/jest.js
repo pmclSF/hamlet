@@ -399,434 +399,463 @@ function parse(source) {
 /**
  * Emit Jest code from IR + original source.
  *
- * Converts source code to Jest by applying framework-specific pattern
- * transforms. Handles Mocha+Chai→Jest, Jasmine→Jest, and other X→Jest
- * conversions. Each phase only matches patterns from its source framework,
- * so all phases can safely run on every input.
+ * Uses IR-guided chunking: walks the IR node tree, identifies node types
+ * (imports, suites, tests, hooks, assertions, mocks), and applies only
+ * the relevant regex transforms per node. This avoids ordering bugs from
+ * sweeping 100+ regexes across the entire file and uses IR structure for
+ * correctness guarantees.
  *
- * @param {TestFile} _ir - Parsed IR tree (for scoring metadata)
+ * Falls back to original source for unrecognized patterns (RawCode nodes).
+ *
+ * @param {TestFile} ir - Parsed IR tree from source framework
  * @param {string} source - Original source code
  * @returns {string} Converted Jest source code
  */
-function emit(_ir, source) {
+function emit(ir, source) {
+  // Build a line→node map from the IR for guided chunking
+  const nodeByLine = new Map();
+  if (ir && ir.body) {
+    for (const node of [...(ir.imports || []), ...ir.body]) {
+      if (node.sourceLocation) {
+        nodeByLine.set(node.sourceLocation.line, node);
+      }
+    }
+  }
+
+  // --- File-level Phase 0: Restore multi-line HAMLET-TODO blocks ---
   let result = source;
+  result = result.replace(
+    /\/\/ HAMLET-TODO \[UNCONVERTIBLE-SNAPSHOT\][^\n]*\n\s*\/\/ Original: ([^\n]+)\n\s*\/\/ Manual action required:[^\n]*\n\s*\/\/[^\n]*/g,
+    '$1'
+  );
+  result = result.replace(
+    /\/\/ HAMLET-TODO \[UNCONVERTIBLE-INLINE-SNAPSHOT\][^\n]*\n\s*\/\/ Original: ([^\n]+)\n\s*\/\/ Manual action required:[^\n]*\n\s*\/\/[^\n]*/g,
+    '$1'
+  );
+  result = result.replace(
+    /\/\/ HAMLET-TODO \[UNCONVERTIBLE-MODULE-MOCK\][^\n]*\n\s*\/\/ Original: ([^\n]+)\n\s*\/\/ Manual action required:[^\n]*\n\s*\/\/[^\n]*/g,
+    '$1'
+  );
+  result = result.replace(
+    /\/\/ Jasmine spies are auto-cleaned between specs/g,
+    'jest.restoreAllMocks();'
+  );
 
-  // --- Phase 1: Remove source-framework imports ---
+  // --- Per-node transforms: walk each line with its IR node type ---
+  const lines = result.split('\n');
+  const transformed = lines.map((line, i) => {
+    const lineNum = i + 1;
+    const node = nodeByLine.get(lineNum);
 
+    if (!node) return line; // blank lines or unmapped
+
+    switch (node.type) {
+      case 'ImportStatement':
+        return transformImportToJest(line);
+      case 'TestSuite':
+        return transformSuiteToJest(line);
+      case 'TestCase':
+        return transformTestCaseToJest(line);
+      case 'Hook':
+        return transformHookToJest(line);
+      case 'Assertion':
+        return transformAssertionToJest(line);
+      case 'MockCall':
+        return transformMockToJest(line);
+      case 'Comment':
+        return line; // pass-through
+      default:
+        // RawCode or unknown: apply conservative chain transforms
+        // for multi-line assertion/mock continuations
+        return transformRawCodeToJest(line);
+    }
+  });
+
+  result = transformed.join('\n');
+
+  // --- File-level cleanup ---
+  result = result.replace(/\n{3,}/g, '\n\n');
+  if (!result.endsWith('\n')) result += '\n';
+
+  return result;
+}
+
+// ── Per-node transform functions (Jest target) ───────────────────────
+
+/**
+ * Transform import lines: strip chai, sinon, and related imports.
+ */
+function transformImportToJest(line) {
   // Remove chai imports
-  result = result.replace(
-    /const\s+\{[^}]*\}\s*=\s*require\s*\(\s*['"]chai['"]\s*\)\s*;?\n?/g,
-    ''
-  );
-  result = result.replace(
-    /const\s+\w+\s*=\s*require\s*\(\s*['"]chai['"]\s*\)\s*;?\n?/g,
-    ''
-  );
-  result = result.replace(/import\s+\{[^}]*\}\s+from\s+['"]chai['"];?\n?/g, '');
-  result = result.replace(/import\s+\w+\s+from\s+['"]chai['"];?\n?/g, '');
-
+  if (
+    /require\s*\(\s*['"]chai['"]\s*\)/.test(line) ||
+    /from\s+['"]chai['"]/.test(line)
+  )
+    return '';
   // Remove sinon imports
-  result = result.replace(
-    /const\s+\w+\s*=\s*require\s*\(\s*['"]sinon['"]\s*\)\s*;?\n?/g,
-    ''
+  if (
+    /require\s*\(\s*['"]sinon['"]\s*\)/.test(line) ||
+    /from\s+['"]sinon['"]/.test(line)
+  )
+    return '';
+  // Remove chai-as-promised, sinon-chai
+  if (/chai-as-promised|sinon-chai/.test(line)) return '';
+  return line;
+}
+
+/**
+ * Transform test suite lines: Mocha/Jasmine aliases → Jest describe.
+ */
+function transformSuiteToJest(line) {
+  let r = line;
+  r = r.replace(/\bcontext\s*\(/g, 'describe(');
+  r = r.replace(/\bfdescribe\s*\(/g, 'describe.only(');
+  r = r.replace(/\bxdescribe\s*\(/g, 'describe.skip(');
+  return r;
+}
+
+/**
+ * Transform test case lines: Mocha specify, Jasmine f/xit → Jest it.
+ */
+function transformTestCaseToJest(line) {
+  let r = line;
+  r = r.replace(/\bspecify\s*\(/g, 'it(');
+  // xit with pending → it.todo (before generic xit→it.skip)
+  r = r.replace(
+    /\bxit\(\s*(['"][^'"]*['"])\s*,\s*(?:\(\)\s*=>|function\s*\(\))\s*\{\s*pending\(\)\s*;?\s*\}\s*\)/g,
+    'it.todo($1)'
   );
-  result = result.replace(/import\s+\w+\s+from\s+['"]sinon['"];?\n?/g, '');
-  result = result.replace(
-    /import\s+\{[^}]*\}\s+from\s+['"]sinon['"];?\n?/g,
-    ''
-  );
+  r = r.replace(/\bxit\s*\(/g, 'it.skip(');
+  r = r.replace(/\bfit\s*\(/g, 'it.only(');
+  return r;
+}
 
-  // Remove chai-as-promised, sinon-chai, etc.
-  result = result.replace(
-    /const\s+\w+\s*=\s*require\s*\(\s*['"]chai-as-promised['"]\s*\)\s*;?\n?/g,
-    ''
-  );
-  result = result.replace(
-    /const\s+\w+\s*=\s*require\s*\(\s*['"]sinon-chai['"]\s*\)\s*;?\n?/g,
-    ''
-  );
-  result = result.replace(
-    /import\s+\w+\s+from\s+['"]chai-as-promised['"];?\n?/g,
-    ''
-  );
-  result = result.replace(/import\s+\w+\s+from\s+['"]sinon-chai['"];?\n?/g, '');
+/**
+ * Transform hook lines: Mocha before/after → Jest beforeAll/afterAll.
+ */
+function transformHookToJest(line) {
+  let r = line;
+  r = r.replace(/\bbefore\s*\((?!Each|All)/g, 'beforeAll(');
+  r = r.replace(/\bafter\s*\((?!Each|All)/g, 'afterAll(');
+  return r;
+}
 
-  // --- Phase 2: Convert Mocha aliases ---
+/**
+ * Transform assertion lines: Chai chains + assert-style → Jest expect.
+ */
+function transformAssertionToJest(line) {
+  let r = line;
 
-  // context( → describe(
-  result = result.replace(/\bcontext\s*\(/g, 'describe(');
-
-  // specify( → it(
-  result = result.replace(/\bspecify\s*\(/g, 'it(');
-
-  // before( → beforeAll( (only bare before, not beforeEach)
-  result = result.replace(/\bbefore\s*\((?!Each|All)/g, 'beforeAll(');
-
-  // after( → afterAll( (only bare after, not afterEach)
-  result = result.replace(/\bafter\s*\((?!Each|All)/g, 'afterAll(');
-
-  // --- Phase 3: Convert Chai expect chains → Jest expect ---
-  // Uses chain-suffix replacement to avoid nested-paren issues with expect(fn())
-  // Step 1: Normalize negation (.to.not. and .not.to. → .not.)
-  // Step 2: Replace Chai chains with Jest matchers
-
-  // Negation normalization (must come before chain replacements)
-  result = result.replace(/\.to\.not\./g, '.not.');
-  result = result.replace(/\.not\.to\./g, '.not.');
+  // Negation normalization
+  r = r.replace(/\.to\.not\./g, '.not.');
+  r = r.replace(/\.not\.to\./g, '.not.');
 
   // Chai-sinon assertion chains (most specific first)
-  result = result.replace(
-    /\.to\.have\.been\.calledOnce/g,
-    '.toHaveBeenCalledTimes(1)'
-  );
-  result = result.replace(
-    /\.to\.have\.been\.calledTwice/g,
-    '.toHaveBeenCalledTimes(2)'
-  );
-  result = result.replace(
-    /\.to\.have\.been\.calledWith\(/g,
-    '.toHaveBeenCalledWith('
-  );
-  result = result.replace(
-    /\.to\.have\.been\.called(?!\w)/g,
-    '.toHaveBeenCalled()'
-  );
-  result = result.replace(
-    /\.not\.have\.been\.called(?!\w)/g,
-    '.not.toHaveBeenCalled()'
-  );
+  r = r.replace(/\.to\.have\.been\.calledOnce/g, '.toHaveBeenCalledTimes(1)');
+  r = r.replace(/\.to\.have\.been\.calledTwice/g, '.toHaveBeenCalledTimes(2)');
+  r = r.replace(/\.to\.have\.been\.calledWith\(/g, '.toHaveBeenCalledWith(');
+  r = r.replace(/\.to\.have\.been\.called(?!\w)/g, '.toHaveBeenCalled()');
+  r = r.replace(/\.not\.have\.been\.called(?!\w)/g, '.not.toHaveBeenCalled()');
 
-  // Deep equal before equal (more specific first)
-  result = result.replace(/\.to\.deep\.equal\(/g, '.toEqual(');
-  result = result.replace(/\.not\.deep\.equal\(/g, '.not.toEqual(');
-
-  // .to.equal → .toBe
-  result = result.replace(/\.to\.equal\(/g, '.toBe(');
-  result = result.replace(/\.not\.equal\(/g, '.not.toBe(');
-
-  // Boolean/null/undefined terminal chains
-  result = result.replace(/\.to\.be\.true/g, '.toBe(true)');
-  result = result.replace(/\.not\.be\.true/g, '.not.toBe(true)');
-  result = result.replace(/\.to\.be\.false/g, '.toBe(false)');
-  result = result.replace(/\.not\.be\.false/g, '.not.toBe(false)');
-  result = result.replace(/\.to\.be\.null/g, '.toBeNull()');
-  result = result.replace(/\.not\.be\.null/g, '.not.toBeNull()');
-  result = result.replace(/\.to\.be\.undefined/g, '.toBeUndefined()');
-  result = result.replace(/\.not\.be\.undefined/g, '.not.toBeUndefined()');
-  result = result.replace(/\.to\.be\.NaN/g, '.toBeNaN()');
-  result = result.replace(/\.not\.be\.NaN/g, '.not.toBeNaN()');
-  result = result.replace(/\.to\.be\.ok/g, '.toBeTruthy()');
-  result = result.replace(/\.not\.be\.ok/g, '.toBeFalsy()');
-
-  // .to.be.an.instanceOf(Y) → .toBeInstanceOf(Y) (before .to.be.a)
-  result = result.replace(/\.to\.be\.an?\.instanceOf\(/g, '.toBeInstanceOf(');
-  result = result.replace(
-    /\.not\.be\.an?\.instanceOf\(/g,
-    '.not.toBeInstanceOf('
-  );
-
-  // .to.be.a('type') → needs subject restructuring, use paren-safe regex
-  const SUBJ = '([^)]*(?:\\([^)]*\\)[^)]*)*)';
-  const beATypeRe = new RegExp(
-    'expect\\(' + SUBJ + '\\)\\.to\\.be\\.a\\(([\'"][^\'"]+[\'"])\\)',
-    'g'
-  );
-  result = result.replace(beATypeRe, 'expect(typeof $1).toBe($2)');
-
-  // .to.be.an('array') → special case
-  const beAnArrayRe = new RegExp(
-    'expect\\(' + SUBJ + '\\)\\.to\\.be\\.an\\(([\'"]array[\'"])\\)',
-    'g'
-  );
-  result = result.replace(beAnArrayRe, 'expect(Array.isArray($1)).toBe(true)');
-
-  // .to.be.an('type') → typeof
-  const beAnTypeRe = new RegExp(
-    'expect\\(' + SUBJ + '\\)\\.to\\.be\\.an\\(([\'"][^\'"]+[\'"])\\)',
-    'g'
-  );
-  result = result.replace(beAnTypeRe, 'expect(typeof $1).toBe($2)');
-
-  // Chain replacements with args
-  result = result.replace(/\.to\.have\.lengthOf\(/g, '.toHaveLength(');
-  result = result.replace(/\.not\.have\.lengthOf\(/g, '.not.toHaveLength(');
-  result = result.replace(/\.to\.include\(/g, '.toContain(');
-  result = result.replace(/\.not\.include\(/g, '.not.toContain(');
-  result = result.replace(/\.to\.contain\(/g, '.toContain(');
-  result = result.replace(/\.not\.contain\(/g, '.not.toContain(');
-  result = result.replace(/\.to\.have\.property\(/g, '.toHaveProperty(');
-  result = result.replace(/\.not\.have\.property\(/g, '.not.toHaveProperty(');
-  result = result.replace(/\.to\.be\.above\(/g, '.toBeGreaterThan(');
-  result = result.replace(/\.to\.be\.below\(/g, '.toBeLessThan(');
-  result = result.replace(/\.to\.be\.at\.least\(/g, '.toBeGreaterThanOrEqual(');
-  result = result.replace(/\.to\.be\.at\.most\(/g, '.toBeLessThanOrEqual(');
-  result = result.replace(/\.to\.be\.closeTo\(/g, '.toBeCloseTo(');
-  result = result.replace(/\.to\.throw\(/g, '.toThrow(');
-  result = result.replace(/\.not\.throw\(/g, '.not.toThrow(');
-  result = result.replace(/\.to\.throw(?!\w)/g, '.toThrow()');
-  result = result.replace(/\.not\.throw(?!\w)/g, '.not.toThrow()');
-  result = result.replace(/\.to\.match\(/g, '.toMatch(');
-  result = result.replace(/\.not\.match\(/g, '.not.toMatch(');
-
-  // Terminal chains
-  result = result.replace(/\.to\.exist/g, '.toBeDefined()');
-  result = result.replace(/\.not\.exist/g, '.not.toBeDefined()');
-
-  // --- Phase 4: Convert Chai assert-style ---
-
-  // assert.strictEqual(a, b) → expect(a).toBe(b)
-  result = result.replace(
-    /assert\.strictEqual\(([^,]+),\s*([^)]+)\)/g,
-    'expect($1).toBe($2)'
-  );
-
-  // assert.deepEqual(a, b) → expect(a).toEqual(b)
-  result = result.replace(
-    /assert\.deepEqual\(([^,]+),\s*([^)]+)\)/g,
-    'expect($1).toEqual($2)'
-  );
-
-  // assert.equal(a, b) → expect(a).toBe(b)
-  result = result.replace(
-    /assert\.equal\(([^,]+),\s*([^)]+)\)/g,
-    'expect($1).toBe($2)'
-  );
-
-  // assert.notEqual(a, b) → expect(a).not.toBe(b)
-  result = result.replace(
-    /assert\.notEqual\(([^,]+),\s*([^)]+)\)/g,
-    'expect($1).not.toBe($2)'
-  );
-
-  // assert.isTrue(x) → expect(x).toBe(true)
-  result = result.replace(
-    /assert\.isTrue\(([^)]+)\)/g,
-    'expect($1).toBe(true)'
-  );
-
-  // assert.isFalse(x) → expect(x).toBe(false)
-  result = result.replace(
-    /assert\.isFalse\(([^)]+)\)/g,
-    'expect($1).toBe(false)'
-  );
-
-  // assert.isNull(x) → expect(x).toBeNull()
-  result = result.replace(
-    /assert\.isNull\(([^)]+)\)/g,
-    'expect($1).toBeNull()'
-  );
-
-  // assert.isNotNull(x) → expect(x).not.toBeNull()
-  result = result.replace(
-    /assert\.isNotNull\(([^)]+)\)/g,
-    'expect($1).not.toBeNull()'
-  );
-
-  // assert.isUndefined(x) → expect(x).toBeUndefined()
-  result = result.replace(
-    /assert\.isUndefined\(([^)]+)\)/g,
-    'expect($1).toBeUndefined()'
-  );
-
-  // assert.isDefined(x) → expect(x).toBeDefined()
-  result = result.replace(
-    /assert\.isDefined\(([^)]+)\)/g,
-    'expect($1).toBeDefined()'
-  );
-
-  // assert.isOk(x) → expect(x).toBeTruthy()
-  result = result.replace(
-    /assert\.isOk\(([^)]+)\)/g,
-    'expect($1).toBeTruthy()'
-  );
-
-  // assert.isNotOk(x) → expect(x).toBeFalsy()
-  result = result.replace(
-    /assert\.isNotOk\(([^)]+)\)/g,
-    'expect($1).toBeFalsy()'
-  );
-
-  // assert.throws(fn) → expect(fn).toThrow()
-  result = result.replace(/assert\.throws\(([^)]+)\)/g, 'expect($1).toThrow()');
-
-  // assert.doesNotThrow(fn) → expect(fn).not.toThrow()
-  result = result.replace(
-    /assert\.doesNotThrow\(([^)]+)\)/g,
-    'expect($1).not.toThrow()'
-  );
-
-  // assert.include(haystack, needle) → expect(haystack).toContain(needle)
-  result = result.replace(
-    /assert\.include\(([^,]+),\s*([^)]+)\)/g,
-    'expect($1).toContain($2)'
-  );
-
-  // assert.match(str, re) → expect(str).toMatch(re)
-  result = result.replace(
-    /assert\.match\(([^,]+),\s*([^)]+)\)/g,
-    'expect($1).toMatch($2)'
-  );
-
-  // assert.instanceOf(obj, cls) → expect(obj).toBeInstanceOf(cls)
-  result = result.replace(
-    /assert\.instanceOf\(([^,]+),\s*([^)]+)\)/g,
-    'expect($1).toBeInstanceOf($2)'
-  );
-
-  // assert.lengthOf(obj, n) → expect(obj).toHaveLength(n)
-  result = result.replace(
-    /assert\.lengthOf\(([^,]+),\s*([^)]+)\)/g,
-    'expect($1).toHaveLength($2)'
-  );
-
-  // assert.property(obj, prop) → expect(obj).toHaveProperty(prop)
-  result = result.replace(
-    /assert\.property\(([^,]+),\s*([^)]+)\)/g,
-    'expect($1).toHaveProperty($2)'
-  );
-
-  // --- Phase 5: Convert Sinon → Jest mocking ---
-
-  // sinon.stub() → jest.fn()
-  result = result.replace(/\bsinon\.stub\(\)/g, 'jest.fn()');
-
-  // sinon.stub(obj, 'method') → jest.spyOn(obj, 'method')
-  result = result.replace(
-    /\bsinon\.stub\(([^,]+),\s*([^)]+)\)/g,
-    'jest.spyOn($1, $2)'
-  );
-
-  // sinon.spy(obj, 'method') → jest.spyOn(obj, 'method')
-  result = result.replace(
-    /\bsinon\.spy\(([^,]+),\s*([^)]+)\)/g,
-    'jest.spyOn($1, $2)'
-  );
-
-  // sinon.spy() → jest.fn()
-  result = result.replace(/\bsinon\.spy\(\)/g, 'jest.fn()');
-
-  // .returns(val) → .mockReturnValue(val)
-  result = result.replace(/\.returns\(([^)]+)\)/g, '.mockReturnValue($1)');
-
-  // .callsFake(fn) → .mockImplementation(fn)
-  result = result.replace(/\.callsFake\(([^)]*)\)/g, '.mockImplementation($1)');
-
-  // .resolves(val) → .mockResolvedValue(val)
-  result = result.replace(/\.resolves\(([^)]+)\)/g, '.mockResolvedValue($1)');
-
-  // .rejects(err) → .mockRejectedValue(err)
-  result = result.replace(/\.rejects\(([^)]+)\)/g, '.mockRejectedValue($1)');
-
-  // .onFirstCall().returns(val) → .mockReturnValueOnce(val)
-  result = result.replace(
-    /\.onFirstCall\(\)\.mockReturnValue\(([^)]+)\)/g,
-    '.mockReturnValueOnce($1)'
-  );
-
-  // .resetHistory() → .mockClear()
-  result = result.replace(/\.resetHistory\(\)/g, '.mockClear()');
-
-  // sinon.assert.calledOnce(fn) → expect(fn).toHaveBeenCalledTimes(1)
-  result = result.replace(
+  // sinon.assert → expect (classified as Assertion by mocha parser)
+  r = r.replace(
     /sinon\.assert\.calledOnce\(([^)]+)\)/g,
     'expect($1).toHaveBeenCalledTimes(1)'
   );
-
-  // sinon.assert.calledTwice(fn) → expect(fn).toHaveBeenCalledTimes(2)
-  result = result.replace(
+  r = r.replace(
     /sinon\.assert\.calledTwice\(([^)]+)\)/g,
     'expect($1).toHaveBeenCalledTimes(2)'
   );
-
-  // sinon.assert.called(fn) → expect(fn).toHaveBeenCalled()
-  result = result.replace(
+  r = r.replace(
+    /sinon\.assert\.calledWith\(([^,]+),\s*([^)]*)\)/g,
+    'expect($1).toHaveBeenCalledWith($2)'
+  );
+  r = r.replace(
+    /sinon\.assert\.notCalled\(([^)]+)\)/g,
+    'expect($1).not.toHaveBeenCalled()'
+  );
+  r = r.replace(
+    /sinon\.assert\.callCount\(([^,]+),\s*([^)]+)\)/g,
+    'expect($1).toHaveBeenCalledTimes($2)'
+  );
+  r = r.replace(
     /sinon\.assert\.called\(([^)]+)\)/g,
     'expect($1).toHaveBeenCalled()'
   );
 
-  // sinon.assert.notCalled(fn) → expect(fn).not.toHaveBeenCalled()
-  result = result.replace(
+  // Jasmine spy .calls API inside assertions (e.g. expect(spy.calls.argsFor(0)))
+  r = r.replace(/\.calls\.argsFor\((\d+)\)/g, '.mock.calls[$1]');
+  r = r.replace(/\.calls\.mostRecent\(\)\.args/g, '.mock.lastCall');
+  r = r.replace(/\.calls\.mostRecent\(\)/g, '.mock.lastCall');
+  r = r.replace(/\.calls\.first\(\)\.args/g, '.mock.calls[0]');
+  r = r.replace(/\.calls\.allArgs\(\)/g, '.mock.calls');
+  r = r.replace(/\.calls\.reset\(\)/g, '.mockClear()');
+
+  // Mock property transforms inside assertions (e.g. expect(spy.callCount))
+  // MUST run after sinon.assert.callCount to avoid clobbering
+  r = r.replace(/\.callCount\b/g, '.mock.calls.length');
+  r = r.replace(/\.calls\.count\(\)/g, '.mock.calls.length');
+
+  // Deep equal before equal (more specific first)
+  r = r.replace(/\.to\.deep\.equal\(/g, '.toEqual(');
+  r = r.replace(/\.not\.deep\.equal\(/g, '.not.toEqual(');
+
+  // .to.equal → .toBe
+  r = r.replace(/\.to\.equal\(/g, '.toBe(');
+  r = r.replace(/\.not\.equal\(/g, '.not.toBe(');
+
+  // Boolean/null/undefined terminal chains
+  r = r.replace(/\.to\.be\.true/g, '.toBe(true)');
+  r = r.replace(/\.not\.be\.true/g, '.not.toBe(true)');
+  r = r.replace(/\.to\.be\.false/g, '.toBe(false)');
+  r = r.replace(/\.not\.be\.false/g, '.not.toBe(false)');
+  r = r.replace(/\.to\.be\.null/g, '.toBeNull()');
+  r = r.replace(/\.not\.be\.null/g, '.not.toBeNull()');
+  r = r.replace(/\.to\.be\.undefined/g, '.toBeUndefined()');
+  r = r.replace(/\.not\.be\.undefined/g, '.not.toBeUndefined()');
+  r = r.replace(/\.to\.be\.NaN/g, '.toBeNaN()');
+  r = r.replace(/\.not\.be\.NaN/g, '.not.toBeNaN()');
+  r = r.replace(/\.to\.be\.ok/g, '.toBeTruthy()');
+  r = r.replace(/\.not\.be\.ok/g, '.toBeFalsy()');
+
+  // .to.be.an.instanceOf(Y) → .toBeInstanceOf(Y)
+  r = r.replace(/\.to\.be\.an?\.instanceOf\(/g, '.toBeInstanceOf(');
+  r = r.replace(/\.not\.be\.an?\.instanceOf\(/g, '.not.toBeInstanceOf(');
+
+  // .to.be.a('type') → typeof check
+  const SUBJ = '([^)]*(?:\\([^)]*\\)[^)]*)*)';
+  r = r.replace(
+    new RegExp(
+      'expect\\(' + SUBJ + '\\)\\.to\\.be\\.a\\(([\'"][^\'"]+[\'"])\\)',
+      'g'
+    ),
+    'expect(typeof $1).toBe($2)'
+  );
+  r = r.replace(
+    new RegExp(
+      'expect\\(' + SUBJ + '\\)\\.to\\.be\\.an\\(([\'"]array[\'"])\\)',
+      'g'
+    ),
+    'expect(Array.isArray($1)).toBe(true)'
+  );
+  r = r.replace(
+    new RegExp(
+      'expect\\(' + SUBJ + '\\)\\.to\\.be\\.an\\(([\'"][^\'"]+[\'"])\\)',
+      'g'
+    ),
+    'expect(typeof $1).toBe($2)'
+  );
+
+  // Chain replacements with args
+  r = r.replace(/\.to\.have\.lengthOf\(/g, '.toHaveLength(');
+  r = r.replace(/\.not\.have\.lengthOf\(/g, '.not.toHaveLength(');
+  r = r.replace(/\.to\.include\(/g, '.toContain(');
+  r = r.replace(/\.not\.include\(/g, '.not.toContain(');
+  r = r.replace(/\.to\.contain\(/g, '.toContain(');
+  r = r.replace(/\.not\.contain\(/g, '.not.toContain(');
+  r = r.replace(/\.to\.have\.property\(/g, '.toHaveProperty(');
+  r = r.replace(/\.not\.have\.property\(/g, '.not.toHaveProperty(');
+  r = r.replace(/\.to\.be\.above\(/g, '.toBeGreaterThan(');
+  r = r.replace(/\.to\.be\.below\(/g, '.toBeLessThan(');
+  r = r.replace(/\.to\.be\.at\.least\(/g, '.toBeGreaterThanOrEqual(');
+  r = r.replace(/\.to\.be\.at\.most\(/g, '.toBeLessThanOrEqual(');
+  r = r.replace(/\.to\.be\.closeTo\(/g, '.toBeCloseTo(');
+  r = r.replace(/\.to\.throw\(/g, '.toThrow(');
+  r = r.replace(/\.not\.throw\(/g, '.not.toThrow(');
+  r = r.replace(/\.to\.throw(?!\w)/g, '.toThrow()');
+  r = r.replace(/\.not\.throw(?!\w)/g, '.not.toThrow()');
+  r = r.replace(/\.to\.match\(/g, '.toMatch(');
+  r = r.replace(/\.not\.match\(/g, '.not.toMatch(');
+  r = r.replace(/\.to\.exist/g, '.toBeDefined()');
+  r = r.replace(/\.not\.exist/g, '.not.toBeDefined()');
+
+  // Chai assert-style
+  r = r.replace(
+    /assert\.strictEqual\(([^,]+),\s*([^)]+)\)/g,
+    'expect($1).toBe($2)'
+  );
+  r = r.replace(
+    /assert\.deepEqual\(([^,]+),\s*([^)]+)\)/g,
+    'expect($1).toEqual($2)'
+  );
+  r = r.replace(/assert\.equal\(([^,]+),\s*([^)]+)\)/g, 'expect($1).toBe($2)');
+  r = r.replace(
+    /assert\.notEqual\(([^,]+),\s*([^)]+)\)/g,
+    'expect($1).not.toBe($2)'
+  );
+  r = r.replace(/assert\.isTrue\(([^)]+)\)/g, 'expect($1).toBe(true)');
+  r = r.replace(/assert\.isFalse\(([^)]+)\)/g, 'expect($1).toBe(false)');
+  r = r.replace(/assert\.isNull\(([^)]+)\)/g, 'expect($1).toBeNull()');
+  r = r.replace(/assert\.isNotNull\(([^)]+)\)/g, 'expect($1).not.toBeNull()');
+  r = r.replace(
+    /assert\.isUndefined\(([^)]+)\)/g,
+    'expect($1).toBeUndefined()'
+  );
+  r = r.replace(/assert\.isDefined\(([^)]+)\)/g, 'expect($1).toBeDefined()');
+  r = r.replace(/assert\.isOk\(([^)]+)\)/g, 'expect($1).toBeTruthy()');
+  r = r.replace(/assert\.isNotOk\(([^)]+)\)/g, 'expect($1).toBeFalsy()');
+  r = r.replace(/assert\.throws\(([^)]+)\)/g, 'expect($1).toThrow()');
+  r = r.replace(/assert\.doesNotThrow\(([^)]+)\)/g, 'expect($1).not.toThrow()');
+  r = r.replace(
+    /assert\.include\(([^,]+),\s*([^)]+)\)/g,
+    'expect($1).toContain($2)'
+  );
+  r = r.replace(
+    /assert\.match\(([^,]+),\s*([^)]+)\)/g,
+    'expect($1).toMatch($2)'
+  );
+  r = r.replace(
+    /assert\.instanceOf\(([^,]+),\s*([^)]+)\)/g,
+    'expect($1).toBeInstanceOf($2)'
+  );
+  r = r.replace(
+    /assert\.lengthOf\(([^,]+),\s*([^)]+)\)/g,
+    'expect($1).toHaveLength($2)'
+  );
+  r = r.replace(
+    /assert\.property\(([^,]+),\s*([^)]+)\)/g,
+    'expect($1).toHaveProperty($2)'
+  );
+
+  // Jasmine asymmetric matchers (may appear in assertion args)
+  r = r.replace(/\bjasmine\.any\(([^)]+)\)/g, 'expect.any($1)');
+  r = r.replace(/\bjasmine\.anything\(\)/g, 'expect.anything()');
+  r = r.replace(/\bjasmine\.objectContaining\(/g, 'expect.objectContaining(');
+  r = r.replace(/\bjasmine\.arrayContaining\(/g, 'expect.arrayContaining(');
+  r = r.replace(/\bjasmine\.stringMatching\(/g, 'expect.stringMatching(');
+  r = r.replace(/\bjasmine\.stringContaining\(/g, 'expect.stringContaining(');
+
+  return r;
+}
+
+/**
+ * Transform mock call lines: Sinon/Jasmine → Jest mocking.
+ */
+function transformMockToJest(line) {
+  let r = line;
+
+  // sinon.stub() → jest.fn()
+  r = r.replace(/\bsinon\.stub\(\)/g, 'jest.fn()');
+  r = r.replace(/\bsinon\.stub\(([^,]+),\s*([^)]+)\)/g, 'jest.spyOn($1, $2)');
+  r = r.replace(/\bsinon\.spy\(([^,]+),\s*([^)]+)\)/g, 'jest.spyOn($1, $2)');
+  r = r.replace(/\bsinon\.spy\(\)/g, 'jest.fn()');
+
+  // Chain methods
+  r = r.replace(/\.returns\(([^)]+)\)/g, '.mockReturnValue($1)');
+  r = r.replace(/\.callsFake\(([^)]*)\)/g, '.mockImplementation($1)');
+  r = r.replace(/\.resolves\(([^)]+)\)/g, '.mockResolvedValue($1)');
+  r = r.replace(/\.rejects\(([^)]+)\)/g, '.mockRejectedValue($1)');
+  r = r.replace(
+    /\.onFirstCall\(\)\.mockReturnValue\(([^)]+)\)/g,
+    '.mockReturnValueOnce($1)'
+  );
+  r = r.replace(/\.resetHistory\(\)/g, '.mockClear()');
+
+  // sinon.assert → expect assertions
+  r = r.replace(
+    /sinon\.assert\.calledOnce\(([^)]+)\)/g,
+    'expect($1).toHaveBeenCalledTimes(1)'
+  );
+  r = r.replace(
+    /sinon\.assert\.calledTwice\(([^)]+)\)/g,
+    'expect($1).toHaveBeenCalledTimes(2)'
+  );
+  r = r.replace(
+    /sinon\.assert\.called\(([^)]+)\)/g,
+    'expect($1).toHaveBeenCalled()'
+  );
+  r = r.replace(
     /sinon\.assert\.notCalled\(([^)]+)\)/g,
     'expect($1).not.toHaveBeenCalled()'
   );
-
-  // sinon.assert.calledWith(fn, args) → expect(fn).toHaveBeenCalledWith(args)
-  result = result.replace(
+  r = r.replace(
     /sinon\.assert\.calledWith\(([^,]+),\s*([^)]*)\)/g,
     'expect($1).toHaveBeenCalledWith($2)'
   );
-
-  // sinon.assert.callCount(fn, n) → expect(fn).toHaveBeenCalledTimes(n)
-  result = result.replace(
+  r = r.replace(
     /sinon\.assert\.callCount\(([^,]+),\s*([^)]+)\)/g,
     'expect($1).toHaveBeenCalledTimes($2)'
   );
 
-  // sinon.useFakeTimers() → jest.useFakeTimers()
-  result = result.replace(
-    /\bsinon\.useFakeTimers\(\)/g,
-    'jest.useFakeTimers()'
-  );
+  // Timer fakes
+  r = r.replace(/\bsinon\.useFakeTimers\(\)/g, 'jest.useFakeTimers()');
+  r = r.replace(/\bclock\.tick\(([^)]+)\)/g, 'jest.advanceTimersByTime($1)');
+  r = r.replace(/\bclock\.restore\(\)/g, 'jest.useRealTimers()');
+  r = r.replace(/\bsinon\.restore\(\)/g, 'jest.restoreAllMocks()');
+  r = r.replace(/\bsandbox\.restore\(\)/g, 'jest.restoreAllMocks()');
 
-  // clock.tick(ms) → jest.advanceTimersByTime(ms)
-  result = result.replace(
-    /\bclock\.tick\(([^)]+)\)/g,
-    'jest.advanceTimersByTime($1)'
-  );
-
-  // clock.restore() → jest.useRealTimers()
-  result = result.replace(/\bclock\.restore\(\)/g, 'jest.useRealTimers()');
-
-  // sinon.restore() → jest.restoreAllMocks()
-  result = result.replace(/\bsinon\.restore\(\)/g, 'jest.restoreAllMocks()');
-
-  // sandbox.restore() → jest.restoreAllMocks()
-  result = result.replace(/\bsandbox\.restore\(\)/g, 'jest.restoreAllMocks()');
-
-  // sinon.createSandbox() → (remove, not needed in Jest)
-  result = result.replace(
-    /const\s+\w+\s*=\s*sinon\.createSandbox\(\)\s*;?\n?/g,
-    ''
-  );
+  // Remove sandbox creation
+  r = r.replace(/const\s+\w+\s*=\s*sinon\.createSandbox\(\)\s*;?/g, '');
 
   // .callCount → .mock.calls.length
-  result = result.replace(/\.callCount\b/g, '.mock.calls.length');
+  r = r.replace(/\.callCount\b/g, '.mock.calls.length');
 
-  // --- Phase 6: Unconvertible Mocha/Sinon patterns ---
+  // Unconvertible sinon patterns
+  if (/sinon\.fakeServer/.test(r)) {
+    r = r.replace(/sinon\.fakeServer\.[^\n]+/g, (match) => {
+      return (
+        formatter.formatTodo({
+          id: 'UNCONVERTIBLE-FAKE-SERVER',
+          description: 'sinon.fakeServer has no direct Jest equivalent',
+          original: match.trim(),
+          action: 'Use msw (Mock Service Worker) or jest-fetch-mock instead',
+        }) +
+        '\n// ' +
+        match.trim()
+      );
+    });
+  }
 
-  // chai.use(plugin) → HAMLET-TODO
-  result = result.replace(/chai\.use\s*\([^)]+\)\s*;?/g, (match) => {
-    return (
-      formatter.formatTodo({
-        id: 'UNCONVERTIBLE-CHAI-PLUGIN',
-        description: 'Chai plugin not available in Jest',
-        original: match.trim(),
-        action:
-          'Find a Jest-compatible alternative or implement custom matchers with expect.extend()',
-      }) +
-      '\n// ' +
-      match.trim()
-    );
-  });
+  // Jasmine spy API
+  r = r.replace(
+    /jasmine\.createSpy\(\)\.and\.callFake\(([^)]+)\)/g,
+    'jest.fn($1)'
+  );
+  r = r.replace(
+    /jasmine\.createSpy\s*\(\s*(['"][^'"]*['"]\s*)?\)/g,
+    'jest.fn()'
+  );
+  r = r.replace(
+    /jasmine\.createSpyObj\s*\(\s*['"][^'"]*['"]\s*,\s*\[([^\]]+)\]\s*\)/g,
+    (_match, methods) => {
+      const names = methods
+        .split(',')
+        .map((m) => m.trim().replace(/['"]/g, ''));
+      const props = names.map((n) => `${n}: jest.fn()`).join(', ');
+      return `{ ${props} }`;
+    }
+  );
+  r = r.replace(/(?<!\.)spyOn\(([^,]+),\s*([^)]+)\)/g, 'jest.spyOn($1, $2)');
+  r = r.replace(/\.and\.returnValue\(([^)]+)\)/g, '.mockReturnValue($1)');
+  r = r.replace(/\.and\.callFake\(([^)]*)\)/g, '.mockImplementation($1)');
+  r = r.replace(
+    /\.and\.throwError\(([^)]+)\)/g,
+    '.mockImplementation(() => { throw $1; })'
+  );
+  r = r.replace(/\.and\.callThrough\(\)/g, '');
+  r = r.replace(/\.calls\.count\(\)/g, '.mock.calls.length');
+  r = r.replace(/\.calls\.argsFor\((\d+)\)/g, '.mock.calls[$1]');
+  r = r.replace(/\.calls\.mostRecent\(\)\.args/g, '.mock.lastCall');
+  r = r.replace(/\.calls\.mostRecent\(\)/g, '.mock.lastCall');
+  r = r.replace(/\.calls\.reset\(\)/g, '.mockClear()');
+  r = r.replace(/\.calls\.allArgs\(\)/g, '.mock.calls');
+  r = r.replace(/\.calls\.first\(\)\.args/g, '.mock.calls[0]');
 
-  // sinon.fakeServer → HAMLET-TODO
-  result = result.replace(/sinon\.fakeServer\.[^\n]+/g, (match) => {
-    return (
-      formatter.formatTodo({
-        id: 'UNCONVERTIBLE-FAKE-SERVER',
-        description: 'sinon.fakeServer has no direct Jest equivalent',
-        original: match.trim(),
-        action: 'Use msw (Mock Service Worker) or jest-fetch-mock instead',
-      }) +
-      '\n// ' +
-      match.trim()
-    );
-  });
+  // Jasmine clock
+  r = r.replace(/jasmine\.clock\(\)\.install\(\)/g, 'jest.useFakeTimers()');
+  r = r.replace(
+    /jasmine\.clock\(\)\.tick\(([^)]+)\)/g,
+    'jest.advanceTimersByTime($1)'
+  );
+  r = r.replace(/jasmine\.clock\(\)\.uninstall\(\)/g, 'jest.useRealTimers()');
+  r = r.replace(
+    /jasmine\.clock\(\)\.mockDate\(([^)]+)\)/g,
+    'jest.setSystemTime($1)'
+  );
 
-  // this.timeout() → HAMLET-WARNING
-  result = result.replace(
-    /this\.timeout\s*\(\s*(\d+)\s*\)\s*;?/g,
-    (match, ms) => {
+  // Mocha this.timeout/this.retries/this.slow (classified as MockCall)
+  if (/this\.timeout/.test(r)) {
+    r = r.replace(/this\.timeout\s*\(\s*(\d+)\s*\)\s*;?/g, (match, ms) => {
       return (
         formatter.formatWarning({
           description: `Mocha this.timeout(${ms}) — use jest.setTimeout(${ms}) at top of file or per-test timeout option`,
@@ -835,13 +864,10 @@ function emit(_ir, source) {
         '\n// ' +
         match.trim()
       );
-    }
-  );
-
-  // this.retries() → HAMLET-WARNING
-  result = result.replace(
-    /this\.retries\s*\(\s*(\d+)\s*\)\s*;?/g,
-    (match, count) => {
+    });
+  }
+  if (/this\.retries/.test(r)) {
+    r = r.replace(/this\.retries\s*\(\s*(\d+)\s*\)\s*;?/g, (match, count) => {
       return (
         formatter.formatWarning({
           description: `Mocha this.retries(${count}) — use jest.retryTimes(${count}) at top of describe block`,
@@ -850,39 +876,186 @@ function emit(_ir, source) {
         '\n// ' +
         match.trim()
       );
-    }
+    });
+  }
+  if (/this\.slow/.test(r)) {
+    r = r.replace(/this\.slow\s*\(\s*(\d+)\s*\)\s*;?/g, (match, ms) => {
+      return (
+        formatter.formatWarning({
+          description: `Mocha this.slow(${ms}) has no Jest equivalent — remove or use a custom reporter`,
+          original: match.trim(),
+        }) +
+        '\n// ' +
+        match.trim()
+      );
+    });
+  }
+
+  // Unconvertible Jasmine patterns
+  if (/jasmine\.addMatchers/.test(r)) {
+    r = r.replace(/jasmine\.addMatchers\s*\([^)]*\)/g, (match) => {
+      return (
+        formatter.formatTodo({
+          id: 'UNCONVERTIBLE-CUSTOM-MATCHER',
+          description:
+            'Jasmine custom matchers must be converted to expect.extend() in Jest',
+          original: match.trim(),
+          action: 'Rewrite custom matchers using expect.extend()',
+        }) +
+        '\n// ' +
+        match.trim()
+      );
+    });
+  }
+
+  return r;
+}
+
+/**
+ * Transform RawCode lines: conservative chain transforms for
+ * multi-line assertion/mock continuations and unconvertible patterns.
+ */
+function transformRawCodeToJest(line) {
+  let r = line;
+
+  // Chai chain transforms (continuation lines from multi-line assertions)
+  r = r.replace(/\.to\.not\./g, '.not.');
+  r = r.replace(/\.not\.to\./g, '.not.');
+  r = r.replace(/\.to\.deep\.equal\(/g, '.toEqual(');
+  r = r.replace(/\.not\.deep\.equal\(/g, '.not.toEqual(');
+  r = r.replace(/\.to\.equal\(/g, '.toBe(');
+  r = r.replace(/\.not\.equal\(/g, '.not.toBe(');
+  r = r.replace(/\.to\.be\.true/g, '.toBe(true)');
+  r = r.replace(/\.not\.be\.true/g, '.not.toBe(true)');
+  r = r.replace(/\.to\.be\.false/g, '.toBe(false)');
+  r = r.replace(/\.not\.be\.false/g, '.not.toBe(false)');
+  r = r.replace(/\.to\.be\.null/g, '.toBeNull()');
+  r = r.replace(/\.to\.be\.undefined/g, '.toBeUndefined()');
+  r = r.replace(/\.to\.be\.NaN/g, '.toBeNaN()');
+  r = r.replace(/\.to\.be\.ok/g, '.toBeTruthy()');
+  r = r.replace(/\.not\.be\.ok/g, '.toBeFalsy()');
+  r = r.replace(/\.to\.be\.an?\.instanceOf\(/g, '.toBeInstanceOf(');
+  r = r.replace(/\.to\.have\.lengthOf\(/g, '.toHaveLength(');
+  r = r.replace(/\.to\.include\(/g, '.toContain(');
+  r = r.replace(/\.to\.contain\(/g, '.toContain(');
+  r = r.replace(/\.to\.have\.property\(/g, '.toHaveProperty(');
+  r = r.replace(/\.to\.be\.above\(/g, '.toBeGreaterThan(');
+  r = r.replace(/\.to\.be\.below\(/g, '.toBeLessThan(');
+  r = r.replace(/\.to\.be\.at\.least\(/g, '.toBeGreaterThanOrEqual(');
+  r = r.replace(/\.to\.be\.at\.most\(/g, '.toBeLessThanOrEqual(');
+  r = r.replace(/\.to\.be\.closeTo\(/g, '.toBeCloseTo(');
+  r = r.replace(/\.to\.throw\(/g, '.toThrow(');
+  r = r.replace(/\.to\.throw(?!\w)/g, '.toThrow()');
+  r = r.replace(/\.to\.match\(/g, '.toMatch(');
+  r = r.replace(/\.to\.exist/g, '.toBeDefined()');
+  r = r.replace(/\.not\.exist/g, '.not.toBeDefined()');
+  r = r.replace(/\.to\.have\.been\.calledWith\(/g, '.toHaveBeenCalledWith(');
+  r = r.replace(/\.to\.have\.been\.called(?!\w)/g, '.toHaveBeenCalled()');
+
+  // sinon.assert on raw/continuation lines (MUST run before .callCount)
+  r = r.replace(
+    /sinon\.assert\.calledOnce\(([^)]+)\)/g,
+    'expect($1).toHaveBeenCalledTimes(1)'
+  );
+  r = r.replace(
+    /sinon\.assert\.calledTwice\(([^)]+)\)/g,
+    'expect($1).toHaveBeenCalledTimes(2)'
+  );
+  r = r.replace(
+    /sinon\.assert\.calledWith\(([^,]+),\s*([^)]*)\)/g,
+    'expect($1).toHaveBeenCalledWith($2)'
+  );
+  r = r.replace(
+    /sinon\.assert\.notCalled\(([^)]+)\)/g,
+    'expect($1).not.toHaveBeenCalled()'
+  );
+  r = r.replace(
+    /sinon\.assert\.callCount\(([^,]+),\s*([^)]+)\)/g,
+    'expect($1).toHaveBeenCalledTimes($2)'
+  );
+  r = r.replace(
+    /sinon\.assert\.called\(([^)]+)\)/g,
+    'expect($1).toHaveBeenCalled()'
   );
 
-  // this.slow() → HAMLET-WARNING
-  result = result.replace(/this\.slow\s*\(\s*(\d+)\s*\)\s*;?/g, (match, ms) => {
-    return (
-      formatter.formatWarning({
-        description: `Mocha this.slow(${ms}) has no Jest equivalent — remove or use a custom reporter`,
-        original: match.trim(),
-      }) +
-      '\n// ' +
-      match.trim()
-    );
-  });
+  // Mock chain continuations
+  r = r.replace(/\.returns\(([^)]+)\)/g, '.mockReturnValue($1)');
+  r = r.replace(/\.callsFake\(([^)]*)\)/g, '.mockImplementation($1)');
+  r = r.replace(/\.resolves\(([^)]+)\)/g, '.mockResolvedValue($1)');
+  r = r.replace(/\.rejects\(([^)]+)\)/g, '.mockRejectedValue($1)');
+  r = r.replace(/\.resetHistory\(\)/g, '.mockClear()');
+  r = r.replace(/\.and\.returnValue\(([^)]+)\)/g, '.mockReturnValue($1)');
+  r = r.replace(/\.and\.callFake\(([^)]*)\)/g, '.mockImplementation($1)');
+  r = r.replace(/\.and\.callThrough\(\)/g, '');
+  r = r.replace(/\.calls\.count\(\)/g, '.mock.calls.length');
+  r = r.replace(/\.calls\.argsFor\((\d+)\)/g, '.mock.calls[$1]');
+  r = r.replace(/\.calls\.reset\(\)/g, '.mockClear()');
+  r = r.replace(/\.callCount\b/g, '.mock.calls.length');
 
-  // --- Phase 7: Convert Jasmine modifiers ---
+  // Standalone sinon calls on unrecognized lines
+  r = r.replace(/\bsinon\.stub\(\)/g, 'jest.fn()');
+  r = r.replace(/\bsinon\.stub\(([^,]+),\s*([^)]+)\)/g, 'jest.spyOn($1, $2)');
+  r = r.replace(/\bsinon\.spy\(([^,]+),\s*([^)]+)\)/g, 'jest.spyOn($1, $2)');
+  r = r.replace(/\bsinon\.spy\(\)/g, 'jest.fn()');
+  r = r.replace(/\bsinon\.restore\(\)/g, 'jest.restoreAllMocks()');
+  r = r.replace(/\bsandbox\.restore\(\)/g, 'jest.restoreAllMocks()');
+  r = r.replace(/\bclock\.tick\(([^)]+)\)/g, 'jest.advanceTimersByTime($1)');
+  r = r.replace(/\bclock\.restore\(\)/g, 'jest.useRealTimers()');
 
-  // fdescribe → describe.only
-  result = result.replace(/\bfdescribe\s*\(/g, 'describe.only(');
-
-  // xdescribe → describe.skip
-  result = result.replace(/\bxdescribe\s*\(/g, 'describe.skip(');
-
-  // fit → it.only
-  result = result.replace(/\bfit\s*\(/g, 'it.only(');
-
-  // xit → it.skip
-  result = result.replace(/\bxit\s*\(/g, 'it.skip(');
-
-  // pending() → HAMLET-TODO (Jasmine-specific)
-  result = result.replace(
-    /\bpending\s*\(\s*(['"][^'"]*['"])?\s*\)\s*;?/g,
-    (match) => {
+  // Unconvertible patterns on raw lines
+  if (/chai\.use/.test(r)) {
+    r = r.replace(/chai\.use\s*\([^)]+\)\s*;?/g, (match) => {
+      return (
+        formatter.formatTodo({
+          id: 'UNCONVERTIBLE-CHAI-PLUGIN',
+          description: 'Chai plugin not available in Jest',
+          original: match.trim(),
+          action:
+            'Find a Jest-compatible alternative or implement custom matchers with expect.extend()',
+        }) +
+        '\n// ' +
+        match.trim()
+      );
+    });
+  }
+  if (/this\.timeout/.test(r)) {
+    r = r.replace(/this\.timeout\s*\(\s*(\d+)\s*\)\s*;?/g, (match, ms) => {
+      return (
+        formatter.formatWarning({
+          description: `Mocha this.timeout(${ms}) — use jest.setTimeout(${ms}) at top of file or per-test timeout option`,
+          original: match.trim(),
+        }) +
+        '\n// ' +
+        match.trim()
+      );
+    });
+  }
+  if (/this\.retries/.test(r)) {
+    r = r.replace(/this\.retries\s*\(\s*(\d+)\s*\)\s*;?/g, (match, count) => {
+      return (
+        formatter.formatWarning({
+          description: `Mocha this.retries(${count}) — use jest.retryTimes(${count}) at top of describe block`,
+          original: match.trim(),
+        }) +
+        '\n// ' +
+        match.trim()
+      );
+    });
+  }
+  if (/this\.slow/.test(r)) {
+    r = r.replace(/this\.slow\s*\(\s*(\d+)\s*\)\s*;?/g, (match, ms) => {
+      return (
+        formatter.formatWarning({
+          description: `Mocha this.slow(${ms}) has no Jest equivalent — remove or use a custom reporter`,
+          original: match.trim(),
+        }) +
+        '\n// ' +
+        match.trim()
+      );
+    });
+  }
+  if (/\bpending\s*\(/.test(r)) {
+    r = r.replace(/\bpending\s*\(\s*(['"][^'"]*['"])?\s*\)\s*;?/g, (match) => {
       return (
         formatter.formatTodo({
           id: 'UNCONVERTIBLE-PENDING',
@@ -893,173 +1066,57 @@ function emit(_ir, source) {
         '\n// ' +
         match.trim()
       );
-    }
-  );
+    });
+  }
+  if (/\bexpectAsync\s*\(/.test(r)) {
+    r = r.replace(/\bexpectAsync\s*\([^)]+\)/g, (match) => {
+      return (
+        formatter.formatTodo({
+          id: 'UNCONVERTIBLE-EXPECT-ASYNC',
+          description:
+            'Jasmine expectAsync() — use await expect(...).resolves/rejects in Jest',
+          original: match.trim(),
+          action: 'Rewrite using expect(...).resolves or expect(...).rejects',
+        }) +
+        '\n// ' +
+        match.trim()
+      );
+    });
+  }
 
-  // --- Phase 8: Convert Jasmine spy API ---
+  // Jasmine spy .calls API on raw lines
+  r = r.replace(/\.calls\.argsFor\((\d+)\)/g, '.mock.calls[$1]');
+  r = r.replace(/\.calls\.mostRecent\(\)\.args/g, '.mock.lastCall');
+  r = r.replace(/\.calls\.mostRecent\(\)/g, '.mock.lastCall');
+  r = r.replace(/\.calls\.first\(\)\.args/g, '.mock.calls[0]');
+  r = r.replace(/\.calls\.allArgs\(\)/g, '.mock.calls');
 
-  // jasmine.createSpy('name') → jest.fn()
-  result = result.replace(
-    /jasmine\.createSpy\s*\(\s*(['"][^'"]*['"]\s*)?\)/g,
-    'jest.fn()'
-  );
+  // Unconvertible Jasmine patterns on raw lines
+  if (/jasmine\.addMatchers/.test(r)) {
+    r = r.replace(/jasmine\.addMatchers\s*\([^)]*\)/g, (match) => {
+      return (
+        formatter.formatTodo({
+          id: 'UNCONVERTIBLE-CUSTOM-MATCHER',
+          description:
+            'Jasmine custom matchers must be converted to expect.extend() in Jest',
+          original: match.trim(),
+          action: 'Rewrite custom matchers using expect.extend()',
+        }) +
+        '\n// ' +
+        match.trim()
+      );
+    });
+  }
 
-  // jasmine.createSpyObj('name', ['a', 'b']) → { a: jest.fn(), b: jest.fn() }
-  result = result.replace(
-    /jasmine\.createSpyObj\s*\(\s*['"][^'"]*['"]\s*,\s*\[([^\]]+)\]\s*\)/g,
-    (_match, methods) => {
-      const names = methods
-        .split(',')
-        .map((m) => m.trim().replace(/['"]/g, ''));
-      const props = names.map((n) => `${n}: jest.fn()`).join(', ');
-      return `{ ${props} }`;
-    }
-  );
+  // Jasmine asymmetric matchers (may appear in raw code args)
+  r = r.replace(/\bjasmine\.any\(([^)]+)\)/g, 'expect.any($1)');
+  r = r.replace(/\bjasmine\.anything\(\)/g, 'expect.anything()');
+  r = r.replace(/\bjasmine\.objectContaining\(/g, 'expect.objectContaining(');
+  r = r.replace(/\bjasmine\.arrayContaining\(/g, 'expect.arrayContaining(');
+  r = r.replace(/\bjasmine\.stringMatching\(/g, 'expect.stringMatching(');
+  r = r.replace(/\bjasmine\.stringContaining\(/g, 'expect.stringContaining(');
 
-  // spyOn(obj, 'method') → jest.spyOn(obj, 'method') (only Jasmine bare spyOn)
-  // Must not match jest.spyOn which was already converted
-  result = result.replace(
-    /(?<!\.)spyOn\(([^,]+),\s*([^)]+)\)/g,
-    'jest.spyOn($1, $2)'
-  );
-
-  // .and.returnValue(val) → .mockReturnValue(val)
-  result = result.replace(
-    /\.and\.returnValue\(([^)]+)\)/g,
-    '.mockReturnValue($1)'
-  );
-
-  // .and.callFake(fn) → .mockImplementation(fn)
-  result = result.replace(
-    /\.and\.callFake\(([^)]*)\)/g,
-    '.mockImplementation($1)'
-  );
-
-  // .and.throwError(err) → .mockImplementation(() => { throw err; })
-  result = result.replace(
-    /\.and\.throwError\(([^)]+)\)/g,
-    '.mockImplementation(() => { throw $1; })'
-  );
-
-  // .and.callThrough() → (remove — Jest default behavior)
-  result = result.replace(/\.and\.callThrough\(\)/g, '');
-
-  // .calls.count() → .mock.calls.length
-  result = result.replace(/\.calls\.count\(\)/g, '.mock.calls.length');
-
-  // .calls.argsFor(n) → .mock.calls[n]
-  result = result.replace(/\.calls\.argsFor\((\d+)\)/g, '.mock.calls[$1]');
-
-  // .calls.mostRecent() → .mock.lastCall
-  result = result.replace(/\.calls\.mostRecent\(\)\.args/g, '.mock.lastCall');
-  result = result.replace(/\.calls\.mostRecent\(\)/g, '.mock.lastCall');
-
-  // .calls.reset() → .mockClear()
-  result = result.replace(/\.calls\.reset\(\)/g, '.mockClear()');
-
-  // .calls.allArgs() → .mock.calls
-  result = result.replace(/\.calls\.allArgs\(\)/g, '.mock.calls');
-
-  // .calls.first().args → .mock.calls[0]
-  result = result.replace(/\.calls\.first\(\)\.args/g, '.mock.calls[0]');
-
-  // --- Phase 9: Convert Jasmine asymmetric matchers ---
-
-  // jasmine.any(X) → expect.any(X)
-  result = result.replace(/\bjasmine\.any\(([^)]+)\)/g, 'expect.any($1)');
-
-  // jasmine.anything() → expect.anything()
-  result = result.replace(/\bjasmine\.anything\(\)/g, 'expect.anything()');
-
-  // jasmine.objectContaining → expect.objectContaining
-  result = result.replace(
-    /\bjasmine\.objectContaining\(/g,
-    'expect.objectContaining('
-  );
-
-  // jasmine.arrayContaining → expect.arrayContaining
-  result = result.replace(
-    /\bjasmine\.arrayContaining\(/g,
-    'expect.arrayContaining('
-  );
-
-  // jasmine.stringMatching → expect.stringMatching
-  result = result.replace(
-    /\bjasmine\.stringMatching\(/g,
-    'expect.stringMatching('
-  );
-
-  // jasmine.stringContaining → expect.stringContaining
-  result = result.replace(
-    /\bjasmine\.stringContaining\(/g,
-    'expect.stringContaining('
-  );
-
-  // --- Phase 10: Convert Jasmine clock ---
-
-  // jasmine.clock().install() → jest.useFakeTimers()
-  result = result.replace(
-    /jasmine\.clock\(\)\.install\(\)/g,
-    'jest.useFakeTimers()'
-  );
-
-  // jasmine.clock().tick(ms) → jest.advanceTimersByTime(ms)
-  result = result.replace(
-    /jasmine\.clock\(\)\.tick\(([^)]+)\)/g,
-    'jest.advanceTimersByTime($1)'
-  );
-
-  // jasmine.clock().uninstall() → jest.useRealTimers()
-  result = result.replace(
-    /jasmine\.clock\(\)\.uninstall\(\)/g,
-    'jest.useRealTimers()'
-  );
-
-  // jasmine.clock().mockDate(d) → jest.setSystemTime(d)
-  result = result.replace(
-    /jasmine\.clock\(\)\.mockDate\(([^)]+)\)/g,
-    'jest.setSystemTime($1)'
-  );
-
-  // --- Phase 11: Unconvertible Jasmine patterns ---
-
-  // jasmine.addMatchers → HAMLET-TODO
-  result = result.replace(/jasmine\.addMatchers\s*\([^)]*\)/g, (match) => {
-    return (
-      formatter.formatTodo({
-        id: 'UNCONVERTIBLE-CUSTOM-MATCHER',
-        description:
-          'Jasmine custom matchers must be converted to expect.extend() in Jest',
-        original: match.trim(),
-        action: 'Rewrite custom matchers using expect.extend()',
-      }) +
-      '\n// ' +
-      match.trim()
-    );
-  });
-
-  // expectAsync → HAMLET-TODO
-  result = result.replace(/\bexpectAsync\s*\([^)]+\)/g, (match) => {
-    return (
-      formatter.formatTodo({
-        id: 'UNCONVERTIBLE-EXPECT-ASYNC',
-        description:
-          'Jasmine expectAsync() — use await expect(...).resolves/rejects in Jest',
-        original: match.trim(),
-        action: 'Rewrite using expect(...).resolves or expect(...).rejects',
-      }) +
-      '\n// ' +
-      match.trim()
-    );
-  });
-
-  // Clean up multiple blank lines
-  result = result.replace(/\n{3,}/g, '\n\n');
-
-  // Ensure trailing newline
-  if (!result.endsWith('\n')) result += '\n';
-
-  return result;
+  return r;
 }
 
 /**

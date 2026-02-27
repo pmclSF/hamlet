@@ -327,7 +327,7 @@ function isNose2Source(source) {
 function convertUnittestAssertions(result) {
   // self.assertEqual(a, b) -> assert a == b
   result = result.replace(
-    /^(\s*)self\.assertEqual\((.+)\)\s*$/gm,
+    /^(\s*)self\.assertEqual\((.+)\)[^\S\n]*$/gm,
     (match, indent, argsStr) => {
       const args = splitArgs(argsStr);
       if (args.length >= 2) return `${indent}assert ${args[0]} == ${args[1]}`;
@@ -337,7 +337,7 @@ function convertUnittestAssertions(result) {
 
   // self.assertNotEqual(a, b) -> assert a != b
   result = result.replace(
-    /^(\s*)self\.assertNotEqual\((.+)\)\s*$/gm,
+    /^(\s*)self\.assertNotEqual\((.+)\)[^\S\n]*$/gm,
     (match, indent, argsStr) => {
       const args = splitArgs(argsStr);
       if (args.length >= 2) return `${indent}assert ${args[0]} != ${args[1]}`;
@@ -347,31 +347,31 @@ function convertUnittestAssertions(result) {
 
   // self.assertTrue(x) -> assert x
   result = result.replace(
-    /^(\s*)self\.assertTrue\((.+)\)\s*$/gm,
+    /^(\s*)self\.assertTrue\((.+)\)[^\S\n]*$/gm,
     '$1assert $2'
   );
 
   // self.assertFalse(x) -> assert not x
   result = result.replace(
-    /^(\s*)self\.assertFalse\((.+)\)\s*$/gm,
+    /^(\s*)self\.assertFalse\((.+)\)[^\S\n]*$/gm,
     '$1assert not $2'
   );
 
   // self.assertIsNone(x) -> assert x is None
   result = result.replace(
-    /^(\s*)self\.assertIsNone\((.+)\)\s*$/gm,
+    /^(\s*)self\.assertIsNone\((.+)\)[^\S\n]*$/gm,
     '$1assert $2 is None'
   );
 
   // self.assertIsNotNone(x) -> assert x is not None
   result = result.replace(
-    /^(\s*)self\.assertIsNotNone\((.+)\)\s*$/gm,
+    /^(\s*)self\.assertIsNotNone\((.+)\)[^\S\n]*$/gm,
     '$1assert $2 is not None'
   );
 
   // self.assertIn(a, b) -> assert a in b
   result = result.replace(
-    /^(\s*)self\.assertIn\((.+)\)\s*$/gm,
+    /^(\s*)self\.assertIn\((.+)\)[^\S\n]*$/gm,
     (match, indent, argsStr) => {
       const args = splitArgs(argsStr);
       if (args.length >= 2) return `${indent}assert ${args[0]} in ${args[1]}`;
@@ -381,7 +381,7 @@ function convertUnittestAssertions(result) {
 
   // self.assertNotIn(a, b) -> assert a not in b
   result = result.replace(
-    /^(\s*)self\.assertNotIn\((.+)\)\s*$/gm,
+    /^(\s*)self\.assertNotIn\((.+)\)[^\S\n]*$/gm,
     (match, indent, argsStr) => {
       const args = splitArgs(argsStr);
       if (args.length >= 2)
@@ -392,13 +392,13 @@ function convertUnittestAssertions(result) {
 
   // self.assertIsInstance(x, Y) -> assert isinstance(x, Y)
   result = result.replace(
-    /^(\s*)self\.assertIsInstance\((.+)\)\s*$/gm,
+    /^(\s*)self\.assertIsInstance\((.+)\)[^\S\n]*$/gm,
     '$1assert isinstance($2)'
   );
 
   // self.assertGreater(a, b) -> assert a > b
   result = result.replace(
-    /^(\s*)self\.assertGreater\((.+)\)\s*$/gm,
+    /^(\s*)self\.assertGreater\((.+)\)[^\S\n]*$/gm,
     (match, indent, argsStr) => {
       const args = splitArgs(argsStr);
       if (args.length >= 2) return `${indent}assert ${args[0]} > ${args[1]}`;
@@ -408,7 +408,7 @@ function convertUnittestAssertions(result) {
 
   // self.assertGreaterEqual(a, b) -> assert a >= b
   result = result.replace(
-    /^(\s*)self\.assertGreaterEqual\((.+)\)\s*$/gm,
+    /^(\s*)self\.assertGreaterEqual\((.+)\)[^\S\n]*$/gm,
     (match, indent, argsStr) => {
       const args = splitArgs(argsStr);
       if (args.length >= 2) return `${indent}assert ${args[0]} >= ${args[1]}`;
@@ -418,7 +418,7 @@ function convertUnittestAssertions(result) {
 
   // self.assertLess(a, b) -> assert a < b
   result = result.replace(
-    /^(\s*)self\.assertLess\((.+)\)\s*$/gm,
+    /^(\s*)self\.assertLess\((.+)\)[^\S\n]*$/gm,
     (match, indent, argsStr) => {
       const args = splitArgs(argsStr);
       if (args.length >= 2) return `${indent}assert ${args[0]} < ${args[1]}`;
@@ -428,7 +428,7 @@ function convertUnittestAssertions(result) {
 
   // self.assertLessEqual(a, b) -> assert a <= b
   result = result.replace(
-    /^(\s*)self\.assertLessEqual\((.+)\)\s*$/gm,
+    /^(\s*)self\.assertLessEqual\((.+)\)[^\S\n]*$/gm,
     (match, indent, argsStr) => {
       const args = splitArgs(argsStr);
       if (args.length >= 2) return `${indent}assert ${args[0]} <= ${args[1]}`;
@@ -438,7 +438,7 @@ function convertUnittestAssertions(result) {
 
   // self.assertAlmostEqual(a, b) -> assert a == pytest.approx(b)
   result = result.replace(
-    /^(\s*)self\.assertAlmostEqual\((.+)\)\s*$/gm,
+    /^(\s*)self\.assertAlmostEqual\((.+)\)[^\S\n]*$/gm,
     (match, indent, argsStr) => {
       const args = splitArgs(argsStr);
       if (args.length >= 2)
@@ -449,7 +449,7 @@ function convertUnittestAssertions(result) {
 
   // self.assertNotAlmostEqual(a, b) -> assert a != pytest.approx(b)
   result = result.replace(
-    /^(\s*)self\.assertNotAlmostEqual\((.+)\)\s*$/gm,
+    /^(\s*)self\.assertNotAlmostEqual\((.+)\)[^\S\n]*$/gm,
     (match, indent, argsStr) => {
       const args = splitArgs(argsStr);
       if (args.length >= 2)
@@ -460,13 +460,13 @@ function convertUnittestAssertions(result) {
 
   // self.assertNotIsInstance(x, Y) -> assert not isinstance(x, Y)
   result = result.replace(
-    /^(\s*)self\.assertNotIsInstance\((.+)\)\s*$/gm,
+    /^(\s*)self\.assertNotIsInstance\((.+)\)[^\S\n]*$/gm,
     '$1assert not isinstance($2)'
   );
 
   // self.assertCountEqual(a, b) -> assert sorted(a) == sorted(b)
   result = result.replace(
-    /^(\s*)self\.assertCountEqual\((.+)\)\s*$/gm,
+    /^(\s*)self\.assertCountEqual\((.+)\)[^\S\n]*$/gm,
     (match, indent, argsStr) => {
       const args = splitArgs(argsStr);
       if (args.length >= 2)
@@ -477,7 +477,7 @@ function convertUnittestAssertions(result) {
 
   // self.assertRegex(text, regex) -> assert re.search(regex, text)
   result = result.replace(
-    /^(\s*)self\.assertRegex\((.+)\)\s*$/gm,
+    /^(\s*)self\.assertRegex\((.+)\)[^\S\n]*$/gm,
     (match, indent, argsStr) => {
       const args = splitArgs(argsStr);
       if (args.length >= 2)
@@ -488,7 +488,7 @@ function convertUnittestAssertions(result) {
 
   // self.assertNotRegex(text, regex) -> assert not re.search(regex, text)
   result = result.replace(
-    /^(\s*)self\.assertNotRegex\((.+)\)\s*$/gm,
+    /^(\s*)self\.assertNotRegex\((.+)\)[^\S\n]*$/gm,
     (match, indent, argsStr) => {
       const args = splitArgs(argsStr);
       if (args.length >= 2)
@@ -499,7 +499,7 @@ function convertUnittestAssertions(result) {
 
   // self.assertDictEqual/assertListEqual/assertSetEqual/assertTupleEqual(a, b) -> assert a == b
   result = result.replace(
-    /^(\s*)self\.assert(?:Dict|List|Set|Tuple)Equal\((.+)\)\s*$/gm,
+    /^(\s*)self\.assert(?:Dict|List|Set|Tuple)Equal\((.+)\)[^\S\n]*$/gm,
     (match, indent, argsStr) => {
       const args = splitArgs(argsStr);
       if (args.length >= 2) return `${indent}assert ${args[0]} == ${args[1]}`;
@@ -509,7 +509,7 @@ function convertUnittestAssertions(result) {
 
   // self.assertMultiLineEqual(a, b) -> assert a == b
   result = result.replace(
-    /^(\s*)self\.assertMultiLineEqual\((.+)\)\s*$/gm,
+    /^(\s*)self\.assertMultiLineEqual\((.+)\)[^\S\n]*$/gm,
     (match, indent, argsStr) => {
       const args = splitArgs(argsStr);
       if (args.length >= 2) return `${indent}assert ${args[0]} == ${args[1]}`;
@@ -519,7 +519,7 @@ function convertUnittestAssertions(result) {
 
   // self.assertSequenceEqual(a, b) -> assert list(a) == list(b)
   result = result.replace(
-    /^(\s*)self\.assertSequenceEqual\((.+)\)\s*$/gm,
+    /^(\s*)self\.assertSequenceEqual\((.+)\)[^\S\n]*$/gm,
     (match, indent, argsStr) => {
       const args = splitArgs(argsStr);
       if (args.length >= 2)
@@ -556,15 +556,17 @@ function convertUnittestAssertions(result) {
     }
   );
 
-  // self.assertRaises(E) context manager -> pytest.raises(E)
+  // self.assertRaises(E) context manager -> pytest.raises(E) (with optional as clause)
   result = result.replace(
-    /^(\s*)with\s+self\.assertRaises\((.+)\)\s*:/gm,
-    '$1with pytest.raises($2):'
+    /^(\s*)with\s+self\.assertRaises\((.+?)\)(\s+as\s+\w+)?\s*:/gm,
+    (match, indent, exc, asClause) => {
+      return `${indent}with pytest.raises(${exc})${asClause || ''}:`;
+    }
   );
 
   // self.assertRaisesRegex(E, pattern, callable, *args) inline -> pytest.raises(E, match=pattern) with call
   result = result.replace(
-    /^(\s*)self\.assertRaisesRegex\((.+)\)\s*$/gm,
+    /^(\s*)self\.assertRaisesRegex\((.+)\)[^\S\n]*$/gm,
     (match, indent, argsStr) => {
       const args = splitArgs(argsStr);
       if (args.length >= 3) {
@@ -577,7 +579,7 @@ function convertUnittestAssertions(result) {
 
   // self.assertRaises(E, callable, *args) inline -> with pytest.raises(E): callable(*args)
   result = result.replace(
-    /^(\s*)self\.assertRaises\((.+)\)\s*$/gm,
+    /^(\s*)self\.assertRaises\((.+)\)[^\S\n]*$/gm,
     (match, indent, argsStr) => {
       const args = splitArgs(argsStr);
       if (args.length >= 2) {
@@ -591,7 +593,7 @@ function convertUnittestAssertions(result) {
 
   // self.fail("msg") -> pytest.fail("msg")
   result = result.replace(
-    /^(\s*)self\.fail\((.+)\)\s*$/gm,
+    /^(\s*)self\.fail\((.+)\)[^\S\n]*$/gm,
     '$1pytest.fail($2)'
   );
 
@@ -806,7 +808,13 @@ function convertUnittestDecorators(result) {
     '@pytest.mark.skipif(not $1, reason=$2)'
   );
 
-  // @unittest.expectedFailure -> @pytest.mark.xfail
+  // @unittest.expectedFailure with annotation -> @pytest.mark.xfail(args)
+  result = result.replace(
+    /@unittest\.expectedFailure\s+# @hamlet:xfail\(([^)]*)\)/g,
+    '@pytest.mark.xfail($1)'
+  );
+
+  // @unittest.expectedFailure (bare) -> @pytest.mark.xfail
   result = result.replace(
     /@unittest\.expectedFailure\b/g,
     '@pytest.mark.xfail'
@@ -884,7 +892,7 @@ function markUnconvertibleUnittest(result) {
 function convertNoseAssertions(result) {
   // assert_equal(a, b) -> assert a == b
   result = result.replace(
-    /^(\s*)assert_equal\((.+)\)\s*$/gm,
+    /^(\s*)assert_equal\((.+)\)[^\S\n]*$/gm,
     (match, indent, argsStr) => {
       const args = splitArgs(argsStr);
       if (args.length >= 2) return `${indent}assert ${args[0]} == ${args[1]}`;
@@ -894,7 +902,7 @@ function convertNoseAssertions(result) {
 
   // assert_not_equal(a, b) -> assert a != b
   result = result.replace(
-    /^(\s*)assert_not_equal\((.+)\)\s*$/gm,
+    /^(\s*)assert_not_equal\((.+)\)[^\S\n]*$/gm,
     (match, indent, argsStr) => {
       const args = splitArgs(argsStr);
       if (args.length >= 2) return `${indent}assert ${args[0]} != ${args[1]}`;
@@ -903,29 +911,29 @@ function convertNoseAssertions(result) {
   );
 
   // assert_true(x) -> assert x
-  result = result.replace(/^(\s*)assert_true\((.+)\)\s*$/gm, '$1assert $2');
+  result = result.replace(/^(\s*)assert_true\((.+)\)[^\S\n]*$/gm, '$1assert $2');
 
   // assert_false(x) -> assert not x
   result = result.replace(
-    /^(\s*)assert_false\((.+)\)\s*$/gm,
+    /^(\s*)assert_false\((.+)\)[^\S\n]*$/gm,
     '$1assert not $2'
   );
 
   // assert_is_none(x) -> assert x is None
   result = result.replace(
-    /^(\s*)assert_is_none\((.+)\)\s*$/gm,
+    /^(\s*)assert_is_none\((.+)\)[^\S\n]*$/gm,
     '$1assert $2 is None'
   );
 
   // assert_is_not_none(x) -> assert x is not None
   result = result.replace(
-    /^(\s*)assert_is_not_none\((.+)\)\s*$/gm,
+    /^(\s*)assert_is_not_none\((.+)\)[^\S\n]*$/gm,
     '$1assert $2 is not None'
   );
 
   // assert_in(a, b) -> assert a in b
   result = result.replace(
-    /^(\s*)assert_in\((.+)\)\s*$/gm,
+    /^(\s*)assert_in\((.+)\)[^\S\n]*$/gm,
     (match, indent, argsStr) => {
       const args = splitArgs(argsStr);
       if (args.length >= 2) return `${indent}assert ${args[0]} in ${args[1]}`;
@@ -935,7 +943,7 @@ function convertNoseAssertions(result) {
 
   // assert_not_in(a, b) -> assert a not in b
   result = result.replace(
-    /^(\s*)assert_not_in\((.+)\)\s*$/gm,
+    /^(\s*)assert_not_in\((.+)\)[^\S\n]*$/gm,
     (match, indent, argsStr) => {
       const args = splitArgs(argsStr);
       if (args.length >= 2)
@@ -946,19 +954,19 @@ function convertNoseAssertions(result) {
 
   // assert_raises(E) -> pytest.raises(E)
   result = result.replace(
-    /^(\s*)assert_raises\((.+)\)\s*$/gm,
+    /^(\s*)assert_raises\((.+)\)[^\S\n]*$/gm,
     '$1with pytest.raises($2):'
   );
 
   // assert_is_instance(x, Y) -> assert isinstance(x, Y)
   result = result.replace(
-    /^(\s*)assert_is_instance\((.+)\)\s*$/gm,
+    /^(\s*)assert_is_instance\((.+)\)[^\S\n]*$/gm,
     '$1assert isinstance($2)'
   );
 
   // assert_raises_regex(E, pattern) -> with pytest.raises(E, match=pattern):
   result = result.replace(
-    /^(\s*)assert_raises_regex\((.+)\)\s*$/gm,
+    /^(\s*)assert_raises_regex\((.+)\)[^\S\n]*$/gm,
     (match, indent, argsStr) => {
       const args = splitArgs(argsStr);
       if (args.length >= 2)
@@ -976,7 +984,7 @@ function convertNoseAssertions(result) {
 function convertNoseDecorators(result) {
   // @params(...) -> @pytest.mark.parametrize("params", [...])
   result = result.replace(
-    /^(\s*)@params\((.+)\)\s*$/gm,
+    /^(\s*)@params\((.+)\)[^\S\n]*$/gm,
     (match, indent, argsStr) => {
       return `${indent}@pytest.mark.parametrize("params", [${argsStr}])`;
     }
@@ -1040,16 +1048,29 @@ function markUnconvertibleNose(result) {
  */
 function emit(_ir, source) {
   let result = source;
+
+  // Strip incoming HAMLET-TODO blocks (from previous round-trip step)
+  result = result.replace(
+    /^[ \t]*# HAMLET-TODO \[[^\]]+\]:.*\n(?:[ \t]*\n)*(?:[ \t]*# (?:Original|Manual action required):.*\n(?:[ \t]*\n)*)*/gm,
+    ''
+  );
+
   const isUnitTest = isUnittestSource(source);
   const isNose = isNose2Source(source);
 
   // ── unittest → pytest (Phases 1-9) ──
   if (isUnitTest) {
-    // Phase 1: Remove unittest imports
+    // Phase 1: Remove unittest imports (preserve mock which is valid in pytest)
     result = result.replace(/^import\s+unittest\s*\n/gm, '');
     result = result.replace(/^from\s+unittest\s+import\s+TestCase\s*\n/gm, '');
     result = result.replace(/^from\s+unittest\s+import\s+\*\s*\n/gm, '');
-    result = result.replace(/^from\s+unittest\s+import\s+.+\n/gm, '');
+    result = result.replace(
+      /^from\s+unittest\s+import\s+(.+)\n/gm,
+      (match, imports) => {
+        if (/\bmock\b/.test(imports)) return match;
+        return '';
+      }
+    );
 
     // Phase 2: Add import pytest (if pytest features will be needed)
     const needsPytest =
@@ -1081,8 +1102,20 @@ function emit(_ir, source) {
     // Phase 4: Convert setUp/tearDown to fixtures
     result = convertSetUpTearDown(result);
 
+    // Phase 4b: Extract assertion message annotations into marker comments
+    result = result.replace(
+      /^(.+?)\s+# @hamlet:msg\((.+)\)[^\S\n]*$/gm,
+      '$1\n# HAMLET_ASSERT_MSG: $2'
+    );
+
     // Phase 5: Convert assertions
     result = convertUnittestAssertions(result);
+
+    // Phase 5b: Restore assertion messages from marker comments
+    result = result.replace(
+      /^(\s*assert .+)\n\s*# HAMLET_ASSERT_MSG: (.+)$/gm,
+      '$1, $2'
+    );
 
     // Phase 6: Convert decorators
     result = convertUnittestDecorators(result);
@@ -1103,10 +1136,8 @@ function emit(_ir, source) {
     // Phase 7b: Remove import unittest if somehow still present
     result = result.replace(/^import\s+unittest\s*\n/gm, '');
 
-    // Phase 8: Cleanup
-    // Remove multiple consecutive blank lines (max 2)
+    // Phase 8: Cleanup — remove multiple consecutive blank lines (max 2), trim leading blanks
     result = result.replace(/\n{4,}/g, '\n\n\n');
-    // Trim leading blank lines
     result = result.replace(/^\n+/, '');
 
     // Phase 9: Mark unconvertible

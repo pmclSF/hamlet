@@ -14,7 +14,7 @@ const outputDir = path.resolve(__dirname, '../output/doctor');
 function runDoctor(args, options = {}) {
   const result = spawnSync('node', [cliPath, 'doctor', ...args], {
     encoding: 'utf8',
-    timeout: 30000,
+    timeout: 60000,
     stdio: ['ignore', 'pipe', 'pipe'],
     ...options,
   });

@@ -1,0 +1,127 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://hamlet.dev/schemas/conversion/v1",
+  "title": "Hamlet Conversion Report",
+  "description": "Output of `hamlet convert --report-json`. Describes the result of a conversion run.",
+  "type": "object",
+  "required": ["schemaVersion", "meta", "plan", "results", "files"],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "description": "Semantic version of this schema.",
+      "const": "1.0.0"
+    },
+    "meta": {
+      "type": "object",
+      "required": ["hamletVersion", "nodeVersion", "startedAt", "finishedAt"],
+      "additionalProperties": false,
+      "properties": {
+        "hamletVersion": {
+          "type": "string",
+          "description": "Hamlet CLI version that produced this report."
+        },
+        "nodeVersion": {
+          "type": "string",
+          "description": "Node.js version used."
+        },
+        "startedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO-8601 timestamp when conversion started."
+        },
+        "finishedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO-8601 timestamp when conversion finished."
+        }
+      }
+    },
+    "plan": {
+      "type": "object",
+      "required": ["root", "direction", "outputDir"],
+      "additionalProperties": false,
+      "properties": {
+        "root": {
+          "type": "string",
+          "description": "Absolute path to the source file or directory."
+        },
+        "direction": {
+          "type": "object",
+          "required": ["from", "to", "pipelineBacked"],
+          "additionalProperties": false,
+          "properties": {
+            "from": { "type": "string" },
+            "to": { "type": "string" },
+            "pipelineBacked": { "type": "boolean" }
+          }
+        },
+        "outputDir": {
+          "type": "string",
+          "description": "Absolute path to the output directory."
+        }
+      }
+    },
+    "results": {
+      "type": "object",
+      "required": ["filesConverted", "filesFailed", "todosAdded"],
+      "additionalProperties": false,
+      "properties": {
+        "filesConverted": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "filesFailed": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "todosAdded": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Total HAMLET-TODO comments across all converted files."
+        }
+      }
+    },
+    "files": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["inputPath", "outputPath", "status", "confidence", "todosAdded", "warnings"],
+        "additionalProperties": false,
+        "properties": {
+          "inputPath": {
+            "type": "string",
+            "description": "Absolute path to the source file."
+          },
+          "outputPath": {
+            "type": ["string", "null"],
+            "description": "Absolute path to the output file, or null on failure."
+          },
+          "status": {
+            "type": "string",
+            "enum": ["converted", "skipped", "failed"],
+            "description": "Outcome for this file."
+          },
+          "confidence": {
+            "type": ["number", "null"],
+            "description": "Conversion confidence (0-100), or null if unavailable."
+          },
+          "todosAdded": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Number of HAMLET-TODO comments in the output."
+          },
+          "warnings": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Non-fatal warnings from the conversion."
+          },
+          "error": {
+            "type": "string",
+            "description": "Error message if status is 'failed' or 'skipped'."
+          }
+        }
+      }
+    }
+  }
+}

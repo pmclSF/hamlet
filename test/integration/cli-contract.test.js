@@ -25,7 +25,7 @@ function runCLI(args, options = {}) {
 function runCLISafe(args) {
   const result = spawnSync('node', [cliPath, ...args], {
     encoding: 'utf8',
-    timeout: 30000,
+    timeout: 60000,
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   return {

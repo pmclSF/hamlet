@@ -24,3 +24,4 @@ export { MigrationEngine } from './MigrationEngine.js';
 export { SafetyManager } from './SafetyManager.js';
 export { ConfigConverter } from './ConfigConverter.js';
 export { MigrationEstimator } from './MigrationEstimator.js';
+export { ProjectAnalyzer } from './ProjectAnalyzer.js';
