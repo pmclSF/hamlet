@@ -229,7 +229,9 @@ export class MigrationEngine {
       }
 
       // Validate output
-      const validation = this.validator.validate(converted, to);
+      const validation = this.validator.validate(converted, to, {
+        strictValidate: options.strictValidate || false,
+      });
       if (!validation.valid) {
         for (const issue of validation.issues) {
           warnings.push(issue.message);

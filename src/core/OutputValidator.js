@@ -4,7 +4,12 @@
  * Checks: balanced brackets/parens, valid imports, no dangling
  * framework references (cy., jest. in target output), no empty test
  * bodies, correct describe/test nesting.
+ *
+ * When strictValidate is enabled, also performs parser-based syntax
+ * validation using vm.compileFunction().
  */
+
+import vm from 'node:vm';
 
 export class OutputValidator {
   /**
@@ -12,9 +17,11 @@ export class OutputValidator {
    *
    * @param {string} output - The converted code
    * @param {string} targetFramework - Target framework name (e.g., 'vitest', 'playwright')
+   * @param {Object} [options]
+   * @param {boolean} [options.strictValidate=false] - Enable parser-based syntax validation
    * @returns {{valid: boolean, issues: Array<{type: string, message: string, line?: number}>}}
    */
-  validate(output, targetFramework) {
+  validate(output, targetFramework, options = {}) {
     const issues = [];
 
     if (!output || output.trim().length === 0) {
@@ -26,6 +33,10 @@ export class OutputValidator {
     this._checkDanglingReferences(output, targetFramework, issues);
     this._checkImports(output, issues);
     this._checkEmptyTestBodies(output, issues);
+
+    if (options.strictValidate) {
+      this._checkSyntax(output, issues);
+    }
 
     return { valid: issues.length === 0, issues };
   }
@@ -199,6 +210,26 @@ export class OutputValidator {
         type: 'empty-test',
         message: `Empty test body on line ${line}`,
         line,
+      });
+    }
+  }
+
+  /**
+   * Parser-based syntax validation using vm.compileFunction().
+   * Only called when strictValidate option is enabled.
+   *
+   * @param {string} output
+   * @param {Array} issues
+   */
+  _checkSyntax(output, issues) {
+    try {
+      vm.compileFunction(output);
+    } catch (err) {
+      const lineMatch = err.message.match(/(\d+):(\d+)/);
+      issues.push({
+        type: 'syntax',
+        message: `Syntax error: ${err.message}`,
+        line: lineMatch ? parseInt(lineMatch[1], 10) : null,
       });
     }
   }
