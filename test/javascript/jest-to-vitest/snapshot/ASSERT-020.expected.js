@@ -1,5 +1,6 @@
 // HAMLET-WARNING: Snapshot file location and format may differ between
-// Jest (__snapshots__/*.snap) and Vitest. Re-run tests to regenerate snapshots.
+// Jest (__snapshots__/*.snap) and Vitest. Run `vitest --update` to
+// regenerate snapshots after migration.
 import { describe, it, expect } from 'vitest';
 
 describe('Serializer', () => {

@@ -13,31 +13,36 @@ export const assertionPatterns = {
       '\\.should\\([\'"]not\\.exist[\'"]\\)': '.ASSERT_NOT_EXISTS()',
 
       // Text
-      '\\.should\\([\'"]have\\.text[\'"],\\s*([^)]+)\\)': '.ASSERT_TEXT($1)',
-      '\\.should\\([\'"]contain[\'"],\\s*([^)]+)\\)': '.ASSERT_CONTAINS($1)',
-      '\\.should\\([\'"]contain\\.text[\'"],\\s*([^)]+)\\)':
+      '\\.should\\([\'"]have\\.text[\'"],\\s*([^()]*(?:\\([^()]*\\)[^()]*)*)\\)':
+        '.ASSERT_TEXT($1)',
+      '\\.should\\([\'"]contain[\'"],\\s*([^()]*(?:\\([^()]*\\)[^()]*)*)\\)':
         '.ASSERT_CONTAINS($1)',
-      '\\.should\\([\'"]not\\.contain[\'"],\\s*([^)]+)\\)':
+      '\\.should\\([\'"]contain\\.text[\'"],\\s*([^()]*(?:\\([^()]*\\)[^()]*)*)\\)':
+        '.ASSERT_CONTAINS($1)',
+      '\\.should\\([\'"]not\\.contain[\'"],\\s*([^()]*(?:\\([^()]*\\)[^()]*)*)\\)':
         '.ASSERT_NOT_CONTAINS($1)',
-      '\\.should\\([\'"]include\\.text[\'"],\\s*([^)]+)\\)':
+      '\\.should\\([\'"]include\\.text[\'"],\\s*([^()]*(?:\\([^()]*\\)[^()]*)*)\\)':
         '.ASSERT_CONTAINS($1)',
       '\\.should\\([\'"]be\\.empty[\'"]\\)': '.ASSERT_EMPTY()',
       '\\.should\\([\'"]not\\.be\\.empty[\'"]\\)': '.ASSERT_NOT_EMPTY()',
 
       // Value
-      '\\.should\\([\'"]have\\.value[\'"],\\s*([^)]+)\\)': '.ASSERT_VALUE($1)',
+      '\\.should\\([\'"]have\\.value[\'"],\\s*([^()]*(?:\\([^()]*\\)[^()]*)*)\\)':
+        '.ASSERT_VALUE($1)',
 
       // Attributes
-      '\\.should\\([\'"]have\\.attr[\'"],\\s*([^,]+),\\s*([^)]+)\\)':
+      '\\.should\\([\'"]have\\.attr[\'"],\\s*([^,()]*(?:\\([^()]*\\)[^,()]*)*),\\s*([^()]*(?:\\([^()]*\\)[^()]*)*)\\)':
         '.ASSERT_ATTRIBUTE($1, $2)',
-      '\\.should\\([\'"]have\\.attr[\'"],\\s*([^)]+)\\)':
+      '\\.should\\([\'"]have\\.attr[\'"],\\s*([^()]*(?:\\([^()]*\\)[^()]*)*)\\)':
         '.ASSERT_HAS_ATTRIBUTE($1)',
-      '\\.should\\([\'"]have\\.class[\'"],\\s*([^)]+)\\)': '.ASSERT_CLASS($1)',
-      '\\.should\\([\'"]not\\.have\\.class[\'"],\\s*([^)]+)\\)':
+      '\\.should\\([\'"]have\\.class[\'"],\\s*([^()]*(?:\\([^()]*\\)[^()]*)*)\\)':
+        '.ASSERT_CLASS($1)',
+      '\\.should\\([\'"]not\\.have\\.class[\'"],\\s*([^()]*(?:\\([^()]*\\)[^()]*)*)\\)':
         '.ASSERT_NOT_CLASS($1)',
-      '\\.should\\([\'"]have\\.css[\'"],\\s*([^,]+),\\s*([^)]+)\\)':
+      '\\.should\\([\'"]have\\.css[\'"],\\s*([^,()]*(?:\\([^()]*\\)[^,()]*)*),\\s*([^()]*(?:\\([^()]*\\)[^()]*)*)\\)':
         '.ASSERT_CSS($1, $2)',
-      '\\.should\\([\'"]have\\.id[\'"],\\s*([^)]+)\\)': '.ASSERT_ID($1)',
+      '\\.should\\([\'"]have\\.id[\'"],\\s*([^()]*(?:\\([^()]*\\)[^()]*)*)\\)':
+        '.ASSERT_ID($1)',
 
       // State
       '\\.should\\([\'"]be\\.checked[\'"]\\)': '.ASSERT_CHECKED()',
@@ -49,22 +54,23 @@ export const assertionPatterns = {
       '\\.should\\([\'"]be\\.selected[\'"]\\)': '.ASSERT_SELECTED()',
 
       // Count
-      '\\.should\\([\'"]have\\.length[\'"],\\s*([^)]+)\\)': '.ASSERT_COUNT($1)',
-      '\\.should\\([\'"]have\\.length\\.gt[\'"],\\s*([^)]+)\\)':
+      '\\.should\\([\'"]have\\.length[\'"],\\s*([^()]*(?:\\([^()]*\\)[^()]*)*)\\)':
+        '.ASSERT_COUNT($1)',
+      '\\.should\\([\'"]have\\.length\\.gt[\'"],\\s*([^()]*(?:\\([^()]*\\)[^()]*)*)\\)':
         '.ASSERT_COUNT_GT($1)',
-      '\\.should\\([\'"]have\\.length\\.gte[\'"],\\s*([^)]+)\\)':
+      '\\.should\\([\'"]have\\.length\\.gte[\'"],\\s*([^()]*(?:\\([^()]*\\)[^()]*)*)\\)':
         '.ASSERT_COUNT_GTE($1)',
-      '\\.should\\([\'"]have\\.length\\.lt[\'"],\\s*([^)]+)\\)':
+      '\\.should\\([\'"]have\\.length\\.lt[\'"],\\s*([^()]*(?:\\([^()]*\\)[^()]*)*)\\)':
         '.ASSERT_COUNT_LT($1)',
-      '\\.should\\([\'"]have\\.length\\.lte[\'"],\\s*([^)]+)\\)':
+      '\\.should\\([\'"]have\\.length\\.lte[\'"],\\s*([^()]*(?:\\([^()]*\\)[^()]*)*)\\)':
         '.ASSERT_COUNT_LTE($1)',
 
       // URL assertions
-      'cy\\.url\\(\\)\\.should\\([\'"]include[\'"],\\s*([^)]+)\\)':
+      'cy\\.url\\(\\)\\.should\\([\'"]include[\'"],\\s*([^()]*(?:\\([^()]*\\)[^()]*)*)\\)':
         'ASSERT_URL_CONTAINS($1)',
-      'cy\\.url\\(\\)\\.should\\([\'"]eq[\'"],\\s*([^)]+)\\)':
+      'cy\\.url\\(\\)\\.should\\([\'"]eq[\'"],\\s*([^()]*(?:\\([^()]*\\)[^()]*)*)\\)':
         'ASSERT_URL_EQUALS($1)',
-      'cy\\.title\\(\\)\\.should\\([\'"]eq[\'"],\\s*([^)]+)\\)':
+      'cy\\.title\\(\\)\\.should\\([\'"]eq[\'"],\\s*([^()]*(?:\\([^()]*\\)[^()]*)*)\\)':
         'ASSERT_TITLE($1)',
     },
 
@@ -106,54 +112,64 @@ export const assertionPatterns = {
   playwright: {
     patterns: {
       // Visibility
-      'await expect\\(([^)]+)\\)\\.toBeVisible\\(\\)': '$1.ASSERT_VISIBLE()',
-      'await expect\\(([^)]+)\\)\\.toBeHidden\\(\\)': '$1.ASSERT_HIDDEN()',
-      'await expect\\(([^)]+)\\)\\.not\\.toBeVisible\\(\\)':
+      'await expect\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)\\.toBeVisible\\(\\)':
+        '$1.ASSERT_VISIBLE()',
+      'await expect\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)\\.toBeHidden\\(\\)':
         '$1.ASSERT_HIDDEN()',
-      'await expect\\(([^)]+)\\)\\.toBeAttached\\(\\)': '$1.ASSERT_EXISTS()',
-      'await expect\\(([^)]+)\\)\\.not\\.toBeAttached\\(\\)':
+      'await expect\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)\\.not\\.toBeVisible\\(\\)':
+        '$1.ASSERT_HIDDEN()',
+      'await expect\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)\\.toBeAttached\\(\\)':
+        '$1.ASSERT_EXISTS()',
+      'await expect\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)\\.not\\.toBeAttached\\(\\)':
         '$1.ASSERT_NOT_EXISTS()',
 
       // Text
-      'await expect\\(([^)]+)\\)\\.toHaveText\\(([^)]+)\\)':
+      'await expect\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)\\.toHaveText\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)':
         '$1.ASSERT_TEXT($2)',
-      'await expect\\(([^)]+)\\)\\.toContainText\\(([^)]+)\\)':
+      'await expect\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)\\.toContainText\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)':
         '$1.ASSERT_CONTAINS($2)',
-      'await expect\\(([^)]+)\\)\\.not\\.toContainText\\(([^)]+)\\)':
+      'await expect\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)\\.not\\.toContainText\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)':
         '$1.ASSERT_NOT_CONTAINS($2)',
-      'await expect\\(([^)]+)\\)\\.toBeEmpty\\(\\)': '$1.ASSERT_EMPTY()',
+      'await expect\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)\\.toBeEmpty\\(\\)':
+        '$1.ASSERT_EMPTY()',
 
       // Value
-      'await expect\\(([^)]+)\\)\\.toHaveValue\\(([^)]+)\\)':
+      'await expect\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)\\.toHaveValue\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)':
         '$1.ASSERT_VALUE($2)',
 
       // Attributes
-      'await expect\\(([^)]+)\\)\\.toHaveAttribute\\(([^,]+),\\s*([^)]+)\\)':
+      'await expect\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)\\.toHaveAttribute\\(([^,()]*(?:\\([^()]*\\)[^,()]*)*),\\s*([^()]*(?:\\([^()]*\\)[^()]*)*)\\)':
         '$1.ASSERT_ATTRIBUTE($2, $3)',
-      'await expect\\(([^)]+)\\)\\.toHaveAttribute\\(([^)]+)\\)':
+      'await expect\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)\\.toHaveAttribute\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)':
         '$1.ASSERT_HAS_ATTRIBUTE($2)',
-      'await expect\\(([^)]+)\\)\\.toHaveClass\\(([^)]+)\\)':
+      'await expect\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)\\.toHaveClass\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)':
         '$1.ASSERT_CLASS($2)',
-      'await expect\\(([^)]+)\\)\\.toHaveCSS\\(([^,]+),\\s*([^)]+)\\)':
+      'await expect\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)\\.toHaveCSS\\(([^,()]*(?:\\([^()]*\\)[^,()]*)*),\\s*([^()]*(?:\\([^()]*\\)[^()]*)*)\\)':
         '$1.ASSERT_CSS($2, $3)',
-      'await expect\\(([^)]+)\\)\\.toHaveId\\(([^)]+)\\)': '$1.ASSERT_ID($2)',
+      'await expect\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)\\.toHaveId\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)':
+        '$1.ASSERT_ID($2)',
 
       // State
-      'await expect\\(([^)]+)\\)\\.toBeChecked\\(\\)': '$1.ASSERT_CHECKED()',
-      'await expect\\(([^)]+)\\)\\.not\\.toBeChecked\\(\\)':
+      'await expect\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)\\.toBeChecked\\(\\)':
+        '$1.ASSERT_CHECKED()',
+      'await expect\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)\\.not\\.toBeChecked\\(\\)':
         '$1.ASSERT_NOT_CHECKED()',
-      'await expect\\(([^)]+)\\)\\.toBeDisabled\\(\\)': '$1.ASSERT_DISABLED()',
-      'await expect\\(([^)]+)\\)\\.toBeEnabled\\(\\)': '$1.ASSERT_ENABLED()',
-      'await expect\\(([^)]+)\\)\\.toBeFocused\\(\\)': '$1.ASSERT_FOCUSED()',
+      'await expect\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)\\.toBeDisabled\\(\\)':
+        '$1.ASSERT_DISABLED()',
+      'await expect\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)\\.toBeEnabled\\(\\)':
+        '$1.ASSERT_ENABLED()',
+      'await expect\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)\\.toBeFocused\\(\\)':
+        '$1.ASSERT_FOCUSED()',
 
       // Count
-      'await expect\\(([^)]+)\\)\\.toHaveCount\\(([^)]+)\\)':
+      'await expect\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)\\.toHaveCount\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)':
         '$1.ASSERT_COUNT($2)',
 
       // Page
-      'await expect\\(page\\)\\.toHaveURL\\(([^)]+)\\)':
+      'await expect\\(page\\)\\.toHaveURL\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)':
         'ASSERT_URL_EQUALS($1)',
-      'await expect\\(page\\)\\.toHaveTitle\\(([^)]+)\\)': 'ASSERT_TITLE($1)',
+      'await expect\\(page\\)\\.toHaveTitle\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)':
+        'ASSERT_TITLE($1)',
     },
 
     generators: {
@@ -207,13 +223,13 @@ export const assertionPatterns = {
         '$1.ASSERT_VISIBLE()',
       'expect\\(await ([^.]+)\\.isDisplayed\\(\\)\\)\\.toBe\\(false\\)':
         '$1.ASSERT_HIDDEN()',
-      'expect\\(await ([^.]+)\\.getText\\(\\)\\)\\.toBe\\(([^)]+)\\)':
+      'expect\\(await ([^.]+)\\.getText\\(\\)\\)\\.toBe\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)':
         '$1.ASSERT_TEXT($2)',
-      'expect\\(await ([^.]+)\\.getText\\(\\)\\)\\.toContain\\(([^)]+)\\)':
+      'expect\\(await ([^.]+)\\.getText\\(\\)\\)\\.toContain\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)':
         '$1.ASSERT_CONTAINS($2)',
-      'expect\\(await ([^.]+)\\.getAttribute\\([\'"]value[\'"]\\)\\)\\.toBe\\(([^)]+)\\)':
+      'expect\\(await ([^.]+)\\.getAttribute\\([\'"]value[\'"]\\)\\)\\.toBe\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)':
         '$1.ASSERT_VALUE($2)',
-      'expect\\(await ([^.]+)\\.getAttribute\\(([^)]+)\\)\\)\\.toBe\\(([^)]+)\\)':
+      'expect\\(await ([^.]+)\\.getAttribute\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)\\)\\.toBe\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)':
         '$1.ASSERT_ATTRIBUTE($2, $3)',
       'expect\\(await ([^.]+)\\.isSelected\\(\\)\\)\\.toBe\\(true\\)':
         '$1.ASSERT_CHECKED()',
@@ -288,15 +304,15 @@ export const directMappings = {
     '\\.should\\([\'"]exist[\'"]\\)': '; await expect(element).toBeAttached()',
     '\\.should\\([\'"]not\\.exist[\'"]\\)':
       '; await expect(element).not.toBeAttached()',
-    '\\.should\\([\'"]have\\.text[\'"],\\s*([^)]+)\\)':
+    '\\.should\\([\'"]have\\.text[\'"],\\s*([^()]*(?:\\([^()]*\\)[^()]*)*)\\)':
       '; await expect(element).toHaveText($1)',
-    '\\.should\\([\'"]contain[\'"],\\s*([^)]+)\\)':
+    '\\.should\\([\'"]contain[\'"],\\s*([^()]*(?:\\([^()]*\\)[^()]*)*)\\)':
       '; await expect(element).toContainText($1)',
-    '\\.should\\([\'"]have\\.value[\'"],\\s*([^)]+)\\)':
+    '\\.should\\([\'"]have\\.value[\'"],\\s*([^()]*(?:\\([^()]*\\)[^()]*)*)\\)':
       '; await expect(element).toHaveValue($1)',
-    '\\.should\\([\'"]have\\.attr[\'"],\\s*([^,]+),\\s*([^)]+)\\)':
+    '\\.should\\([\'"]have\\.attr[\'"],\\s*([^,()]*(?:\\([^()]*\\)[^,()]*)*),\\s*([^()]*(?:\\([^()]*\\)[^()]*)*)\\)':
       '; await expect(element).toHaveAttribute($1, $2)',
-    '\\.should\\([\'"]have\\.class[\'"],\\s*([^)]+)\\)':
+    '\\.should\\([\'"]have\\.class[\'"],\\s*([^()]*(?:\\([^()]*\\)[^()]*)*)\\)':
       '; await expect(element).toHaveClass($1)',
     '\\.should\\([\'"]be\\.checked[\'"]\\)':
       '; await expect(element).toBeChecked()',
@@ -304,7 +320,7 @@ export const directMappings = {
       '; await expect(element).toBeDisabled()',
     '\\.should\\([\'"]be\\.enabled[\'"]\\)':
       '; await expect(element).toBeEnabled()',
-    '\\.should\\([\'"]have\\.length[\'"],\\s*([^)]+)\\)':
+    '\\.should\\([\'"]have\\.length[\'"],\\s*([^()]*(?:\\([^()]*\\)[^()]*)*)\\)':
       '; await expect(element).toHaveCount($1)',
   },
 
@@ -313,11 +329,11 @@ export const directMappings = {
       '; expect(await element.isDisplayed()).toBe(true)',
     '\\.should\\([\'"]not\\.be\\.visible[\'"]\\)':
       '; expect(await element.isDisplayed()).toBe(false)',
-    '\\.should\\([\'"]have\\.text[\'"],\\s*([^)]+)\\)':
+    '\\.should\\([\'"]have\\.text[\'"],\\s*([^()]*(?:\\([^()]*\\)[^()]*)*)\\)':
       '; expect(await element.getText()).toBe($1)',
-    '\\.should\\([\'"]contain[\'"],\\s*([^)]+)\\)':
+    '\\.should\\([\'"]contain[\'"],\\s*([^()]*(?:\\([^()]*\\)[^()]*)*)\\)':
       '; expect(await element.getText()).toContain($1)',
-    '\\.should\\([\'"]have\\.value[\'"],\\s*([^)]+)\\)':
+    '\\.should\\([\'"]have\\.value[\'"],\\s*([^()]*(?:\\([^()]*\\)[^()]*)*)\\)':
       '; expect(await element.getAttribute("value")).toBe($1)',
     '\\.should\\([\'"]be\\.checked[\'"]\\)':
       '; expect(await element.isSelected()).toBe(true)',
@@ -328,43 +344,46 @@ export const directMappings = {
   },
 
   'playwright-cypress': {
-    'await expect\\(([^)]+)\\)\\.toBeVisible\\(\\)': '$1.should("be.visible")',
-    'await expect\\(([^)]+)\\)\\.toBeHidden\\(\\)':
+    'await expect\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)\\.toBeVisible\\(\\)':
+      '$1.should("be.visible")',
+    'await expect\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)\\.toBeHidden\\(\\)':
       '$1.should("not.be.visible")',
-    'await expect\\(([^)]+)\\)\\.toHaveText\\(([^)]+)\\)':
+    'await expect\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)\\.toHaveText\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)':
       '$1.should("have.text", $2)',
-    'await expect\\(([^)]+)\\)\\.toContainText\\(([^)]+)\\)':
+    'await expect\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)\\.toContainText\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)':
       '$1.should("contain", $2)',
-    'await expect\\(([^)]+)\\)\\.toHaveValue\\(([^)]+)\\)':
+    'await expect\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)\\.toHaveValue\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)':
       '$1.should("have.value", $2)',
-    'await expect\\(([^)]+)\\)\\.toHaveAttribute\\(([^,]+),\\s*([^)]+)\\)':
+    'await expect\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)\\.toHaveAttribute\\(([^,()]*(?:\\([^()]*\\)[^,()]*)*),\\s*([^()]*(?:\\([^()]*\\)[^()]*)*)\\)':
       '$1.should("have.attr", $2, $3)',
-    'await expect\\(([^)]+)\\)\\.toHaveClass\\(([^)]+)\\)':
+    'await expect\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)\\.toHaveClass\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)':
       '$1.should("have.class", $2)',
-    'await expect\\(([^)]+)\\)\\.toBeChecked\\(\\)': '$1.should("be.checked")',
-    'await expect\\(([^)]+)\\)\\.toBeDisabled\\(\\)':
+    'await expect\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)\\.toBeChecked\\(\\)':
+      '$1.should("be.checked")',
+    'await expect\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)\\.toBeDisabled\\(\\)':
       '$1.should("be.disabled")',
-    'await expect\\(([^)]+)\\)\\.toBeEnabled\\(\\)': '$1.should("be.enabled")',
-    'await expect\\(([^)]+)\\)\\.toHaveCount\\(([^)]+)\\)':
+    'await expect\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)\\.toBeEnabled\\(\\)':
+      '$1.should("be.enabled")',
+    'await expect\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)\\.toHaveCount\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)':
       '$1.should("have.length", $2)',
   },
 
   'playwright-selenium': {
-    'await expect\\(([^)]+)\\)\\.toBeVisible\\(\\)':
+    'await expect\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)\\.toBeVisible\\(\\)':
       'expect(await $1.isDisplayed()).toBe(true)',
-    'await expect\\(([^)]+)\\)\\.toBeHidden\\(\\)':
+    'await expect\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)\\.toBeHidden\\(\\)':
       'expect(await $1.isDisplayed()).toBe(false)',
-    'await expect\\(([^)]+)\\)\\.toHaveText\\(([^)]+)\\)':
+    'await expect\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)\\.toHaveText\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)':
       'expect(await $1.getText()).toBe($2)',
-    'await expect\\(([^)]+)\\)\\.toContainText\\(([^)]+)\\)':
+    'await expect\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)\\.toContainText\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)':
       'expect(await $1.getText()).toContain($2)',
-    'await expect\\(([^)]+)\\)\\.toHaveValue\\(([^)]+)\\)':
+    'await expect\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)\\.toHaveValue\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)':
       'expect(await $1.getAttribute("value")).toBe($2)',
-    'await expect\\(([^)]+)\\)\\.toBeChecked\\(\\)':
+    'await expect\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)\\.toBeChecked\\(\\)':
       'expect(await $1.isSelected()).toBe(true)',
-    'await expect\\(([^)]+)\\)\\.toBeDisabled\\(\\)':
+    'await expect\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)\\.toBeDisabled\\(\\)':
       'expect(await $1.isEnabled()).toBe(false)',
-    'await expect\\(([^)]+)\\)\\.toBeEnabled\\(\\)':
+    'await expect\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)\\.toBeEnabled\\(\\)':
       'expect(await $1.isEnabled()).toBe(true)',
   },
 
@@ -373,11 +392,11 @@ export const directMappings = {
       '$1.should("be.visible")',
     'expect\\(await ([^.]+)\\.isDisplayed\\(\\)\\)\\.toBe\\(false\\)':
       '$1.should("not.be.visible")',
-    'expect\\(await ([^.]+)\\.getText\\(\\)\\)\\.toBe\\(([^)]+)\\)':
+    'expect\\(await ([^.]+)\\.getText\\(\\)\\)\\.toBe\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)':
       '$1.should("have.text", $2)',
-    'expect\\(await ([^.]+)\\.getText\\(\\)\\)\\.toContain\\(([^)]+)\\)':
+    'expect\\(await ([^.]+)\\.getText\\(\\)\\)\\.toContain\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)':
       '$1.should("contain", $2)',
-    'expect\\(await ([^.]+)\\.getAttribute\\([\'"]value[\'"]\\)\\)\\.toBe\\(([^)]+)\\)':
+    'expect\\(await ([^.]+)\\.getAttribute\\([\'"]value[\'"]\\)\\)\\.toBe\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)':
       '$1.should("have.value", $2)',
     'expect\\(await ([^.]+)\\.isSelected\\(\\)\\)\\.toBe\\(true\\)':
       '$1.should("be.checked")',
@@ -392,11 +411,11 @@ export const directMappings = {
       'await expect($1).toBeVisible()',
     'expect\\(await ([^.]+)\\.isDisplayed\\(\\)\\)\\.toBe\\(false\\)':
       'await expect($1).toBeHidden()',
-    'expect\\(await ([^.]+)\\.getText\\(\\)\\)\\.toBe\\(([^)]+)\\)':
+    'expect\\(await ([^.]+)\\.getText\\(\\)\\)\\.toBe\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)':
       'await expect($1).toHaveText($2)',
-    'expect\\(await ([^.]+)\\.getText\\(\\)\\)\\.toContain\\(([^)]+)\\)':
+    'expect\\(await ([^.]+)\\.getText\\(\\)\\)\\.toContain\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)':
       'await expect($1).toContainText($2)',
-    'expect\\(await ([^.]+)\\.getAttribute\\([\'"]value[\'"]\\)\\)\\.toBe\\(([^)]+)\\)':
+    'expect\\(await ([^.]+)\\.getAttribute\\([\'"]value[\'"]\\)\\)\\.toBe\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)':
       'await expect($1).toHaveValue($2)',
     'expect\\(await ([^.]+)\\.isSelected\\(\\)\\)\\.toBe\\(true\\)':
       'await expect($1).toBeChecked()',

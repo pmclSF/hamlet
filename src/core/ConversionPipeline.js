@@ -9,6 +9,7 @@
  */
 
 import { ConfidenceScorer } from './ConfidenceScorer.js';
+import { OutputValidator } from './OutputValidator.js';
 import { walkIR } from './ir.js';
 
 export class ConversionPipeline {
@@ -18,6 +19,7 @@ export class ConversionPipeline {
   constructor(registry) {
     this.registry = registry;
     this.scorer = new ConfidenceScorer();
+    this.validator = new OutputValidator();
   }
 
   /**
@@ -72,6 +74,10 @@ export class ConversionPipeline {
     // 5. Score — walk IR and compute confidence
     const report = this.scorer.score(transformedIr);
     report.transformContext = transformContext;
+
+    // 6. Validate — check output for dangling references, balanced brackets, etc.
+    const validation = this.validator.validate(code, targetFrameworkName);
+    report.validation = validation;
 
     return { code, report };
   }
