@@ -1,8 +1,19 @@
 import fs from 'fs/promises';
 import path from 'path';
 import chalk from 'chalk';
-import { PNG } from 'pngjs';
-import pixelmatch from 'pixelmatch';
+
+let _PNG = null;
+let _pixelmatch = null;
+
+/**
+ * Lazily load pngjs and pixelmatch. These are only needed when actually
+ * comparing screenshots, not for name-matching or other lightweight operations.
+ */
+async function loadDeps() {
+  if (_PNG && _pixelmatch) return;
+  _PNG = (await import('pngjs')).PNG;
+  _pixelmatch = (await import('pixelmatch')).default;
+}
 
 /**
  * Handles visual comparison between Cypress and Playwright tests
@@ -174,9 +185,11 @@ export class VisualComparison {
    */
   async compareScreenshots(cypressShot, playwrightShot) {
     try {
+      await loadDeps();
+
       // Read images
-      const cypress = PNG.sync.read(await fs.readFile(cypressShot));
-      const playwright = PNG.sync.read(await fs.readFile(playwrightShot));
+      const cypress = _PNG.sync.read(await fs.readFile(cypressShot));
+      const playwright = _PNG.sync.read(await fs.readFile(playwrightShot));
 
       // Check dimensions
       if (
@@ -235,7 +248,7 @@ export class VisualComparison {
    * @returns {PNG} - Resized image
    */
   resizeImage(image, width, height) {
-    const resized = new PNG({ width, height });
+    const resized = new _PNG({ width, height });
     // Simple nearest-neighbor scaling
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
@@ -261,9 +274,9 @@ export class VisualComparison {
    */
   async performComparison(img1, img2, cypressShotPath, playwrightShotPath) {
     const { width, height } = img1;
-    const diff = new PNG({ width, height });
+    const diff = new _PNG({ width, height });
 
-    const mismatchedPixels = pixelmatch(
+    const mismatchedPixels = _pixelmatch(
       img1.data,
       img2.data,
       diff.data,
@@ -283,7 +296,7 @@ export class VisualComparison {
 
     // Save diff image if there are differences
     if (diffRatio > 0 && this.options.saveSnapshots) {
-      await fs.writeFile(diffPath, PNG.sync.write(diff));
+      await fs.writeFile(diffPath, _PNG.sync.write(diff));
     }
 
     // Record result
