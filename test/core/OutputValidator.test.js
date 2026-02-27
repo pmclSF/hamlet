@@ -101,4 +101,34 @@ describe('OutputValidator', () => {
       expect(issues.filter(i => i.type === 'bracket')).toHaveLength(0);
     });
   });
+
+  describe('strict validation', () => {
+    it('should pass valid JS when strictValidate is enabled', () => {
+      const output = `const x = 1;\nconst y = x + 2;\n`;
+      const { valid, issues } = validator.validate(output, 'vitest', {
+        strictValidate: true,
+      });
+
+      expect(valid).toBe(true);
+      expect(issues.filter((i) => i.type === 'syntax')).toHaveLength(0);
+    });
+
+    it('should detect syntax errors when strictValidate is enabled', () => {
+      const output = `const x = ;\nfoo bar baz`;
+      const { valid, issues } = validator.validate(output, 'vitest', {
+        strictValidate: true,
+      });
+
+      expect(valid).toBe(false);
+      expect(issues.some((i) => i.type === 'syntax')).toBe(true);
+    });
+
+    it('should not check syntax when strictValidate is not set', () => {
+      const output = `const x = ;\nfoo bar baz`;
+      const { issues } = validator.validate(output, 'vitest');
+
+      // Without strict validate, no syntax issues reported
+      expect(issues.filter((i) => i.type === 'syntax')).toHaveLength(0);
+    });
+  });
 });

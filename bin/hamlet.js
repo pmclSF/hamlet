@@ -1081,6 +1081,10 @@ program
   .option('--dry-run', 'Show what would be converted without making changes')
   .option('--plan', 'Show structured conversion plan')
   .option('--auto-detect', 'Auto-detect source framework from file content')
+  .option(
+    '--strict-validate',
+    'Enable parser-based syntax validation of converted output'
+  )
   .option('-q, --quiet', 'Suppress non-error output')
   .option('--verbose', 'Detailed output')
   .option('--json', 'JSON output')
@@ -1434,6 +1438,10 @@ program
   .option('--retry-failed', 'Retry only previously failed files')
   .option('--dry-run', 'Preview migration without making changes')
   .option('--plan', 'Show structured migration plan')
+  .option(
+    '--strict-validate',
+    'Enable parser-based syntax validation of converted output'
+  )
   .action(async (dir, options) => {
     try {
       if (options.dryRun || options.plan) {
@@ -1521,6 +1529,7 @@ program
         output: options.output,
         continue: options.continue,
         retryFailed: options.retryFailed,
+        strictValidate: options.strictValidate || false,
         onProgress: (file, status, confidence) => {
           const icon =
             status === 'converted'
