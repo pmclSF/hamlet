@@ -207,6 +207,8 @@ hamlet convert-config cypress.config.js --to playwright -o playwright.config.ts
 
 ## Programmatic API
 
+> **ESM only** — This package ships ES modules. Use `import`, not `require()`. Node >= 22 required.
+
 ```javascript
 import { ConverterFactory, FRAMEWORKS } from 'hamlet-converter/core';
 
@@ -222,11 +224,12 @@ console.log(`Confidence: ${report.confidence}%`);
 
 | Import path | Stability | Contents |
 |-------------|-----------|----------|
-| `hamlet-converter` | **Stable** | Public API: `convertFile`, `convertRepository`, `processTestFiles`, `validateTests`, `generateReport`, `VERSION`, `DEFAULT_OPTIONS`, `SUPPORTED_TEST_TYPES`, plus re-exported classes and utilities |
+| `hamlet-converter` | **Stable** | `convertFile`, `convertRepository`, `processTestFiles`, `validateTests`, `generateReport`, `convertConfig`, `convertCypressToPlaywright`, `RepositoryConverter`, `BatchProcessor`, `ConversionReporter`, `VERSION`, `DEFAULT_OPTIONS`, `SUPPORTED_TEST_TYPES` |
+| `hamlet-converter/internals` | Internal | `DependencyAnalyzer`, `TestValidator`, `TypeScriptConverter`, `PluginConverter`, `VisualComparison`, `TestMapper`, `TestMetadataCollector`, utility namespaces. May change between minor versions. |
 | `hamlet-converter/core` | Internal | `ConverterFactory`, `BaseConverter`, `PatternEngine`, `MigrationEngine`, and other core classes. May change between minor versions. |
 | `hamlet-converter/converters` | Internal | Legacy E2E converter classes (`CypressToPlaywright`, etc.). May change between minor versions. |
 
-The `hamlet-converter` (main) entry point is the stable public API. Exports from `/core` and `/converters` are available for advanced use but are not covered by semver stability guarantees.
+The `hamlet-converter` (main) entry point is the stable public API. Exports from `/internals`, `/core`, and `/converters` are available for advanced use but are not covered by semver stability guarantees.
 
 ## Exit Codes
 
