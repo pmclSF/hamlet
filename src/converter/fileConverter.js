@@ -387,13 +387,16 @@ export async function convertFile(sourcePath, outputPath, options = {}) {
     const dependencyAnalyzer = new DependencyAnalyzer();
     const reporter = options.reporter || new ConversionReporter();
 
-    // Collect metadata and analyze dependencies
-    const metadata = await metadataCollector.collectMetadata(sourcePath);
-    const dependencies =
-      await dependencyAnalyzer.analyzeDependencies(sourcePath);
-
-    // Read and convert content
+    // Read file once and pass content to all consumers
     const content = await fs.readFile(sourcePath, 'utf8');
+    const metadata = await metadataCollector.collectMetadataFromContent(
+      sourcePath,
+      content
+    );
+    const dependencies = dependencyAnalyzer.analyzeDependenciesFromContent(
+      sourcePath,
+      content
+    );
     let converted = await convertCypressToPlaywright(content, {
       ...options,
       metadata,
