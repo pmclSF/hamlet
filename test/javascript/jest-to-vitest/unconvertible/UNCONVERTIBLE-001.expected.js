@@ -11,7 +11,8 @@ const mySerializer = {
 // expect.addSnapshotSerializer(mySerializer);
 
 // HAMLET-WARNING: Snapshot file location and format may differ between
-// Jest (__snapshots__/*.snap) and Vitest. Re-run tests to regenerate snapshots.
+// Jest (__snapshots__/*.snap) and Vitest. Run `vitest --update` to
+// regenerate snapshots after migration.
 describe('Custom serializer', () => {
   it('uses custom serializer', () => {
     expect('hello').toMatchSnapshot();

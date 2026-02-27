@@ -116,11 +116,21 @@ function parse(source) {
       continue;
     }
 
-    // @pytest.fixture
+    // @pytest.fixture — map scope to hookType
     if (/@pytest\.fixture\b/.test(trimmed)) {
+      let hookType = 'beforeEach';
+      const scopeMatch = trimmed.match(
+        /@pytest\.fixture\s*\([^)]*scope\s*=\s*["'](\w+)["']/
+      );
+      if (scopeMatch) {
+        const scope = scopeMatch[1];
+        if (scope === 'module' || scope === 'session' || scope === 'class') {
+          hookType = 'beforeAll';
+        }
+      }
       allNodes.push(
         new Hook({
-          hookType: 'beforeEach',
+          hookType,
           sourceLocation: loc,
           originalSource: line,
           confidence: 'converted',

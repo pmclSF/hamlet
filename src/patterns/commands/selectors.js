@@ -7,26 +7,28 @@ export const selectorPatterns = {
   cypress: {
     patterns: {
       // Basic selection
-      'cy\\.get\\(([^)]+)\\)': 'SELECT($1)',
-      'cy\\.find\\(([^)]+)\\)': 'FIND($1)',
-      'cy\\.contains\\(([^)]+)\\)': 'SELECT_BY_TEXT($1)',
-      'cy\\.contains\\(([^,]+),\\s*([^)]+)\\)': 'SELECT_BY_TEXT_IN($1, $2)',
+      'cy\\.get\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)': 'SELECT($1)',
+      'cy\\.find\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)': 'FIND($1)',
+      'cy\\.contains\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)':
+        'SELECT_BY_TEXT($1)',
+      'cy\\.contains\\(([^,()]*(?:\\([^()]*\\)[^,()]*)*),\\s*([^()]*(?:\\([^()]*\\)[^()]*)*)\\)':
+        'SELECT_BY_TEXT_IN($1, $2)',
 
       // Traversal
       '\\.first\\(\\)': '.FIRST()',
       '\\.last\\(\\)': '.LAST()',
       '\\.eq\\((\\d+)\\)': '.NTH($1)',
       '\\.parent\\(\\)': '.PARENT()',
-      '\\.parents\\(([^)]+)\\)': '.PARENTS($1)',
+      '\\.parents\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)': '.PARENTS($1)',
       '\\.children\\(\\)': '.CHILDREN()',
-      '\\.children\\(([^)]+)\\)': '.CHILDREN($1)',
+      '\\.children\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)': '.CHILDREN($1)',
       '\\.siblings\\(\\)': '.SIBLINGS()',
-      '\\.siblings\\(([^)]+)\\)': '.SIBLINGS($1)',
-      '\\.closest\\(([^)]+)\\)': '.CLOSEST($1)',
+      '\\.siblings\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)': '.SIBLINGS($1)',
+      '\\.closest\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)': '.CLOSEST($1)',
       '\\.next\\(\\)': '.NEXT()',
       '\\.prev\\(\\)': '.PREV()',
-      '\\.filter\\(([^)]+)\\)': '.FILTER($1)',
-      '\\.not\\(([^)]+)\\)': '.NOT($1)',
+      '\\.filter\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)': '.FILTER($1)',
+      '\\.not\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)': '.NOT($1)',
 
       // Special selectors
       'cy\\.focused\\(\\)': 'SELECT_FOCUSED()',
@@ -61,20 +63,27 @@ export const selectorPatterns = {
 
   playwright: {
     patterns: {
-      'page\\.locator\\(([^)]+)\\)': 'SELECT($1)',
-      'page\\.getByText\\(([^)]+)\\)': 'SELECT_BY_TEXT($1)',
-      'page\\.getByRole\\(([^)]+)\\)': 'SELECT_BY_ROLE($1)',
-      'page\\.getByLabel\\(([^)]+)\\)': 'SELECT_BY_LABEL($1)',
-      'page\\.getByPlaceholder\\(([^)]+)\\)': 'SELECT_BY_PLACEHOLDER($1)',
-      'page\\.getByTestId\\(([^)]+)\\)': 'SELECT_BY_TESTID($1)',
-      'page\\.getByTitle\\(([^)]+)\\)': 'SELECT_BY_TITLE($1)',
-      'page\\.getByAltText\\(([^)]+)\\)': 'SELECT_BY_ALT($1)',
+      'page\\.locator\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)': 'SELECT($1)',
+      'page\\.getByText\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)':
+        'SELECT_BY_TEXT($1)',
+      'page\\.getByRole\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)':
+        'SELECT_BY_ROLE($1)',
+      'page\\.getByLabel\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)':
+        'SELECT_BY_LABEL($1)',
+      'page\\.getByPlaceholder\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)':
+        'SELECT_BY_PLACEHOLDER($1)',
+      'page\\.getByTestId\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)':
+        'SELECT_BY_TESTID($1)',
+      'page\\.getByTitle\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)':
+        'SELECT_BY_TITLE($1)',
+      'page\\.getByAltText\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)':
+        'SELECT_BY_ALT($1)',
 
-      '\\.locator\\(([^)]+)\\)': '.FIND($1)',
+      '\\.locator\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)': '.FIND($1)',
       '\\.first\\(\\)': '.FIRST()',
       '\\.last\\(\\)': '.LAST()',
       '\\.nth\\((\\d+)\\)': '.NTH($1)',
-      '\\.filter\\(([^)]+)\\)': '.FILTER($1)',
+      '\\.filter\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)': '.FILTER($1)',
     },
 
     generators: {
@@ -111,23 +120,25 @@ export const selectorPatterns = {
 
   selenium: {
     patterns: {
-      'await driver\\.findElement\\(By\\.css\\(([^)]+)\\)\\)': 'SELECT($1)',
-      'await driver\\.findElement\\(By\\.xpath\\(([^)]+)\\)\\)':
+      'await driver\\.findElement\\(By\\.css\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)\\)':
+        'SELECT($1)',
+      'await driver\\.findElement\\(By\\.xpath\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)\\)':
         'SELECT_XPATH($1)',
-      'await driver\\.findElement\\(By\\.id\\(([^)]+)\\)\\)':
+      'await driver\\.findElement\\(By\\.id\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)\\)':
         'SELECT_BY_ID($1)',
-      'await driver\\.findElement\\(By\\.name\\(([^)]+)\\)\\)':
+      'await driver\\.findElement\\(By\\.name\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)\\)':
         'SELECT_BY_NAME($1)',
-      'await driver\\.findElement\\(By\\.className\\(([^)]+)\\)\\)':
+      'await driver\\.findElement\\(By\\.className\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)\\)':
         'SELECT_BY_CLASS($1)',
-      'await driver\\.findElement\\(By\\.tagName\\(([^)]+)\\)\\)':
+      'await driver\\.findElement\\(By\\.tagName\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)\\)':
         'SELECT_BY_TAG($1)',
-      'await driver\\.findElement\\(By\\.linkText\\(([^)]+)\\)\\)':
+      'await driver\\.findElement\\(By\\.linkText\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)\\)':
         'SELECT_BY_LINK_TEXT($1)',
-      'await driver\\.findElement\\(By\\.partialLinkText\\(([^)]+)\\)\\)':
+      'await driver\\.findElement\\(By\\.partialLinkText\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)\\)':
         'SELECT_BY_PARTIAL_LINK_TEXT($1)',
-      'await driver\\.findElements\\(([^)]+)\\)': 'SELECT_ALL($1)',
-      '\\.findElement\\(([^)]+)\\)': '.FIND($1)',
+      'await driver\\.findElements\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)':
+        'SELECT_ALL($1)',
+      '\\.findElement\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)': '.FIND($1)',
     },
 
     generators: {
@@ -177,9 +188,9 @@ export const selectorPatterns = {
  */
 export const directMappings = {
   'cypress-playwright': {
-    'cy\\.get\\(([^)]+)\\)': 'page.locator($1)',
-    'cy\\.contains\\(([^)]+)\\)': 'page.getByText($1)',
-    '\\.find\\(([^)]+)\\)': '.locator($1)',
+    'cy\\.get\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)': 'page.locator($1)',
+    'cy\\.contains\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)': 'page.getByText($1)',
+    '\\.find\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)': '.locator($1)',
     '\\.first\\(\\)': '.first()',
     '\\.last\\(\\)': '.last()',
     '\\.eq\\((\\d+)\\)': '.nth($1)',
@@ -187,10 +198,11 @@ export const directMappings = {
   },
 
   'cypress-selenium': {
-    'cy\\.get\\(([^)]+)\\)': 'await driver.findElement(By.css($1))',
-    'cy\\.contains\\(([^)]+)\\)':
+    'cy\\.get\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)':
+      'await driver.findElement(By.css($1))',
+    'cy\\.contains\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)':
       'await driver.findElement(By.xpath(`//*[contains(text(),$1)]`))',
-    '\\.find\\(([^)]+)\\)': '.findElement(By.css($1))',
+    '\\.find\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)': '.findElement(By.css($1))',
     '\\.first\\(\\)': '[0]',
     '\\.last\\(\\)': '.slice(-1)[0]',
     '\\.eq\\((\\d+)\\)': '[$1]',
@@ -198,40 +210,49 @@ export const directMappings = {
   },
 
   'playwright-cypress': {
-    'page\\.locator\\(([^)]+)\\)': 'cy.get($1)',
-    'page\\.getByText\\(([^)]+)\\)': 'cy.contains($1)',
-    'page\\.getByTestId\\(([^)]+)\\)': 'cy.get(`[data-testid=${$1}]`)',
-    '\\.locator\\(([^)]+)\\)': '.find($1)',
+    'page\\.locator\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)': 'cy.get($1)',
+    'page\\.getByText\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)': 'cy.contains($1)',
+    'page\\.getByTestId\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)':
+      'cy.get(`[data-testid=${$1}]`)',
+    '\\.locator\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)': '.find($1)',
     '\\.first\\(\\)': '.first()',
     '\\.last\\(\\)': '.last()',
     '\\.nth\\((\\d+)\\)': '.eq($1)',
   },
 
   'playwright-selenium': {
-    'page\\.locator\\(([^)]+)\\)': 'await driver.findElement(By.css($1))',
-    'page\\.getByText\\(([^)]+)\\)':
+    'page\\.locator\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)':
+      'await driver.findElement(By.css($1))',
+    'page\\.getByText\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)':
       'await driver.findElement(By.xpath(`//*[contains(text(),$1)]`))',
-    '\\.locator\\(([^)]+)\\)': '.findElement(By.css($1))',
+    '\\.locator\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)':
+      '.findElement(By.css($1))',
     '\\.first\\(\\)': '[0]',
     '\\.last\\(\\)': '.slice(-1)[0]',
     '\\.nth\\((\\d+)\\)': '[$1]',
   },
 
   'selenium-cypress': {
-    'await driver\\.findElement\\(By\\.css\\(([^)]+)\\)\\)': 'cy.get($1)',
-    'await driver\\.findElement\\(By\\.id\\(([^)]+)\\)\\)': 'cy.get(`#${$1}`)',
-    'await driver\\.findElement\\(By\\.xpath\\(([^)]+)\\)\\)': 'cy.xpath($1)',
-    '\\.findElement\\(By\\.css\\(([^)]+)\\)\\)': '.find($1)',
+    'await driver\\.findElement\\(By\\.css\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)\\)':
+      'cy.get($1)',
+    'await driver\\.findElement\\(By\\.id\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)\\)':
+      'cy.get(`#${$1}`)',
+    'await driver\\.findElement\\(By\\.xpath\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)\\)':
+      'cy.xpath($1)',
+    '\\.findElement\\(By\\.css\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)\\)':
+      '.find($1)',
     'await driver\\.switchTo\\(\\)\\.activeElement\\(\\)': 'cy.focused()',
   },
 
   'selenium-playwright': {
-    'await driver\\.findElement\\(By\\.css\\(([^)]+)\\)\\)': 'page.locator($1)',
-    'await driver\\.findElement\\(By\\.id\\(([^)]+)\\)\\)':
-      'page.locator(`#${$1}`)',
-    'await driver\\.findElement\\(By\\.xpath\\(([^)]+)\\)\\)':
+    'await driver\\.findElement\\(By\\.css\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)\\)':
       'page.locator($1)',
-    '\\.findElement\\(By\\.css\\(([^)]+)\\)\\)': '.locator($1)',
+    'await driver\\.findElement\\(By\\.id\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)\\)':
+      'page.locator(`#${$1}`)',
+    'await driver\\.findElement\\(By\\.xpath\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)\\)':
+      'page.locator($1)',
+    '\\.findElement\\(By\\.css\\(([^()]*(?:\\([^()]*\\)[^()]*)*)\\)\\)':
+      '.locator($1)',
     'await driver\\.switchTo\\(\\)\\.activeElement\\(\\)':
       'page.locator(":focus")',
   },

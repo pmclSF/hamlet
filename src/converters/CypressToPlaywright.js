@@ -40,20 +40,53 @@ export class CypressToPlaywright extends BaseConverter {
     );
     this.engine.registerPatterns('waits', waitMappings[direction] || {});
 
-    // Test structure patterns
-    this.engine.registerPatterns('structure', {
-      'describe\\(': 'test.describe(',
-      'it\\(': 'test(',
-      'before\\(': 'test.beforeAll(',
-      'after\\(': 'test.afterAll(',
-      'beforeEach\\(': 'test.beforeEach(',
-      'afterEach\\(': 'test.afterEach(',
-      'context\\(': 'test.describe(',
-      'specify\\(': 'test(',
-      'it\\.only\\(': 'test.only(',
-      'it\\.skip\\(': 'test.skip(',
-      'describe\\.only\\(': 'test.describe.only(',
-      'describe\\.skip\\(': 'test.describe.skip(',
+    // Test structure patterns — more specific patterns get higher priority
+    // to prevent 'describe(' matching inside 'describe.only('
+    this.engine.registerPattern(
+      'structure',
+      'describe\\.only\\(',
+      'test.describe.only(',
+      { priority: 10 }
+    );
+    this.engine.registerPattern(
+      'structure',
+      'describe\\.skip\\(',
+      'test.describe.skip(',
+      { priority: 10 }
+    );
+    this.engine.registerPattern('structure', 'it\\.only\\(', 'test.only(', {
+      priority: 10,
+    });
+    this.engine.registerPattern('structure', 'it\\.skip\\(', 'test.skip(', {
+      priority: 10,
+    });
+    this.engine.registerPattern('structure', 'describe\\(', 'test.describe(', {
+      priority: 0,
+    });
+    this.engine.registerPattern('structure', 'it\\(', 'test(', { priority: 0 });
+    this.engine.registerPattern('structure', 'before\\(', 'test.beforeAll(', {
+      priority: 0,
+    });
+    this.engine.registerPattern('structure', 'after\\(', 'test.afterAll(', {
+      priority: 0,
+    });
+    this.engine.registerPattern(
+      'structure',
+      'beforeEach\\(',
+      'test.beforeEach(',
+      { priority: 0 }
+    );
+    this.engine.registerPattern(
+      'structure',
+      'afterEach\\(',
+      'test.afterEach(',
+      { priority: 0 }
+    );
+    this.engine.registerPattern('structure', 'context\\(', 'test.describe(', {
+      priority: 0,
+    });
+    this.engine.registerPattern('structure', 'specify\\(', 'test(', {
+      priority: 0,
     });
 
     // Core command patterns
@@ -110,15 +143,15 @@ export class CypressToPlaywright extends BaseConverter {
         '); await expect(element).toBeAttached()',
       '\\.should\\([\'"]not\\.exist[\'"]\\)':
         '); await expect(element).not.toBeAttached()',
-      '\\.should\\([\'"]have\\.text[\'"],\\s*([^)]+)\\)':
+      '\\.should\\([\'"]have\\.text[\'"],\\s*([^()\n]+)\\)':
         '); await expect(element).toHaveText($1)',
-      '\\.should\\([\'"]contain[\'"],\\s*([^)]+)\\)':
+      '\\.should\\([\'"]contain[\'"],\\s*([^()\n]+)\\)':
         '); await expect(element).toContainText($1)',
-      '\\.should\\([\'"]have\\.value[\'"],\\s*([^)]+)\\)':
+      '\\.should\\([\'"]have\\.value[\'"],\\s*([^()\n]+)\\)':
         '); await expect(element).toHaveValue($1)',
       '\\.should\\([\'"]have\\.attr[\'"],\\s*([^,\n]+),?\\s*([^)]*)\\)':
         '); await expect(element).toHaveAttribute($1, $2)',
-      '\\.should\\([\'"]have\\.class[\'"],\\s*([^)]+)\\)':
+      '\\.should\\([\'"]have\\.class[\'"],\\s*([^()\n]+)\\)':
         '); await expect(element).toHaveClass($1)',
       '\\.should\\([\'"]be\\.checked[\'"]\\)':
         '); await expect(element).toBeChecked()',
@@ -126,7 +159,7 @@ export class CypressToPlaywright extends BaseConverter {
         '); await expect(element).toBeDisabled()',
       '\\.should\\([\'"]be\\.enabled[\'"]\\)':
         '); await expect(element).toBeEnabled()',
-      '\\.should\\([\'"]have\\.length[\'"],\\s*([^)]+)\\)':
+      '\\.should\\([\'"]have\\.length[\'"],\\s*([^()\n]+)\\)':
         '); await expect(element).toHaveCount($1)',
     });
 
@@ -248,118 +281,121 @@ export class CypressToPlaywright extends BaseConverter {
 
     // Handle .should('be.checked')
     result = result.replace(
-      /cy\.get\(([^)]+)\)\.should\(['"]be\.checked['"]\)/g,
+      /cy\.get\(([^()\n]+)\)\.should\(['"]be\.checked['"]\)/g,
       'await expect(page.locator($1)).toBeChecked()'
     );
 
     // Handle .should('be.disabled')
     result = result.replace(
-      /cy\.get\(([^)]+)\)\.should\(['"]be\.disabled['"]\)/g,
+      /cy\.get\(([^()\n]+)\)\.should\(['"]be\.disabled['"]\)/g,
       'await expect(page.locator($1)).toBeDisabled()'
     );
 
     // Handle .should('be.enabled')
     result = result.replace(
-      /cy\.get\(([^)]+)\)\.should\(['"]be\.enabled['"]\)/g,
+      /cy\.get\(([^()\n]+)\)\.should\(['"]be\.enabled['"]\)/g,
       'await expect(page.locator($1)).toBeEnabled()'
     );
 
     // Handle .should('have.length', n)
     result = result.replace(
-      /cy\.get\(([^)]+)\)\.should\(['"]have\.length['"],\s*(\d+)\)/g,
+      /cy\.get\(([^()\n]+)\)\.should\(['"]have\.length['"],\s*(\d+)\)/g,
       'await expect(page.locator($1)).toHaveCount($2)'
     );
 
     // Handle .should('have.attr', name, value)
     result = result.replace(
-      /cy\.get\(([^)]+)\)\.should\(['"]have\.attr['"],\s*([^,\n]+),\s*([^)]+)\)/g,
+      /cy\.get\(([^()\n]+)\)\.should\(['"]have\.attr['"],\s*([^,\n]+),\s*([^()\n]+)\)/g,
       'await expect(page.locator($1)).toHaveAttribute($2, $3)'
     );
 
     // Convert cy.get().type() chains
     result = result.replace(
-      /cy\.get\(([^)]+)\)\.type\(([^)]+)\)/g,
+      /cy\.get\(([^()\n]+)\)\.type\(([^()\n]+)\)/g,
       'await page.locator($1).fill($2)'
     );
 
     // Convert cy.get().click() chains
     result = result.replace(
-      /cy\.get\(([^)]+)\)\.click\(\)/g,
+      /cy\.get\(([^()\n]+)\)\.click\(\)/g,
       'await page.locator($1).click()'
     );
 
     // Convert cy.get().dblclick() chains
     result = result.replace(
-      /cy\.get\(([^)]+)\)\.dblclick\(\)/g,
+      /cy\.get\(([^()\n]+)\)\.dblclick\(\)/g,
       'await page.locator($1).dblclick()'
     );
 
     // Convert cy.get().check() chains
     result = result.replace(
-      /cy\.get\(([^)]+)\)\.check\(\)/g,
+      /cy\.get\(([^()\n]+)\)\.check\(\)/g,
       'await page.locator($1).check()'
     );
 
     // Convert cy.get().uncheck() chains
     result = result.replace(
-      /cy\.get\(([^)]+)\)\.uncheck\(\)/g,
+      /cy\.get\(([^()\n]+)\)\.uncheck\(\)/g,
       'await page.locator($1).uncheck()'
     );
 
     // Convert cy.get().select() chains
     result = result.replace(
-      /cy\.get\(([^)]+)\)\.select\(([^)]+)\)/g,
+      /cy\.get\(([^()\n]+)\)\.select\(([^()\n]+)\)/g,
       'await page.locator($1).selectOption($2)'
     );
 
     // Convert cy.get().clear() chains
     result = result.replace(
-      /cy\.get\(([^)]+)\)\.clear\(\)/g,
+      /cy\.get\(([^()\n]+)\)\.clear\(\)/g,
       'await page.locator($1).clear()'
     );
 
     // Convert cy.get().focus() chains
     result = result.replace(
-      /cy\.get\(([^)]+)\)\.focus\(\)/g,
+      /cy\.get\(([^()\n]+)\)\.focus\(\)/g,
       'await page.locator($1).focus()'
     );
 
     // Convert cy.get().blur() chains
     result = result.replace(
-      /cy\.get\(([^)]+)\)\.blur\(\)/g,
+      /cy\.get\(([^()\n]+)\)\.blur\(\)/g,
       'await page.locator($1).blur()'
     );
 
     // Convert cy.contains()
     result = result.replace(
-      /cy\.contains\(([^)]+)\)\.click\(\)/g,
+      /cy\.contains\(([^()\n]+)\)\.click\(\)/g,
       'await page.getByText($1).click()'
     );
 
-    result = result.replace(/cy\.contains\(([^)]+)\)/g, 'page.getByText($1)');
+    result = result.replace(
+      /cy\.contains\(([^()\n]+)\)/g,
+      'page.getByText($1)'
+    );
 
     // Convert cy.visit()
-    result = result.replace(/cy\.visit\(([^)]+)\)/g, 'await page.goto($1)');
+    result = result.replace(/cy\.visit\(([^()\n]+)\)/g, 'await page.goto($1)');
 
     // Convert cy.url()
     result = result.replace(
-      /cy\.url\(\)\.should\(['"]include['"],\s*([^)]+)\)/g,
+      /cy\.url\(\)\.should\(['"]include['"],\s*([^()\n]+)\)/g,
       'await expect(page).toHaveURL(new RegExp($1))'
     );
 
     result = result.replace(
-      /cy\.url\(\)\.should\(['"]eq['"],\s*([^)]+)\)/g,
+      /cy\.url\(\)\.should\(['"]eq['"],\s*([^()\n]+)\)/g,
       'await expect(page).toHaveURL($1)'
     );
 
     // Convert cy.title()
     result = result.replace(
-      /cy\.title\(\)\.should\(['"]eq['"],\s*([^)]+)\)/g,
+      /cy\.title\(\)\.should\(['"]eq['"],\s*([^()\n]+)\)/g,
       'await expect(page).toHaveTitle($1)'
     );
 
     result = result.replace(
-      /cy\.title\(\)\.should\(['"]include['"],\s*([^)]+)\)/g,
+      /cy\.title\(\)\.should\(['"]include['"],\s*([^()\n]+)\)/g,
       'await expect(page).toHaveTitle(new RegExp($1))'
     );
 
@@ -412,22 +448,22 @@ export class CypressToPlaywright extends BaseConverter {
     );
 
     // Convert cy.log()
-    result = result.replace(/cy\.log\(([^)]+)\)/g, 'console.log($1)');
+    result = result.replace(/cy\.log\(([^()\n]+)\)/g, 'console.log($1)');
 
     // Convert cy.getCookie()
     result = result.replace(
-      /cy\.getCookie\(([^)]+)\)/g,
+      /cy\.getCookie\(([^()\n]+)\)/g,
       'await context.cookies().then(cookies => cookies.find(c => c.name === $1))'
     );
     result = result.replace(/cy\.getCookies\(\)/g, 'await context.cookies()');
     result = result.replace(
-      /cy\.setCookie\(([^,]+),\s*([^)]+)\)/g,
+      /cy\.setCookie\(([^,]+),\s*([^()\n]+)\)/g,
       'await context.addCookies([{ name: $1, value: $2, url: page.url() }])'
     );
 
     // Convert cy.location()
     result = result.replace(
-      /cy\.location\(['"]pathname['"]\)\.should\(['"]eq['"],\s*([^)]+)\)/g,
+      /cy\.location\(['"]pathname['"]\)\.should\(['"]eq['"],\s*([^()\n]+)\)/g,
       'await expect(page).toHaveURL(new RegExp($1))'
     );
     result = result.replace(
@@ -443,23 +479,26 @@ export class CypressToPlaywright extends BaseConverter {
     );
 
     // Convert cy.getBySel() — common custom command in Cypress RWA
-    result = result.replace(/cy\.getBySel\(([^)]+)\)/g, 'page.getByTestId($1)');
+    result = result.replace(
+      /cy\.getBySel\(([^()\n]+)\)/g,
+      'page.getByTestId($1)'
+    );
 
     // Convert cy.getBySelLike()
     result = result.replace(
-      /cy\.getBySelLike\(([^)]+)\)/g,
+      /cy\.getBySelLike\(([^()\n]+)\)/g,
       'page.locator(`[data-test*=${$1}]`)'
     );
 
     // Convert cy.intercept(method, url, response).as(alias)
     result = result.replace(
-      /cy\.intercept\(([^,\n]+),\s*([^,\n]+),\s*([^)]+)\)\.as\(['"]([^'"]+)['"]\)/g,
+      /cy\.intercept\(([^,\n]+),\s*([^,\n]+),\s*([^()\n]+)\)\.as\(['"]([^'"]+)['"]\)/g,
       'await page.route($2, route => route.fulfill($3))'
     );
 
     // Convert cy.intercept(method, url).as(alias)
     result = result.replace(
-      /cy\.intercept\(([^,\n]+),\s*([^)]+)\)\.as\(['"]([^'"]+)['"]\)/g,
+      /cy\.intercept\(([^,\n]+),\s*([^()\n]+)\)\.as\(['"]([^'"]+)['"]\)/g,
       'await page.route($2, route => route.continue())'
     );
 
@@ -471,13 +510,13 @@ export class CypressToPlaywright extends BaseConverter {
 
     // Convert cy.intercept(url).as(alias) — bare spy
     result = result.replace(
-      /cy\.intercept\(([^)]+)\)\.as\(['"]([^'"]+)['"]\)/g,
+      /cy\.intercept\(([^()\n]+)\)\.as\(['"]([^'"]+)['"]\)/g,
       'await page.route($1, route => route.continue())'
     );
 
     // Convert cy.get().check() with options (e.g., { force: true })
     result = result.replace(
-      /cy\.get\(([^)]+)\)\.check\(\{[^{}\n]*\}\)/g,
+      /cy\.get\(([^()\n]+)\)\.check\(\{[^{}\n]*\}\)/g,
       'await page.locator($1).check()'
     );
 
@@ -490,39 +529,94 @@ export class CypressToPlaywright extends BaseConverter {
     // Convert cy.reload() with arguments
     result = result.replace(/cy\.reload\([^)]+\)/g, 'await page.reload()');
 
+    // Detect custom Cypress commands (cy.xxx where xxx is not a known command)
+    // and add TODO markers
+    const knownCyCommands = new Set([
+      'get',
+      'find',
+      'contains',
+      'visit',
+      'url',
+      'title',
+      'wait',
+      'reload',
+      'go',
+      'viewport',
+      'screenshot',
+      'clearCookies',
+      'clearLocalStorage',
+      'log',
+      'pause',
+      'debug',
+      'getCookie',
+      'getCookies',
+      'setCookie',
+      'location',
+      'intercept',
+      'request',
+      'focused',
+      'root',
+      'document',
+      'window',
+      'wrap',
+      'mount',
+      'injectAxe',
+      'checkA11y',
+      'lighthouse',
+      'getBySel',
+      'getBySelLike',
+      'visualSnapshot',
+      'task',
+      'exec',
+      'readFile',
+      'writeFile',
+      'fixture',
+      'clock',
+      'tick',
+    ]);
+    result = result.replace(/\bcy\.(\w+)\s*\(/g, (match, cmd) => {
+      if (knownCyCommands.has(cmd)) return match;
+      return (
+        '// HAMLET-TODO [UNCONVERTIBLE-CUSTOM-COMMAND]: ' +
+        `Custom Cypress command cy.${cmd}() has no Playwright equivalent.\n` +
+        '// Manual action required: Implement as a Playwright helper function or page object method.\n' +
+        match
+      );
+    });
+
     // Convert cy.get().first().click() chains
     result = result.replace(
-      /cy\.get\(([^)]+)\)\.first\(\)\.click\(\)/g,
+      /cy\.get\(([^()\n]+)\)\.first\(\)\.click\(\)/g,
       'await page.locator($1).first().click()'
     );
 
     // Convert cy.get().last().click() chains
     result = result.replace(
-      /cy\.get\(([^)]+)\)\.last\(\)\.click\(\)/g,
+      /cy\.get\(([^()\n]+)\)\.last\(\)\.click\(\)/g,
       'await page.locator($1).last().click()'
     );
 
     // Convert cy.get().eq(n).click() chains
     result = result.replace(
-      /cy\.get\(([^)]+)\)\.eq\((\d+)\)\.click\(\)/g,
+      /cy\.get\(([^()\n]+)\)\.eq\((\d+)\)\.click\(\)/g,
       'await page.locator($1).nth($2).click()'
     );
 
     // Convert cy.get().first() (no click)
     result = result.replace(
-      /cy\.get\(([^)]+)\)\.first\(\)/g,
+      /cy\.get\(([^()\n]+)\)\.first\(\)/g,
       'page.locator($1).first()'
     );
 
     // Convert cy.get().last() (no click)
     result = result.replace(
-      /cy\.get\(([^)]+)\)\.last\(\)/g,
+      /cy\.get\(([^()\n]+)\)\.last\(\)/g,
       'page.locator($1).last()'
     );
 
     // Convert cy.get().eq(n) (no click)
     result = result.replace(
-      /cy\.get\(([^)]+)\)\.eq\((\d+)\)/g,
+      /cy\.get\(([^()\n]+)\)\.eq\((\d+)\)/g,
       'page.locator($1).nth($2)'
     );
 
