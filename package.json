@@ -81,7 +81,7 @@
   },
   "devDependencies": {
     "@commitlint/cli": "^19.6.1",
-    "@commitlint/config-conventional": "^19.6.0",
+    "@commitlint/config-conventional": "^20.4.2",
     "@playwright/test": "^1.40.0",
     "@types/jest": "^29.5.3",
     "eslint": "^8.57.1",
