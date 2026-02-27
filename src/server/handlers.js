@@ -165,25 +165,40 @@ export async function handleOpen(req, res) {
     return sendJson(res, 400, { error: 'Missing required field: path' });
   }
 
+  // Reject URL schemes — only allow filesystem paths
+  if (/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(filePath)) {
+    return sendJson(res, 400, {
+      error: 'URL schemes are not allowed, only filesystem paths',
+    });
+  }
+
+  // Restrict to project root
+  let resolved;
+  try {
+    resolved = safePath(filePath, req.serverRoot);
+  } catch (_e) {
+    return sendJson(res, 403, { error: 'Path outside project root' });
+  }
+
   const platform = process.platform;
   let cmd;
   let args;
   if (platform === 'darwin') {
     cmd = 'open';
-    args = [filePath];
+    args = [resolved];
   } else if (platform === 'win32') {
     cmd = 'cmd';
-    args = ['/c', 'start', '', filePath];
+    args = ['/c', 'start', '', resolved];
   } else {
     cmd = 'xdg-open';
-    args = [filePath];
+    args = [resolved];
   }
 
   execFile(cmd, args, (err) => {
     if (err) {
       return sendJson(res, 500, { error: `Failed to open: ${err.message}` });
     }
-    sendJson(res, 200, { opened: filePath });
+    sendJson(res, 200, { opened: resolved });
   });
 }
 
