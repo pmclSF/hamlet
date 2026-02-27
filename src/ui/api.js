@@ -46,6 +46,10 @@ export async function openPath(filePath) {
   return request('POST', '/api/open', { path: filePath });
 }
 
+export async function preview(sourcePath, from, to) {
+  return request('POST', '/api/preview', { sourcePath, from, to });
+}
+
 /**
  * Subscribe to SSE job events. Returns a close function.
  */

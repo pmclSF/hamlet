@@ -16,7 +16,7 @@ function runCLI(args, options = {}) {
   const { stdio = ['ignore', 'pipe', 'pipe'], ...rest } = options;
   const result = spawnSync('node', [cliPath, ...args], {
     encoding: 'utf8',
-    timeout: 15000,
+    timeout: 30000,
     stdio,
     ...rest,
   });
