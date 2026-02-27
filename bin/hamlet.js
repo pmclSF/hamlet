@@ -1073,7 +1073,9 @@ Examples:
   $ hamlet estimate tests/ --from mocha --to jest
   $ hamlet analyze src/ --json
   $ hamlet detect src/auth.test.js
-  $ hamlet doctor`
+  $ hamlet doctor
+  $ hamlet serve --port 3000
+  $ hamlet ui`
   )
   .option('--verbose', 'Show detailed output for all commands')
   .option('--debug', 'Show stack traces and internal debug info');
@@ -1873,6 +1875,81 @@ program
       }
 
       if (result.hasFail) process.exit(1);
+    } catch (error) {
+      console.error(chalk.red('Error:'), error.message);
+      if (shouldShowStack()) console.error(error.stack);
+      process.exit(1);
+    }
+  });
+
+// ── Serve command ───────────────────────────────────────────────────
+program
+  .command('serve')
+  .description('Start a local API server for the Hamlet browser UI')
+  .option('-p, --port <number>', 'Port to listen on (0 = random)', '0')
+  .option('--root <path>', 'Project root directory', '.')
+  .option('--no-open', "Don't open browser (placeholder for future UI)")
+  .action(async (options) => {
+    try {
+      const { HamletServer } = await import('../src/server/HamletServer.js');
+      const server = new HamletServer({
+        port: parseInt(options.port, 10),
+        root: options.root,
+      });
+      const url = await server.start();
+      console.log(chalk.green(`Hamlet server listening at ${url}`));
+      console.log(chalk.gray('Press Ctrl+C to stop.\n'));
+
+      const shutdown = async () => {
+        console.log(chalk.gray('\nShutting down…'));
+        await server.stop();
+        process.exit(0);
+      };
+      process.on('SIGINT', shutdown);
+      process.on('SIGTERM', shutdown);
+    } catch (error) {
+      console.error(chalk.red('Error:'), error.message);
+      if (shouldShowStack()) console.error(error.stack);
+      process.exit(1);
+    }
+  });
+
+// ── UI command ──────────────────────────────────────────────────────
+program
+  .command('ui')
+  .description('Open the Hamlet browser UI')
+  .option('-p, --port <number>', 'Port to listen on (0 = random)', '0')
+  .option('--root <path>', 'Project root directory', '.')
+  .option('--no-open', "Don't auto-open browser")
+  .action(async (options) => {
+    try {
+      const { HamletServer } = await import('../src/server/HamletServer.js');
+      const server = new HamletServer({
+        port: parseInt(options.port, 10),
+        root: options.root,
+        serveUI: true,
+      });
+      const url = await server.start();
+      console.log(chalk.green(`Hamlet UI: ${url}`));
+
+      if (options.open !== false) {
+        const { execFile: ef } = await import('node:child_process');
+        const plat = process.platform;
+        const cmd =
+          plat === 'darwin' ? 'open' : plat === 'win32' ? 'cmd' : 'xdg-open';
+        const args = plat === 'win32' ? ['/c', 'start', '', url] : [url];
+        ef(cmd, args, () => {});
+      }
+
+      console.log(chalk.gray('Press Ctrl+C to stop.\n'));
+
+      const shutdown = async () => {
+        console.log(chalk.gray('\nShutting down\u2026'));
+        await server.stop();
+        process.exit(0);
+      };
+      process.on('SIGINT', shutdown);
+      process.on('SIGTERM', shutdown);
     } catch (error) {
       console.error(chalk.red('Error:'), error.message);
       if (shouldShowStack()) console.error(error.stack);
