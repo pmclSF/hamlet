@@ -93,14 +93,21 @@ function shouldShowStack() {
   return program.opts().debug || !!process.env.DEBUG;
 }
 
+function countTodos(content) {
+  const matches = content.match(/HAMLET-TODO/g);
+  return matches ? matches.length : 0;
+}
+
 // ── Extracted convertAction ──────────────────────────────────────────
 async function convertAction(source, options) {
+  const startedAt = new Date().toISOString();
   const quiet = options.quiet || false;
   const verbose = options.verbose || program.opts().verbose || false;
   const jsonOutput = options.json || false;
   const plan = options.plan || false;
   const dryRun = options.dryRun || plan;
   const onError = options.onError || 'skip';
+  const reportJsonFiles = [];
 
   // Validate frameworks
   const validFrameworks = Object.values(FRAMEWORKS);
@@ -717,6 +724,19 @@ async function convertAction(source, options) {
           output: outputFilePath,
           confidence: report ? report.confidence : null,
         });
+        reportJsonFiles.push({
+          inputPath: file.path,
+          outputPath: outputFilePath,
+          status: 'converted',
+          confidence: report ? report.confidence : null,
+          todosAdded: countTodos(converted),
+          warnings:
+            report && report.details
+              ? report.details
+                  .filter((d) => d.type === 'warning')
+                  .map((d) => d.message)
+              : [],
+        });
 
         if (!quiet && !jsonOutput && !isTTY) {
           console.log(
@@ -738,6 +758,15 @@ async function convertAction(source, options) {
           }
           results.failed++;
           results.files.push({ source: file.path, error: error.message });
+          reportJsonFiles.push({
+            inputPath: file.path,
+            outputPath: null,
+            status: 'failed',
+            confidence: null,
+            todosAdded: 0,
+            warnings: [],
+            error: error.message,
+          });
           if (jsonOutput) {
             console.log(
               JSON.stringify({
@@ -763,6 +792,15 @@ async function convertAction(source, options) {
             error: error.message,
             partial: true,
           });
+          reportJsonFiles.push({
+            inputPath: file.path,
+            outputPath: null,
+            status: 'failed',
+            confidence: null,
+            todosAdded: 0,
+            warnings: [],
+            error: error.message,
+          });
           if (!quiet && !jsonOutput) {
             if (isTTY) clearProgress();
             console.log(
@@ -778,6 +816,15 @@ async function convertAction(source, options) {
             source: file.path,
             error: error.message,
             skipped: true,
+          });
+          reportJsonFiles.push({
+            inputPath: file.path,
+            outputPath: null,
+            status: 'skipped',
+            confidence: null,
+            todosAdded: 0,
+            warnings: [],
+            error: error.message,
           });
           if (!quiet && !jsonOutput) {
             if (isTTY) clearProgress();
@@ -889,6 +936,20 @@ async function convertAction(source, options) {
     await fs.mkdir(path.dirname(outputPath), { recursive: true });
     await fs.writeFile(outputPath, converted);
 
+    reportJsonFiles.push({
+      inputPath: filePath,
+      outputPath,
+      status: 'converted',
+      confidence: report ? report.confidence : null,
+      todosAdded: countTodos(converted),
+      warnings:
+        report && report.details
+          ? report.details
+              .filter((d) => d.type === 'warning')
+              .map((d) => d.message)
+          : [],
+    });
+
     if (jsonOutput) {
       const result = {
         success: true,
@@ -939,6 +1000,54 @@ async function convertAction(source, options) {
     await generateReport(options.output, options.report);
   }
 
+  // Write structured report JSON if requested (skip in dry-run)
+  if (options.reportJson && !dryRun) {
+    const finishedAt = new Date().toISOString();
+    const totalTodos = reportJsonFiles.reduce(
+      (sum, f) => sum + f.todosAdded,
+      0
+    );
+    const filesConverted = reportJsonFiles.filter(
+      (f) => f.status === 'converted'
+    ).length;
+    const filesFailed = reportJsonFiles.filter(
+      (f) => f.status === 'failed' || f.status === 'skipped'
+    ).length;
+    const conversionReport = {
+      schemaVersion: '1.0.0',
+      meta: {
+        hamletVersion: version,
+        nodeVersion: process.version,
+        startedAt,
+        finishedAt,
+      },
+      plan: {
+        root: path.resolve(source),
+        direction: {
+          from: fromFramework,
+          to: toFramework,
+          pipelineBacked: ConverterFactory.isPipelineBacked(
+            fromFramework,
+            toFramework
+          ),
+        },
+        outputDir: options.output ? path.resolve(options.output) : '',
+      },
+      results: {
+        filesConverted,
+        filesFailed,
+        todosAdded: totalTodos,
+      },
+      files: reportJsonFiles,
+    };
+    const reportPath = path.resolve(options.reportJson);
+    await fs.mkdir(path.dirname(reportPath), { recursive: true });
+    await fs.writeFile(reportPath, JSON.stringify(conversionReport, null, 2));
+    if (!quiet && !jsonOutput) {
+      console.log(chalk.green(`Conversion report written to ${reportPath}`));
+    }
+  }
+
   if (!isBatch && !jsonOutput && !quiet) {
     console.log(chalk.green('\nConversion completed successfully!'));
   }
@@ -962,6 +1071,7 @@ Examples:
   $ hamlet jest2vt auth.test.js -o converted/
   $ hamlet migrate tests/ --from jest --to vitest -o out/
   $ hamlet estimate tests/ --from mocha --to jest
+  $ hamlet analyze src/ --json
   $ hamlet detect src/auth.test.js
   $ hamlet doctor`
   )
@@ -993,6 +1103,10 @@ program
   .option('--json', 'JSON output')
   .option('--no-color', 'Disable color output')
   .option('--on-error <mode>', 'Error handling: skip|fail|best-effort', 'skip')
+  .option(
+    '--report-json <file>',
+    'Write a structured JSON conversion report to the given file'
+  )
   .action(async (source, opts) => {
     try {
       await convertAction(source, opts);
@@ -1500,6 +1614,75 @@ program
         console.log(
           `  Estimated manual time: ~${result.estimatedEffort.estimatedManualMinutes} minutes`
         );
+      }
+    } catch (error) {
+      console.error(chalk.red('Error:'), error.message);
+      if (shouldShowStack()) console.error(error.stack);
+      process.exit(1);
+    }
+  });
+
+// ── Analyze command ──────────────────────────────────────────────────
+program
+  .command('analyze')
+  .description(
+    'Scan a project and report detected frameworks without converting'
+  )
+  .argument('[path]', 'Directory to analyze', '.')
+  .option('--json', 'Output JSON to stdout')
+  .option('--out <file>', 'Write JSON report to file')
+  .option('--max-files <n>', 'Maximum files to scan', '5000')
+  .option('--include <globs>', 'Comma-separated include patterns')
+  .option('--exclude <globs>', 'Comma-separated exclude patterns')
+  .action(async (targetPath, options) => {
+    try {
+      const { ProjectAnalyzer } = await import(
+        '../src/core/ProjectAnalyzer.js'
+      );
+      const analyzer = new ProjectAnalyzer();
+
+      const include = options.include
+        ? options.include.split(',').map((s) => s.trim())
+        : [];
+      const exclude = options.exclude
+        ? options.exclude.split(',').map((s) => s.trim())
+        : [];
+
+      const report = await analyzer.analyze(targetPath, {
+        maxFiles: parseInt(options.maxFiles, 10),
+        include,
+        exclude,
+      });
+
+      if (options.json) {
+        console.log(JSON.stringify(report, null, 2));
+      } else if (options.out) {
+        const outPath = path.resolve(options.out);
+        await fs.mkdir(path.dirname(outPath), { recursive: true });
+        await fs.writeFile(outPath, JSON.stringify(report, null, 2));
+        console.log(chalk.green(`Analysis report written to ${outPath}`));
+      } else {
+        // Human-readable summary
+        const { summary } = report;
+        console.log(chalk.bold('\nAnalysis Summary'));
+        console.log(`  Files scanned: ${summary.fileCount}`);
+        console.log(`  Test files: ${summary.testFileCount}`);
+        console.log(
+          `  Frameworks detected: ${summary.frameworksDetected.length > 0 ? summary.frameworksDetected.join(', ') : chalk.gray('(none)')}`
+        );
+        console.log(
+          `  Avg confidence: ${summary.confidenceAvg > 0 ? summary.confidenceAvg + '%' : chalk.gray('n/a')}`
+        );
+
+        if (summary.directionsSupported.length > 0) {
+          console.log(chalk.bold('\n  Supported Directions:'));
+          for (const d of summary.directionsSupported) {
+            const tag = d.pipelineBacked
+              ? chalk.green('[pipeline]')
+              : chalk.gray('[legacy]');
+            console.log(`    ${d.from} -> ${d.to} ${tag}`);
+          }
+        }
       }
     } catch (error) {
       console.error(chalk.red('Error:'), error.message);
