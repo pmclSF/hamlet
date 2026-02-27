@@ -70,12 +70,12 @@ function emit(ir, source) {
     /^[ \t]*\/\/ HAMLET-TODO \[[^\]]+\]:.*\n(?:[ \t]*\n)*(?:[ \t]*\/\/ (?:Original|Manual action required):.*\n(?:[ \t]*\n)*)*/gm,
     ''
   );
+  result = result.replace(/^[ \t]*\/\*\s*HAMLET-TODO:.*?\*\/\s*\n?/gm, '');
+  // Strip Cypress reference type directive (from round-trip)
   result = result.replace(
-    /^[ \t]*\/\*\s*HAMLET-TODO:.*?\*\/\s*\n?/gm,
+    /^\/\/\/\s*<reference types="cypress"\s*\/>\s*\n?/gm,
     ''
   );
-  // Strip Cypress reference type directive (from round-trip)
-  result = result.replace(/^\/\/\/\s*<reference types="cypress"\s*\/>\s*\n?/gm, '');
 
   // Detect source framework
   const isCypressSource = /\bcy\./.test(source);

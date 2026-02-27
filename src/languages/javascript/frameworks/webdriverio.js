@@ -203,10 +203,7 @@ function emit(_ir, source) {
     /^[ \t]*\/\/ HAMLET-TODO \[[^\]]+\]:.*\n(?:[ \t]*\n)*(?:[ \t]*\/\/ (?:Original|Manual action required):.*\n(?:[ \t]*\n)*)*/gm,
     ''
   );
-  result = result.replace(
-    /^[ \t]*\/\*\s*HAMLET-TODO:.*?\*\/\s*\n?/gm,
-    ''
-  );
+  result = result.replace(/^[ \t]*\/\*\s*HAMLET-TODO:.*?\*\/\s*\n?/gm, '');
 
   const isPlaywrightSource =
     /from\s+['"]@playwright\/test['"]/.test(source) ||
@@ -601,10 +598,7 @@ function convertCypressToWdio(content) {
     /cy\.clearCookies\(\)/g,
     'await browser.deleteCookies()'
   );
-  result = result.replace(
-    /cy\.getCookies\(\)/g,
-    'await browser.getCookies()'
-  );
+  result = result.replace(/cy\.getCookies\(\)/g, 'await browser.getCookies()');
   result = result.replace(
     /cy\.clearLocalStorage\(\)/g,
     'await browser.execute(() => localStorage.clear())'

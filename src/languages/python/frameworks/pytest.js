@@ -911,7 +911,10 @@ function convertNoseAssertions(result) {
   );
 
   // assert_true(x) -> assert x
-  result = result.replace(/^(\s*)assert_true\((.+)\)[^\S\n]*$/gm, '$1assert $2');
+  result = result.replace(
+    /^(\s*)assert_true\((.+)\)[^\S\n]*$/gm,
+    '$1assert $2'
+  );
 
   // assert_false(x) -> assert not x
   result = result.replace(

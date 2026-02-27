@@ -175,10 +175,7 @@ function emit(_ir, source) {
     /^[ \t]*\/\/ HAMLET-TODO \[[^\]]+\]:.*\n(?:[ \t]*\n)*(?:[ \t]*\/\/ (?:Original|Manual action required):.*\n(?:[ \t]*\n)*)*/gm,
     ''
   );
-  result = result.replace(
-    /^[ \t]*\/\*\s*HAMLET-TODO:.*?\*\/\s*\n?/gm,
-    ''
-  );
+  result = result.replace(/^[ \t]*\/\*\s*HAMLET-TODO:.*?\*\/\s*\n?/gm, '');
 
   // Detect source framework
   const isPlaywrightSource =
@@ -748,10 +745,7 @@ function convertPlaywrightToCypress(content) {
     'cy.intercept($1, $2).as("$3")'
   );
   // Generic .as() annotation fallback
-  result = result.replace(
-    /\s*\/\* @hamlet:as\("([^"]+)"\) \*\//g,
-    '.as("$1")'
-  );
+  result = result.replace(/\s*\/\* @hamlet:as\("([^"]+)"\) \*\//g, '.as("$1")');
 
   // --- Assertions (most specific first) ---
 
@@ -839,14 +833,8 @@ function convertPlaywrightToCypress(content) {
   );
 
   // Chained assertions (from .and() conversion): .toContainText(x) → .and("contain", x)
-  result = result.replace(
-    /\.toContainText\(([^)]+)\)/g,
-    '.and("contain", $1)'
-  );
-  result = result.replace(
-    /\.toHaveText\(([^)]+)\)/g,
-    '.and("have.text", $1)'
-  );
+  result = result.replace(/\.toContainText\(([^)]+)\)/g, '.and("contain", $1)');
+  result = result.replace(/\.toHaveText\(([^)]+)\)/g, '.and("have.text", $1)');
   result = result.replace(
     /\.toHaveAttribute\(([^)]+)\)/g,
     '.and("have.attr", $1)'
