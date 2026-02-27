@@ -94,7 +94,9 @@ export class HamletServer {
             }
           }
         } catch (err) {
-          if (err instanceof SyntaxError) {
+          if (err.statusCode) {
+            sendJson(res, err.statusCode, { error: err.message });
+          } else if (err instanceof SyntaxError) {
             sendJson(res, 400, { error: err.message });
           } else {
             sendJson(res, 500, { error: err.message });
