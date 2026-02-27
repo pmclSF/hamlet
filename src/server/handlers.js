@@ -22,6 +22,9 @@ const serverStart = Date.now();
 /** Maximum combined size of source + converted in preview responses. */
 const MAX_PREVIEW_BYTES = 512 * 1024;
 
+/** Maximum concurrent file conversions in a server job. */
+const MAX_CONCURRENCY = 8;
+
 // ── Handlers ─────────────────────────────────────────────────────────
 
 export function handleHealth(req, res) {
@@ -315,9 +318,14 @@ async function _runConversionJob(jobId) {
 
     // Create converter
     const converter = await ConverterFactory.createConverter(from, to);
-    const resultFiles = [];
+    const resultFiles = new Array(testFiles.length);
 
-    for (const file of testFiles) {
+    // Process files with bounded concurrency
+    const pending = new Set();
+    let nextIndex = 0;
+
+    const processFile = async (index) => {
+      const file = testFiles[index];
       const relPath =
         file.relativePath || path.relative(resolvedRoot, file.path);
       try {
@@ -342,22 +350,33 @@ async function _runConversionJob(jobId) {
         await fs.mkdir(path.dirname(outputPath), { recursive: true });
         await fs.writeFile(outputPath, converted, 'utf8');
 
-        resultFiles.push({
+        resultFiles[index] = {
           source: relPath,
           outputPath,
           status: 'converted',
           todosAdded: todos,
-        });
+        };
         appendLog(jobId, `Converted: ${relPath}`);
       } catch (err) {
-        resultFiles.push({
+        resultFiles[index] = {
           source: relPath,
           outputPath: null,
           status: 'failed',
           error: err.message,
           todosAdded: 0,
-        });
+        };
         appendLog(jobId, `Failed: ${relPath} — ${err.message}`);
+      }
+    };
+
+    while (nextIndex < testFiles.length || pending.size > 0) {
+      while (nextIndex < testFiles.length && pending.size < MAX_CONCURRENCY) {
+        const idx = nextIndex++;
+        const p = processFile(idx).then(() => pending.delete(p));
+        pending.add(p);
+      }
+      if (pending.size > 0) {
+        await Promise.race(pending);
       }
     }
 
