@@ -108,6 +108,24 @@ const FACTORY_CONTENT_PATTERNS = [
   /class\s+\w+Factory\b/,
 ];
 
+const CODE_EXTENSIONS = new Set([
+  '.js',
+  '.jsx',
+  '.ts',
+  '.tsx',
+  '.mjs',
+  '.mts',
+  '.cjs',
+  '.cts',
+  '.py',
+  '.java',
+  '.kt',
+  '.kts',
+  '.groovy',
+  '.scala',
+  '.rb',
+]);
+
 export class FileClassifier {
   /**
    * Classify a file by its path and content.
@@ -144,14 +162,17 @@ export class FileClassifier {
       return { type: 'setup', framework: fw, confidence: 90 };
     }
 
+    // Only apply content-based detection to code files
+    const ext = filePath.match(/\.[^./\\]+$/)?.[0]?.toLowerCase() || '';
+    const isCode = CODE_EXTENSIONS.has(ext);
+
     // Content-based detection: does it have test patterns?
-    const hasTests = TEST_CONTENT_PATTERNS.some((p) => p.test(content));
-    const hasPageObjectContent = PAGE_OBJECT_CONTENT_PATTERNS.some((p) =>
-      p.test(content)
-    );
-    const hasFactoryContent = FACTORY_CONTENT_PATTERNS.some((p) =>
-      p.test(content)
-    );
+    const hasTests =
+      isCode && TEST_CONTENT_PATTERNS.some((p) => p.test(content));
+    const hasPageObjectContent =
+      isCode && PAGE_OBJECT_CONTENT_PATTERNS.some((p) => p.test(content));
+    const hasFactoryContent =
+      isCode && FACTORY_CONTENT_PATTERNS.some((p) => p.test(content));
 
     // Content wins: if file has test cases, it's a test regardless of path
     if (hasTests) {
@@ -198,9 +219,11 @@ export class FileClassifier {
     }
 
     // Framework API calls but no test patterns → likely a helper/utility
-    const fw = this._detectFramework(content, filePath);
-    if (fw) {
-      return { type: 'helper', framework: fw, confidence: 60 };
+    if (isCode) {
+      const fw = this._detectFramework(content, filePath);
+      if (fw) {
+        return { type: 'helper', framework: fw, confidence: 60 };
+      }
     }
 
     return { type: 'unknown', framework: null, confidence: 0 };

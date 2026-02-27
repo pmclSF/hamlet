@@ -200,6 +200,28 @@ export async function handleFile(req, res) {
   }
 }
 
+export async function handlePreview(req, res) {
+  const { sourcePath, from, to } = req.body;
+  if (!sourcePath || !from || !to) {
+    return sendJson(res, 400, {
+      error: 'Missing required fields: sourcePath, from, to',
+    });
+  }
+
+  try {
+    const resolved = path.resolve(sourcePath);
+    const source = await fs.readFile(resolved, 'utf8');
+
+    const { ConverterFactory } = await import('../core/ConverterFactory.js');
+    const converter = await ConverterFactory.createConverter(from, to);
+    const converted = await converter.convert(source);
+
+    sendJson(res, 200, { sourcePath, from, to, source, converted });
+  } catch (err) {
+    sendJson(res, 500, { error: err.message });
+  }
+}
+
 // ── Conversion job runner ────────────────────────────────────────────
 
 async function _runConversionJob(jobId) {
