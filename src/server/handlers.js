@@ -159,7 +159,7 @@ export async function handleOpen(req, res) {
   // Restrict to project root
   let resolved;
   try {
-    resolved = safePath(filePath, req.serverRoot);
+    resolved = await safePath(filePath, req.serverRoot);
   } catch (_e) {
     return sendJson(res, 403, { error: 'Path outside project root' });
   }
@@ -195,7 +195,7 @@ export async function handleFile(req, res) {
 
   let resolved;
   try {
-    resolved = safePath(filePath, req.serverRoot);
+    resolved = await safePath(filePath, req.serverRoot);
   } catch (_e) {
     return sendJson(res, 403, { error: 'Path outside project root' });
   }
@@ -218,7 +218,7 @@ export async function handlePreview(req, res) {
 
   let resolved;
   try {
-    resolved = safePath(sourcePath, req.serverRoot);
+    resolved = await safePath(sourcePath, req.serverRoot);
   } catch (_e) {
     return sendJson(res, 403, { error: 'Path outside project root' });
   }
