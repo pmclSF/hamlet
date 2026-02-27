@@ -78,10 +78,10 @@ describe('HamletServer UI mode', () => {
     expect(res.status).toBe(400);
   });
 
-  it('should return 404 for /api/file with nonexistent path', async () => {
+  it('should return 403 for /api/file with path outside project root', async () => {
     const res = await fetch(
       `${baseUrl}/api/file?path=${encodeURIComponent('/nonexistent/file.js')}`
     );
-    expect(res.status).toBe(404);
+    expect(res.status).toBe(403);
   });
 });
