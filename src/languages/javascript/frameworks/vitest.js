@@ -82,9 +82,10 @@ function parse(source) {
  *
  * @param {TestFile} ir - Parsed IR tree (for scoring metadata)
  * @param {string} source - Original source code (Jest)
+ * @param {Object} [transformContext] - Pre-scanned construct flags from pipeline
  * @returns {string} Converted Vitest source code
  */
-function emit(ir, source) {
+function emit(ir, source, transformContext) {
   let result = source;
   const warnings = [];
   const todos = [];

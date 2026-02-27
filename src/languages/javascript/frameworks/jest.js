@@ -148,6 +148,7 @@ function parse(source) {
         }
         i = j - 1;
       }
+      const hasRequireActual = /jest\.requireActual/.test(fullMock);
       const node = new MockCall({
         kind: hasVirtual
           ? 'mockModule'
@@ -159,6 +160,7 @@ function parse(source) {
         sourceLocation: loc,
         originalSource: fullMock,
         confidence: hasVirtual ? 'unconvertible' : 'converted',
+        requiresAsync: hasRequireActual,
       });
       allNodes.push(node);
       continue;
@@ -185,6 +187,7 @@ function parse(source) {
           sourceLocation: loc,
           originalSource: line,
           confidence: 'warning',
+          frameworkSpecific: true,
         })
       );
       continue;

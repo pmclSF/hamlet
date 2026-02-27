@@ -5,6 +5,7 @@ import {
   TestSuite,
   TestCase,
   Assertion,
+  MockCall,
   ImportStatement,
   RawCode,
 } from '../../src/core/ir.js';
@@ -269,6 +270,77 @@ describe('ConversionPipeline', () => {
 
       const result = pipeline.transform(ir, sourceFw, targetFw);
       expect(result).toBe(ir);
+    });
+  });
+
+  describe('transform context', () => {
+    it('should populate transformContext from IR construct flags', async () => {
+      let receivedContext = null;
+
+      const source = makeFramework({
+        name: 'source',
+        parse: () =>
+          new TestFile({
+            body: [
+              new MockCall({
+                kind: 'mockModule',
+                target: './utils',
+                confidence: 'converted',
+                requiresAsync: true,
+              }),
+              new MockCall({
+                kind: 'fakeTimers',
+                target: 'retryTimes',
+                confidence: 'warning',
+                frameworkSpecific: true,
+              }),
+            ],
+          }),
+      });
+      const target = makeFramework({
+        name: 'target',
+        emit: (_ir, _source, ctx) => {
+          receivedContext = ctx;
+          return 'output';
+        },
+      });
+
+      registry.register(source);
+      registry.register(target);
+
+      const result = await pipeline.convert('input', 'source', 'target');
+
+      expect(receivedContext).not.toBeNull();
+      expect(receivedContext.hasRequireActual).toBe(true);
+      expect(receivedContext.asyncNodes).toBe(1);
+      expect(receivedContext.hasFrameworkSpecific).toBe(true);
+      expect(receivedContext.frameworkSpecificNodes).toBe(1);
+      expect(result.report.transformContext).toBeDefined();
+    });
+
+    it('should have empty context when no construct flags are set', async () => {
+      const source = makeFramework({
+        name: 'source',
+        parse: () =>
+          new TestFile({
+            body: [
+              new TestCase({ name: 'test', confidence: 'converted' }),
+            ],
+          }),
+      });
+      const target = makeFramework({
+        name: 'target',
+        emit: () => 'output',
+      });
+
+      registry.register(source);
+      registry.register(target);
+
+      const result = await pipeline.convert('input', 'source', 'target');
+
+      expect(result.report.transformContext.hasRequireActual).toBe(false);
+      expect(result.report.transformContext.asyncNodes).toBe(0);
+      expect(result.report.transformContext.hasFrameworkSpecific).toBe(false);
     });
   });
 });
