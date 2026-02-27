@@ -19,6 +19,9 @@ const version = __require('../../package.json').version;
 
 const serverStart = Date.now();
 
+/** Maximum combined size of source + converted in preview responses. */
+const MAX_PREVIEW_BYTES = 512 * 1024;
+
 // ── Handlers ─────────────────────────────────────────────────────────
 
 export function handleHealth(req, res) {
@@ -234,7 +237,16 @@ export async function handlePreview(req, res) {
     const converter = await ConverterFactory.createConverter(from, to);
     const converted = await converter.convert(source);
 
-    sendJson(res, 200, { sourcePath, from, to, source, converted });
+    const response = { sourcePath, from, to, source, converted };
+
+    if (source.length + converted.length > MAX_PREVIEW_BYTES) {
+      const half = Math.floor(MAX_PREVIEW_BYTES / 2);
+      response.source = source.slice(0, half);
+      response.converted = converted.slice(0, half);
+      response.truncated = true;
+    }
+
+    sendJson(res, 200, response);
   } catch (err) {
     sendJson(res, 500, { error: err.message });
   }
