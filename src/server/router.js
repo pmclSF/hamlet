@@ -99,6 +99,10 @@ class PayloadTooLargeError extends Error {
 
 /**
  * Read and parse JSON from request body, enforcing a size limit.
+ *
+ * On overflow, listeners are removed deterministically and the request stream
+ * is destroyed so that abusive senders cannot keep writing data.
+ *
  * @param {import('http').IncomingMessage} req
  * @returns {Promise<Object>}
  */
@@ -107,39 +111,56 @@ function readJsonBody(req) {
     // Reject early if Content-Length header already exceeds the limit
     const contentLength = parseInt(req.headers['content-length'], 10);
     if (contentLength > MAX_BODY_SIZE) {
-      // Drain the stream so the connection can be reused, then reject
       req.resume();
       return reject(new PayloadTooLargeError());
     }
 
     const chunks = [];
     let received = 0;
-    let rejected = false;
+    let settled = false;
 
-    req.on('data', (chunk) => {
-      if (rejected) return;
+    function cleanup() {
+      req.removeListener('data', onData);
+      req.removeListener('end', onEnd);
+      req.removeListener('error', onError);
+    }
+
+    function onData(chunk) {
       received += chunk.length;
       if (received > MAX_BODY_SIZE) {
-        rejected = true;
-        // Stop collecting but drain remaining data so the response can be sent
+        settled = true;
+        cleanup();
         chunks.length = 0;
-        req.resume();
+        // Destroy the stream to stop receiving data from abusive senders.
+        // The 413 response is written by the error handler in HamletServer
+        // before the socket is torn down because node:http flushes the
+        // response before closing.
+        req.destroy();
         return reject(new PayloadTooLargeError());
       }
       chunks.push(chunk);
-    });
-    req.on('end', () => {
-      if (rejected) return;
+    }
+
+    function onEnd() {
+      cleanup();
       const raw = Buffer.concat(chunks).toString();
       if (!raw) return resolve({});
       try {
         resolve(JSON.parse(raw));
-      } catch (err) {
+      } catch (_err) {
         reject(new SyntaxError('Invalid JSON body'));
       }
-    });
-    req.on('error', (err) => {
-      if (!rejected) reject(err);
-    });
+    }
+
+    function onError(err) {
+      if (!settled) {
+        cleanup();
+        reject(err);
+      }
+    }
+
+    req.on('data', onData);
+    req.on('end', onEnd);
+    req.on('error', onError);
   });
 }
