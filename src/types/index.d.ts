@@ -246,7 +246,7 @@ export class PatternEngine implements IPatternEngine {
   clear(): void;
 }
 
-// ── Classes and functions exported from main entry (hamlet-converter) ──
+// ── Classes exported from main entry (hamlet-converter) ──
 
 export class RepositoryConverter {
   constructor();
@@ -259,34 +259,6 @@ export class BatchProcessor {
 export class ConversionReporter {
   constructor(options?: { format?: string });
   generateReport(data: object, outputPath: string): Promise<void>;
-}
-
-export class TestValidator {
-  validateConvertedTests(testDir: string): Promise<object>;
-}
-
-export class TypeScriptConverter {
-  constructor();
-}
-
-export class TestMapper {
-  constructor();
-}
-
-export class DependencyAnalyzer {
-  constructor();
-}
-
-export class TestMetadataCollector {
-  constructor();
-}
-
-export class PluginConverter {
-  constructor();
-}
-
-export class VisualComparison {
-  constructor();
 }
 
 /** Convert a single file */
@@ -370,31 +342,3 @@ export const DEFAULT_OPTIONS: {
   timeout: number;
 };
 
-// ── Utility namespaces ──
-
-export const fileUtils: {
-  readFile(filePath: string): Promise<string>;
-  writeFile(filePath: string, content: string): Promise<void>;
-  ensureDir(dirPath: string): Promise<void>;
-  [key: string]: unknown;
-};
-
-export const stringUtils: {
-  [key: string]: unknown;
-};
-
-export const codeUtils: {
-  [key: string]: unknown;
-};
-
-export const testUtils: {
-  [key: string]: unknown;
-};
-
-export const reportUtils: {
-  [key: string]: unknown;
-};
-
-export const logUtils: {
-  [key: string]: unknown;
-};

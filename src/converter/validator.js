@@ -1,7 +1,27 @@
 import fs from 'fs/promises';
 import path from 'path';
 import chalk from 'chalk';
-import { chromium } from '@playwright/test';
+
+let _chromium = null;
+
+/**
+ * Lazily load Playwright's chromium launcher. Only needed for runtime
+ * validation of converted tests — not required for core conversion.
+ * @returns {Promise<import('@playwright/test').ChromiumBrowserType>}
+ */
+async function loadChromium() {
+  if (_chromium) return _chromium;
+  try {
+    const pw = await import('@playwright/test');
+    _chromium = pw.chromium;
+  } catch (_e) {
+    throw new Error(
+      'Optional dependency "@playwright/test" is required for test validation. ' +
+        'Install it with: npm install @playwright/test'
+    );
+  }
+  return _chromium;
+}
 
 /**
  * Validates converted Playwright tests for correctness and functionality
@@ -324,6 +344,7 @@ export class TestValidator {
    */
   async executeTest(testFile) {
     try {
+      const chromium = await loadChromium();
       const browser = await chromium.launch();
       const context = await browser.newContext();
       const page = await context.newPage();

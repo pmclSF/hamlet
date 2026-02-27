@@ -1,37 +1,39 @@
-// Import core converters and processors
-import { RepositoryConverter } from './converter/repoConverter.js';
-import { BatchProcessor } from './converter/batchProcessor.js';
-import { DependencyAnalyzer } from './converter/dependencyAnalyzer.js';
-import { TestMetadataCollector } from './converter/metadataCollector.js';
+/**
+ * Hamlet — Multi-framework test converter.
+ *
+ * Public API surface:
+ *   Functions: convertFile, convertRepository, convertConfig,
+ *              convertCypressToPlaywright, processTestFiles,
+ *              validateTests, generateReport
+ *   Classes:   RepositoryConverter, BatchProcessor, ConversionReporter
+ *   Constants: VERSION, SUPPORTED_TEST_TYPES, DEFAULT_OPTIONS
+ *
+ * Internal/advanced classes and utilities are available via the
+ * "hamlet-converter/internals" subpath export.
+ */
 
-// Import validators and specialized converters
-import { TestValidator } from './converter/validator.js';
-import { TypeScriptConverter } from './converter/typescript.js';
-import { PluginConverter } from './converter/plugins.js';
-import { VisualComparison } from './converter/visual.js';
-import { TestMapper } from './converter/mapper.js';
+// Core orchestration
+import {
+  RepositoryConverter,
+  convertRepository,
+} from './converter/repoConverter.js';
+import {
+  BatchProcessor,
+  processTestFiles,
+} from './converter/batchProcessor.js';
 
-// Import file conversion functions (extracted to break circular dependency)
+// File conversion
 import {
   convertCypressToPlaywright,
   convertConfig,
   convertFile,
 } from './converter/fileConverter.js';
 
-// Import orchestration functions
-import { convertRepository } from './converter/repoConverter.js';
-import { processTestFiles } from './converter/batchProcessor.js';
+// Validation
+import { TestValidator } from './converter/validator.js';
 
-// Import reporters and utilities
+// Reporting
 import { ConversionReporter } from './utils/reporter.js';
-import {
-  fileUtils,
-  stringUtils,
-  codeUtils,
-  testUtils,
-  reportUtils,
-  logUtils,
-} from './utils/helpers.js';
 
 /**
  * Validate converted tests
@@ -56,30 +58,12 @@ export async function generateReport(outputPath, format = 'json', data = {}) {
   return reporter.generateReport(data, outputPath);
 }
 
-// Re-export orchestration functions
+// Re-export public functions
 export { convertRepository, processTestFiles };
-
-// Re-export file conversion functions
 export { convertCypressToPlaywright, convertConfig, convertFile };
 
-// Re-export imported classes
-export {
-  RepositoryConverter,
-  BatchProcessor,
-  DependencyAnalyzer,
-  TestMetadataCollector,
-  TestValidator,
-  TypeScriptConverter,
-  PluginConverter,
-  VisualComparison,
-  TestMapper,
-};
-
-// Re-export utilities
-export { fileUtils, stringUtils, codeUtils, testUtils, reportUtils, logUtils };
-
-// Re-export reporter
-export { ConversionReporter };
+// Re-export public classes
+export { RepositoryConverter, BatchProcessor, ConversionReporter };
 
 // Constants — derive version from package.json (single source of truth)
 import { createRequire } from 'module';

@@ -13,9 +13,9 @@ import {
   convertRepository,
   validateTests,
   generateReport,
-  TestValidator,
   ConversionReporter,
 } from '../src/index.js';
+import { TestValidator } from '../src/converter/validator.js';
 import { ConverterFactory, FRAMEWORKS } from '../src/core/ConverterFactory.js';
 import { FrameworkDetector } from '../src/core/FrameworkDetector.js';
 import {

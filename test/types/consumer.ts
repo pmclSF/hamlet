@@ -36,7 +36,6 @@ import {
   BatchProcessor,
   ConversionReporter,
   RepositoryConverter,
-  TestValidator,
   FRAMEWORKS,
 } from 'hamlet-converter';
 
@@ -142,13 +141,12 @@ function testPatternEngine() {
   engine.clear();
 }
 
-// ── BaseConverter / PipelineConverter ──
+// ── Public classes ──
 function testClasses() {
   const _base = new BaseConverter();
   const _batch = new BatchProcessor();
   const _reporter = new ConversionReporter({ format: 'json' });
   const _repo = new RepositoryConverter();
-  const _validator = new TestValidator();
 }
 
 // ── Interface conformance checks ──
