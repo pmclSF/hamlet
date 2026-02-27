@@ -118,11 +118,40 @@ export class VisualComparison {
    */
   findMatchingScreenshot(cypressShot, playwrightShots) {
     const cypressName = path.basename(cypressShot, path.extname(cypressShot));
+    const normalizedCypress = this._normalizeName(cypressName);
 
+    // Build index on first call for O(1) exact-match lookup
+    const index = new Map();
+    for (const shot of playwrightShots) {
+      const name = path.basename(shot, path.extname(shot));
+      index.set(this._normalizeName(name), shot);
+    }
+
+    // Try exact match first
+    if (index.has(normalizedCypress)) {
+      return index.get(normalizedCypress);
+    }
+
+    // Fall back to fuzzy matching with early-exit Levenshtein
     return playwrightShots.find((shot) => {
       const shotName = path.basename(shot, path.extname(shot));
-      return this.calculateNameSimilarity(cypressName, shotName) > 0.8;
+      const norm = this._normalizeName(shotName);
+      const maxLen = Math.max(normalizedCypress.length, norm.length);
+      if (maxLen === 0) return true;
+      const maxDist = Math.floor(maxLen * 0.2); // similarity > 0.8
+      return (
+        this.levenshteinDistance(normalizedCypress, norm, maxDist) <= maxDist
+      );
     });
+  }
+
+  /**
+   * Normalize a screenshot name by stripping framework prefixes/suffixes.
+   */
+  _normalizeName(name) {
+    return name
+      .replace(/(cypress|playwright)-?/, '')
+      .replace(/-?screenshot/, '');
   }
 
   /**
@@ -133,49 +162,61 @@ export class VisualComparison {
    */
   calculateNameSimilarity(name1, name2) {
     // Remove common prefixes/suffixes
-    name1 = name1
-      .replace(/(cypress|playwright)-?/, '')
-      .replace(/-?screenshot/, '');
-    name2 = name2
-      .replace(/(cypress|playwright)-?/, '')
-      .replace(/-?screenshot/, '');
+    name1 = this._normalizeName(name1);
+    name2 = this._normalizeName(name2);
+
+    const maxLength = Math.max(name1.length, name2.length);
+    if (maxLength === 0) return 1;
 
     const distance = this.levenshteinDistance(name1, name2);
-    const maxLength = Math.max(name1.length, name2.length);
     return 1 - distance / maxLength;
   }
 
   /**
-   * Calculate Levenshtein distance between strings
+   * Calculate Levenshtein distance between strings.
+   * Uses single-row DP (O(min(m,n)) space) with optional early exit.
    * @param {string} str1 - First string
    * @param {string} str2 - Second string
-   * @returns {number} - Distance
+   * @param {number} [maxDistance=Infinity] - Bail out early if exceeded
+   * @returns {number} - Distance (or maxDistance+1 if exceeded)
    */
-  levenshteinDistance(str1, str2) {
-    const matrix = Array(str2.length + 1)
-      .fill(null)
-      .map(() => Array(str1.length + 1).fill(null));
-
-    for (let i = 0; i <= str1.length; i++) {
-      matrix[0][i] = i;
-    }
-    for (let j = 0; j <= str2.length; j++) {
-      matrix[j][0] = j;
+  levenshteinDistance(str1, str2, maxDistance = Infinity) {
+    // Ensure str1 is the shorter string for O(min) space
+    if (str1.length > str2.length) {
+      [str1, str2] = [str2, str1];
     }
 
-    for (let j = 1; j <= str2.length; j++) {
-      for (let i = 1; i <= str1.length; i++) {
-        const substitute =
-          matrix[j - 1][i - 1] + (str1[i - 1] !== str2[j - 1] ? 1 : 0);
-        matrix[j][i] = Math.min(
-          matrix[j - 1][i] + 1,
-          matrix[j][i - 1] + 1,
-          substitute
-        );
+    const m = str1.length;
+    const n = str2.length;
+
+    // Quick exits
+    if (m === 0) return n;
+    if (n - m > maxDistance) return maxDistance + 1;
+
+    const prev = new Array(m + 1);
+    const curr = new Array(m + 1);
+
+    for (let i = 0; i <= m; i++) prev[i] = i;
+
+    for (let j = 1; j <= n; j++) {
+      curr[0] = j;
+      let rowMin = j;
+
+      for (let i = 1; i <= m; i++) {
+        const cost = str1[i - 1] !== str2[j - 1] ? 1 : 0;
+        curr[i] = Math.min(prev[i] + 1, curr[i - 1] + 1, prev[i - 1] + cost);
+        if (curr[i] < rowMin) rowMin = curr[i];
       }
+
+      // Early exit: if every value in this row exceeds the threshold,
+      // the final distance will too
+      if (rowMin > maxDistance) return maxDistance + 1;
+
+      // Swap rows
+      for (let i = 0; i <= m; i++) prev[i] = curr[i];
     }
 
-    return matrix[str2.length][str1.length];
+    return prev[m];
   }
 
   /**

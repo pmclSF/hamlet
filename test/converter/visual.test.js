@@ -110,6 +110,20 @@ describe('VisualComparison', () => {
       expect(comparison.levenshteinDistance('abc', 'abcd')).toBe(1);
       expect(comparison.levenshteinDistance('abcd', 'abc')).toBe(1);
     });
+
+    it('should bail out early when maxDistance is exceeded', () => {
+      // "abc" vs "xyz" has distance 3, maxDistance 1 should bail
+      const result = comparison.levenshteinDistance('abc', 'xyz', 1);
+      expect(result).toBeGreaterThan(1);
+    });
+
+    it('should return exact distance when within maxDistance', () => {
+      expect(comparison.levenshteinDistance('hello', 'hallo', 5)).toBe(1);
+    });
+
+    it('should handle str2 shorter than str1 (swap)', () => {
+      expect(comparison.levenshteinDistance('abcdef', 'abc')).toBe(3);
+    });
   });
 
   describe('findMatchingScreenshot', () => {
