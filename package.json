@@ -80,7 +80,7 @@
     "pngjs": "^7.0.0"
   },
   "devDependencies": {
-    "@commitlint/cli": "^19.6.1",
+    "@commitlint/cli": "^20.4.2",
     "@commitlint/config-conventional": "^19.6.0",
     "@playwright/test": "^1.40.0",
     "@types/jest": "^29.5.3",
