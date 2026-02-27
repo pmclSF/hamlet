@@ -12,6 +12,7 @@ import {
   handleArtifacts,
   handleOpen,
   handleFile,
+  handlePreview,
 } from './handlers.js';
 
 const __dirname = nodePath.dirname(fileURLToPath(import.meta.url));
@@ -68,6 +69,7 @@ export class HamletServer {
       router.get('/api/jobs/:id/stream', handleJobStream);
       router.get('/api/artifacts/:jobId', handleArtifacts);
       router.post('/api/open', handleOpen);
+      router.post('/api/preview', handlePreview);
       router.get('/api/file', handleFile);
 
       this._server = http.createServer(async (req, res) => {

@@ -1633,6 +1633,7 @@ program
   .argument('[path]', 'Directory to analyze', '.')
   .option('--json', 'Output JSON to stdout')
   .option('--out <file>', 'Write JSON report to file')
+  .option('--html <dir>', 'Generate static HTML report in directory')
   .option('--max-files <n>', 'Maximum files to scan', '5000')
   .option('--include <globs>', 'Comma-separated include patterns')
   .option('--exclude <globs>', 'Comma-separated exclude patterns')
@@ -1656,7 +1657,19 @@ program
         exclude,
       });
 
-      if (options.json) {
+      if (options.html) {
+        const { generateHtmlReport } = await import(
+          '../src/core/HtmlReportGenerator.js'
+        );
+        await generateHtmlReport(report, options.html);
+        const resolved = path.resolve(options.html);
+        console.log(
+          chalk.green(`HTML report written to ${resolved}/index.html`)
+        );
+        console.log(
+          chalk.green(`JSON sidecar written to ${resolved}/report.json`)
+        );
+      } else if (options.json) {
         console.log(JSON.stringify(report, null, 2));
       } else if (options.out) {
         const outPath = path.resolve(options.out);
