@@ -1,4 +1,7 @@
-import { RepositoryConverter } from '../../src/converter/repoConverter.js';
+import {
+  RepositoryConverter,
+  validateRepoUrl,
+} from '../../src/converter/repoConverter.js';
 
 describe('RepositoryConverter', () => {
   let converter;
@@ -64,6 +67,92 @@ describe('RepositoryConverter', () => {
       const batches = converter.createBatches(files);
       expect(batches).toHaveLength(1);
       expect(batches[0]).toHaveLength(5);
+    });
+  });
+
+  describe('validateRepoUrl', () => {
+    it('should accept valid HTTPS URLs', () => {
+      expect(() =>
+        validateRepoUrl('https://github.com/user/repo.git')
+      ).not.toThrow();
+      expect(() =>
+        validateRepoUrl('https://github.com/user/repo')
+      ).not.toThrow();
+      expect(() =>
+        validateRepoUrl('https://gitlab.com/org/sub/repo.git')
+      ).not.toThrow();
+    });
+
+    it('should accept valid HTTP URLs', () => {
+      expect(() =>
+        validateRepoUrl('http://github.com/user/repo.git')
+      ).not.toThrow();
+    });
+
+    it('should accept valid SSH URLs', () => {
+      expect(() =>
+        validateRepoUrl('git@github.com:user/repo.git')
+      ).not.toThrow();
+      expect(() =>
+        validateRepoUrl('git@github.com:user/repo')
+      ).not.toThrow();
+    });
+
+    it('should reject URLs with semicolons (command chaining)', () => {
+      expect(() =>
+        validateRepoUrl('https://github.com/user/repo; touch /tmp/pwned')
+      ).toThrow('Invalid repository URL');
+    });
+
+    it('should reject URLs with backticks (command substitution)', () => {
+      expect(() =>
+        validateRepoUrl('https://github.com/user/`whoami`.git')
+      ).toThrow('Invalid repository URL');
+    });
+
+    it('should reject URLs with pipe characters', () => {
+      expect(() =>
+        validateRepoUrl('https://github.com/user/repo|cat /etc/passwd')
+      ).toThrow('Invalid repository URL');
+    });
+
+    it('should reject URLs with $() command substitution', () => {
+      expect(() =>
+        validateRepoUrl('https://github.com/user/$(whoami).git')
+      ).toThrow('Invalid repository URL');
+    });
+
+    it('should reject URLs with null bytes', () => {
+      expect(() =>
+        validateRepoUrl('https://github.com/user/repo\0.git')
+      ).toThrow('Invalid repository URL');
+    });
+
+    it('should reject non-string input', () => {
+      expect(() => validateRepoUrl(null)).toThrow('Invalid repository URL');
+      expect(() => validateRepoUrl(undefined)).toThrow(
+        'Invalid repository URL'
+      );
+      expect(() => validateRepoUrl(42)).toThrow('Invalid repository URL');
+      expect(() => validateRepoUrl('')).toThrow('Invalid repository URL');
+    });
+
+    it('should reject URLs with unrecognized protocols', () => {
+      expect(() => validateRepoUrl('ftp://github.com/user/repo')).toThrow(
+        'Invalid repository URL'
+      );
+      expect(() =>
+        validateRepoUrl('file:///etc/passwd')
+      ).toThrow('Invalid repository URL');
+    });
+
+    it('should reject malformed URLs that pass protocol check', () => {
+      expect(() => validateRepoUrl('https://')).toThrow(
+        'Invalid repository URL'
+      );
+      expect(() => validateRepoUrl('git@')).toThrow(
+        'Invalid repository URL'
+      );
     });
   });
 
