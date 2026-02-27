@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 
-vi.mock('./utils', () => ({
+vi.mock('./utils', async () => ({
   ...await vi.importActual('./utils'),
   formatDate: vi.fn(() => '2024-01-01'),
   generateId: vi.fn(() => 'mock-id-123'),

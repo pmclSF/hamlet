@@ -199,17 +199,19 @@ function convertRequireActual(source) {
   // First, handle standalone jest.requireActual references
   result = result.replace(/\bjest\.requireActual\b/g, 'await vi.importActual');
 
-  // If we converted any requireActual, the containing jest.mock factory
-  // must become async. Look for vi.mock (already converted) with non-async factory.
+  // If we converted any requireActual, the containing mock factory
+  // must become async. At this point jest.mock has NOT yet been renamed
+  // to vi.mock (that happens in Phase 2), so match both prefixes.
   if (/await vi\.importActual/.test(result)) {
-    // Convert: vi.mock('path', () => { → vi.mock('path', async () => {
+    // Convert: jest.mock('path', () => { → jest.mock('path', async () => {
+    // Also:   vi.mock('path', () => { → vi.mock('path', async () => {
     result = result.replace(
-      /(vi\.mock\s*\([^,]+,\s*)(\(\)\s*=>)/g,
+      /((?:jest|vi)\.mock\s*\([^,]+,\s*)(\(\)\s*=>)/g,
       '$1async $2'
     );
-    // Also handle: vi.mock('path', function() → vi.mock('path', async function()
+    // Also handle: jest.mock('path', function() → jest.mock('path', async function()
     result = result.replace(
-      /(vi\.mock\s*\([^,]+,\s*)(function\s*\()/g,
+      /((?:jest|vi)\.mock\s*\([^,]+,\s*)(function\s*\()/g,
       '$1async $2'
     );
   }

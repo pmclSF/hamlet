@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 
-vi.mock('./utils', () => {
+vi.mock('./utils', async () => {
   const actual = await vi.importActual('./utils');
   return {
     ...actual,
