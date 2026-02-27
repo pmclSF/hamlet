@@ -83,16 +83,53 @@ export class Router {
   }
 }
 
+/** Maximum request body size in bytes (1 MB). */
+const MAX_BODY_SIZE = 1 * 1024 * 1024;
+
 /**
- * Read and parse JSON from request body.
+ * Custom error for payloads that exceed the size limit.
+ * Handlers can check `err.statusCode` to return the correct HTTP status.
+ */
+class PayloadTooLargeError extends Error {
+  constructor() {
+    super('Request body exceeds maximum allowed size');
+    this.statusCode = 413;
+  }
+}
+
+/**
+ * Read and parse JSON from request body, enforcing a size limit.
  * @param {import('http').IncomingMessage} req
  * @returns {Promise<Object>}
  */
 function readJsonBody(req) {
   return new Promise((resolve, reject) => {
+    // Reject early if Content-Length header already exceeds the limit
+    const contentLength = parseInt(req.headers['content-length'], 10);
+    if (contentLength > MAX_BODY_SIZE) {
+      // Drain the stream so the connection can be reused, then reject
+      req.resume();
+      return reject(new PayloadTooLargeError());
+    }
+
     const chunks = [];
-    req.on('data', (chunk) => chunks.push(chunk));
+    let received = 0;
+    let rejected = false;
+
+    req.on('data', (chunk) => {
+      if (rejected) return;
+      received += chunk.length;
+      if (received > MAX_BODY_SIZE) {
+        rejected = true;
+        // Stop collecting but drain remaining data so the response can be sent
+        chunks.length = 0;
+        req.resume();
+        return reject(new PayloadTooLargeError());
+      }
+      chunks.push(chunk);
+    });
     req.on('end', () => {
+      if (rejected) return;
       const raw = Buffer.concat(chunks).toString();
       if (!raw) return resolve({});
       try {
@@ -101,6 +138,8 @@ function readJsonBody(req) {
         reject(new SyntaxError('Invalid JSON body'));
       }
     });
-    req.on('error', reject);
+    req.on('error', (err) => {
+      if (!rejected) reject(err);
+    });
   });
 }

@@ -236,5 +236,31 @@ describe('HamletServer API', () => {
       });
       expect(status).toBe(403);
     });
+
+    it('should return 413 for oversized request body', async () => {
+      // 2 MB payload exceeds the 1 MB limit
+      const largeBody = JSON.stringify({ root: 'x'.repeat(2 * 1024 * 1024) });
+      const res = await fetch(`${baseUrl}/api/analyze`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: largeBody,
+      });
+      expect(res.status).toBe(413);
+
+      const body = await res.json();
+      expect(body.error).toContain('maximum allowed size');
+    });
+  });
+
+  describe('POST /api/open', () => {
+    it('should return 404 when enableOpen is not set (default)', async () => {
+      const res = await fetch(`${baseUrl}/api/open`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: '/some/file' }),
+      });
+      // Route is not registered, so it falls through to 404
+      expect(res.status).toBe(404);
+    });
   });
 });
