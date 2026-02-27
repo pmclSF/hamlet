@@ -1,4 +1,7 @@
 import http from 'node:http';
+import fsSync from 'node:fs';
+import nodePath from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { Router, sendJson } from './router.js';
 import {
   handleHealth,
@@ -8,9 +11,23 @@ import {
   handleJobStream,
   handleArtifacts,
   handleOpen,
+  handleFile,
 } from './handlers.js';
 
+const __dirname = nodePath.dirname(fileURLToPath(import.meta.url));
+const UI_DIR = nodePath.join(__dirname, '..', 'ui');
+
 const ALLOWED_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]']);
+
+const MIME_TYPES = {
+  '.html': 'text/html; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.js': 'application/javascript; charset=utf-8',
+  '.json': 'application/json',
+  '.svg': 'image/svg+xml',
+  '.png': 'image/png',
+  '.ico': 'image/x-icon',
+};
 
 function isLocalhostHost(header) {
   if (!header) return false;
@@ -24,10 +41,12 @@ export class HamletServer {
    * @param {Object} [options]
    * @param {number} [options.port=0] - Port to bind (0 = random)
    * @param {string} [options.root='.'] - Project root directory
+   * @param {boolean} [options.serveUI=false] - Serve browser UI static files
    */
-  constructor({ port = 0, root = '.' } = {}) {
+  constructor({ port = 0, root = '.', serveUI = false } = {}) {
     this._port = port;
     this._root = root;
+    this._serveUI = serveUI;
     this._server = null;
   }
 
@@ -36,6 +55,8 @@ export class HamletServer {
    * @returns {Promise<string>} URL the server is listening on
    */
   start() {
+    const resolvedRoot = nodePath.resolve(this._root);
+
     return new Promise((resolve, reject) => {
       const router = new Router();
 
@@ -47,6 +68,7 @@ export class HamletServer {
       router.get('/api/jobs/:id/stream', handleJobStream);
       router.get('/api/artifacts/:jobId', handleArtifacts);
       router.post('/api/open', handleOpen);
+      router.get('/api/file', handleFile);
 
       this._server = http.createServer(async (req, res) => {
         // Host header validation — localhost only
@@ -55,10 +77,19 @@ export class HamletServer {
           return;
         }
 
+        // Attach project root for handlers
+        req.serverRoot = resolvedRoot;
+
         try {
           const matched = await router.dispatch(req, res);
           if (!matched) {
-            sendJson(res, 404, { error: 'Not found' });
+            const pathname = new URL(req.url, `http://${req.headers.host}`)
+              .pathname;
+            if (this._serveUI && !pathname.startsWith('/api/')) {
+              this._serveStatic(req, res);
+            } else {
+              sendJson(res, 404, { error: 'Not found' });
+            }
           }
         } catch (err) {
           if (err instanceof SyntaxError) {
@@ -76,6 +107,45 @@ export class HamletServer {
 
       this._server.on('error', reject);
     });
+  }
+
+  /**
+   * Serve static files from the UI directory, with SPA fallback.
+   */
+  _serveStatic(req, res) {
+    const url = new URL(req.url, `http://${req.headers.host}`);
+    let filePath = nodePath.join(UI_DIR, url.pathname);
+
+    // Prevent path traversal
+    if (!filePath.startsWith(UI_DIR)) {
+      sendJson(res, 403, { error: 'Forbidden' });
+      return;
+    }
+
+    // Check if file exists
+    try {
+      const stat = fsSync.statSync(filePath);
+      if (stat.isFile()) {
+        const ext = nodePath.extname(filePath);
+        const mime = MIME_TYPES[ext] || 'application/octet-stream';
+        const content = fsSync.readFileSync(filePath);
+        res.writeHead(200, { 'Content-Type': mime });
+        res.end(content);
+        return;
+      }
+    } catch (_e) {
+      // File not found — fall through to SPA fallback
+    }
+
+    // SPA fallback: serve index.html
+    try {
+      const indexPath = nodePath.join(UI_DIR, 'index.html');
+      const content = fsSync.readFileSync(indexPath);
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+      res.end(content);
+    } catch (_e) {
+      sendJson(res, 404, { error: 'UI files not found' });
+    }
   }
 
   /**
