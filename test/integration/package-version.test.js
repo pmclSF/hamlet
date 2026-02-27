@@ -83,6 +83,9 @@ describe('Package version resolution', () => {
       }
     );
 
-    expect(result).toBe('2.0.0');
+    const pkg = JSON.parse(
+      await fs.readFile(path.join(rootDir, 'package.json'), 'utf8')
+    );
+    expect(result).toBe(pkg.version);
   });
 });
