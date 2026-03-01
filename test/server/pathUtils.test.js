@@ -145,6 +145,18 @@ describe('safePath', () => {
       ).rejects.toThrow('Path outside project root');
     });
 
+    it('should reject non-existent descendants under an escaping symlink', async () => {
+      const outsideDir = path.join(tmpDir, 'outside-nonexistent');
+      await fs.mkdir(outsideDir);
+
+      const linkDir = path.join(projectRoot, 'linked-missing');
+      await fs.symlink(outsideDir, linkDir);
+
+      await expect(
+        safePath('linked-missing/new/deep/file.txt', projectRoot)
+      ).rejects.toThrow('Path outside project root');
+    });
+
     it('should allow a symlink that stays within the root', async () => {
       // Create a real file inside root
       const realFile = path.join(projectRoot, 'real.txt');

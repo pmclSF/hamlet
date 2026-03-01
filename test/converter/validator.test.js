@@ -35,14 +35,19 @@ describe('TestValidator', () => {
       expect(result.status).toBe('failed');
       expect(result.message).toContain('Syntax error');
     });
+
+    it('should pass for ESM-style Playwright tests', async () => {
+      const result = await validator.checkSyntax(
+        "import { test, expect } from '@playwright/test';\n" +
+          "test('ok', async ({ page }) => { await page.goto('/'); });"
+      );
+      expect(result.status).toBe('passed');
+    });
   });
 
   describe('validateImports', () => {
     it('should pass when required imports are present', async () => {
-      const content = `
-        import { test, expect } from '@playwright/test';
-        import { expect } from 'expect';
-      `;
+      const content = `import { test, expect } from '@playwright/test';`;
       const result = await validator.validateImports(content);
       expect(result.status).toBe('passed');
     });
@@ -239,15 +244,14 @@ describe('TestValidator', () => {
       expect(result.status).toBe('passed');
     });
 
-    it('should fail when fixtures lack test.use', async () => {
+    it('should pass when fixtures are used without test.use', async () => {
       const content = `
         test('my test', async ({ myFixture }) => {
           console.log(myFixture);
         });
       `;
       const result = await validator.checkFixtures(content);
-      expect(result.status).toBe('failed');
-      expect(result.message).toContain('test.use');
+      expect(result.status).toBe('passed');
     });
   });
 

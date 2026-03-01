@@ -1,3 +1,6 @@
+import fs from 'fs/promises';
+import os from 'os';
+import path from 'path';
 import { ConversionReporter } from '../../src/utils/reporter.js';
 
 describe('ConversionReporter', () => {
@@ -78,6 +81,23 @@ describe('ConversionReporter', () => {
     });
   });
 
+  describe('addValidationResults', () => {
+    it('should accept a validation report details object', () => {
+      reporter.addValidationResults({
+        details: {
+          passed: [{ check: 'syntax' }],
+          failed: [{ check: 'imports' }],
+          skipped: [{ check: 'hooks' }],
+          errors: [{ check: 'runtime' }],
+        },
+      });
+
+      expect(reporter.data.validationResults.passed).toHaveLength(1);
+      expect(reporter.data.validationResults.failed).toHaveLength(1);
+      expect(reporter.data.validationResults.warnings).toHaveLength(2);
+    });
+  });
+
   describe('addVisualResult', () => {
     it('should add matching result', () => {
       reporter.addVisualResult({ matches: true, test: 'login' });
@@ -92,6 +112,13 @@ describe('ConversionReporter', () => {
     it('should add mismatch result', () => {
       reporter.addVisualResult({ matches: false, difference: '5%' });
       expect(reporter.data.visualResults.mismatches).toHaveLength(1);
+    });
+  });
+
+  describe('addVisualResults', () => {
+    it('should accept a single visual result object', () => {
+      reporter.addVisualResults({ matches: true, test: 'dashboard' });
+      expect(reporter.data.visualResults.matches).toHaveLength(1);
     });
   });
 
@@ -132,6 +159,20 @@ describe('ConversionReporter', () => {
       expect(html).toContain('Conversion Report');
       expect(html).toContain('</html>');
     });
+
+    it('should escape untrusted HTML fields', () => {
+      reporter.startReport();
+      reporter.addValidationResult({
+        status: 'passed',
+        check: '</td><script>window.__xss__=1</script><td>',
+        details: '<img src=x onerror=alert(1)>',
+      });
+      reporter.endReport();
+
+      const html = reporter.generateHtmlReport();
+      expect(html).not.toContain('<script>window.__xss__=1</script>');
+      expect(html).toContain('&lt;script&gt;window.__xss__=1&lt;/script&gt;');
+    });
   });
 
   describe('generateMarkdownReport', () => {
@@ -144,6 +185,54 @@ describe('ConversionReporter', () => {
       expect(md).toContain('# Cypress to Playwright Conversion Report');
       expect(md).toContain('## Summary');
       expect(md).toContain('## Test Results');
+    });
+  });
+
+  describe('generateReport', () => {
+    let tmpDir;
+
+    beforeEach(async () => {
+      tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'hamlet-reporter-'));
+    });
+
+    afterEach(async () => {
+      await fs.rm(tmpDir, { recursive: true, force: true });
+    });
+
+    it('should honor explicit output file path and data payload', async () => {
+      const reportPath = path.join(tmpDir, 'custom-report.json');
+      const custom = new ConversionReporter({ format: 'json' });
+      const output = await custom.generateReport(
+        {
+          summary: {
+            totalFiles: 1,
+            convertedFiles: 1,
+            skippedFiles: 0,
+            errors: [],
+          },
+        },
+        reportPath
+      );
+
+      expect(output).toBe(path.resolve(reportPath));
+      const raw = await fs.readFile(reportPath, 'utf8');
+      const parsed = JSON.parse(raw);
+      expect(parsed.summary.totalFiles).toBe(1);
+    });
+
+    it('should treat existing dotted directory paths as directories', async () => {
+      const dottedDir = path.join(tmpDir, 'out.v1');
+      await fs.mkdir(dottedDir, { recursive: true });
+      const custom = new ConversionReporter({ format: 'json' });
+      const output = await custom.generateReport(
+        { summary: { totalFiles: 1, convertedFiles: 1, skippedFiles: 0, errors: [] } },
+        dottedDir
+      );
+
+      expect(path.dirname(output)).toBe(path.resolve(dottedDir));
+      const raw = await fs.readFile(output, 'utf8');
+      const parsed = JSON.parse(raw);
+      expect(parsed.summary.totalFiles).toBe(1);
     });
   });
 });

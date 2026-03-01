@@ -1,4 +1,6 @@
 import chalk from 'chalk';
+import fs from 'fs/promises';
+import path from 'path';
 
 /**
  * Handles conversion of Cypress plugins to Playwright equivalents
@@ -202,12 +204,12 @@ export class PluginConverter {
    */
   async convertPlugin(pluginPath) {
     try {
-      // Extract plugin name from path
-      const pluginName = pluginPath
-        .split('/')
-        .pop()
-        .replace(/\.[jt]s$/, '');
-      const detectedPlugins = this.detectPlugins(pluginName);
+      const content = await fs.readFile(pluginPath, 'utf8');
+      const pluginNameHint = path.basename(pluginPath).replace(/\.[jt]s$/, '');
+      const detectedPlugins = new Set(this.detectPlugins(content));
+      if (this.pluginMappings.has(pluginNameHint)) {
+        detectedPlugins.add(pluginNameHint);
+      }
 
       const conversions = [];
       for (const plugin of detectedPlugins) {

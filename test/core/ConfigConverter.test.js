@@ -38,6 +38,15 @@ describe('ConfigConverter', () => {
       expect(result).toContain('30000');
     });
 
+    it('should render nested keys as nested objects, not dotted identifiers', () => {
+      const input = `{ "coverageThreshold": { "global": { "lines": 90 } } }`;
+      const result = converter.convert(input, 'jest', 'vitest');
+
+      expect(result).toContain('coverage: {');
+      expect(result).toContain('thresholds:');
+      expect(result).not.toContain('coverage.thresholds');
+    });
+
     it('should convert clearMocks', () => {
       const input = `module.exports = { clearMocks: true };`;
       const result = converter.convert(input, 'jest', 'vitest');
@@ -178,12 +187,14 @@ describe('ConfigConverter', () => {
   });
 
   describe('WebdriverIO → Playwright', () => {
-    it('should convert baseUrl to use.baseURL', () => {
+    it('should convert baseUrl to nested use.baseURL object path', () => {
       const input = `exports.config = { baseUrl: 'http://localhost:3000' };`;
       const result = converter.convert(input, 'webdriverio', 'playwright');
 
       expect(result).toContain('@playwright/test');
-      expect(result).toContain("use.baseURL: 'http://localhost:3000'");
+      expect(result).toContain('use: {');
+      expect(result).toContain("baseURL: 'http://localhost:3000'");
+      expect(result).not.toContain('use.baseURL');
     });
 
     it('should convert waitforTimeout to timeout', () => {
@@ -477,7 +488,8 @@ describe('ConfigConverter', () => {
       const result = converter.convert(input, 'webdriverio', 'playwright');
 
       expect(result).toContain('@playwright/test');
-      expect(result).toContain('use.baseURL');
+      expect(result).toContain('use: {');
+      expect(result).toContain('baseURL');
       expect(result).toContain('timeout: 10000');
     });
   });

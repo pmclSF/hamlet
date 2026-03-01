@@ -86,6 +86,21 @@ describe('CLI Batch Mode & Glob Patterns', () => {
       expect(authContent).toContain("from 'vitest'");
     });
 
+    test('should support explicit batch concurrency', async () => {
+      const outDir = path.resolve(outputDir, 'concurrency-out');
+
+      runCLI([
+        'convert', batchFixtures,
+        '--from', 'jest', '--to', 'vitest',
+        '-o', outDir,
+        '--concurrency', '2',
+      ]);
+
+      const files = await fs.readdir(outDir);
+      const testFiles = files.filter(f => f.endsWith('.test.js'));
+      expect(testFiles.length).toBeGreaterThanOrEqual(2);
+    });
+
     test('should preserve directory structure (subdir files)', async () => {
       const outDir = path.resolve(outputDir, 'structure-out');
 
@@ -202,9 +217,9 @@ describe('CLI Batch Mode & Glob Patterns', () => {
         '-o', outDir,
       ]);
 
-      // Should report no matching files or zero conversions since it's cypress not jest
-      // The Scanner + FileClassifier filters by framework
-      expect(result).toBeTruthy();
+      expect(result).toContain('No matching files found to convert.');
+      const outExists = await fs.access(outDir).then(() => true).catch(() => false);
+      expect(outExists).toBe(false);
     });
   });
 });

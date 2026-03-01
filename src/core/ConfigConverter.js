@@ -476,6 +476,7 @@ export class ConfigConverter {
   _renderVitestConfig(keys, keyMap, sourceName) {
     const converted = [];
     const todos = [];
+    const mapped = {};
 
     converted.push("import { defineConfig } from 'vitest/config';");
     converted.push('');
@@ -487,9 +488,7 @@ export class ConfigConverter {
       if (mapper) {
         const result = mapper(value, keys);
         if (result) {
-          converted.push(
-            `    ${result.key}: ${this._formatValue(result.value)},`
-          );
+          this._assignNestedValue(mapped, result.key, result.value);
         }
       } else {
         todos.push(
@@ -503,6 +502,7 @@ export class ConfigConverter {
       }
     }
 
+    converted.push(...this._renderObjectEntries(mapped, 2));
     converted.push('  },');
     converted.push('});');
 
@@ -526,6 +526,7 @@ export class ConfigConverter {
   _renderJestConfig(keys, keyMap, sourceName) {
     const converted = [];
     const todos = [];
+    const mapped = {};
 
     converted.push('module.exports = {');
 
@@ -534,9 +535,7 @@ export class ConfigConverter {
       if (mapper) {
         const result = mapper(value, keys);
         if (result) {
-          converted.push(
-            `  ${result.key}: ${this._formatValue(result.value)},`
-          );
+          this._assignNestedValue(mapped, result.key, result.value);
         }
       } else {
         todos.push(
@@ -550,6 +549,7 @@ export class ConfigConverter {
       }
     }
 
+    converted.push(...this._renderObjectEntries(mapped, 1));
     converted.push('};');
 
     if (todos.length > 0) {
@@ -572,6 +572,7 @@ export class ConfigConverter {
   _renderPlaywrightConfig(keys, keyMap, sourceName) {
     const converted = [];
     const todos = [];
+    const mapped = {};
 
     converted.push("import { defineConfig, devices } from '@playwright/test';");
     converted.push('');
@@ -582,9 +583,7 @@ export class ConfigConverter {
       if (mapper) {
         const result = mapper(value, keys);
         if (result) {
-          converted.push(
-            `  ${result.key}: ${this._formatValue(result.value)},`
-          );
+          this._assignNestedValue(mapped, result.key, result.value);
         }
       } else {
         todos.push(
@@ -598,6 +597,7 @@ export class ConfigConverter {
       }
     }
 
+    converted.push(...this._renderObjectEntries(mapped, 1));
     converted.push('});');
 
     if (todos.length > 0) {
@@ -620,6 +620,7 @@ export class ConfigConverter {
   _renderCypressConfig(keys, keyMap, sourceName) {
     const converted = [];
     const todos = [];
+    const mapped = {};
 
     converted.push("const { defineConfig } = require('cypress');");
     converted.push('');
@@ -631,9 +632,7 @@ export class ConfigConverter {
       if (mapper) {
         const result = mapper(value, keys);
         if (result) {
-          converted.push(
-            `    ${result.key}: ${this._formatValue(result.value)},`
-          );
+          this._assignNestedValue(mapped, result.key, result.value);
         }
       } else {
         todos.push(
@@ -647,6 +646,7 @@ export class ConfigConverter {
       }
     }
 
+    converted.push(...this._renderObjectEntries(mapped, 2));
     converted.push('  },');
     converted.push('});');
 
@@ -670,6 +670,7 @@ export class ConfigConverter {
   _renderWdioConfig(keys, keyMap, sourceName) {
     const converted = [];
     const todos = [];
+    const mapped = {};
 
     converted.push('exports.config = {');
 
@@ -678,9 +679,7 @@ export class ConfigConverter {
       if (mapper) {
         const result = mapper(value, keys);
         if (result) {
-          converted.push(
-            `  ${result.key}: ${this._formatValue(result.value)},`
-          );
+          this._assignNestedValue(mapped, result.key, result.value);
         }
       } else {
         todos.push(
@@ -694,6 +693,7 @@ export class ConfigConverter {
       }
     }
 
+    converted.push(...this._renderObjectEntries(mapped, 1));
     converted.push('};');
 
     if (todos.length > 0) {
@@ -937,6 +937,72 @@ export class ConfigConverter {
       return String(value);
     }
     return JSON.stringify(value);
+  }
+
+  /**
+   * Assign a value into a nested object using dot notation key paths.
+   * @param {Object} target
+   * @param {string} keyPath
+   * @param {*} value
+   */
+  _assignNestedValue(target, keyPath, value) {
+    const parts = keyPath.split('.');
+    let current = target;
+
+    for (let i = 0; i < parts.length; i++) {
+      const part = parts[i];
+      if (i === parts.length - 1) {
+        current[part] = value;
+        return;
+      }
+
+      if (
+        !Object.prototype.hasOwnProperty.call(current, part) ||
+        typeof current[part] !== 'object' ||
+        current[part] === null ||
+        Array.isArray(current[part])
+      ) {
+        current[part] = {};
+      }
+      current = current[part];
+    }
+  }
+
+  /**
+   * Render object entries as JavaScript object literal lines.
+   * @param {Object} obj
+   * @param {number} indentLevel
+   * @returns {string[]}
+   */
+  _renderObjectEntries(obj, indentLevel) {
+    const indent = '  '.repeat(indentLevel);
+    const lines = [];
+
+    for (const [key, value] of Object.entries(obj)) {
+      const renderedKey = this._formatKey(key);
+      if (
+        typeof value === 'object' &&
+        value !== null &&
+        !Array.isArray(value)
+      ) {
+        lines.push(`${indent}${renderedKey}: {`);
+        lines.push(...this._renderObjectEntries(value, indentLevel + 1));
+        lines.push(`${indent}},`);
+      } else {
+        lines.push(`${indent}${renderedKey}: ${this._formatValue(value)},`);
+      }
+    }
+
+    return lines;
+  }
+
+  /**
+   * Format an object key for JavaScript object literal output.
+   * @param {string} key
+   * @returns {string}
+   */
+  _formatKey(key) {
+    return /^[A-Za-z_$][A-Za-z0-9_$]*$/.test(key) ? key : `'${key}'`;
   }
 
   /**

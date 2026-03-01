@@ -195,5 +195,28 @@ describe('HtmlReportGenerator', () => {
       expect(html).not.toContain('<script>alert("xss")</script>');
       expect(html).toContain('&lt;script&gt;');
     });
+
+    it('should escape embedded JSON to keep script context safe', async () => {
+      const xssReport = {
+        ...sampleReport,
+        files: [
+          {
+            path: '</script><script>alert("xss")</script>',
+            type: 'test',
+            framework: 'jest',
+            confidence: 90,
+            candidates: [],
+            warnings: [],
+          },
+        ],
+      };
+
+      const outDir = path.join(tmpDir, 'script-safe-report');
+      await generateHtmlReport(xssReport, outDir);
+
+      const html = await fs.readFile(path.join(outDir, 'index.html'), 'utf-8');
+      expect(html).toContain('\\u003C/script\\u003E');
+      expect(html).not.toContain('var DATA={"files":[{"path":"</script>');
+    });
   });
 });

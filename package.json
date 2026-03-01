@@ -11,12 +11,15 @@
       "import": "./src/index.js"
     },
     "./internals": {
+      "types": "./src/types/internals.d.ts",
       "import": "./src/internals.js"
     },
     "./converters": {
+      "types": "./src/types/converters.d.ts",
       "import": "./src/converters/index.js"
     },
     "./core": {
+      "types": "./src/types/core.d.ts",
       "import": "./src/core/index.js"
     }
   },
@@ -38,6 +41,7 @@
     "src/index.js",
     "src/internals.js",
     "README.md",
+    "SECURITY.md",
     "LICENSE"
   ],
   "repository": {

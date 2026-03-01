@@ -146,6 +146,105 @@ describe('Sample Test', () => {
       expect(output).toContain('page.locator');
       expect(output).toContain('toBeVisible');
     });
+
+    test('should not overwrite single-file output when --report is enabled', async () => {
+      const tmp = await fs.mkdtemp(path.join(outputDir, 'report-single-'));
+      const inputFile = path.resolve(fixturesDir, 'sample.cy.js');
+      const outputFile = path.join(tmp, 'converted.spec.js');
+
+      runCLI([
+        'convert',
+        inputFile,
+        '--from',
+        'cypress',
+        '--to',
+        'playwright',
+        '-o',
+        outputFile,
+        '--report',
+        'json',
+        '--quiet',
+      ]);
+
+      const converted = await fs.readFile(outputFile, 'utf8');
+      expect(converted).toContain("import { test, expect } from '@playwright/test'");
+
+      const generated = await fs.readdir(tmp);
+      const reportFiles = generated.filter((name) =>
+        /^conversion-report-.*\.json$/.test(name)
+      );
+      expect(reportFiles).toHaveLength(1);
+
+      const report = JSON.parse(
+        await fs.readFile(path.join(tmp, reportFiles[0]), 'utf8')
+      );
+      expect(report.results.filesConverted).toBe(1);
+    });
+
+    test('should validate single-file outputs without directory scan errors', async () => {
+      const tmp = await fs.mkdtemp(path.join(outputDir, 'validate-single-'));
+      const inputFile = path.resolve(fixturesDir, 'sample.cy.js');
+      const outputFile = path.join(tmp, 'validated.spec.js');
+
+      runCLI([
+        'convert',
+        inputFile,
+        '--from',
+        'cypress',
+        '--to',
+        'playwright',
+        '-o',
+        outputFile,
+        '--validate',
+        '--quiet',
+      ]);
+
+      const converted = await fs.readFile(outputFile, 'utf8');
+      expect(converted).toContain("import { test, expect } from '@playwright/test'");
+    });
+
+    test('should generate single-file report when --output is omitted', async () => {
+      const tmp = await fs.mkdtemp(path.join(outputDir, 'report-no-output-'));
+      const inputFile = path.join(tmp, 'standalone.cy.js');
+      await fs.writeFile(
+        inputFile,
+        `
+describe('standalone', () => {
+  it('works', () => {
+    cy.visit('/');
+  });
+});
+`
+      );
+
+      runCLI([
+        'convert',
+        inputFile,
+        '--from',
+        'cypress',
+        '--to',
+        'playwright',
+        '--report',
+        'json',
+        '--quiet',
+      ]);
+
+      const convertedPath = path.join(tmp, 'standalone.spec.js');
+      const converted = await fs.readFile(convertedPath, 'utf8');
+      expect(converted).toContain("import { test, expect } from '@playwright/test'");
+
+      const generated = await fs.readdir(tmp);
+      const reportFiles = generated.filter((name) =>
+        /^conversion-report-.*\.json$/.test(name)
+      );
+      expect(reportFiles).toHaveLength(1);
+
+      const report = JSON.parse(
+        await fs.readFile(path.join(tmp, reportFiles[0]), 'utf8')
+      );
+      expect(report.results.filesConverted).toBe(1);
+      expect(report.plan.outputDir).toBe(tmp);
+    });
   });
 
   describe('Convert Command - Cypress to Selenium', () => {
@@ -166,7 +265,7 @@ describe('Sample Test', () => {
   describe('Convert Command - Playwright to Cypress', () => {
     test('should convert Playwright file to Cypress', async () => {
       const inputFile = path.resolve(fixturesDir, 'sample.spec.ts');
-      const outputFile = path.resolve(outputDir, 'sample.cy.js');
+      const outputFile = path.resolve(outputDir, 'sample.cy.ts');
 
       runCLI(['convert', inputFile, '--from', 'playwright', '--to', 'cypress', '-o', outputDir]);
 
@@ -182,7 +281,7 @@ describe('Sample Test', () => {
   describe('Convert Command - Playwright to Selenium', () => {
     test('should convert Playwright file to Selenium', async () => {
       const inputFile = path.resolve(fixturesDir, 'sample.spec.ts');
-      const outputFile = path.resolve(outputDir, 'sample.test.js');
+      const outputFile = path.resolve(outputDir, 'sample.test.ts');
 
       // Clean up from previous test
       try {
@@ -661,6 +760,64 @@ describe('Test 2', () => {
     test('list-conversions should exit 0 and show conversions', () => {
       const result = runCLI(['list-conversions']);
       expect(result).toContain('conversion');
+    });
+  });
+
+  describe('Convert Command Regression Cases', () => {
+    test('--auto-detect should affect the actual conversion direction', async () => {
+      const inputFile = path.resolve(fixturesDir, 'sample.jest.js');
+      const outDir = path.resolve(outputDir, 'autodetect-out');
+      const outputFile = path.resolve(outDir, 'sample.jest.test.js');
+
+      runCLI([
+        'convert',
+        inputFile,
+        '--from',
+        'cypress',
+        '--to',
+        'vitest',
+        '--auto-detect',
+        '-o',
+        outDir,
+      ]);
+
+      const output = await fs.readFile(outputFile, 'utf8');
+      expect(output).toContain("from 'vitest'");
+    });
+
+    test('should not treat local paths containing github.com as repository URLs', async () => {
+      const inputFile = path.resolve(fixturesDir, 'github.com-local.test.js');
+      const outDir = path.resolve(outputDir, 'github-local-out');
+      const outputFile = path.resolve(outDir, 'github.com-local.test.js');
+
+      await fs.writeFile(
+        inputFile,
+        `
+describe('Local path', () => {
+  it('stays local', () => {
+    expect(1).toBe(1);
+  });
+});
+`
+      );
+
+      try {
+        runCLI([
+          'convert',
+          inputFile,
+          '--from',
+          'jest',
+          '--to',
+          'vitest',
+          '-o',
+          outDir,
+        ]);
+
+        const output = await fs.readFile(outputFile, 'utf8');
+        expect(output).toContain("from 'vitest'");
+      } finally {
+        await fs.unlink(inputFile).catch(() => {});
+      }
     });
   });
 });

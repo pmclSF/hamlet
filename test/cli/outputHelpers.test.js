@@ -55,6 +55,15 @@ describe('outputHelpers', () => {
         'test_auth.py'
       );
     });
+
+    it('should preserve TypeScript extensions for JavaScript frameworks', () => {
+      expect(buildOutputFilename('auth.cy.ts', 'playwright')).toBe(
+        'auth.spec.ts'
+      );
+      expect(buildOutputFilename('auth.spec.ts', 'cypress')).toBe(
+        'auth.cy.ts'
+      );
+    });
   });
 
   describe('countTodos', () => {

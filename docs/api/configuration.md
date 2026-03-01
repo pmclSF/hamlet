@@ -71,10 +71,9 @@ Convert a single file using the high-level API:
 ```javascript
 import { convertFile } from 'hamlet-converter';
 
-const result = await convertFile('auth.test.js', {
+const result = await convertFile('auth.test.js', 'converted/auth.test.js', {
   from: 'jest',
   to: 'vitest',
-  outputPath: 'converted/auth.test.js',
 });
 ```
 
@@ -85,10 +84,9 @@ Convert an entire directory:
 ```javascript
 import { convertRepository } from 'hamlet-converter';
 
-const results = await convertRepository('tests/', {
+const results = await convertRepository('tests/', 'converted/', {
   from: 'jest',
   to: 'vitest',
-  outputDir: 'converted/',
 });
 ```
 

@@ -30,20 +30,33 @@ export class BatchProcessor {
    * @returns {Promise<Object>} - Processing results
    */
   async processBatch(files, processor) {
+    this.stats.processed = 0;
+    this.stats.failed = 0;
+    this.stats.skipped = 0;
     this.stats.total = files.length;
     const batches = this.createBatches(files);
+    const results = [];
+
+    const concurrency = Math.max(1, Number(this.options.concurrency) || 1);
 
     for (const batch of batches) {
       try {
-        await Promise.all(
-          batch.map((file) => this.processFile(file, processor))
-        );
+        for (let i = 0; i < batch.length; i += concurrency) {
+          const window = batch.slice(i, i + concurrency);
+          const windowResults = await Promise.all(
+            window.map((file) => this.processFile(file, processor))
+          );
+          results.push(...windowResults);
+        }
       } catch (error) {
         logger.error('Batch processing error:', error);
       }
     }
 
-    return this.stats;
+    return {
+      ...this.stats,
+      results,
+    };
   }
 
   /**
@@ -66,12 +79,29 @@ export class BatchProcessor {
    */
   async processFile(file, processor) {
     try {
-      await processor(file);
-      this.stats.processed++;
-      logger.info(`Processed: ${path.basename(file)}`);
+      const result = await processor(file);
+      if (result?.status === 'error') {
+        this.stats.failed++;
+        logger.error(
+          `Failed to process ${file}:`,
+          result.error || 'Unknown error'
+        );
+      } else if (result?.status === 'skipped') {
+        this.stats.skipped++;
+        logger.info(`Skipped: ${path.basename(file)}`);
+      } else {
+        this.stats.processed++;
+        logger.info(`Processed: ${path.basename(file)}`);
+      }
+      return result;
     } catch (error) {
       this.stats.failed++;
       logger.error(`Failed to process ${file}:`, error);
+      return {
+        file,
+        status: 'error',
+        error: error.message,
+      };
     }
   }
 
@@ -80,10 +110,14 @@ export class BatchProcessor {
    * @returns {Object} - Processing statistics
    */
   getStats() {
+    const successful = this.stats.processed;
     return {
       ...this.stats,
-      success: this.stats.processed - this.stats.failed,
-      successRate: `${(((this.stats.processed - this.stats.failed) / this.stats.total) * 100).toFixed(2)}%`,
+      success: successful,
+      successRate:
+        this.stats.total === 0
+          ? '0.00%'
+          : `${((successful / this.stats.total) * 100).toFixed(2)}%`,
     };
   }
 }
@@ -96,13 +130,20 @@ export class BatchProcessor {
  */
 export async function processTestFiles(files, options = {}) {
   const batchProcessor = new BatchProcessor(options);
-  const results = await batchProcessor.processBatch(files, async (file) => {
+  const summary = await batchProcessor.processBatch(files, async (file) => {
     try {
       const outputPath =
         options.getOutputPath?.(file) ||
         file.replace(/\.cy\.(js|ts)$/, '.spec.$1');
 
-      return await convertFile(file, outputPath, options);
+      const converted = await convertFile(file, outputPath, options);
+      return {
+        file,
+        outputPath: converted.outputPath || outputPath,
+        status: 'success',
+        metadata: converted.metadata,
+        dependencies: converted.dependencies,
+      };
     } catch (error) {
       return {
         file,
@@ -111,6 +152,7 @@ export async function processTestFiles(files, options = {}) {
       };
     }
   });
+  const results = summary.results || [];
 
   return {
     total: files.length,

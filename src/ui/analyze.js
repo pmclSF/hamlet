@@ -382,8 +382,13 @@ function attachEvents(container, state, actions) {
     b.addEventListener('click', (e) => {
       e.stopPropagation();
       navigator.clipboard.writeText(b.dataset.copy);
+      if (!b.dataset.originalLabel) {
+        b.dataset.originalLabel = b.innerHTML;
+      }
       b.textContent = 'Copied!';
-      setTimeout(() => (b.innerHTML = b.title ? b.innerHTML : 'Copy'), 1500);
+      setTimeout(() => {
+        b.innerHTML = b.dataset.originalLabel || 'Copy';
+      }, 1500);
     });
   });
 

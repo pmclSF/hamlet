@@ -38,25 +38,57 @@ export async function safePath(userPath, rootDir) {
     throw new Error('Path outside project root');
   }
 
-  // Symlink-aware containment: resolve both through realpath when possible.
-  // If the target does not exist, realpath will throw and we fall back to the
-  // lexical check above (which already passed).
+  // Symlink-aware containment: resolve both through realpath. If the target
+  // does not exist yet, resolve the nearest existing ancestor to ensure no
+  // intermediate symlink escapes the project root.
   try {
-    const realRoot = await fs.realpath(resolvedRoot);
-    const realTarget = await fs.realpath(resolved);
+    let realRoot = resolvedRoot;
+    try {
+      realRoot = await fs.realpath(resolvedRoot);
+    } catch (rootErr) {
+      if (rootErr.code !== 'ENOENT') {
+        throw rootErr;
+      }
+      return resolved;
+    }
+    let realTargetOrAncestor;
+
+    try {
+      realTargetOrAncestor = await fs.realpath(resolved);
+    } catch (err) {
+      if (err.code !== 'ENOENT') {
+        throw err;
+      }
+
+      let ancestor = path.dirname(resolved);
+      while (!realTargetOrAncestor) {
+        try {
+          realTargetOrAncestor = await fs.realpath(ancestor);
+          break;
+        } catch (ancestorErr) {
+          if (ancestorErr.code !== 'ENOENT') {
+            throw ancestorErr;
+          }
+          const parent = path.dirname(ancestor);
+          if (parent === ancestor) {
+            throw ancestorErr;
+          }
+          ancestor = parent;
+        }
+      }
+    }
 
     if (
-      realTarget !== realRoot &&
-      !realTarget.startsWith(realRoot + path.sep)
+      realTargetOrAncestor !== realRoot &&
+      !realTargetOrAncestor.startsWith(realRoot + path.sep)
     ) {
       throw new Error('Path outside project root');
     }
   } catch (err) {
-    // Re-throw our own containment errors
     if (err.message === 'Path outside project root') {
       throw err;
     }
-    // ENOENT — target doesn't exist yet, lexical check is sufficient
+    throw err;
   }
 
   return resolved;
