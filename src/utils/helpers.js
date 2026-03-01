@@ -371,7 +371,15 @@ export const logUtils = {
       info: (message) => console.log(chalk.blue(`[${scope}]`), message),
       success: (message) => console.log(chalk.green(`[${scope}]`), message),
       warn: (message) => console.warn(chalk.yellow(`[${scope}]`), message),
-      error: (message) => console.error(chalk.red(`[${scope}]`), message),
+      error: (message, error = null) => {
+        console.error(chalk.red(`[${scope}]`), message);
+        if (!error) return;
+        const rendered =
+          error instanceof Error ? error.stack || error.message : String(error);
+        if (rendered) {
+          console.error(chalk.gray(rendered));
+        }
+      },
     };
   },
 };

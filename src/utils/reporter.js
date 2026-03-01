@@ -90,6 +90,37 @@ export class ConversionReporter {
   }
 
   /**
+   * Add one or many validation results.
+   * @param {Object|Object[]} results - Validation result(s)
+   */
+  addValidationResults(results) {
+    if (!results) return;
+
+    if (Array.isArray(results)) {
+      results.forEach((result) => this.addValidationResult(result));
+      return;
+    }
+
+    if (results.details && typeof results.details === 'object') {
+      (results.details.passed || []).forEach((result) =>
+        this.addValidationResult({ ...result, status: 'passed' })
+      );
+      (results.details.failed || []).forEach((result) =>
+        this.addValidationResult({ ...result, status: 'failed' })
+      );
+      (results.details.skipped || []).forEach((result) =>
+        this.addValidationResult({ ...result, status: 'warning' })
+      );
+      (results.details.errors || []).forEach((result) =>
+        this.addValidationResult({ ...result, status: 'warning' })
+      );
+      return;
+    }
+
+    this.addValidationResult(results);
+  }
+
+  /**
    * Add visual comparison result
    * @param {Object} result - Visual comparison result
    */
@@ -101,6 +132,19 @@ export class ConversionReporter {
     } else {
       this.data.visualResults.mismatches.push(result);
     }
+  }
+
+  /**
+   * Add one or many visual comparison results.
+   * @param {Object|Object[]} results - Visual result(s)
+   */
+  addVisualResults(results) {
+    if (!results) return;
+    if (Array.isArray(results)) {
+      results.forEach((result) => this.addVisualResult(result));
+      return;
+    }
+    this.addVisualResult(results);
   }
 
   /**
@@ -120,16 +164,55 @@ export class ConversionReporter {
 
   /**
    * Generate final report
+   * @param {Object|null} data - Optional report data payload
+   * @param {string|null} outputPath - Optional output file or directory path
    * @returns {Promise<string>} - Path to generated report
    */
-  async generateReport() {
+  async generateReport(data = null, outputPath = null) {
     try {
-      await fs.mkdir(this.options.outputDir, { recursive: true });
+      if (data && typeof data === 'object') {
+        this.data = data;
+      }
 
-      const reportPath = path.join(
-        this.options.outputDir,
-        `conversion-report-${Date.now()}.${this.options.format}`
-      );
+      let reportPath;
+      if (outputPath) {
+        const resolvedOutput = path.resolve(outputPath);
+        let outputStat = null;
+        try {
+          outputStat = await fs.stat(resolvedOutput);
+        } catch (_err) {
+          outputStat = null;
+        }
+
+        if (outputStat && outputStat.isDirectory()) {
+          await fs.mkdir(resolvedOutput, { recursive: true });
+          reportPath = path.join(
+            resolvedOutput,
+            `conversion-report-${Date.now()}.${this.options.format}`
+          );
+        } else if (outputStat && outputStat.isFile()) {
+          reportPath = resolvedOutput;
+          await fs.mkdir(path.dirname(reportPath), { recursive: true });
+        } else {
+          const hasExtension = !!path.extname(resolvedOutput);
+          if (hasExtension) {
+            reportPath = resolvedOutput;
+            await fs.mkdir(path.dirname(reportPath), { recursive: true });
+          } else {
+            await fs.mkdir(resolvedOutput, { recursive: true });
+            reportPath = path.join(
+              resolvedOutput,
+              `conversion-report-${Date.now()}.${this.options.format}`
+            );
+          }
+        }
+      } else {
+        await fs.mkdir(this.options.outputDir, { recursive: true });
+        reportPath = path.join(
+          this.options.outputDir,
+          `conversion-report-${Date.now()}.${this.options.format}`
+        );
+      }
 
       let content;
       if (this.options.format === 'html') {
@@ -138,6 +221,8 @@ export class ConversionReporter {
         content = JSON.stringify(this.data, null, 2);
       } else if (this.options.format === 'md') {
         content = this.generateMarkdownReport();
+      } else {
+        throw new Error(`Unsupported report format: ${this.options.format}`);
       }
 
       await fs.writeFile(reportPath, content);
@@ -154,6 +239,8 @@ export class ConversionReporter {
    * @returns {string} - HTML content
    */
   generateHtmlReport() {
+    const esc = (value) => this.escapeHtml(value);
+    const statusClass = (value) => this.normalizeStatusClass(value);
     const duration = reportUtils.formatDuration(
       this.data.summary.endTime - this.data.summary.startTime
     );
@@ -280,9 +367,9 @@ export class ConversionReporter {
         .map(
           (result) => `
         <tr class="success">
-          <td>${result.check}</td>
+          <td>${esc(result.check)}</td>
           <td>Passed</td>
-          <td>${result.details || ''}</td>
+          <td>${esc(result.details || '')}</td>
         </tr>
       `
         )
@@ -291,9 +378,9 @@ export class ConversionReporter {
         .map(
           (result) => `
         <tr class="error">
-          <td>${result.check}</td>
+          <td>${esc(result.check)}</td>
           <td>Failed</td>
-          <td>${result.details || ''}</td>
+          <td>${esc(result.details || '')}</td>
         </tr>
       `
         )
@@ -313,9 +400,9 @@ export class ConversionReporter {
         .map(
           (result) => `
         <tr class="success">
-          <td>${result.test}</td>
+          <td>${esc(result.test)}</td>
           <td>Match</td>
-          <td>${result.difference || '0%'}</td>
+          <td>${esc(result.difference || '0%')}</td>
         </tr>
       `
         )
@@ -324,9 +411,9 @@ export class ConversionReporter {
         .map(
           (result) => `
         <tr class="error">
-          <td>${result.test}</td>
+          <td>${esc(result.test)}</td>
           <td>Mismatch</td>
-          <td>${result.difference}</td>
+          <td>${esc(result.difference)}</td>
         </tr>
       `
         )
@@ -339,14 +426,14 @@ export class ConversionReporter {
     ${this.data.conversionSteps
       .map(
         (step) => `
-      <div class="step ${step.status}">
-        <h3>${step.step}</h3>
-        <p>Status: ${step.status}</p>
+      <div class="step ${statusClass(step.status)}">
+        <h3>${esc(step.step)}</h3>
+        <p>Status: ${esc(step.status)}</p>
         ${
           step.details
             ? `
           <div class="details">
-            <pre>${JSON.stringify(step.details, null, 2)}</pre>
+            <pre>${esc(JSON.stringify(step.details, null, 2))}</pre>
           </div>
         `
             : ''
@@ -373,13 +460,13 @@ export class ConversionReporter {
         .map(
           (error) => `
         <div class="step error">
-          <h3>${error.type} Error</h3>
-          <p>${error.message}</p>
+          <h3>${esc(error.type)} Error</h3>
+          <p>${esc(error.message)}</p>
           ${
             error.stack
               ? `
             <div class="details">
-              <pre>${error.stack}</pre>
+              <pre>${esc(error.stack)}</pre>
             </div>
           `
               : ''
@@ -506,5 +593,32 @@ ${error.stack ? `\`\`\`\n${error.stack}\n\`\`\`` : ''}
       this.data.testResults.skipped.length;
 
     return total === 0 ? 0 : ((value / total) * 100).toFixed(1);
+  }
+
+  /**
+   * Escape untrusted values for safe HTML output.
+   * @param {unknown} value - Untrusted value
+   * @returns {string}
+   */
+  escapeHtml(value) {
+    if (value == null) return '';
+    return String(value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  /**
+   * Normalize arbitrary status values to safe CSS class tokens.
+   * @param {unknown} value - Status value
+   * @returns {'success'|'error'|'warning'}
+   */
+  normalizeStatusClass(value) {
+    const normalized = String(value || '').toLowerCase();
+    if (normalized === 'success' || normalized === 'passed') return 'success';
+    if (normalized === 'error' || normalized === 'failed') return 'error';
+    return 'warning';
   }
 }

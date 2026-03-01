@@ -55,7 +55,8 @@ describe('convert-config CLI command', () => {
     const result = run(['convert-config', wdioConfigPath, '--from', 'webdriverio', '--to', 'playwright']);
 
     expect(result).toContain('@playwright/test');
-    expect(result).toContain('use.baseURL');
+    expect(result).toContain('use: {');
+    expect(result).toContain('baseURL');
     expect(result).toContain('timeout: 10000');
   });
 
@@ -85,5 +86,53 @@ describe('convert-config CLI command', () => {
 
     expect(result).toContain('exports.config');
     expect(result).toContain("baseUrl: 'http://localhost:3000'");
+  });
+
+  it('should keep convert-config CLI output aligned with convertConfig API output for Cypress to Playwright', () => {
+    const result = run([
+      'convert-config',
+      cypressConfigPath,
+      '--from',
+      'cypress',
+      '--to',
+      'playwright',
+    ]);
+
+    expect(result).toContain('projects: [');
+    expect(result).toContain("name: 'chromium'");
+  });
+
+  it('should generate syntactically valid JS for Cypress to Playwright', async () => {
+    const outputPath = path.join(fixturesDir, 'playwright-syntax.config.js');
+    run([
+      'convert-config',
+      cypressConfigPath,
+      '--from',
+      'cypress',
+      '--to',
+      'playwright',
+      '--output',
+      outputPath,
+    ]);
+
+    expect(() => execFileSync('node', ['--check', outputPath], { encoding: 'utf8' })).not.toThrow();
+    await fs.unlink(outputPath);
+  });
+
+  it('should generate syntactically valid JS for WDIO to Playwright', async () => {
+    const outputPath = path.join(fixturesDir, 'wdio-playwright-syntax.config.js');
+    run([
+      'convert-config',
+      wdioConfigPath,
+      '--from',
+      'webdriverio',
+      '--to',
+      'playwright',
+      '--output',
+      outputPath,
+    ]);
+
+    expect(() => execFileSync('node', ['--check', outputPath], { encoding: 'utf8' })).not.toThrow();
+    await fs.unlink(outputPath);
   });
 });

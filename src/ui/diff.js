@@ -6,14 +6,20 @@
  * @param {string} newText
  * @returns {Array<{type: 'equal'|'insert'|'delete', value: string}>}
  */
+const MAX_LCS_CELLS = 4_000_000;
+
 export function computeDiff(oldText, newText) {
   const oldLines = oldText.split('\n');
   const newLines = newText.split('\n');
   const n = oldLines.length;
   const m = newLines.length;
 
+  if ((n + 1) * (m + 1) > MAX_LCS_CELLS) {
+    return computeLinearFallbackDiff(oldLines, newLines);
+  }
+
   // Build LCS table
-  const dp = Array.from({ length: n + 1 }, () => new Uint16Array(m + 1));
+  const dp = Array.from({ length: n + 1 }, () => new Uint32Array(m + 1));
   for (let i = 1; i <= n; i++) {
     for (let j = 1; j <= m; j++) {
       if (oldLines[i - 1] === newLines[j - 1]) {
@@ -42,6 +48,30 @@ export function computeDiff(oldText, newText) {
     }
   }
   result.reverse();
+  return result;
+}
+
+function computeLinearFallbackDiff(oldLines, newLines) {
+  const result = [];
+  const maxLength = Math.max(oldLines.length, newLines.length);
+
+  for (let i = 0; i < maxLength; i++) {
+    const left = oldLines[i];
+    const right = newLines[i];
+
+    if (left === right && left !== undefined) {
+      result.push({ type: 'equal', value: left });
+      continue;
+    }
+
+    if (left !== undefined) {
+      result.push({ type: 'delete', value: left });
+    }
+    if (right !== undefined) {
+      result.push({ type: 'insert', value: right });
+    }
+  }
+
   return result;
 }
 

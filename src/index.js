@@ -51,10 +51,12 @@ export async function validateTests(testDir, _options = {}) {
  * @param {string} outputPath - Output path for report
  * @param {string} format - Report format (html, json, markdown)
  * @param {Object} data - Report data
- * @returns {Promise<void>}
+ * @returns {Promise<string>} - Path to generated report
  */
 export async function generateReport(outputPath, format = 'json', data = {}) {
-  const reporter = new ConversionReporter({ format });
+  const normalizedFormat =
+    format === 'markdown' ? 'md' : format === 'md' ? 'md' : format;
+  const reporter = new ConversionReporter({ format: normalizedFormat });
   return reporter.generateReport(data, outputPath);
 }
 

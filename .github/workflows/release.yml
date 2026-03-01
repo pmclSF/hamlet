@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: write
+  id-token: write
 
 jobs:
   # Gate: single source of truth — same script locally and in CI
@@ -54,6 +55,6 @@ jobs:
         generate_release_notes: true
 
     - name: Publish to npm
-      run: npm publish
+      run: npm publish --provenance
       env:
         NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

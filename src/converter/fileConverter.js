@@ -16,13 +16,42 @@ import { DependencyAnalyzer } from './dependencyAnalyzer.js';
 import { TestMetadataCollector } from './metadataCollector.js';
 import { TestValidator } from './validator.js';
 import { TypeScriptConverter } from './typescript.js';
-import { PluginConverter } from './plugins.js';
 import { VisualComparison } from './visual.js';
 import { TestMapper } from './mapper.js';
 import { ConversionReporter } from '../utils/reporter.js';
 import { fileUtils, logUtils } from '../utils/helpers.js';
+import { ConverterFactory } from '../core/ConverterFactory.js';
+import { ConfigConverter } from '../core/ConfigConverter.js';
 
 const logger = logUtils.createLogger('Converter');
+
+const DEFAULT_PLAYWRIGHT_PROJECTS = `  projects: [
+    { name: 'chromium', use: { browserName: 'chromium' } },
+    { name: 'firefox', use: { browserName: 'firefox' } },
+    { name: 'webkit', use: { browserName: 'webkit' } },
+  ],`;
+
+/**
+ * Ensure generated Playwright config includes a default multi-browser matrix.
+ * @param {string} configText
+ * @returns {string}
+ */
+function ensureDefaultPlaywrightProjects(configText) {
+  if (!/defineConfig\s*\(\s*\{/.test(configText)) {
+    return configText;
+  }
+
+  if (/^\s*projects\s*:/m.test(configText)) {
+    return configText;
+  }
+
+  const injected = configText.replace(
+    /\n\}\);/,
+    `\n${DEFAULT_PLAYWRIGHT_PROJECTS}\n});`
+  );
+
+  return injected;
+}
 
 /**
  * Detect type of Cypress test
@@ -224,7 +253,6 @@ export async function convertCypressToPlaywright(cypressContent, options = {}) {
     "trigger\\('mouseleave'\\)": 'hover({ force: false })',
     "trigger\\('focus'\\)": 'focus()',
     "trigger\\('blur'\\)": 'blur()',
-    'select\\(([^)]+)\\)': (match) => `selectOption(${match[1]})`,
   };
 
   // Apply conversions
@@ -259,16 +287,12 @@ export async function convertCypressToPlaywright(cypressContent, options = {}) {
           (testType.includes('api') ? ', request' : '') +
           ' }) =>'
       )
-      // Clean up any remaining text after the last closing brace
-      .replace(/}[^}]*$/, '});')
-      // Fix any remaining vistest to goto
-      .replace(/vistest\(/g, 'goto(')
-      // Remove any XML-style tags and their content
-      .replace(/<\/?userStyle[^>]*>.*?<\/userStyle>/g, '')
-      // Remove any other XML-style tags
-      .replace(/<[^>]+>/g, '')
-      // Remove any stray characters and whitespace at the end
-      .replace(/[%$#@\s]+$/, '')
+      // Fix historical typo that may remain from earlier transforms.
+      .replace(/\bvistest\(/g, 'goto(')
+      // Remove explicit userStyle markup blocks injected by some preprocessors.
+      .replace(/<\/?userStyle[^>]*>.*?<\/userStyle>/gs, '')
+      // Normalize trailing horizontal whitespace
+      .replace(/[ \t]+$/gm, '')
       // Add final newline
       .trim() + '\n';
 
@@ -284,92 +308,69 @@ export async function convertCypressToPlaywright(cypressContent, options = {}) {
  */
 export async function convertConfig(configPath, options = {}) {
   try {
-    const cypressConfig = JSON.parse(await fs.readFile(configPath, 'utf8'));
+    const content = await fs.readFile(configPath, 'utf8');
+    const filename = path.basename(configPath).toLowerCase();
 
-    const playwrightConfig = {
-      testDir: './tests',
-      timeout: cypressConfig.defaultCommandTimeout || 4000,
-      expect: {
-        timeout: cypressConfig.defaultCommandTimeout || 4000,
-      },
-      use: {
-        baseURL: cypressConfig.baseUrl,
-        viewport:
-          cypressConfig.viewportWidth && cypressConfig.viewportHeight
-            ? {
-                width: cypressConfig.viewportWidth,
-                height: cypressConfig.viewportHeight,
-              }
-            : undefined,
-        video: cypressConfig.video ? 'on' : 'off',
-        screenshot: cypressConfig.screenshotOnFailure
-          ? 'only-on-failure'
-          : 'off',
-        trace: options.trace || 'retain-on-failure',
-        // Additional Playwright-specific options
-        actionTimeout: cypressConfig.defaultCommandTimeout || 4000,
-        navigationTimeout: cypressConfig.pageLoadTimeout || 30000,
-        testIdAttribute: cypressConfig.testIdAttribute || 'data-testid',
-      },
-      projects: [
-        {
-          name: 'chromium',
-          use: { browserName: 'chromium' },
-        },
-        {
-          name: 'firefox',
-          use: { browserName: 'firefox' },
-        },
-        {
-          name: 'webkit',
-          use: { browserName: 'webkit' },
-        },
-      ],
-      // Additional configuration from Cypress
-      retries: cypressConfig.retries || 0,
-      workers: cypressConfig.numTestsKeptInMemory || undefined,
-      reporter: cypressConfig.reporter
-        ? [['html'], [cypressConfig.reporter]]
-        : [['html']],
-      reportSlowTests: {
-        max: 5,
-        threshold: cypressConfig.slowTestThreshold || 10000,
-      },
-      fullyParallel: true,
-      forbidOnly: !!process.env.CI,
-      maxFailures: cypressConfig.stopOnFirstFail ? 1 : 0,
-    };
+    const fromFramework =
+      (options.from && options.from.toLowerCase()) ||
+      (filename.includes('cypress')
+        ? 'cypress'
+        : filename.includes('playwright')
+          ? 'playwright'
+          : filename.includes('wdio')
+            ? 'webdriverio'
+            : filename.includes('jest')
+              ? 'jest'
+              : filename.includes('vitest')
+                ? 'vitest'
+                : filename.includes('pytest') ||
+                    filename.includes('pyproject') ||
+                    filename.includes('setup.cfg')
+                  ? 'pytest'
+                  : null);
 
-    // Handle Cypress plugins if they exist
-    if (options.convertPlugins) {
-      const pluginConverter = new PluginConverter();
-      const pluginResult = await pluginConverter.convertPlugin(configPath);
-      Object.assign(playwrightConfig.use, pluginResult.config);
-    }
+    const toFramework =
+      (options.to && options.to.toLowerCase()) ||
+      (fromFramework === 'cypress'
+        ? 'playwright'
+        : fromFramework === 'playwright'
+          ? 'cypress'
+          : fromFramework === 'jest'
+            ? 'vitest'
+            : fromFramework === 'vitest'
+              ? 'jest'
+              : fromFramework === 'webdriverio'
+                ? 'playwright'
+                : null);
 
-    // Generate config file content
-    const configContent = `
-  import { defineConfig, devices } from '@playwright/test';
-
-  /**
-   * Converted from Cypress configuration
-   * @see https://playwright.dev/docs/test-configuration
-   */
-  export default ${JSON.stringify(playwrightConfig, null, 2)};
-  `;
-
-    // Save extended configuration if needed
-    if (options.extendedConfig) {
-      const extendedConfig = await generateExtendedConfig(cypressConfig);
-      await fs.writeFile(
-        path.join(path.dirname(configPath), 'playwright.extended.config.js'),
-        extendedConfig
+    if (!fromFramework || !toFramework) {
+      throw new Error(
+        'Unable to determine config conversion direction. Provide --from and --to options.'
       );
     }
 
-    return configContent;
+    const converter = new ConfigConverter();
+    let converted = converter.convert(content, fromFramework, toFramework);
+
+    if (fromFramework === 'cypress' && toFramework === 'playwright') {
+      converted = ensureDefaultPlaywrightProjects(converted);
+
+      if (options.extendedConfig) {
+        const extendedPath = path.join(
+          path.dirname(configPath),
+          'playwright.extended.config.js'
+        );
+
+        await fs.writeFile(
+          extendedPath,
+          `// Extended Playwright config generated by Hamlet\n${converted}`
+        );
+      }
+    }
+
+    return converted;
   } catch (error) {
-    logger.error('Failed to convert Cypress config:', error);
+    logger.error(`Failed to convert config ${configPath}: ${error.message}`);
     throw error;
   }
 }
@@ -387,6 +388,9 @@ export async function convertFile(sourcePath, outputPath, options = {}) {
     const dependencyAnalyzer = new DependencyAnalyzer();
     const reporter = options.reporter || new ConversionReporter();
 
+    const fromFramework = (options.from || 'cypress').toLowerCase();
+    const toFramework = (options.to || 'playwright').toLowerCase();
+
     // Read file once and pass content to all consumers
     const content = await fs.readFile(sourcePath, 'utf8');
     const metadata = await metadataCollector.collectMetadataFromContent(
@@ -397,11 +401,12 @@ export async function convertFile(sourcePath, outputPath, options = {}) {
       sourcePath,
       content
     );
-    let converted = await convertCypressToPlaywright(content, {
-      ...options,
-      metadata,
-      dependencies,
-    });
+    const converter = await ConverterFactory.createConverter(
+      fromFramework,
+      toFramework,
+      options
+    );
+    let converted = await converter.convert(content, options);
 
     // Convert TypeScript if needed
     if (options.typescript && sourcePath.endsWith('.ts')) {
@@ -455,49 +460,4 @@ export async function convertFile(sourcePath, outputPath, options = {}) {
     logger.error(`Failed to convert ${sourcePath}:`, error);
     throw error;
   }
-}
-
-/**
- * Generate extended Playwright configuration
- * @param {Object} cypressConfig - Original Cypress configuration
- * @returns {string} - Extended configuration content
- */
-async function generateExtendedConfig(cypressConfig) {
-  const extendedConfig = `
-  import { defineConfig } from '@playwright/test';
-  import baseConfig from './playwright.config';
-
-  /**
-   * Extended Playwright configuration with additional settings
-   * converted from Cypress configuration
-   */
-  export default defineConfig({
-    ...baseConfig,
-    use: {
-      ...baseConfig.use,
-      // Additional browser context options
-      contextOptions: {
-        ignoreHTTPSErrors: ${!!cypressConfig.ignoreHTTPSErrors},
-        bypassCSP: ${!!cypressConfig.modifyObstructiveCode},
-        locale: '${cypressConfig.locale || 'en-US'}',
-        timezoneId: '${cypressConfig.timezone || 'UTC'}',
-        geolocation: ${cypressConfig.geolocation ? JSON.stringify(cypressConfig.geolocation) : 'undefined'},
-        permissions: ${cypressConfig.permissions ? JSON.stringify(cypressConfig.permissions) : '[]'},
-        offline: ${!!cypressConfig.offline}
-      },
-      // Screenshot options
-      screenshot: {
-        mode: '${cypressConfig.screenshotOnFailure ? 'only-on-failure' : 'off'}',
-        fullPage: ${!!cypressConfig.screenshotOnRunFailure}
-      },
-      // Video options
-      video: {
-        mode: '${cypressConfig.video ? 'retain-on-failure' : 'off'}',
-        size: ${cypressConfig.videoCompression ? JSON.stringify({ width: 1280, height: 720 }) : 'undefined'}
-      }
-    }
-  });
-  `;
-
-  return extendedConfig;
 }

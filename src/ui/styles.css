@@ -778,6 +778,74 @@ code,
   border-radius: 2px;
 }
 
+/* ── Responsive ─────────────────────────────────────────────────────── */
+@media (max-width: 1100px) {
+  #app {
+    padding: 16px;
+  }
+
+  .split-layout {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .detail-panel {
+    width: 100%;
+    max-height: 0;
+    transition: max-height 0.2s ease;
+  }
+
+  .detail-panel.open {
+    width: 100%;
+    max-height: 1200px;
+    border-left: 0;
+    border-top: 1px solid var(--bg-3);
+    padding-left: 0;
+    padding-top: 12px;
+  }
+
+  .diff-container {
+    flex-direction: column;
+  }
+
+  .diff-pane + .diff-pane {
+    border-left: 0;
+    border-top: 1px solid var(--bg-3);
+  }
+}
+
+@media (max-width: 768px) {
+  .topbar {
+    gap: 12px;
+    padding: 0 12px;
+    height: auto;
+    min-height: 48px;
+    flex-wrap: wrap;
+    align-content: center;
+  }
+
+  .view-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .table-toolbar,
+  .form-row {
+    flex-wrap: wrap;
+    align-items: stretch;
+  }
+
+  .search-input {
+    width: 100%;
+  }
+
+  .diff-meta {
+    flex-direction: column;
+    gap: 8px;
+  }
+}
+
 /* ── Scrollbar ────────────────────────────────────────────────────── */
 ::-webkit-scrollbar {
   width: 8px;

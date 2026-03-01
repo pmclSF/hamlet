@@ -5,7 +5,9 @@
 import type {
   Framework,
   ConversionOptions,
-  ConversionResult,
+  FileConversionResult,
+  BatchProcessResult,
+  RepositoryConversionReport,
   ConversionStats,
   ConversionReport,
   DetectionResult,
@@ -28,16 +30,30 @@ import {
   VERSION,
   SUPPORTED_TEST_TYPES,
   DEFAULT_OPTIONS,
+  BatchProcessor,
+  ConversionReporter,
+  RepositoryConverter,
+} from 'hamlet-converter';
+
+import {
   ConverterFactory,
   FrameworkDetector,
   PatternEngine,
   BaseConverter,
   PipelineConverter,
-  BatchProcessor,
-  ConversionReporter,
-  RepositoryConverter,
   FRAMEWORKS,
-} from 'hamlet-converter';
+} from 'hamlet-converter/core';
+
+import {
+  CypressToPlaywright,
+  CypressToSelenium,
+  PlaywrightToCypress,
+  PlaywrightToSelenium,
+  SeleniumToCypress,
+  SeleniumToPlaywright,
+} from 'hamlet-converter/converters';
+
+import { DependencyAnalyzer, fileUtils } from 'hamlet-converter/internals';
 
 // ── Framework type ──
 const fw: Framework = 'jest';
@@ -55,29 +71,30 @@ const opts: ConversionOptions = {
 
 // ── convertFile ──
 async function testConvertFile() {
-  const result: ConversionResult = await convertFile('input.js', 'output.js', {
+  const result: FileConversionResult = await convertFile('input.js', 'output.js', {
     from: 'jest',
     to: 'vitest',
   });
-  const _content: string = result.content;
+  const _ok: boolean = result.success;
+  const _out: string = result.outputPath;
 }
 
 // ── convertRepository ──
 async function testConvertRepo() {
-  const results: ConversionResult[] = await convertRepository('.', 'out/', {
+  const results: RepositoryConversionReport = await convertRepository('.', 'out/', {
     from: 'cypress',
     to: 'playwright',
   });
-  const _first: ConversionResult = results[0];
+  const _total: number = results.summary.totalFiles;
 }
 
 // ── processTestFiles ──
 async function testProcessFiles() {
-  const results: ConversionResult[] = await processTestFiles(['a.js'], {
+  const results: BatchProcessResult = await processTestFiles(['a.js'], {
     from: 'jest',
     to: 'vitest',
   });
-  const _r = results;
+  const _count: number = results.total;
 }
 
 // ── validateTests ──
@@ -87,7 +104,10 @@ async function testValidate() {
 
 // ── generateReport ──
 async function testReport() {
-  await generateReport('report.json', 'json', { summary: {} });
+  const reportPath: string = await generateReport('report.json', 'json', {
+    summary: {},
+  });
+  void reportPath;
 }
 
 // ── convertCypressToPlaywright ──
@@ -149,6 +169,18 @@ function testClasses() {
   const _repo = new RepositoryConverter();
 }
 
+// ── Subpath classes ──
+function testSubpathConverters() {
+  const _c1 = new CypressToPlaywright();
+  const _c2 = new CypressToSelenium();
+  const _c3 = new PlaywrightToCypress();
+  const _c4 = new PlaywrightToSelenium();
+  const _c5 = new SeleniumToCypress();
+  const _c6 = new SeleniumToPlaywright();
+  const _dep = new DependencyAnalyzer();
+  const _reader = fileUtils.readFile;
+}
+
 // ── Interface conformance checks ──
 function testInterfaces(
   _converter: IConverter,
@@ -171,6 +203,7 @@ void testFactory;
 void testDetector;
 void testPatternEngine;
 void testClasses;
+void testSubpathConverters;
 void testInterfaces;
 void fw;
 void opts;

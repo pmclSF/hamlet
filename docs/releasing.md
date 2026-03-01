@@ -22,7 +22,7 @@ git tag v2.x.x && git push origin v2.x.x
     └── release job (needs: verify):
           ├── npm ci
           ├── Create GitHub Release (auto-generated notes)
-          └── npm publish (NPM_TOKEN secret)
+          └── npm publish --provenance (NPM_TOKEN secret)
 ```
 
 A single workflow (`release.yml`) handles the full pipeline: verify → release →
@@ -48,6 +48,7 @@ tag-push flow.
 | Workflow | Permission | Why |
 |----------|-----------|-----|
 | `release.yml` | `contents: write` | Create GitHub Release |
+| `release.yml` | `id-token: write` | npm provenance attestation (`npm publish --provenance`) |
 | `publish.yml` | `contents: read` | Read repo (verify only, no publish) |
 
 ## Dry-Run Checklist
@@ -80,8 +81,9 @@ npm pack --dry-run
 Confirm only expected files are included:
 - `bin/hamlet.js`
 - `src/**/*.js`
-- `src/types/index.d.ts`
+- `src/types/*.d.ts`
 - `README.md`
+- `SECURITY.md`
 - `LICENSE`
 - `package.json`
 

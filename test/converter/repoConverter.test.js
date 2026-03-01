@@ -1,6 +1,10 @@
+import fs from 'fs/promises';
+import os from 'os';
+import path from 'path';
 import {
   RepositoryConverter,
   validateRepoUrl,
+  convertRepository,
 } from '../../src/converter/repoConverter.js';
 
 describe('RepositoryConverter', () => {
@@ -176,6 +180,101 @@ describe('RepositoryConverter', () => {
       const report = converter.generateReport();
       expect(report.configuration.tempDir).toBe('.hamlet-temp');
       expect(report.configuration.batchSize).toBe(5);
+    });
+  });
+
+  describe('convertRepository (function)', () => {
+    let tmpDir;
+
+    beforeEach(async () => {
+      tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'hamlet-repo-'));
+    });
+
+    afterEach(async () => {
+      await fs.rm(tmpDir, { recursive: true, force: true });
+    });
+
+    it('should return testResults array and summary counts', async () => {
+      const repoDir = path.join(tmpDir, 'repo');
+      const outDir = path.join(tmpDir, 'out');
+      const testDir = path.join(repoDir, 'cypress', 'e2e');
+      await fs.mkdir(testDir, { recursive: true });
+      await fs.writeFile(
+        path.join(testDir, 'login.cy.js'),
+        `
+describe('login', () => {
+  it('works', () => {
+    cy.visit('/');
+  });
+});
+`
+      );
+
+      const report = await convertRepository(repoDir, outDir, {
+        report: false,
+        convertPlugins: false,
+      });
+
+      expect(report).toHaveProperty('summary');
+      expect(report.summary.totalFiles).toBe(1);
+      expect(Array.isArray(report.testResults)).toBe(true);
+      expect(report.summary.failedFiles).toBe(0);
+    });
+
+    it('should honor from/to options and discover non-Cypress test files', async () => {
+      const repoDir = path.join(tmpDir, 'repo-jest');
+      const outDir = path.join(tmpDir, 'out-jest');
+      await fs.mkdir(repoDir, { recursive: true });
+      await fs.writeFile(
+        path.join(repoDir, 'sum.test.js'),
+        `
+import { test, expect } from '@jest/globals';
+test('sum', () => {
+  expect(1 + 1).toBe(2);
+});
+`
+      );
+
+      const report = await convertRepository(repoDir, outDir, {
+        from: 'jest',
+        to: 'vitest',
+        report: false,
+        convertPlugins: false,
+      });
+
+      expect(report.summary.totalFiles).toBe(1);
+      expect(report.summary.convertedFiles).toBe(1);
+      expect(report.testResults[0].output).toContain('sum.test.js');
+    });
+
+    it('should write converted plugin output as text when plugins are detected', async () => {
+      const repoDir = path.join(tmpDir, 'repo-plugins');
+      const outDir = path.join(tmpDir, 'out-plugins');
+      await fs.mkdir(path.join(repoDir, 'cypress', 'e2e'), { recursive: true });
+      await fs.mkdir(path.join(repoDir, 'cypress', 'plugins'), {
+        recursive: true,
+      });
+      await fs.writeFile(
+        path.join(repoDir, 'cypress', 'e2e', 'flow.cy.js'),
+        "describe('flow', () => { it('runs', () => { cy.visit('/'); }); });"
+      );
+      await fs.writeFile(
+        path.join(repoDir, 'cypress', 'plugins', 'index.js'),
+        "const upload = require('cypress-file-upload'); module.exports = () => {};"
+      );
+
+      const report = await convertRepository(repoDir, outDir, {
+        from: 'cypress',
+        to: 'playwright',
+        report: false,
+        convertPlugins: true,
+      });
+
+      const pluginEntry = report.pluginResults.find((r) => r.status === 'success');
+      expect(pluginEntry).toBeDefined();
+      const pluginOutput = await fs.readFile(pluginEntry.output, 'utf8');
+      expect(pluginOutput).toContain('Converted plugin helpers');
+      expect(pluginOutput).toContain('export const pluginConfig');
     });
   });
 });

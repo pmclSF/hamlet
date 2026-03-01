@@ -1,4 +1,10 @@
-import { BatchProcessor } from '../../src/converter/batchProcessor.js';
+import fs from 'fs/promises';
+import os from 'os';
+import path from 'path';
+import {
+  BatchProcessor,
+  processTestFiles,
+} from '../../src/converter/batchProcessor.js';
 
 describe('BatchProcessor', () => {
   let processor;
@@ -81,8 +87,38 @@ describe('BatchProcessor', () => {
     });
 
     it('should handle empty file list', async () => {
-      await processor.processBatch([], async () => {});
+      const result = await processor.processBatch([], async () => {});
       expect(processor.stats.total).toBe(0);
+      expect(Array.isArray(result.results)).toBe(true);
+    });
+
+    it('should expose per-file results in return value', async () => {
+      const files = ['a.js', 'b.js'];
+      const result = await processor.processBatch(files, async (file) => ({
+        file,
+        status: 'success',
+      }));
+
+      expect(result.total).toBe(2);
+      expect(result.results).toHaveLength(2);
+      expect(result.results[0].status).toBe('success');
+    });
+
+    it('should respect configured concurrency limit', async () => {
+      const files = ['a.js', 'b.js', 'c.js', 'd.js', 'e.js'];
+      const limited = new BatchProcessor({ batchSize: 5, concurrency: 2 });
+      let active = 0;
+      let maxActive = 0;
+
+      await limited.processBatch(files, async () => {
+        active++;
+        maxActive = Math.max(maxActive, active);
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        active--;
+        return { status: 'success' };
+      });
+
+      expect(maxActive).toBeLessThanOrEqual(2);
     });
   });
 
@@ -110,5 +146,44 @@ describe('BatchProcessor', () => {
       expect(stats.success).toBe(3);
       expect(stats.successRate).toBe('100.00%');
     });
+  });
+});
+
+describe('processTestFiles', () => {
+  let tmpDir;
+
+  beforeEach(async () => {
+    tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'hamlet-batch-'));
+  });
+
+  afterEach(async () => {
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  });
+
+  it('should return success/failure counts and result list without crashing', async () => {
+    const goodSource = path.join(tmpDir, 'good.cy.js');
+    const goodOutput = path.join(tmpDir, 'good.spec.js');
+    const missingSource = path.join(tmpDir, 'missing.cy.js');
+
+    await fs.writeFile(
+      goodSource,
+      `
+describe('good', () => {
+  it('works', () => {
+    cy.visit('/');
+  });
+});
+`
+    );
+
+    const result = await processTestFiles([goodSource, missingSource], {
+      getOutputPath: (file) =>
+        file === goodSource ? goodOutput : path.join(tmpDir, 'missing.spec.js'),
+    });
+
+    expect(result.total).toBe(2);
+    expect(result.successful).toBe(1);
+    expect(result.failed).toBe(1);
+    expect(result.results).toHaveLength(2);
   });
 });

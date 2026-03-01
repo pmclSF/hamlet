@@ -23,10 +23,8 @@ export function buildOutputFilename(sourceBasename, toFramework) {
   const ext = path.extname(sourceBasename);
   const base = path.basename(sourceBasename, ext);
   const cleanBase = base.replace(/\.(cy|spec|test)$/, '');
-  if (ext === '.py' || ext === '.java') return cleanBase + ext;
-  if (toFramework === 'cypress') return cleanBase + '.cy.js';
-  if (toFramework === 'playwright') return cleanBase + '.spec.js';
-  return cleanBase + '.test.js';
+  const targetExt = getTargetExtension(toFramework, ext || '.js');
+  return cleanBase + targetExt;
 }
 
 /**

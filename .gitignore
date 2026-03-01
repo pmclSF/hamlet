@@ -150,6 +150,7 @@ testing/
 # Test output (generated during test runs)
 test/output/
 test/fixtures/
+reports/
 
 # Temporary files
 PR_DESCRIPTION.md

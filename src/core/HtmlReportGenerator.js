@@ -105,7 +105,12 @@ function buildDirections(dirs) {
 
 function buildHtml(report) {
   const { meta, summary, files } = report;
-  const jsonBlob = JSON.stringify(report);
+  const jsonBlob = JSON.stringify(report)
+    .replace(/</g, '\\u003C')
+    .replace(/>/g, '\\u003E')
+    .replace(/&/g, '\\u0026')
+    .replace(/\u2028/g, '\\u2028')
+    .replace(/\u2029/g, '\\u2029');
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -283,7 +288,7 @@ tbody.addEventListener('click',function(e){
     +'<div class="detail-row"><span class="detail-label">Confidence</span>'+confHtml(f.confidence)+'</div></div>'
     +(f.candidates.length>0?'<div class="detail-section"><h4>Detection Candidates</h4>'+f.candidates.map(function(c){return '<div class="detail-row">'+fwBadge(c.framework)+' <span style="color:var(--text-1)">score: '+c.score+'</span></div>'}).join('')+'</div>':'')
     +(f.warnings.length>0?'<div class="detail-section"><h4>Warnings</h4>'+f.warnings.map(function(w){return '<div style="padding:4px 8px;margin-bottom:4px;background:rgba(210,153,34,.1);border-left:3px solid var(--warning);border-radius:0 var(--radius) var(--radius) 0;font-size:12px;color:var(--warning)">'+esc(w)+'</div>'}).join('')+'</div>':'')
-    +(cmd?'<div class="detail-section"><h4>Recommended Command</h4><div class="command-block"><code>'+esc(cmd)+'</code><button class="btn btn-ghost" style="padding:3px 6px;font-size:11px" onclick="navigator.clipboard.writeText(this.previousElementSibling.textContent);this.textContent=\\'Copied!\\';setTimeout(function(){}.bind(this),1500)">Copy</button></div></div>':'')
+    +(cmd?'<div class="detail-section"><h4>Recommended Command</h4><div class="command-block"><code>'+esc(cmd)+'</code><button class="btn btn-ghost" style="padding:3px 6px;font-size:11px" onclick="var btn=this;navigator.clipboard.writeText(btn.previousElementSibling.textContent);btn.textContent=\\'Copied!\\';setTimeout(function(){btn.textContent=\\'Copy\\';},1500)">Copy</button></div></div>':'')
     +(fd.length>0?'<div class="detail-section"><h4>Available Targets</h4>'+fd.map(function(d){return '<div class="detail-row">'+fwBadge(d.to)+' '+(d.pipelineBacked?badge('pipeline','success'):badge('legacy','muted'))+'</div>'}).join('')+'</div>':'');
   document.getElementById('close-detail').addEventListener('click',function(){
     detail.className='detail-side';detail.innerHTML='<div class="detail-empty">Select a file to view details</div>';

@@ -44,6 +44,51 @@ export interface ConversionResult {
   stats?: ConversionStats;
 }
 
+export interface FileConversionResult {
+  success: boolean;
+  outputPath: string;
+  metadata?: Record<string, unknown>;
+  dependencies?: Record<string, unknown> | unknown[];
+  validationResults?: object | null;
+  visualResults?: object | null;
+}
+
+export interface BatchFileResult {
+  file: string;
+  status: 'success' | 'error' | 'skipped';
+  outputPath?: string;
+  error?: string;
+  metadata?: Record<string, unknown>;
+  dependencies?: Record<string, unknown> | unknown[];
+}
+
+export interface BatchProcessResult {
+  total: number;
+  successful: number;
+  failed: number;
+  results: BatchFileResult[];
+}
+
+export interface RepositoryConversionReport {
+  summary: {
+    totalFiles: number;
+    convertedFiles: number;
+    failedFiles: number;
+    configurationFiles: number;
+    supportFiles: number;
+    plugins: number;
+  };
+  testResults: Array<Record<string, unknown>>;
+  configResults?: Array<Record<string, unknown>>;
+  supportResults?: Array<Record<string, unknown>>;
+  pluginResults?: Array<Record<string, unknown>>;
+  metadata?: Record<string, unknown>;
+  dependencies?: Record<string, unknown>;
+  mappings?: Array<Record<string, unknown>>;
+  timestamp?: string;
+  duration?: unknown;
+}
+
 export interface ConversionStats {
   /** Number of conversions performed */
   conversions: number;
@@ -190,62 +235,6 @@ export interface IPatternEngine {
   clear(): void;
 }
 
-// ── Classes exported from hamlet-converter/core ──
-
-export class BaseConverter implements IConverter {
-  readonly sourceFramework: string;
-  readonly targetFramework: string;
-  readonly stats: ConversionStats;
-
-  constructor(options?: ConversionOptions);
-  convert(content: string, options?: ConversionOptions): Promise<string>;
-  convertConfig(configPath: string, options?: ConversionOptions): Promise<string>;
-  detectTestTypes(content: string): string[];
-  getImports(testTypes: string[]): string[];
-}
-
-export class PipelineConverter extends BaseConverter {
-  constructor(
-    sourceFrameworkName: string,
-    targetFrameworkName: string,
-    frameworkDefinitions: object[],
-    options?: ConversionOptions
-  );
-  convert(content: string, options?: ConversionOptions): Promise<string>;
-  convertConfig(configPath: string, options?: ConversionOptions): Promise<string>;
-  getLastReport(): ConversionReport | null;
-}
-
-export class CypressToPlaywright extends BaseConverter {}
-export class CypressToSelenium extends BaseConverter {}
-export class PlaywrightToCypress extends BaseConverter {}
-export class PlaywrightToSelenium extends BaseConverter {}
-export class SeleniumToCypress extends BaseConverter {}
-export class SeleniumToPlaywright extends BaseConverter {}
-
-export class ConverterFactory implements IConverterFactory {
-  static createConverter(from: Framework, to: Framework, options?: ConversionOptions): Promise<IConverter>;
-  static isSupported(from: Framework, to: Framework): boolean;
-  static getSupportedConversions(): string[];
-  static getFrameworks(): Framework[];
-  static getConversionMatrix(): Record<Framework, Record<Framework, boolean>>;
-}
-
-export class FrameworkDetector implements IFrameworkDetector {
-  static detect(content: string, filePath?: string): DetectionResult;
-  static detectFromContent(content: string): DetectionResult;
-  static detectFromPath(filePath: string): DetectionResult;
-  static getDetectableFrameworks(): string[];
-  static isTestFile(content: string): boolean;
-}
-
-export class PatternEngine implements IPatternEngine {
-  registerPatterns(category: string, patterns: Record<string, string>): void;
-  applyPatterns(content: string, categories?: string[]): string;
-  getCategories(): string[];
-  clear(): void;
-}
-
 // ── Classes exported from main entry (hamlet-converter) ──
 
 export class RepositoryConverter {
@@ -258,7 +247,7 @@ export class BatchProcessor {
 
 export class ConversionReporter {
   constructor(options?: { format?: string });
-  generateReport(data: object, outputPath: string): Promise<void>;
+  generateReport(data?: object, outputPath?: string): Promise<string>;
 }
 
 /** Convert a single file */
@@ -266,20 +255,20 @@ export function convertFile(
   inputPath: string,
   outputPath: string,
   options?: ConversionOptions & { from?: Framework; to?: Framework }
-): Promise<ConversionResult>;
+): Promise<FileConversionResult>;
 
 /** Convert a repository */
 export function convertRepository(
   repoUrl: string,
   outputPath: string,
   options?: ConversionOptions & { from?: Framework; to?: Framework }
-): Promise<ConversionResult[]>;
+): Promise<RepositoryConversionReport>;
 
 /** Process test files in batch */
 export function processTestFiles(
   files: string[],
   options?: ConversionOptions & { from?: Framework; to?: Framework }
-): Promise<ConversionResult[]>;
+): Promise<BatchProcessResult>;
 
 /** Validate converted tests */
 export function validateTests(
@@ -292,7 +281,7 @@ export function generateReport(
   outputPath: string,
   format?: string,
   data?: object
-): Promise<void>;
+): Promise<string>;
 
 /** Convert Cypress test to Playwright */
 export function convertCypressToPlaywright(
@@ -308,25 +297,6 @@ export function convertConfig(
 
 // ── Constants ──
 
-export const FRAMEWORKS: {
-  CYPRESS: 'cypress';
-  PLAYWRIGHT: 'playwright';
-  SELENIUM: 'selenium';
-  JEST: 'jest';
-  VITEST: 'vitest';
-  MOCHA: 'mocha';
-  JASMINE: 'jasmine';
-  WEBDRIVERIO: 'webdriverio';
-  PUPPETEER: 'puppeteer';
-  TESTCAFE: 'testcafe';
-  JUNIT4: 'junit4';
-  JUNIT5: 'junit5';
-  TESTNG: 'testng';
-  PYTEST: 'pytest';
-  UNITTEST: 'unittest';
-  NOSE2: 'nose2';
-};
-
 export const VERSION: string;
 
 export const SUPPORTED_TEST_TYPES: string[];
@@ -341,4 +311,3 @@ export const DEFAULT_OPTIONS: {
   batchSize: number;
   timeout: number;
 };
-

@@ -15,6 +15,9 @@ import { PluginConverter } from './plugins.js';
 import { TestMapper } from './mapper.js';
 import { ConversionReporter } from '../utils/reporter.js';
 import { fileUtils, logUtils } from '../utils/helpers.js';
+import { Scanner } from '../core/Scanner.js';
+import { FileClassifier } from '../core/FileClassifier.js';
+import { buildOutputFilename } from '../cli/outputHelpers.js';
 
 const execFileAsync = promisify(execFile);
 const logger = logUtils.createLogger('RepoConverter');
@@ -89,27 +92,58 @@ export class RepositoryConverter {
    * @returns {Promise<Object>} - Repository analysis with testFiles, configs, supportFiles, plugins
    */
   async analyzeRepository(repoPath) {
-    const testFiles = await this.findCypressTests(repoPath);
+    const sourceFramework = (this.options.from || 'cypress').toLowerCase();
+    const testFiles = await this.findFrameworkTests(repoPath, sourceFramework);
 
-    const configPatterns = ['**/cypress.json', '**/cypress.config.{js,ts}'];
-    const configs = await glob(configPatterns, {
-      cwd: repoPath,
-      absolute: true,
-      ignore: this.options.ignore,
-    });
+    const frameworkConfigPatterns = {
+      cypress: ['**/cypress.json', '**/cypress.config.{js,ts}'],
+      playwright: ['**/playwright.config.{js,ts,mjs,cjs,mts,cts}'],
+      webdriverio: ['**/wdio.conf.{js,ts,mjs,cjs,mts,cts}'],
+      jest: ['**/jest.config.{js,ts,mjs,cjs,mts,cts,json}'],
+      vitest: ['**/vitest.config.{js,ts,mjs,cjs,mts,cts}'],
+      mocha: ['**/.mocharc.{js,json,yaml,yml,cjs,mjs}', '**/mocha.opts'],
+      jasmine: ['**/jasmine.json'],
+      pytest: ['**/pytest.ini', '**/pyproject.toml', '**/setup.cfg'],
+      nose2: ['**/nose2.cfg', '**/unittest.cfg'],
+      testng: ['**/testng.xml', '**/pom.xml', '**/build.gradle*'],
+      junit4: ['**/pom.xml', '**/build.gradle*'],
+      junit5: ['**/pom.xml', '**/build.gradle*'],
+      unittest: [],
+      selenium: [],
+      puppeteer: [],
+      testcafe: [],
+    };
+    const configPatterns = frameworkConfigPatterns[sourceFramework] || [];
+    const configs =
+      configPatterns.length > 0
+        ? await glob(configPatterns, {
+            cwd: repoPath,
+            absolute: true,
+            ignore: this.options.ignore,
+          })
+        : [];
 
-    const supportPatterns = ['**/cypress/support/**/*.{js,ts}'];
-    const supportFiles = await glob(supportPatterns, {
-      cwd: repoPath,
-      absolute: true,
-      ignore: this.options.ignore,
-    });
+    const isCypress = sourceFramework === 'cypress';
+    const supportPatterns = isCypress
+      ? ['**/cypress/support/**/*.{js,ts}']
+      : [];
+    const supportFiles =
+      supportPatterns.length > 0
+        ? await glob(supportPatterns, {
+            cwd: repoPath,
+            absolute: true,
+            ignore: this.options.ignore,
+          })
+        : [];
 
-    const pluginPatterns = ['**/cypress/plugins/**/*.{js,ts}'];
-    const plugins = await glob(pluginPatterns, {
-      cwd: repoPath,
-      absolute: true,
-    });
+    const pluginPatterns = isCypress ? ['**/cypress/plugins/**/*.{js,ts}'] : [];
+    const plugins =
+      pluginPatterns.length > 0
+        ? await glob(pluginPatterns, {
+            cwd: repoPath,
+            absolute: true,
+          })
+        : [];
 
     return { testFiles, configs, supportFiles, plugins };
   }
@@ -122,16 +156,17 @@ export class RepositoryConverter {
    */
   async convertRepository(repoUrl, outputPath) {
     try {
+      const fromFramework = (this.options.from || 'cypress').toLowerCase();
       const isRemote = repoUrl.startsWith('http') || repoUrl.startsWith('git@');
       const repoPath = isRemote ? await this.cloneRepository(repoUrl) : repoUrl;
 
       logger.info(`Processing repository: ${repoPath}`);
 
-      // Find all Cypress tests
-      const testFiles = await this.findCypressTests(repoPath);
+      // Find all source-framework tests
+      const testFiles = await this.findFrameworkTests(repoPath, fromFramework);
       this.stats.totalFiles = testFiles.length;
 
-      logger.info(`Found ${testFiles.length} Cypress test files`);
+      logger.info(`Found ${testFiles.length} ${fromFramework} test files`);
 
       // Process tests in batches
       const batches = this.createBatches(testFiles);
@@ -174,25 +209,66 @@ export class RepositoryConverter {
   }
 
   /**
-   * Find all Cypress test files in repository
+   * Find test files for the requested source framework.
+   * Uses content-aware classification rather than framework-specific path globs.
    * @param {string} repoPath - Repository path
+   * @param {string} sourceFramework - Source framework name
    * @returns {Promise<string[]>} - Array of test file paths
    */
+  async findFrameworkTests(repoPath, sourceFramework) {
+    const scanner = new Scanner();
+    const classifier = new FileClassifier();
+    const framework = (sourceFramework || 'cypress').toLowerCase();
+    const frameworkAgnosticUnitRuntimes = new Set([
+      'jest',
+      'vitest',
+      'mocha',
+      'jasmine',
+    ]);
+
+    const files = await scanner.scan(repoPath);
+    const testFiles = [];
+
+    for (const file of files) {
+      if (!/\.(js|jsx|ts|tsx|py|java)$/i.test(file.path)) continue;
+
+      try {
+        const content = await fs.readFile(file.path, 'utf8');
+        const classification = classifier.classify(file.path, content);
+        if (classification.type !== 'test') continue;
+
+        const detectedFramework = classification.framework
+          ? classification.framework.toLowerCase()
+          : null;
+
+        if (detectedFramework === framework) {
+          testFiles.push(file.path);
+          continue;
+        }
+
+        // For unit-test runtimes with overlapping syntax, fall back to test-file
+        // inclusion when framework detection is inconclusive.
+        if (
+          !detectedFramework &&
+          frameworkAgnosticUnitRuntimes.has(framework)
+        ) {
+          testFiles.push(file.path);
+        }
+      } catch (_err) {
+        // Skip unreadable files.
+      }
+    }
+
+    return testFiles;
+  }
+
+  /**
+   * Backward-compat helper for existing Cypress-specific callers.
+   * @param {string} repoPath - Repository path
+   * @returns {Promise<string[]>}
+   */
   async findCypressTests(repoPath) {
-    const patterns = [
-      '**/cypress/integration/**/*.{js,jsx,ts,tsx}',
-      '**/cypress/e2e/**/*.{js,jsx,ts,tsx}',
-      '**/cypress/component/**/*.{js,jsx,ts,tsx}',
-      '**/*.cy.{js,jsx,ts,tsx}',
-    ];
-
-    const files = await glob(patterns, {
-      cwd: repoPath,
-      absolute: true,
-      ignore: this.options.ignore,
-    });
-
-    return files;
+    return this.findFrameworkTests(repoPath, 'cypress');
   }
 
   /**
@@ -217,16 +293,21 @@ export class RepositoryConverter {
   async processTestFile(filePath, repoPath, outputPath) {
     try {
       const relativePath = path.relative(repoPath, filePath);
+      const toFramework = (this.options.to || 'playwright').toLowerCase();
+      const fromFramework = (this.options.from || 'cypress').toLowerCase();
+      const outputFilename = buildOutputFilename(
+        path.basename(filePath),
+        toFramework
+      );
       const outputFile = this.options.preserveStructure
-        ? path
-            .join(outputPath, relativePath)
-            .replace(/\.cy\.(js|ts)x?$/, '.spec.$1')
-        : path.join(
-            outputPath,
-            path.basename(filePath).replace(/\.cy\.(js|ts)x?$/, '.spec.$1')
-          );
+        ? path.join(outputPath, path.dirname(relativePath), outputFilename)
+        : path.join(outputPath, outputFilename);
 
-      await convertFile(filePath, outputFile);
+      await convertFile(filePath, outputFile, {
+        ...this.options,
+        from: fromFramework,
+        to: toFramework,
+      });
       this.stats.converted++;
       logger.info(`Converted: ${relativePath}`);
     } catch (error) {
@@ -307,8 +388,23 @@ const converterLogger = logUtils.createLogger('Converter');
  */
 export async function convertRepository(repoPath, outputPath, options = {}) {
   try {
+    const fromFramework = (
+      options.from ||
+      options.fromFramework ||
+      'cypress'
+    ).toLowerCase();
+    const toFramework = (
+      options.to ||
+      options.toFramework ||
+      'playwright'
+    ).toLowerCase();
+
     // Initialize components
-    const repoConverter = new RepositoryConverter(options);
+    const repoConverter = new RepositoryConverter({
+      ...options,
+      from: fromFramework,
+      to: toFramework,
+    });
     const batchProcessor = new BatchProcessor(options);
     const metadataCollector = new TestMetadataCollector();
     const dependencyAnalyzer = new DependencyAnalyzer();
@@ -326,6 +422,7 @@ export async function convertRepository(repoPath, outputPath, options = {}) {
     const workingPath = isRemoteRepo
       ? await repoConverter.cloneRepository(repoPath)
       : repoPath;
+    await fs.mkdir(outputPath, { recursive: true });
 
     // Analyze repository structure
     const structure = await repoConverter.analyzeRepository(workingPath);
@@ -338,12 +435,16 @@ export async function convertRepository(repoPath, outputPath, options = {}) {
           outputPath,
           path
             .basename(config)
-            .replace('cypress', 'playwright')
+            .replace(fromFramework, toFramework)
             .replace('.json', '.config.js')
         );
 
         try {
-          const converted = await convertConfig(config, options);
+          const converted = await convertConfig(config, {
+            ...options,
+            from: fromFramework,
+            to: toFramework,
+          });
           await fs.writeFile(outputConfig, converted);
           return { source: config, output: outputConfig, status: 'success' };
         } catch (error) {
@@ -354,14 +455,19 @@ export async function convertRepository(repoPath, outputPath, options = {}) {
     );
 
     // Process tests in batches
-    const batchResults = await batchProcessor.processBatch(
+    const batchSummary = await batchProcessor.processBatch(
       structure.testFiles,
       async (file) => {
         const relativePath = path.relative(workingPath, file);
+        const outputFilename = buildOutputFilename(
+          path.basename(file),
+          toFramework
+        );
         const outputFile = path.join(
           outputPath,
           'tests',
-          relativePath.replace(/\.cy\.(js|ts)$/, '.spec.$1')
+          path.dirname(relativePath),
+          outputFilename
         );
 
         try {
@@ -369,6 +475,8 @@ export async function convertRepository(repoPath, outputPath, options = {}) {
           const _result = await convertFile(file, outputFile, {
             ...options,
             reporter,
+            from: fromFramework,
+            to: toFramework,
           });
 
           // Collect metadata and analyze dependencies
@@ -396,6 +504,7 @@ export async function convertRepository(repoPath, outputPath, options = {}) {
         }
       }
     );
+    const batchResults = batchSummary.results || [];
 
     // Convert support files
     const supportResults = await Promise.all(
@@ -404,7 +513,11 @@ export async function convertRepository(repoPath, outputPath, options = {}) {
         const outputFile = path.join(outputPath, 'support', relativePath);
 
         try {
-          await convertFile(file, outputFile, options);
+          await convertFile(file, outputFile, {
+            ...options,
+            from: fromFramework,
+            to: toFramework,
+          });
           return { source: file, output: outputFile, status: 'success' };
         } catch (error) {
           converterLogger.error(
@@ -424,12 +537,33 @@ export async function convertRepository(repoPath, outputPath, options = {}) {
         structure.plugins.map(async (plugin) => {
           try {
             const converted = await pluginConverter.convertPlugin(plugin);
+            const convertedPlugins = (converted.conversions || []).filter(
+              (entry) => entry.status === 'converted'
+            );
+            if (convertedPlugins.length === 0) {
+              return {
+                source: plugin,
+                status: 'skipped',
+                reason: 'No known Cypress plugins detected',
+              };
+            }
+
             const outputFile = path.join(
               outputPath,
               'plugins',
               path.basename(plugin)
             );
-            await fs.writeFile(outputFile, converted);
+            await fs.mkdir(path.dirname(outputFile), { recursive: true });
+            const pluginOutput = [
+              '// Converted plugin helpers generated by Hamlet',
+              converted.imports || '',
+              '',
+              converted.setup || '',
+              '',
+              `export const pluginConfig = ${JSON.stringify(converted.config || {}, null, 2)};`,
+              '',
+            ].join('\n');
+            await fs.writeFile(outputFile, pluginOutput, 'utf8');
             return { source: plugin, output: outputFile, status: 'success' };
           } catch (error) {
             converterLogger.error(`Failed to convert plugin ${plugin}:`, error);

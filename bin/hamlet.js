@@ -83,11 +83,37 @@ async function convertAction(source, options) {
   const dryRun = options.dryRun || plan;
   const onError = options.onError || 'skip';
   const reportJsonFiles = [];
+  let singleOutputPath = null;
+
+  let fromFramework = options.from.toLowerCase();
+  const toFramework = options.to.toLowerCase();
+
+  // Auto-detect framework if requested
+  if (options.autoDetect) {
+    try {
+      const { FrameworkDetector } = await import(
+        '../src/core/FrameworkDetector.js'
+      );
+      const content = await fs.readFile(source, 'utf8');
+      const detection = FrameworkDetector.detectFromContent(content);
+      if (detection.framework && detection.confidence > 0.5) {
+        fromFramework = detection.framework.toLowerCase();
+        options.from = fromFramework;
+        if (!quiet && !jsonOutput) {
+          console.log(
+            chalk.yellow(
+              `Auto-detected source framework: ${detection.framework} (${Math.round(detection.confidence * 100)}% confidence)`
+            )
+          );
+        }
+      }
+    } catch (_e) {
+      // Ignore auto-detection errors
+    }
+  }
 
   // Validate frameworks
   const validFrameworks = Object.values(FRAMEWORKS);
-  const fromFramework = options.from.toLowerCase();
-  const toFramework = options.to.toLowerCase();
 
   if (!validFrameworks.includes(fromFramework)) {
     // Check for cross-language hint
@@ -173,29 +199,6 @@ async function convertAction(source, options) {
         `Converting from ${chalk.bold(fromFramework)} to ${chalk.bold(toFramework)}...`
       )
     );
-  }
-
-  // Auto-detect framework if requested
-  if (options.autoDetect) {
-    try {
-      const { FrameworkDetector } = await import(
-        '../src/core/FrameworkDetector.js'
-      );
-      const content = await fs.readFile(source, 'utf8');
-      const detection = FrameworkDetector.detectFromContent(content);
-      if (detection.framework && detection.confidence > 0.5) {
-        if (!quiet && !jsonOutput) {
-          console.log(
-            chalk.yellow(
-              `Auto-detected source framework: ${detection.framework} (${Math.round(detection.confidence * 100)}% confidence)`
-            )
-          );
-        }
-        options.from = detection.framework;
-      }
-    } catch (_e) {
-      // Ignore auto-detection errors
-    }
   }
 
   // Determine if source is a file, directory, or glob
@@ -330,16 +333,6 @@ async function convertAction(source, options) {
         }
       }
 
-      if (sourceFiles.length === 0) {
-        // Fallback: try all JS/TS files if classifier found nothing
-        const fallbackFiles = allFiles.filter((f) =>
-          /\.(js|ts|tsx|jsx|py|java|rb)$/.test(f.path)
-        );
-        if (fallbackFiles.length > 0) {
-          sourceFiles = fallbackFiles;
-        }
-      }
-
       isBatch = true;
     } else {
       sourceFiles = [
@@ -363,15 +356,21 @@ async function convertAction(source, options) {
   }
 
   // Create converter
+  const parsedBatchSize = Number.parseInt(options.batchSize || '5', 10);
+  const converterOptions = {
+    batchSize:
+      Number.isFinite(parsedBatchSize) && parsedBatchSize > 0
+        ? parsedBatchSize
+        : 5,
+    preserveStructure: options.preserveStructure,
+  };
+
   let converter;
   try {
     converter = await ConverterFactory.createConverter(
       fromFramework,
       toFramework,
-      {
-        batchSize: parseInt(options.batchSize || '5'),
-        preserveStructure: options.preserveStructure,
-      }
+      converterOptions
     );
   } catch (error) {
     if (jsonOutput) {
@@ -633,8 +632,7 @@ async function convertAction(source, options) {
 
   // ── Actual conversion ────────────────────────────────────────────
   const isRepository =
-    !isBatch &&
-    (source.includes('github.com') || source.includes('gitlab.com'));
+    !isBatch && (/^https?:\/\//i.test(source) || /^git@/i.test(source));
 
   if (isRepository) {
     const { convertRepository } = await import('../src/index.js');
@@ -669,8 +667,16 @@ async function convertAction(source, options) {
     const outputDir = path.resolve(options.output);
     await fs.mkdir(outputDir, { recursive: true });
 
-    for (let i = 0; i < total; i++) {
-      const file = sourceFiles[i];
+    const parsedConcurrency = Number.parseInt(options.concurrency || '4', 10);
+    const requestedConcurrency =
+      Number.isFinite(parsedConcurrency) && parsedConcurrency > 0
+        ? parsedConcurrency
+        : 4;
+    const concurrency =
+      onError === 'fail' ? 1 : Math.min(32, requestedConcurrency);
+    let completedCount = 0;
+
+    const processBatchFile = async (file, fileConverter) => {
       const relPath = file.relativePath || path.basename(file.path);
       const newFilename = buildOutputFilename(
         path.basename(file.path),
@@ -683,15 +689,11 @@ async function convertAction(source, options) {
         newFilename
       );
 
-      if (!quiet && !jsonOutput && isTTY) {
-        showProgress(i + 1, total, path.basename(file.path));
-      }
-
       try {
         const content = await fs.readFile(file.path, 'utf8');
-        const converted = await converter.convert(content, options);
-        const report = converter.getLastReport
-          ? converter.getLastReport()
+        const converted = await fileConverter.convert(content, options);
+        const report = fileConverter.getLastReport
+          ? fileConverter.getLastReport()
           : null;
 
         await fs.mkdir(path.dirname(outputFilePath), { recursive: true });
@@ -713,7 +715,8 @@ async function convertAction(source, options) {
             report && report.details
               ? report.details
                   .filter((d) => d.type === 'warning')
-                  .map((d) => d.message)
+                  .map((d) => d.message || d.source || '')
+                  .filter((w) => typeof w === 'string' && w.trim().length > 0)
               : [],
         });
 
@@ -773,7 +776,7 @@ async function convertAction(source, options) {
           });
           reportJsonFiles.push({
             inputPath: file.path,
-            outputPath: null,
+            outputPath: outputFilePath,
             status: 'failed',
             confidence: null,
             todosAdded: 0,
@@ -812,6 +815,31 @@ async function convertAction(source, options) {
             );
           }
         }
+      } finally {
+        completedCount++;
+        if (!quiet && !jsonOutput && isTTY) {
+          showProgress(completedCount, total, path.basename(file.path));
+        }
+      }
+    };
+
+    if (concurrency === 1) {
+      for (const file of sourceFiles) {
+        await processBatchFile(file, converter);
+      }
+    } else {
+      for (let i = 0; i < sourceFiles.length; i += concurrency) {
+        const window = sourceFiles.slice(i, i + concurrency);
+        await Promise.all(
+          window.map(async (file) => {
+            const fileConverter = await ConverterFactory.createConverter(
+              fromFramework,
+              toFramework,
+              converterOptions
+            );
+            await processBatchFile(file, fileConverter);
+          })
+        );
       }
     }
 
@@ -914,6 +942,7 @@ async function convertAction(source, options) {
     // Write output
     await fs.mkdir(path.dirname(outputPath), { recursive: true });
     await fs.writeFile(outputPath, converted);
+    singleOutputPath = outputPath;
 
     reportJsonFiles.push({
       inputPath: filePath,
@@ -925,7 +954,8 @@ async function convertAction(source, options) {
         report && report.details
           ? report.details
               .filter((d) => d.type === 'warning')
-              .map((d) => d.message)
+              .map((d) => d.message || d.source || '')
+              .filter((w) => typeof w === 'string' && w.trim().length > 0)
           : [],
     });
 
@@ -965,20 +995,75 @@ async function convertAction(source, options) {
     }
   }
 
-  if (options.validate && options.output) {
+  if (options.validate) {
     if (!quiet && !jsonOutput) {
       console.log(chalk.blue('\nValidating converted tests...'));
     }
-    const { validateTests } = await import('../src/index.js');
-    await validateTests(options.output);
+
+    if (isBatch) {
+      const { validateTests } = await import('../src/index.js');
+      await validateTests(options.output);
+    } else if (singleOutputPath) {
+      const { TestValidator } = await import('../src/converter/validator.js');
+      const validator = new TestValidator();
+      await validator.validateTest(singleOutputPath);
+    }
   }
 
-  if (options.report && options.output) {
+  const resolvedOutputDir = isBatch
+    ? path.resolve(options.output)
+    : singleOutputPath
+      ? path.dirname(singleOutputPath)
+      : options.output
+        ? path.resolve(options.output)
+        : '';
+
+  if (options.report && reportJsonFiles.length > 0) {
     if (!quiet && !jsonOutput) {
       console.log(chalk.blue('\nGenerating report...'));
     }
     const { generateReport } = await import('../src/index.js');
-    await generateReport(options.output, options.report);
+    const finishedAt = new Date().toISOString();
+    const totalTodos = reportJsonFiles.reduce(
+      (sum, f) => sum + f.todosAdded,
+      0
+    );
+    const filesConverted = reportJsonFiles.filter(
+      (f) => f.status === 'converted'
+    ).length;
+    const filesFailed = reportJsonFiles.filter(
+      (f) => f.status === 'failed' || f.status === 'skipped'
+    ).length;
+    const conversionReport = {
+      schemaVersion: '1.0.0',
+      meta: {
+        hamletVersion: version,
+        nodeVersion: process.version,
+        startedAt,
+        finishedAt,
+      },
+      plan: {
+        root: path.resolve(source),
+        direction: {
+          from: fromFramework,
+          to: toFramework,
+          pipelineBacked: ConverterFactory.isPipelineBacked(
+            fromFramework,
+            toFramework
+          ),
+        },
+        outputDir: resolvedOutputDir,
+      },
+      results: {
+        filesConverted,
+        filesFailed,
+        todosAdded: totalTodos,
+      },
+      files: reportJsonFiles,
+    };
+
+    const reportTarget = resolvedOutputDir || process.cwd();
+    await generateReport(reportTarget, options.report, conversionReport);
   }
 
   // Write structured report JSON if requested (skip in dry-run)
@@ -1012,7 +1097,7 @@ async function convertAction(source, options) {
             toFramework
           ),
         },
-        outputDir: options.output ? path.resolve(options.output) : '',
+        outputDir: resolvedOutputDir,
       },
       results: {
         filesConverted,
@@ -1078,6 +1163,11 @@ program
   )
   .option('--preserve-structure', 'Maintain original directory structure')
   .option('--batch-size <number>', 'Number of files per batch', '5')
+  .option(
+    '--concurrency <number>',
+    'Number of files to convert in parallel in batch mode',
+    '4'
+  )
   .option('--dry-run', 'Show what would be converted without making changes')
   .option('--plan', 'Show structured conversion plan')
   .option('--auto-detect', 'Auto-detect source framework from file content')
@@ -1118,6 +1208,11 @@ for (const [alias, { from, to }] of Object.entries(SHORTHANDS)) {
     .option('-q, --quiet', 'Suppress output')
     .option('--dry-run', 'Preview without writing')
     .option('--plan', 'Show structured conversion plan')
+    .option(
+      '--concurrency <number>',
+      'Number of files to convert in parallel in batch mode',
+      '4'
+    )
     .option(
       '--on-error <mode>',
       'Error handling: skip|fail|best-effort',
@@ -1161,9 +1256,7 @@ program
   .action(async (source, options) => {
     try {
       const { FileClassifier } = await import('../src/core/FileClassifier.js');
-      const { ConfigConverter } = await import(
-        '../src/core/ConfigConverter.js'
-      );
+      const { convertConfig } = await import('../src/index.js');
 
       const toFramework = options.to;
       if (!toFramework) {
@@ -1194,12 +1287,10 @@ program
           process.exit(2);
         }
       }
-      const converter = new ConfigConverter();
-      const result = converter.convert(
-        content,
-        fromFramework.toLowerCase(),
-        toFramework.toLowerCase()
-      );
+      const result = await convertConfig(source, {
+        from: fromFramework.toLowerCase(),
+        to: toFramework.toLowerCase(),
+      });
 
       if (options.dryRun) {
         console.log(chalk.yellow('Dry run mode - no files will be modified\n'));
