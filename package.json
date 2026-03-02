@@ -1,6 +1,6 @@
 {
   "name": "hamlet-converter",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "description": "Hamlet: Multi-framework test converter — 25 directions across JavaScript, Java, and Python.",
   "type": "module",
   "main": "src/index.js",
