@@ -2,7 +2,9 @@
 
 ## Project Overview
 
-Hamlet is a multi-framework test converter — 25 conversion directions across 16 frameworks in JavaScript, Java, and Python. It is a Node.js CLI tool and library published to npm. The codebase is JavaScript ES modules with TypeScript type definitions.
+Hamlet is a signal-first test intelligence platform. The V3 engine (Go, in `internal/` and `cmd/`) analyzes repository structure, test code, and policy to surface risk, quality, migration readiness, and governance findings. The V2 converter engine (JavaScript ES modules, in `src/` and `bin/`) provides multi-framework test conversion across 16 frameworks and remains functional.
+
+The instructions below apply to the JavaScript codebase (`src/`, `test/`, `bin/`).
 
 ## Quick Reference
 

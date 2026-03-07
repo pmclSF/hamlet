@@ -1,6 +1,14 @@
 # Hamlet Documentation
 
-**Observability and intelligence for test suites**
+**Signal-first test intelligence for engineering teams**
+
+## Product Evolution
+
+- **V2** was conversion-led: a multi-framework test converter (JS/Java/Python, 25 directions).
+- **V3** is signal-led: a test intelligence platform that surfaces risk, quality, migration readiness, and governance from static and runtime analysis.
+- **Migration remains the acquisition wedge** — the pain of framework migration is what brings teams to Hamlet. V3 turns that pain into broader test intelligence.
+
+The V2 converter engine is preserved and functional. See [legacy/](legacy/) for historical architecture docs.
 
 ## Start Here
 
@@ -29,10 +37,12 @@
 - [Release Checklist](release-checklist.md) — launch readiness status
 - [Release Process](releasing.md) — versioning and release workflow
 
-## Legacy (JavaScript Engine)
+## Legacy (V2 Converter Engine)
 
-The original test migration engine documentation:
+Historical documentation for the JavaScript converter engine:
 
+- [V2 Converter Architecture](legacy/v2-converter-architecture.md)
+- [Legacy Notes](legacy/legacy-notes.md)
 - [Getting Started](guides/getting-started.md)
 - [Migration Guide](guides/migration-guide.md)
 - [CLI Reference (legacy)](api/cli.md)

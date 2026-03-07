@@ -1,4 +1,4 @@
-// Package analysis implements Hamlet's static analysis nucleus.
+// Package analysis implements Hamlet's static analysis engine.
 //
 // This package is responsible for scanning a repository, discovering test
 // files, detecting frameworks, and producing the initial snapshot foundation.

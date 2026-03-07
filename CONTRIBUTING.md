@@ -99,18 +99,18 @@ type(scope): description
 
 ## Architecture
 
+### V3 Go Engine (current product direction)
+
+```
+Repository scan → Signal detection → Risk scoring → Snapshot → Reporting
+```
+
+See [DESIGN.md](DESIGN.md) for the full architecture overview and [docs/architecture.md](docs/architecture.md) for the layered design.
+
+### V2 JavaScript Converter Engine (legacy, still functional)
+
 ```
 Source Code → Framework Parser → IR Nodes → Framework Emitter → Target Code
-                                    ↑
-                           ConfidenceScorer
-                           (converted/warnings/unconvertible)
 ```
 
-**IR Node Types:** Suite, Test, Hook, Assertion, Action, Selector, RawCode, Comment
-
-**Key Classes:**
-- `ConversionPipeline` — orchestrates parse → convert → emit
-- `FrameworkRegistry` — stores framework definitions
-- `PipelineConverter` — BaseConverter adapter for the pipeline
-- `ConverterFactory` — creates converters (lazy-loads via dynamic import)
-- `MigrationEngine` — full project migration with state tracking
+See [docs/legacy/v2-converter-architecture.md](docs/legacy/v2-converter-architecture.md) for the converter architecture.

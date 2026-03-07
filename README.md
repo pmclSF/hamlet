@@ -1,8 +1,8 @@
 # Hamlet
 
-**Observability and intelligence for test suites**
+**Signal-first test intelligence for engineering teams**
 
-Hamlet analyzes repository structure, test code, runtime artifacts, coverage data, and local policy to reveal the real state of your test system — without running tests.
+Hamlet analyzes repository structure, test code, runtime artifacts, coverage data, and local policy to surface the real state of your test system — risk, quality, migration readiness, and governance — without running tests.
 
 ## Quick Start
 
@@ -58,11 +58,17 @@ Flaky tests, slow tests, skipped tests, dead tests, unstable suites.
 ### Quality
 Weak assertions, mock-heavy tests, untested exports, coverage blind spots.
 
-### Change Readiness
-Migration blockers, deprecated patterns, legacy framework drift, policy violations.
+### Migration Readiness
+Migration blockers, deprecated patterns, legacy framework drift, framework fragmentation.
+
+### Policy and Governance
+Local policy rules, violation tracking, compliance enforcement in CI.
 
 ### Risk
 Explainable risk surfaces by dimension (reliability, change, speed) with directory and owner concentration.
+
+### Benchmark-Safe Exports
+Privacy-safe aggregate metrics for future cross-repo comparison — no raw paths or source code exposed.
 
 ## Snapshot Workflow
 
@@ -117,7 +123,7 @@ Repository scan → Signal detection → Risk modeling → Reporting
 - **Risk surfaces** are derived from signals with explainable scoring
 - **Reports** synthesize signals, risk, trends, and benchmark readiness
 
-See [docs/](docs/) for detailed documentation.
+See [DESIGN.md](DESIGN.md) for architecture overview and [docs/](docs/) for detailed documentation.
 
 ## Project Structure (V3 Go Engine)
 
@@ -141,9 +147,9 @@ internal/
 └── summary/         Executive summary builder
 ```
 
-## Legacy JavaScript Engine
+## Legacy Converter Engine
 
-The original test migration engine (JavaScript ES modules) is preserved in `src/`, `bin/`, and `test/`. See [CLAUDE.md](CLAUDE.md) for legacy code conventions.
+Hamlet originated as a multi-framework test converter (V2, JavaScript ES modules). That engine is preserved in `src/`, `bin/`, and `test/` and remains functional. V3 reframes migration as one dimension of broader test intelligence. See [docs/legacy/](docs/legacy/) for historical architecture docs and [CLAUDE.md](CLAUDE.md) for legacy code conventions.
 
 ## Development
 
