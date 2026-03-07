@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/pmclSF/hamlet/internal/models"
+	"github.com/pmclSF/hamlet/internal/signals"
 )
 
 // ReadinessSummary summarizes migration readiness for a repository.
@@ -98,23 +99,10 @@ type CoverageGuidanceItem struct {
 	Priority string `json:"priority"`
 }
 
-// Signal type sets used for classification.
+// Use the canonical signal type sets from the signals package.
 var (
-	migrationTypes = map[models.SignalType]bool{
-		"frameworkMigration":    true,
-		"migrationBlocker":     true,
-		"deprecatedTestPattern": true,
-		"dynamicTestGeneration": true,
-		"customMatcherRisk":     true,
-	}
-
-	qualityTypes = map[models.SignalType]bool{
-		"weakAssertion":         true,
-		"mockHeavyTest":         true,
-		"untestedExport":        true,
-		"coverageThresholdBreak": true,
-		"coverageBlindSpot":     true,
-	}
+	migrationTypes = signals.MigrationSignalTypes
+	qualityTypes   = signals.QualitySignalTypes
 )
 
 // ComputeReadiness derives a migration readiness summary from the snapshot.

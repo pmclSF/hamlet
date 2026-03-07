@@ -16,6 +16,7 @@ import (
 
 	"github.com/pmclSF/hamlet/internal/metrics"
 	"github.com/pmclSF/hamlet/internal/models"
+	"github.com/pmclSF/hamlet/internal/signals"
 )
 
 // Export is the benchmark-safe artifact that can be shared for comparison.
@@ -124,7 +125,7 @@ func buildSegment(snap *models.TestSuiteSnapshot, ms *metrics.Snapshot, hasPolic
 
 func hasCoverageSignals(snap *models.TestSuiteSnapshot) bool {
 	for _, s := range snap.Signals {
-		if s.Type == "coverageThresholdBreak" || s.Type == "coverageBlindSpot" {
+		if s.Type == signals.SignalCoverageThresholdBreak || s.Type == signals.SignalCoverageBlindSpot {
 			return true
 		}
 	}

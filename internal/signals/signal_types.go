@@ -27,3 +27,34 @@ const (
 	SignalSkippedTestsInCI       models.SignalType = "skippedTestsInCI"
 	SignalRuntimeBudgetExceeded  models.SignalType = "runtimeBudgetExceeded"
 )
+
+// Canonical signal type sets. Import these rather than duplicating
+// signal type maps across packages.
+
+// MigrationSignalTypes is the canonical set of migration-related signal types.
+var MigrationSignalTypes = map[models.SignalType]bool{
+	SignalFrameworkMigration:    true,
+	SignalMigrationBlocker:     true,
+	SignalDeprecatedTestPattern: true,
+	SignalDynamicTestGeneration: true,
+	SignalCustomMatcherRisk:     true,
+}
+
+// QualitySignalTypes is the canonical set of quality-related signal types.
+var QualitySignalTypes = map[models.SignalType]bool{
+	SignalWeakAssertion:          true,
+	SignalMockHeavyTest:          true,
+	SignalUntestedExport:         true,
+	SignalCoverageThresholdBreak: true,
+	SignalCoverageBlindSpot:      true,
+}
+
+// IsMigrationSignal returns true if the signal type is migration-related.
+func IsMigrationSignal(t models.SignalType) bool {
+	return MigrationSignalTypes[t]
+}
+
+// IsQualitySignal returns true if the signal type is quality-related.
+func IsQualitySignal(t models.SignalType) bool {
+	return QualitySignalTypes[t]
+}

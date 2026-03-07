@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/pmclSF/hamlet/internal/models"
+	"github.com/pmclSF/hamlet/internal/signals"
 )
 
 // ReviewGroup holds findings grouped by a common key (owner, type, directory).
@@ -62,17 +63,10 @@ func GroupSignalsByCategory(signals []models.Signal) []ReviewGroup {
 }
 
 // MigrationBlockers filters signals to migration-related types.
-func MigrationBlockers(signals []models.Signal) []models.Signal {
-	migrationTypes := map[models.SignalType]bool{
-		"frameworkMigration":    true,
-		"migrationBlocker":     true,
-		"deprecatedTestPattern": true,
-		"dynamicTestGeneration": true,
-		"customMatcherRisk":     true,
-	}
+func MigrationBlockers(sigs []models.Signal) []models.Signal {
 	var result []models.Signal
-	for _, s := range signals {
-		if migrationTypes[s.Type] {
+	for _, s := range sigs {
+		if signals.IsMigrationSignal(s.Type) {
 			result = append(result, s)
 		}
 	}

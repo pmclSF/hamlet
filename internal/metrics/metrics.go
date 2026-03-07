@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/pmclSF/hamlet/internal/models"
+	"github.com/pmclSF/hamlet/internal/signals"
 )
 
 // Snapshot contains benchmark-ready aggregate metrics derived from
@@ -290,20 +291,8 @@ type migrationPosture struct {
 }
 
 func deriveMigrationPosture(snap *models.TestSuiteSnapshot) migrationPosture {
-	migrationTypes := map[models.SignalType]bool{
-		"frameworkMigration":    true,
-		"migrationBlocker":     true,
-		"deprecatedTestPattern": true,
-		"dynamicTestGeneration": true,
-		"customMatcherRisk":     true,
-	}
-	qualityTypes := map[models.SignalType]bool{
-		"weakAssertion":          true,
-		"mockHeavyTest":          true,
-		"untestedExport":         true,
-		"coverageThresholdBreak": true,
-		"coverageBlindSpot":      true,
-	}
+	migrationTypes := signals.MigrationSignalTypes
+	qualityTypes := signals.QualitySignalTypes
 
 	totalFiles := len(snap.TestFiles)
 	blockerCount := 0
