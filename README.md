@@ -40,12 +40,16 @@ hamlet metrics --json
 |---------|-------------|
 | `hamlet analyze` | Analyze repository test suite — frameworks, signals, risk |
 | `hamlet summary` | Executive summary — posture, trends, focus, benchmark readiness |
+| `hamlet posture` | Detailed posture breakdown with measurement evidence |
 | `hamlet metrics` | Aggregate metrics scorecard (privacy-safe, benchmark-ready) |
+| `hamlet impact` | Impact analysis for changed code (git diff-aware) |
 | `hamlet migration readiness` | Migration readiness assessment with quality factors |
 | `hamlet migration blockers` | List migration blockers by type and area |
+| `hamlet migration preview` | Preview migration difficulty for a file or scope |
 | `hamlet compare` | Compare two snapshots and show trend changes |
 | `hamlet policy check` | Evaluate repository against local policy rules |
 | `hamlet export benchmark` | Output benchmark-safe JSON export for future comparison |
+| `hamlet version` | Show version, commit, and build date |
 
 Run `hamlet --help` for full flag documentation.
 
@@ -153,21 +157,30 @@ See [DESIGN.md](DESIGN.md) for architecture overview and [docs/](docs/) for deta
 ```
 cmd/hamlet/          CLI entry point
 internal/
-├── analysis/        Repository scanning and test file discovery
-├── benchmark/       Benchmark-safe export and segmentation
+├── analysis/        Repository scanning, framework detection, test file discovery
+├── benchmark/       Privacy-safe benchmark export and segmentation
 ├── comparison/      Snapshot-to-snapshot trend comparison
+├── coverage/        Coverage ingestion (LCOV, Istanbul) and attribution
+├── engine/          Pipeline orchestration and detector registry
 ├── governance/      Policy evaluation and governance signals
-├── heatmap/         Risk concentration model
-├── metrics/         Aggregate metrics extraction
-├── migration/       Migration detectors and readiness model
+├── health/          Runtime-backed health detectors (slow, flaky, skipped)
+├── heatmap/         Risk concentration model (directory and owner hotspots)
+├── identity/        Test identity hashing and normalization
+├── impact/          Change-scope impact analysis
+├── measurement/     Posture measurement framework
+├── metrics/         Aggregate metric derivation
+├── migration/       Migration detectors, readiness model, preview boundary
 ├── models/          Canonical data models (Signal, Snapshot, Risk, etc.)
-├── ownership/       Ownership resolution (config, CODEOWNERS, directory)
+├── ownership/       Ownership resolution (CODEOWNERS, config, directory)
 ├── policy/          Policy config model and YAML loader
 ├── quality/         Quality signal detectors
 ├── reporting/       Human-readable report renderers
-├── scoring/         Explainable risk engine
-├── signals/         Signal detector interface and runner
-└── summary/         Executive summary builder
+├── runtime/         Runtime artifact ingestion (JUnit XML, Jest JSON)
+├── scoring/         Explainable risk engine (reliability, change, speed)
+├── signals/         Signal detector interface, registry, runner
+├── summary/         Executive summary builder
+├── testcase/        Test case extraction and identity collision detection
+└── testtype/        Test type inference (unit, integration, e2e)
 ```
 
 ## Legacy Converter Engine

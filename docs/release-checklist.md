@@ -4,9 +4,12 @@ Status checklist for Hamlet V3 release readiness.
 
 ## Product
 
-- [x] Core commands work: analyze, summary, metrics, compare, policy check, export benchmark
-- [x] Human-readable and JSON output for all major commands
+- [x] Core commands work: analyze, summary, posture, metrics, impact, compare, policy check, export benchmark
+- [x] Migration commands: readiness, blockers, preview (file + scope)
+- [x] Human-readable and JSON output for all commands
 - [x] Executive summary with posture, trends, focus, benchmark readiness
+- [x] Structured recommendations with what/why/where/evidence-strength
+- [x] Blind spots / known-limitations section in summaries
 - [x] Sample outputs updated in examples/sample-reports/
 - [x] Demo walkthrough documented (docs/demo.md)
 
@@ -14,9 +17,13 @@ Status checklist for Hamlet V3 release readiness.
 
 - [x] All Go packages build cleanly (`go build ./internal/... ./cmd/...`)
 - [x] All Go tests pass (`go test ./internal/... ./cmd/...`)
-- [x] 16 internal packages with test coverage
+- [x] 25 internal packages with test coverage
 - [x] Snapshot contract (`TestSuiteSnapshot`) stable for current features
-- [x] Extension scaffold present with type definitions and view builders
+- [x] Evidence model: EvidenceStrength, EvidenceSource, Confidence on all signals
+- [x] Registry-based detector architecture with 10 detectors (quality, migration, governance)
+- [x] Runtime ingestion: JUnit XML, Jest JSON parsers
+- [x] Coverage ingestion: LCOV, Istanbul JSON parsers with attribution
+- [x] Extension type definitions and view builders
 
 ## UX
 
@@ -25,46 +32,49 @@ Status checklist for Hamlet V3 release readiness.
 - [x] Summary command includes trend + benchmark readiness
 - [x] Graceful degradation when no snapshot history exists
 - [x] Graceful degradation when no policy file exists
-- [ ] Extension TreeDataProvider implementations (scaffold only — pending)
+- [x] Graceful degradation when no runtime/coverage artifacts provided
+- [x] Extension TreeDataProvider implementations with empty/loading/error states
 
 ## Docs
 
 - [x] README accurate with quick start, commands, architecture
-- [x] docs/README.md provides navigation index
-- [x] docs/demo.md walkthrough complete
+- [x] docs/README.md provides navigation index with product evolution
+- [x] docs/demo.md walkthrough complete (includes migration workflow)
 - [x] docs/cli-spec.md covers all commands
 - [x] docs/roadmap.md milestones A through O documented
-- [x] docs/implementation-workbook.md stages 1 through 14 documented
+- [x] docs/architecture.md layered architecture documented
+- [x] docs/engineering/detector-architecture.md documented
+- [x] Contributor architecture map (docs/engineering/architecture-map.md)
 
 ## Packaging
 
 - [x] `go install` path documented
 - [x] Build-from-source instructions in README
-- [x] Makefile with build, test, demo targets
-- [ ] Binary releases / goreleaser (not yet configured)
+- [x] Makefile with build, test, demo, install targets
+- [x] goreleaser config for multi-platform binaries
+- [x] Version command with build metadata (`hamlet version`)
+- [x] Checksum generation in release artifacts
 - [ ] Homebrew formula (not yet created)
 
 ## Hardening
 
-- [x] Stale messages removed ("not yet active", "analysis nucleus")
-- [x] Compare error messages improved (actionable guidance for missing snapshots)
+- [x] V3 identity consistent across all top-level files
+- [x] Legacy converter material clearly marked as historical
 - [x] CLI help text aligned with actual behavior
 - [x] Doc comment in main.go matches CLI surface
 - [x] Test expectations updated for output changes
 - [x] Empty states reviewed across all reports
+- [x] Evidence strength reflected in report language
 
 ## Honest Gaps
 
 These are intentionally not yet shipped:
 
-- **Extension**: Scaffold only — TreeDataProvider implementations pending
-- **Runtime data**: Health signals depend on runtime artifacts that most repos don't produce yet
-- **Coverage data**: Coverage-based signals require coverage reports in a supported format
 - **Benchmark comparison**: Export model ready, but no hosted comparison service exists
 - **Cross-repo aggregation**: Metrics model supports it, but aggregation is not implemented
 - **Organization features**: No auth, accounts, or portfolio management
 - **Hosted dashboard**: Not built — product is local-only
-- **Binary distribution**: No pre-built binaries; requires Go toolchain to install
+- **Homebrew formula**: Not yet created; install via `go install` or binary releases
 
 ## Stability
 
@@ -77,11 +87,11 @@ Core concepts are stable:
 - Policy rule format
 - Metrics aggregate model
 - Benchmark export schema v1
+- Evidence strength model
 
 ## Recommended Next Steps
 
-1. Extension TreeDataProvider implementation
-2. Binary release automation (goreleaser)
-3. Runtime artifact ingestion improvements
-4. Coverage report parsing
-5. First public release communication
+1. Homebrew tap or formula
+2. First public release communication
+3. Runtime artifact ingestion for additional formats
+4. Cross-repo aggregation foundation

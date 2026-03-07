@@ -1,6 +1,64 @@
 # Changelog
 
-## Unreleased
+## 3.0.0 — V3 Signal-First Test Intelligence (unreleased)
+
+Hamlet V3 is a complete architectural shift from V2's conversion-led approach
+to a signal-first test intelligence platform built in Go.
+
+### Core Analysis
+- Repository scanning with framework detection (16 JS/TS/Java/Python frameworks)
+- Test file discovery and code unit extraction
+- Signal-first architecture: every finding is a structured Signal with type, severity, evidence, and location
+- Evidence model with strength (strong/moderate/weak), source, and confidence scoring
+
+### Signal Detectors
+- **Quality**: weak assertions, mock-heavy tests, untested exports, coverage threshold breaks
+- **Migration**: deprecated patterns, dynamic test generation, custom matchers, unsupported setup, framework fragmentation
+- **Governance**: policy violations, legacy framework usage, runtime budget exceeded
+- **Health**: slow tests, flaky tests, skipped tests (runtime-backed)
+
+### Risk Modeling
+- Explainable risk engine with reliability, change, and speed dimensions
+- Risk surfaces by file, directory, owner, and repository scope
+- Heatmap model with directory and owner hotspots
+
+### Migration Intelligence
+- `hamlet migration readiness` — readiness assessment with quality factors and area assessments
+- `hamlet migration blockers` — blockers by type and area with representative examples
+- `hamlet migration preview` — file-level and scope-level migration difficulty preview
+- Target framework inference (jest to vitest, cypress to playwright, etc.)
+
+### Executive Summary
+- Posture summary by risk dimension with evidence-based recommendations
+- Blind spots, known-limitations, and benchmark readiness sections
+- Trend highlights from snapshot comparison
+
+### Artifact Ingestion
+- Runtime: JUnit XML and Jest JSON parsers
+- Coverage: LCOV and Istanbul JSON parsers with code unit attribution
+- Graceful degradation when artifacts are absent
+
+### Snapshot and Comparison
+- `hamlet analyze --write-snapshot` — persist snapshots for trend tracking
+- `hamlet compare` — snapshot-to-snapshot comparison with signal deltas and risk band changes
+
+### Impact Analysis
+- `hamlet impact` — change-scope analysis against git diff
+- Drill-down views: units, gaps, tests, owners
+
+### VS Code Extension
+- Sidebar views: Overview, Health, Quality, Migration, Review
+- TreeDataProvider implementations over CLI JSON output
+- Commands: refresh, open summary, show migration blockers, reveal file
+
+### Packaging
+- goreleaser config for multi-platform binaries
+- `hamlet version` with build metadata
+- 25 internal Go packages
+
+---
+
+## Unreleased (V2)
 
 ### Prepublish Hardening
 
