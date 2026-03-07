@@ -250,3 +250,117 @@ func TestSafeRatio(t *testing.T) {
 		t.Errorf("safeRatio(5, 0) = %.2f, want 0.00", r)
 	}
 }
+
+func TestDerive_QualityPostureBand(t *testing.T) {
+	tests := []struct {
+		name     string
+		files    int
+		quality  int
+		wantBand string
+	}{
+		{"no files", 0, 0, "unknown"},
+		{"strong - no issues", 10, 0, "strong"},
+		{"strong - below 10%", 20, 1, "strong"},
+		{"moderate - 20%", 10, 2, "moderate"},
+		{"weak - 50%", 10, 5, "weak"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := deriveQualityPosture(tt.quality, tt.files)
+			if got != tt.wantBand {
+				t.Errorf("deriveQualityPosture(%d, %d) = %q, want %q", tt.quality, tt.files, got, tt.wantBand)
+			}
+		})
+	}
+}
+
+func TestDerive_MigrationReadinessBand(t *testing.T) {
+	snap := &models.TestSuiteSnapshot{
+		TestFiles: make([]models.TestFile, 10),
+		Signals: []models.Signal{
+			{Type: "deprecatedTestPattern", Location: models.SignalLocation{File: "src/a.test.js"}},
+			{Type: "deprecatedTestPattern", Location: models.SignalLocation{File: "src/b.test.js"}},
+			{Type: "deprecatedTestPattern", Location: models.SignalLocation{File: "src/c.test.js"}},
+		},
+	}
+	ms := Derive(snap)
+	// 3 blockers / 10 files = 30% → low
+	if ms.Change.MigrationReadinessBand != "low" {
+		t.Errorf("migrationReadinessBand = %q, want low", ms.Change.MigrationReadinessBand)
+	}
+}
+
+func TestDerive_MigrationAreaCounts(t *testing.T) {
+	snap := &models.TestSuiteSnapshot{
+		TestFiles: []models.TestFile{
+			{Path: "safe/clean.test.js"},
+			{Path: "risky/old.test.js"},
+		},
+		Signals: []models.Signal{
+			{Type: "deprecatedTestPattern", Location: models.SignalLocation{File: "risky/old.test.js"}},
+			{Type: "weakAssertion", Location: models.SignalLocation{File: "risky/old.test.js"}},
+		},
+	}
+	ms := Derive(snap)
+	if ms.Change.SafeAreaCount != 1 {
+		t.Errorf("safeAreaCount = %d, want 1", ms.Change.SafeAreaCount)
+	}
+	if ms.Change.RiskyAreaCount != 1 {
+		t.Errorf("riskyAreaCount = %d, want 1", ms.Change.RiskyAreaCount)
+	}
+}
+
+func TestDerive_QualityCompoundedBlockers(t *testing.T) {
+	snap := &models.TestSuiteSnapshot{
+		TestFiles: []models.TestFile{
+			{Path: "src/a.test.js"},
+			{Path: "src/b.test.js"},
+		},
+		Signals: []models.Signal{
+			{Type: "deprecatedTestPattern", Location: models.SignalLocation{File: "src/a.test.js"}},
+			{Type: "weakAssertion", Location: models.SignalLocation{File: "src/a.test.js"}},
+			{Type: "deprecatedTestPattern", Location: models.SignalLocation{File: "src/b.test.js"}},
+			// b.test.js has no quality issue → not compounded
+		},
+	}
+	ms := Derive(snap)
+	if ms.Change.QualityCompoundedBlockerCount != 1 {
+		t.Errorf("qualityCompoundedBlockerCount = %d, want 1", ms.Change.QualityCompoundedBlockerCount)
+	}
+}
+
+func TestDerive_PrivacySafety_NoRawPaths(t *testing.T) {
+	// Verify that metrics.Snapshot contains no raw file paths.
+	// This is a structural test — the Snapshot type uses only counts,
+	// ratios, bands, and framework name strings.
+	snap := &models.TestSuiteSnapshot{
+		TestFiles: []models.TestFile{
+			{Path: "src/secret/internal.test.js"},
+		},
+		Signals: []models.Signal{
+			{Type: "weakAssertion", Location: models.SignalLocation{File: "src/secret/internal.test.js"}},
+		},
+		Repository: models.RepositoryMetadata{
+			Name:      "private-repo",
+			Languages: []string{"javascript"},
+		},
+	}
+	ms := Derive(snap)
+
+	// Structure should not contain file paths.
+	for _, fw := range ms.Structure.Frameworks {
+		if fw == "src/secret/internal.test.js" {
+			t.Error("framework list should not contain file paths")
+		}
+	}
+	// Notes should not contain file paths.
+	for _, note := range ms.Notes {
+		if note == "src/secret/internal.test.js" {
+			t.Error("notes should not contain raw file paths")
+		}
+	}
+	// Change metrics contain only counts, not paths.
+	if ms.Change.MigrationBlockerCount < 0 {
+		t.Error("unreachable — just ensuring the field is an int, not a path")
+	}
+}

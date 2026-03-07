@@ -68,7 +68,7 @@ type Segment struct {
 // BuildExport creates a benchmark-safe Export from a snapshot and derived metrics.
 func BuildExport(snap *models.TestSuiteSnapshot, ms *metrics.Snapshot, hasPolicy bool) *Export {
 	return &Export{
-		SchemaVersion: "1",
+		SchemaVersion: "2",
 		ExportedAt:    time.Now().UTC(),
 		Segment:       buildSegment(snap, ms, hasPolicy),
 		Metrics:       *ms,

@@ -74,6 +74,11 @@ type QualityMetrics struct {
 	UntestedExportCount        int     `json:"untestedExportCount"`
 	CoverageThresholdBreakCount int    `json:"coverageThresholdBreakCount"`
 	SnapshotHeavyCount         int     `json:"snapshotHeavyCount"`
+
+	// QualityPostureBand summarizes overall test quality as a band.
+	// Derived from the proportion of files with quality issues.
+	// Values: "strong", "moderate", "weak".
+	QualityPostureBand string `json:"qualityPostureBand"`
 }
 
 // ChangeMetrics captures migration/modernization readiness.
@@ -83,6 +88,21 @@ type ChangeMetrics struct {
 	DynamicGenerationCount    int            `json:"dynamicGenerationCount"`
 	CustomMatcherRiskCount    int            `json:"customMatcherRiskCount"`
 	BlockerCountByType        map[string]int `json:"blockerCountByType,omitempty"`
+
+	// MigrationReadinessBand is the aggregate migration readiness level.
+	// Values: "high", "medium", "low", "unknown".
+	MigrationReadinessBand string `json:"migrationReadinessBand"`
+
+	// SafeAreaCount is the number of directories classified as safe to modernize.
+	SafeAreaCount int `json:"safeAreaCount"`
+
+	// RiskyAreaCount is the number of directories with compounded migration
+	// and quality risk.
+	RiskyAreaCount int `json:"riskyAreaCount"`
+
+	// QualityCompoundedBlockerCount is the number of migration blockers
+	// in files that also have quality issues (weak assertions, mock-heavy, etc.).
+	QualityCompoundedBlockerCount int `json:"qualityCompoundedBlockerCount"`
 }
 
 // GovernanceMetrics captures policy-related findings.
@@ -142,6 +162,8 @@ func Derive(snap *models.TestSuiteSnapshot) *Snapshot {
 	}
 
 	// Quality
+	qualityIssueCount := signalCounts["weakAssertion"] + signalCounts["mockHeavyTest"] +
+		signalCounts["untestedExport"] + signalCounts["coverageThresholdBreak"]
 	ms.Quality = QualityMetrics{
 		WeakAssertionCount:         signalCounts["weakAssertion"],
 		WeakAssertionRatio:         safeRatio(signalCounts["weakAssertion"], totalFiles),
@@ -150,6 +172,7 @@ func Derive(snap *models.TestSuiteSnapshot) *Snapshot {
 		UntestedExportCount:        signalCounts["untestedExport"],
 		CoverageThresholdBreakCount: signalCounts["coverageThresholdBreak"],
 		SnapshotHeavyCount:         signalCounts["snapshotHeavyTest"],
+		QualityPostureBand:         deriveQualityPosture(qualityIssueCount, totalFiles),
 	}
 
 	// Change readiness
@@ -161,12 +184,17 @@ func Derive(snap *models.TestSuiteSnapshot) *Snapshot {
 			}
 		}
 	}
+	migrationStats := deriveMigrationPosture(snap)
 	ms.Change = ChangeMetrics{
-		MigrationBlockerCount:  signalCounts["migrationBlocker"],
-		DeprecatedPatternCount: signalCounts["deprecatedTestPattern"],
-		DynamicGenerationCount: signalCounts["dynamicTestGeneration"],
-		CustomMatcherRiskCount: signalCounts["customMatcherRisk"],
-		BlockerCountByType:     blockersByType,
+		MigrationBlockerCount:         signalCounts["migrationBlocker"],
+		DeprecatedPatternCount:        signalCounts["deprecatedTestPattern"],
+		DynamicGenerationCount:        signalCounts["dynamicTestGeneration"],
+		CustomMatcherRiskCount:        signalCounts["customMatcherRisk"],
+		BlockerCountByType:            blockersByType,
+		MigrationReadinessBand:        migrationStats.readinessBand,
+		SafeAreaCount:                 migrationStats.safeAreas,
+		RiskyAreaCount:                migrationStats.riskyAreas,
+		QualityCompoundedBlockerCount: migrationStats.compoundedBlockers,
 	}
 
 	// Governance
@@ -235,4 +263,145 @@ func safeRatio(numerator, denominator int) float64 {
 		return 0
 	}
 	return float64(numerator) / float64(denominator)
+}
+
+func deriveQualityPosture(qualityIssueCount, totalFiles int) string {
+	if totalFiles == 0 {
+		return "unknown"
+	}
+	ratio := float64(qualityIssueCount) / float64(totalFiles)
+	switch {
+	case ratio < 0.1:
+		return "strong"
+	case ratio < 0.3:
+		return "moderate"
+	default:
+		return "weak"
+	}
+}
+
+// migrationPosture holds aggregate migration posture stats computed
+// without importing the migration package (avoids potential cycles).
+type migrationPosture struct {
+	readinessBand      string
+	safeAreas          int
+	riskyAreas         int
+	compoundedBlockers int
+}
+
+func deriveMigrationPosture(snap *models.TestSuiteSnapshot) migrationPosture {
+	migrationTypes := map[models.SignalType]bool{
+		"frameworkMigration":    true,
+		"migrationBlocker":     true,
+		"deprecatedTestPattern": true,
+		"dynamicTestGeneration": true,
+		"customMatcherRisk":     true,
+	}
+	qualityTypes := map[models.SignalType]bool{
+		"weakAssertion":          true,
+		"mockHeavyTest":          true,
+		"untestedExport":         true,
+		"coverageThresholdBreak": true,
+		"coverageBlindSpot":      true,
+	}
+
+	totalFiles := len(snap.TestFiles)
+	blockerCount := 0
+	blockerFiles := map[string]bool{}
+	qualityFiles := map[string]bool{}
+
+	// Per-directory tracking.
+	type dirInfo struct {
+		hasBlocker bool
+		hasQuality bool
+		hasTests   bool
+	}
+	dirs := map[string]*dirInfo{}
+
+	for _, tf := range snap.TestFiles {
+		dir := dirOf(tf.Path)
+		if dirs[dir] == nil {
+			dirs[dir] = &dirInfo{}
+		}
+		dirs[dir].hasTests = true
+	}
+
+	for _, s := range snap.Signals {
+		if migrationTypes[s.Type] {
+			blockerCount++
+			if s.Location.File != "" {
+				blockerFiles[s.Location.File] = true
+				dir := dirOf(s.Location.File)
+				if dirs[dir] == nil {
+					dirs[dir] = &dirInfo{}
+				}
+				dirs[dir].hasBlocker = true
+			}
+		}
+		if qualityTypes[s.Type] {
+			if s.Location.File != "" {
+				qualityFiles[s.Location.File] = true
+				dir := dirOf(s.Location.File)
+				if dirs[dir] == nil {
+					dirs[dir] = &dirInfo{}
+				}
+				dirs[dir].hasQuality = true
+			}
+		}
+	}
+
+	// Readiness band (same thresholds as migration.deriveReadiness).
+	var band string
+	if totalFiles == 0 {
+		band = "unknown"
+	} else {
+		ratio := float64(blockerCount) / float64(totalFiles)
+		switch {
+		case blockerCount == 0:
+			band = "high"
+		case ratio < 0.1:
+			band = "high"
+		case ratio < 0.3:
+			band = "medium"
+		default:
+			band = "low"
+		}
+	}
+
+	// Area counts.
+	var safe, risky int
+	for _, di := range dirs {
+		if !di.hasTests {
+			continue
+		}
+		if di.hasBlocker && di.hasQuality {
+			risky++
+		} else if !di.hasBlocker && !di.hasQuality {
+			safe++
+		}
+	}
+
+	// Compounded blockers: migration blockers in files that also have quality issues.
+	compounded := 0
+	for f := range blockerFiles {
+		if qualityFiles[f] {
+			compounded++
+		}
+	}
+
+	return migrationPosture{
+		readinessBand:      band,
+		safeAreas:          safe,
+		riskyAreas:         risky,
+		compoundedBlockers: compounded,
+	}
+}
+
+func dirOf(path string) string {
+	for i := len(path) - 1; i >= 0; i-- {
+		if path[i] == '/' {
+			return path[:i]
+		}
+	}
+	return "."
 }

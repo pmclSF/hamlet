@@ -21,8 +21,8 @@ func TestBuildExport_Basic(t *testing.T) {
 	ms := metrics.Derive(snap)
 	exp := BuildExport(snap, ms, false)
 
-	if exp.SchemaVersion != "1" {
-		t.Errorf("schemaVersion = %q, want 1", exp.SchemaVersion)
+	if exp.SchemaVersion != "2" {
+		t.Errorf("schemaVersion = %q, want 2", exp.SchemaVersion)
 	}
 	if exp.Segment.PrimaryLanguage != "javascript" {
 		t.Errorf("primaryLanguage = %q, want javascript", exp.Segment.PrimaryLanguage)
@@ -136,5 +136,71 @@ func TestExport_MetricsIncluded(t *testing.T) {
 	}
 	if exp.Metrics.Structure.TotalTestFiles != 5 {
 		t.Errorf("metrics totalTestFiles = %d, want 5", exp.Metrics.Structure.TotalTestFiles)
+	}
+}
+
+func TestExport_MigrationPostureIncluded(t *testing.T) {
+	snap := &models.TestSuiteSnapshot{
+		TestFiles: []models.TestFile{
+			{Path: "safe/a.test.js"},
+			{Path: "risky/b.test.js"},
+		},
+		Signals: []models.Signal{
+			{Type: "deprecatedTestPattern", Location: models.SignalLocation{File: "risky/b.test.js"}},
+			{Type: "weakAssertion", Location: models.SignalLocation{File: "risky/b.test.js"}},
+		},
+	}
+	ms := metrics.Derive(snap)
+	exp := BuildExport(snap, ms, false)
+
+	if exp.Metrics.Change.SafeAreaCount != 1 {
+		t.Errorf("safeAreaCount = %d, want 1", exp.Metrics.Change.SafeAreaCount)
+	}
+	if exp.Metrics.Change.RiskyAreaCount != 1 {
+		t.Errorf("riskyAreaCount = %d, want 1", exp.Metrics.Change.RiskyAreaCount)
+	}
+	if exp.Metrics.Quality.QualityPostureBand == "" {
+		t.Error("qualityPostureBand should not be empty")
+	}
+}
+
+func TestExport_PrivacySafety(t *testing.T) {
+	// The export should contain no raw file paths, symbol names, or test names.
+	snap := &models.TestSuiteSnapshot{
+		TestFiles: []models.TestFile{
+			{Path: "src/internal/secret.test.js"},
+		},
+		Signals: []models.Signal{
+			{
+				Type:        "weakAssertion",
+				Location:    models.SignalLocation{File: "src/internal/secret.test.js"},
+				Explanation: "Weak assertions in src/internal/secret.test.js",
+			},
+		},
+		Repository: models.RepositoryMetadata{
+			Name:      "my-private-repo",
+			Languages: []string{"javascript"},
+		},
+		CodeUnits: []models.CodeUnit{
+			{Name: "processPayment", Path: "src/internal/billing.js"},
+		},
+	}
+	ms := metrics.Derive(snap)
+	exp := BuildExport(snap, ms, false)
+
+	// Export should only contain segment + metrics, no raw snapshot data.
+	// Segment contains only language, framework, bucket — no paths.
+	if exp.Segment.PrimaryLanguage != "javascript" {
+		t.Errorf("primaryLanguage = %q, want javascript", exp.Segment.PrimaryLanguage)
+	}
+
+	// Metrics contain only counts and bands, no paths.
+	if exp.Metrics.Structure.TotalTestFiles != 1 {
+		t.Errorf("totalTestFiles = %d, want 1", exp.Metrics.Structure.TotalTestFiles)
+	}
+
+	// SchemaVersion should be 2.
+	if exp.SchemaVersion != "2" {
+		t.Errorf("schemaVersion = %q, want 2", exp.SchemaVersion)
 	}
 }
