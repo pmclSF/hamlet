@@ -24,6 +24,7 @@ const MAX_PREVIEW_BYTES = 512 * 1024;
 
 /** Maximum concurrent file conversions in a server job. */
 const MAX_CONCURRENCY = 8;
+const VALID_OUTPUT_MODES = new Set(['out-dir', 'in-place']);
 
 // ── Handlers ─────────────────────────────────────────────────────────
 
@@ -68,6 +69,12 @@ export async function handleConvert(req, res) {
     return sendJson(res, 400, {
       error:
         'Missing required fields: root, direction.from, direction.to, outputMode',
+    });
+  }
+
+  if (!VALID_OUTPUT_MODES.has(outputMode)) {
+    return sendJson(res, 400, {
+      error: 'Invalid outputMode: expected one of out-dir, in-place',
     });
   }
 
@@ -332,10 +339,7 @@ async function _runConversionJob(jobId) {
     }
 
     if (testFiles.length === 0) {
-      // Fallback: try all JS/TS files
-      testFiles = allFiles.filter((f) =>
-        /\.(js|ts|tsx|jsx|py|java)$/.test(f.path)
-      );
+      throw new Error(`No ${from} test files found to convert`);
     }
 
     appendLog(jobId, `Found ${testFiles.length} files to convert`);

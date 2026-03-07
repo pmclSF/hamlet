@@ -104,6 +104,24 @@ describe('HamletServer API', () => {
       const body = await res.json();
       expect(body.error).toBeDefined();
     });
+
+    it('should return 400 for invalid outputMode', async () => {
+      const res = await postJson(
+        baseUrl,
+        '/api/convert',
+        {
+          root: FIXTURES_CONVERT,
+          direction: { from: 'jest', to: 'vitest' },
+          outputMode: 'side-by-side',
+          outputDir: OUTPUT_DIR,
+        },
+        token
+      );
+      expect(res.status).toBe(400);
+
+      const body = await res.json();
+      expect(body.error).toContain('Invalid outputMode');
+    });
   });
 
   describe('GET /api/jobs/:id', () => {
@@ -136,6 +154,33 @@ describe('HamletServer API', () => {
     it('should return 404 for unknown job id', async () => {
       const res = await fetch(`${baseUrl}/api/jobs/nonexistent-id`);
       expect(res.status).toBe(404);
+    });
+
+    it('should fail when no matching source-framework tests are found', async () => {
+      const createRes = await postJson(
+        baseUrl,
+        '/api/convert',
+        {
+          root: FIXTURES_CONVERT,
+          direction: { from: 'cypress', to: 'playwright' },
+          outputMode: 'out-dir',
+          outputDir: path.join(OUTPUT_DIR, 'no-matches'),
+        },
+        token
+      );
+      const { jobId } = await createRes.json();
+
+      let job;
+      const deadline = Date.now() + 10000;
+      while (Date.now() < deadline) {
+        const res = await fetch(`${baseUrl}/api/jobs/${jobId}`);
+        job = await res.json();
+        if (job.status === 'completed' || job.status === 'failed') break;
+        await new Promise((r) => setTimeout(r, 200));
+      }
+
+      expect(job.status).toBe('failed');
+      expect(job.error).toContain('No cypress test files found to convert');
     });
   });
 

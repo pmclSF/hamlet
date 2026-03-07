@@ -22,9 +22,13 @@ import { buildOutputFilename } from '../cli/outputHelpers.js';
 const execFileAsync = promisify(execFile);
 const logger = logUtils.createLogger('RepoConverter');
 
+function isRemoteRepository(repoRef) {
+  return repoRef.startsWith('https://') || repoRef.startsWith('git@');
+}
+
 /**
  * Validate a repository URL to prevent command injection.
- * Allows https://, http://, and git@ (SSH) URLs that look like valid git repos.
+ * Allows https:// and git@ (SSH) URLs that look like valid git repos.
  * @param {string} url - Repository URL to validate
  * @throws {Error} If the URL is invalid or contains dangerous characters
  */
@@ -40,14 +44,8 @@ export function validateRepoUrl(url) {
   }
 
   // Must start with a recognized protocol or SSH prefix
-  if (
-    !url.startsWith('https://') &&
-    !url.startsWith('http://') &&
-    !url.startsWith('git@')
-  ) {
-    throw new Error(
-      'Invalid repository URL: must start with https://, http://, or git@'
-    );
+  if (!url.startsWith('https://') && !url.startsWith('git@')) {
+    throw new Error('Invalid repository URL: must start with https:// or git@');
   }
 
   // Basic structural check: host/path pattern, optional .git suffix
@@ -59,8 +57,8 @@ export function validateRepoUrl(url) {
       );
     }
   } else {
-    // HTTPS/HTTP: protocol://host/path with optional .git
-    if (!/^https?:\/\/[\w.-]+(:\d+)?\/[\w./_-]+(\.git)?$/.test(url)) {
+    // HTTPS: protocol://host/path with optional .git
+    if (!/^https:\/\/[\w.-]+(:\d+)?\/[\w./_-]+(\.git)?$/.test(url)) {
       throw new Error(
         'Invalid repository URL: does not match expected URL pattern'
       );
@@ -155,10 +153,14 @@ export class RepositoryConverter {
    * @returns {Promise<Object>} - Conversion results
    */
   async convertRepository(repoUrl, outputPath) {
+    const fromFramework = (this.options.from || 'cypress').toLowerCase();
+    const isRemote = isRemoteRepository(repoUrl);
+    let repoPath = repoUrl;
+
     try {
-      const fromFramework = (this.options.from || 'cypress').toLowerCase();
-      const isRemote = repoUrl.startsWith('http') || repoUrl.startsWith('git@');
-      const repoPath = isRemote ? await this.cloneRepository(repoUrl) : repoUrl;
+      if (isRemote) {
+        repoPath = await this.cloneRepository(repoUrl);
+      }
 
       logger.info(`Processing repository: ${repoPath}`);
 
@@ -179,15 +181,20 @@ export class RepositoryConverter {
       // Convert configuration files
       await this.convertConfigurations(repoPath, outputPath);
 
-      // Cleanup if temporary directory was used
-      if (isRemote) {
-        await fs.rm(repoPath, { recursive: true, force: true });
-      }
-
       return this.generateReport();
     } catch (error) {
       logger.error(`Repository conversion failed: ${error.message}`);
       throw error;
+    } finally {
+      if (isRemote && repoPath !== repoUrl) {
+        try {
+          await fs.rm(repoPath, { recursive: true, force: true });
+        } catch (cleanupError) {
+          logger.warn(
+            `Failed to clean up temporary clone at ${repoPath}: ${cleanupError.message}`
+          );
+        }
+      }
     }
   }
 
@@ -199,13 +206,19 @@ export class RepositoryConverter {
   async cloneRepository(repoUrl) {
     validateRepoUrl(repoUrl);
 
-    const tempDir = path.join(process.cwd(), this.options.tempDir);
-    await fs.mkdir(tempDir, { recursive: true });
+    const tempRoot = path.resolve(process.cwd(), this.options.tempDir);
+    await fs.mkdir(tempRoot, { recursive: true });
+    const cloneDir = await fs.mkdtemp(path.join(tempRoot, 'repo-'));
 
     logger.info('Cloning repository...');
-    await execFileAsync('git', ['clone', '--', repoUrl, tempDir]);
+    try {
+      await execFileAsync('git', ['clone', '--', repoUrl, cloneDir]);
+    } catch (error) {
+      await fs.rm(cloneDir, { recursive: true, force: true });
+      throw error;
+    }
 
-    return tempDir;
+    return cloneDir;
   }
 
   /**
@@ -387,41 +400,40 @@ const converterLogger = logUtils.createLogger('Converter');
  * @param {Object} options - Conversion options
  */
 export async function convertRepository(repoPath, outputPath, options = {}) {
+  const fromFramework = (
+    options.from ||
+    options.fromFramework ||
+    'cypress'
+  ).toLowerCase();
+  const toFramework = (
+    options.to ||
+    options.toFramework ||
+    'playwright'
+  ).toLowerCase();
+
+  // Initialize components
+  const repoConverter = new RepositoryConverter({
+    ...options,
+    from: fromFramework,
+    to: toFramework,
+  });
+  const batchProcessor = new BatchProcessor(options);
+  const metadataCollector = new TestMetadataCollector();
+  const dependencyAnalyzer = new DependencyAnalyzer();
+  const reporter = options.reporter || new ConversionReporter();
+  const testMapper = new TestMapper();
+
+  const isRemoteRepo = isRemoteRepository(repoPath);
+  let workingPath = repoPath;
+
   try {
-    const fromFramework = (
-      options.from ||
-      options.fromFramework ||
-      'cypress'
-    ).toLowerCase();
-    const toFramework = (
-      options.to ||
-      options.toFramework ||
-      'playwright'
-    ).toLowerCase();
-
-    // Initialize components
-    const repoConverter = new RepositoryConverter({
-      ...options,
-      from: fromFramework,
-      to: toFramework,
-    });
-    const batchProcessor = new BatchProcessor(options);
-    const metadataCollector = new TestMetadataCollector();
-    const dependencyAnalyzer = new DependencyAnalyzer();
-    const reporter = options.reporter || new ConversionReporter();
-    const testMapper = new TestMapper();
-
     converterLogger.info(`Starting repository conversion: ${repoPath}`);
 
     // Clone repository if it's a URL
-    const isRemoteRepo =
-      repoPath.startsWith('http') || repoPath.startsWith('git@');
     if (isRemoteRepo) {
       validateRepoUrl(repoPath);
+      workingPath = await repoConverter.cloneRepository(repoPath);
     }
-    const workingPath = isRemoteRepo
-      ? await repoConverter.cloneRepository(repoPath)
-      : repoPath;
     await fs.mkdir(outputPath, { recursive: true });
 
     // Analyze repository structure
@@ -611,15 +623,20 @@ export async function convertRepository(repoPath, outputPath, options = {}) {
       }
     }
 
-    // Clean up if remote repository
-    if (isRemoteRepo) {
-      await fs.rm(workingPath, { recursive: true, force: true });
-    }
-
     converterLogger.success('Repository conversion completed successfully');
     return report;
   } catch (error) {
     converterLogger.error('Repository conversion failed:', error);
     throw error;
+  } finally {
+    if (isRemoteRepo && workingPath !== repoPath) {
+      try {
+        await fs.rm(workingPath, { recursive: true, force: true });
+      } catch (cleanupError) {
+        converterLogger.warn(
+          `Failed to clean up temporary clone at ${workingPath}: ${cleanupError.message}`
+        );
+      }
+    }
   }
 }

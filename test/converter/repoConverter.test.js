@@ -87,10 +87,10 @@ describe('RepositoryConverter', () => {
       ).not.toThrow();
     });
 
-    it('should accept valid HTTP URLs', () => {
+    it('should reject HTTP URLs', () => {
       expect(() =>
         validateRepoUrl('http://github.com/user/repo.git')
-      ).not.toThrow();
+      ).toThrow('Invalid repository URL');
     });
 
     it('should accept valid SSH URLs', () => {

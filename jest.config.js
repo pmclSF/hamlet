@@ -1,3 +1,7 @@
+const nodeMajor = Number.parseInt(process.versions.node.split('.')[0], 10);
+const shouldSkipIndexTest =
+  Boolean(process.env.CI) && Number.isFinite(nodeMajor) && nodeMajor < 22;
+
 /** @type {import('jest').Config} */
 // NOTE: This project requires NODE_OPTIONS='--experimental-vm-modules' for
 // Jest ESM support.  That flag leaves internal IPC handles in Jest workers
@@ -21,10 +25,9 @@ export default {
     '/node_modules/',
     '<rootDir>/test/output/',
     '<rootDir>/test/fixtures/',
-    // Skip test/index.test.js in CI — Jest's experimental ESM VM modules on
-    // Node 18-20 trigger a cjs-module-lexer bug with signal-exit that causes
-    // "Export '__signal_exit_emitter__' is not defined in module"
-    ...(process.env.CI ? ['<rootDir>/test/index.test.js'] : []),
+    // Skip test/index.test.js only on CI Node <22 where Jest ESM VM modules
+    // can hit a cjs-module-lexer bug with signal-exit.
+    ...(shouldSkipIndexTest ? ['<rootDir>/test/index.test.js'] : []),
   ],
   moduleNameMapper: {
     '^(\\.{1,2}/.*)\\.js$': '$1',
