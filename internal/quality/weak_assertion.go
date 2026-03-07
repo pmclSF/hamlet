@@ -29,22 +29,26 @@ func (d *WeakAssertionDetector) Detect(snap *models.TestSuiteSnapshot) []models.
 
 		if tf.AssertionCount == 0 {
 			signals = append(signals, models.Signal{
-				Type:       "weakAssertion",
-				Category:   models.CategoryQuality,
-				Severity:   models.SeverityHigh,
-				Confidence: 0.8,
-				Location:   models.SignalLocation{File: tf.Path},
+				Type:             "weakAssertion",
+				Category:         models.CategoryQuality,
+				Severity:         models.SeverityHigh,
+				Confidence:       0.8,
+				EvidenceStrength: models.EvidenceModerate,
+				EvidenceSource:   models.SourceStructuralPattern,
+				Location:         models.SignalLocation{File: tf.Path},
 				Explanation: "No assertions detected in file with " +
 					itoa(tf.TestCount) + " test(s). Tests execute code but do not verify behavior.",
 				SuggestedAction: "Add assertions on returned values, state transitions, or side effects.",
 			})
 		} else if ratio < 1.0 {
 			signals = append(signals, models.Signal{
-				Type:       "weakAssertion",
-				Category:   models.CategoryQuality,
-				Severity:   models.SeverityMedium,
-				Confidence: 0.6,
-				Location:   models.SignalLocation{File: tf.Path},
+				Type:             "weakAssertion",
+				Category:         models.CategoryQuality,
+				Severity:         models.SeverityMedium,
+				Confidence:       0.6,
+				EvidenceStrength: models.EvidenceWeak,
+				EvidenceSource:   models.SourceStructuralPattern,
+				Location:         models.SignalLocation{File: tf.Path},
 				Explanation: "Low assertion density: " + itoa(tf.AssertionCount) +
 					" assertion(s) across " + itoa(tf.TestCount) +
 					" test(s). Some tests may not meaningfully verify behavior.",

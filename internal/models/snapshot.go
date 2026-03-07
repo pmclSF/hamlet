@@ -67,6 +67,10 @@ type TestSuiteSnapshot struct {
 
 	TestFiles []TestFile `json:"testFiles,omitempty"`
 
+	// TestCases contains individually identified test cases with stable IDs.
+	// This enables longitudinal tracking across snapshots.
+	TestCases []TestCase `json:"testCases,omitempty"`
+
 	CodeUnits []CodeUnit `json:"codeUnits,omitempty"`
 
 	Signals []Signal `json:"signals,omitempty"`
@@ -76,6 +80,13 @@ type TestSuiteSnapshot struct {
 	// Measurements contains the measurement-layer snapshot when computed.
 	Measurements *MeasurementSnapshot `json:"measurements,omitempty"`
 
+	// CoverageSummary holds aggregated coverage statistics when coverage
+	// artifacts have been ingested.
+	CoverageSummary *CoverageSummary `json:"coverageSummary,omitempty"`
+
+	// CoverageInsights holds actionable findings derived from coverage analysis.
+	CoverageInsights []CoverageInsight `json:"coverageInsights,omitempty"`
+
 	Ownership map[string][]string `json:"ownership,omitempty"`
 
 	Policies map[string]any `json:"policies,omitempty"`
@@ -83,4 +94,44 @@ type TestSuiteSnapshot struct {
 	Metadata map[string]any `json:"metadata,omitempty"`
 
 	GeneratedAt time.Time `json:"generatedAt"`
+}
+
+// CoverageSummary holds aggregated coverage statistics for the snapshot.
+type CoverageSummary struct {
+	// TotalCodeUnits is the total number of discovered code units.
+	TotalCodeUnits int `json:"totalCodeUnits"`
+
+	// CoveredByUnitTests is the count covered by unit tests.
+	CoveredByUnitTests int `json:"coveredByUnitTests"`
+
+	// CoveredByIntegration is the count covered by integration tests.
+	CoveredByIntegration int `json:"coveredByIntegration"`
+
+	// CoveredByE2E is the count covered by e2e tests.
+	CoveredByE2E int `json:"coveredByE2e"`
+
+	// CoveredOnlyByE2E is the count covered exclusively by e2e tests.
+	CoveredOnlyByE2E int `json:"coveredOnlyByE2e"`
+
+	// UncoveredExported is the count of exported units with no coverage.
+	UncoveredExported int `json:"uncoveredExported"`
+
+	// Uncovered is the total count of units with no coverage.
+	Uncovered int `json:"uncovered"`
+
+	// LineCoveragePct is the overall line coverage percentage.
+	LineCoveragePct float64 `json:"lineCoveragePct,omitempty"`
+
+	// BranchCoveragePct is the overall branch coverage percentage.
+	BranchCoveragePct float64 `json:"branchCoveragePct,omitempty"`
+}
+
+// CoverageInsight represents an actionable finding from coverage analysis.
+type CoverageInsight struct {
+	Type            string `json:"type"`
+	Severity        string `json:"severity"`
+	Description     string `json:"description"`
+	Path            string `json:"path,omitempty"`
+	UnitID          string `json:"unitId,omitempty"`
+	SuggestedAction string `json:"suggestedAction,omitempty"`
 }

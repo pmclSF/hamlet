@@ -36,6 +36,28 @@ type SignalLocation struct {
 	Line       int    `json:"line,omitempty"`
 }
 
+// EvidenceStrength describes how robust the evidence behind a signal is.
+type EvidenceStrength string
+
+const (
+	EvidenceStrong   EvidenceStrength = "strong"   // AST-backed, coverage data, runtime observation
+	EvidenceModerate EvidenceStrength = "moderate" // structural pattern matching with context
+	EvidenceWeak     EvidenceStrength = "weak"     // path/name heuristic only
+)
+
+// EvidenceSource describes how the signal was derived.
+type EvidenceSource string
+
+const (
+	SourceAST              EvidenceSource = "ast"
+	SourceStructuralPattern EvidenceSource = "structural-pattern"
+	SourcePathName          EvidenceSource = "path-name"
+	SourceRuntime           EvidenceSource = "runtime"
+	SourceCoverage          EvidenceSource = "coverage"
+	SourcePolicy            EvidenceSource = "policy"
+	SourceCodeowners        EvidenceSource = "codeowners"
+)
+
 // Signal is the canonical structured insight type in Hamlet.
 //
 // Every meaningful user-facing finding should be representable as a Signal.
@@ -55,6 +77,13 @@ type Signal struct {
 	// Confidence indicates how certain Hamlet is about the signal.
 	// Expected range is 0.0 to 1.0.
 	Confidence float64 `json:"confidence,omitempty"`
+
+	// EvidenceStrength classifies the robustness of the evidence.
+	// Weak-evidence signals are rendered with appropriate caveats.
+	EvidenceStrength EvidenceStrength `json:"evidenceStrength,omitempty"`
+
+	// EvidenceSource identifies how the signal was derived.
+	EvidenceSource EvidenceSource `json:"evidenceSource,omitempty"`
 
 	Location SignalLocation `json:"location"`
 

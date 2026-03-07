@@ -157,3 +157,82 @@ func TestRenderExecutiveSummary_TrendDirectionIcons(t *testing.T) {
 		t.Error("expected up arrow for worsened")
 	}
 }
+
+func TestRenderExecutiveSummary_Recommendations(t *testing.T) {
+	es := &summary.ExecutiveSummary{
+		Posture: summary.PostureSummary{
+			OverallBand:      models.RiskBandMedium,
+			OverallStatement: "Moderate.",
+		},
+		Recommendations: []summary.Recommendation{
+			{
+				What:             "Reduce quality findings in src/auth (5 signals)",
+				Why:              "High risk band with strong-confidence evidence",
+				Where:            "src/auth",
+				EvidenceStrength: "strong",
+				Priority:         1,
+			},
+			{
+				What:             "Reduce reliability findings in src/pay (2 signals)",
+				Why:              "Medium risk band with weak-confidence evidence",
+				Where:            "src/pay",
+				EvidenceStrength: "weak",
+				Priority:         2,
+			},
+		},
+		BenchmarkReadiness: summary.BenchmarkReadinessSummary{
+			ReadyDimensions: []string{"test structure"},
+		},
+	}
+
+	var buf bytes.Buffer
+	RenderExecutiveSummary(&buf, es)
+	output := buf.String()
+
+	expected := []string{
+		"Prioritized Recommendations",
+		"1. Reduce quality findings in src/auth",
+		"Why:",
+		"Where:    src/auth",
+		"Evidence: strong",
+		"2. Reduce reliability findings in src/pay",
+		"Evidence: weak",
+	}
+	for _, s := range expected {
+		if !strings.Contains(output, s) {
+			t.Errorf("output missing %q", s)
+		}
+	}
+}
+
+func TestRenderExecutiveSummary_BlindSpots(t *testing.T) {
+	es := &summary.ExecutiveSummary{
+		Posture: summary.PostureSummary{
+			OverallBand:      models.RiskBandLow,
+			OverallStatement: "Low.",
+		},
+		BlindSpots: []summary.BlindSpot{
+			{Area: "Coverage data", Reason: "No coverage artifacts were ingested", Remediation: "Run with --coverage"},
+			{Area: "Ownership attribution", Reason: "No CODEOWNERS file detected"},
+		},
+		BenchmarkReadiness: summary.BenchmarkReadinessSummary{
+			ReadyDimensions: []string{"test structure"},
+		},
+	}
+
+	var buf bytes.Buffer
+	RenderExecutiveSummary(&buf, es)
+	output := buf.String()
+
+	expected := []string{
+		"Known Blind Spots",
+		"Coverage data: No coverage artifacts",
+		"→ Run with --coverage",
+		"Ownership attribution: No CODEOWNERS",
+	}
+	for _, s := range expected {
+		if !strings.Contains(output, s) {
+			t.Errorf("output missing %q", s)
+		}
+	}
+}

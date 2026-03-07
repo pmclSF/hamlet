@@ -98,6 +98,36 @@ func RenderExecutiveSummary(w io.Writer, es *summary.ExecutiveSummary) {
 		blank()
 	}
 
+	// Structured recommendations
+	if len(es.Recommendations) > 0 {
+		line("Prioritized Recommendations")
+		line(strings.Repeat("-", 50))
+		for _, r := range es.Recommendations {
+			strength := string(r.EvidenceStrength)
+			if strength == "" {
+				strength = "unknown"
+			}
+			line("  %d. %s", r.Priority, r.What)
+			line("     Why:      %s", r.Why)
+			line("     Where:    %s", r.Where)
+			line("     Evidence: %s", strength)
+		}
+		blank()
+	}
+
+	// Blind spots
+	if len(es.BlindSpots) > 0 {
+		line("Known Blind Spots")
+		line(strings.Repeat("-", 50))
+		for _, b := range es.BlindSpots {
+			line("  %s: %s", b.Area, b.Reason)
+			if b.Remediation != "" {
+				line("    → %s", b.Remediation)
+			}
+		}
+		blank()
+	}
+
 	// Benchmark readiness
 	line("Benchmark Readiness")
 	line(strings.Repeat("-", 50))

@@ -104,11 +104,13 @@ func (d *CoverageThresholdDetector) checkThreshold(summary istanbulSummary, thre
 			}
 
 			signals = append(signals, models.Signal{
-				Type:     "coverageThresholdBreak",
-				Category: models.CategoryQuality,
-				Severity: sev,
-				Confidence: 0.9,
-				Location: models.SignalLocation{Repository: "total"},
+				Type:             "coverageThresholdBreak",
+				Category:         models.CategoryQuality,
+				Severity:         sev,
+				Confidence:       0.9,
+				EvidenceStrength: models.EvidenceStrong,
+				EvidenceSource:   models.SourceCoverage,
+				Location:         models.SignalLocation{Repository: "total"},
 				Explanation: m.name + " coverage is " + formatPct(m.pct) +
 					"%, below threshold of " + formatPct(threshold) + "%.",
 				SuggestedAction: "Identify concentrated coverage gaps and target high-risk modules first.",

@@ -46,11 +46,13 @@ func (d *MockHeavyDetector) Detect(snap *models.TestSuiteSnapshot) []models.Sign
 			}
 
 			signals = append(signals, models.Signal{
-				Type:     "mockHeavyTest",
-				Category: models.CategoryQuality,
-				Severity: sev,
-				Confidence: conf,
-				Location: models.SignalLocation{File: tf.Path},
+				Type:             "mockHeavyTest",
+				Category:         models.CategoryQuality,
+				Severity:         sev,
+				Confidence:       conf,
+				EvidenceStrength: models.EvidenceModerate,
+				EvidenceSource:   models.SourceStructuralPattern,
+				Location:         models.SignalLocation{File: tf.Path},
 				Explanation: "High mock usage detected: " + itoa(tf.MockCount) +
 					" mock(s) vs " + itoa(tf.AssertionCount) +
 					" assertion(s). Test behavior may be heavily isolated behind mocks.",

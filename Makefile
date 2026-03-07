@@ -1,10 +1,19 @@
 # Hamlet — observability and intelligence for test suites
 
-.PHONY: build test lint clean demo benchmark-fetch benchmark-smoke benchmark-full benchmark-stress benchmark-summary
+VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
+COMMIT  ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
+DATE    ?= $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
+LDFLAGS := -s -w -X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.date=$(DATE)
+
+.PHONY: build test lint clean demo benchmark-fetch benchmark-smoke benchmark-full benchmark-stress benchmark-summary install
 
 # Build the CLI binary
 build:
-	go build -o hamlet ./cmd/hamlet
+	go build -ldflags "$(LDFLAGS)" -o hamlet ./cmd/hamlet
+
+# Install to $GOPATH/bin
+install:
+	go install -ldflags "$(LDFLAGS)" ./cmd/hamlet
 
 # Run all Go tests
 test:

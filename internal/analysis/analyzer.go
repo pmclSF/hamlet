@@ -14,11 +14,14 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
 	"github.com/pmclSF/hamlet/internal/models"
 	"github.com/pmclSF/hamlet/internal/ownership"
+	"github.com/pmclSF/hamlet/internal/testcase"
+	"github.com/pmclSF/hamlet/internal/testtype"
 )
 
 // Analyzer performs static analysis on a repository root to produce
@@ -58,6 +61,18 @@ func (a *Analyzer) Analyze() (*models.TestSuiteSnapshot, error) {
 	// Extract exported code units for untested-export detection.
 	codeUnits := extractExportedCodeUnits(absRoot, testFiles)
 
+	// Extract individual test cases with stable IDs.
+	var rawTestCases []models.TestCase
+	for _, tf := range testFiles {
+		cases := testcase.Extract(absRoot, tf.Path, tf.Framework)
+		rawTestCases = append(rawTestCases, testcase.ToModels(cases)...)
+	}
+	// Detect and resolve any identity collisions.
+	testCases, _ := testcase.DetectAndResolveCollisions(rawTestCases)
+
+	// Infer test types (unit, integration, e2e, etc.) with evidence.
+	testCases = testtype.InferAll(testCases)
+
 	// Resolve ownership for test files.
 	resolver := ownership.NewResolver(absRoot)
 	for i := range testFiles {
@@ -77,6 +92,7 @@ func (a *Analyzer) Analyze() (*models.TestSuiteSnapshot, error) {
 		},
 		Frameworks: frameworks,
 		TestFiles:  testFiles,
+		TestCases:  testCases,
 		CodeUnits:  codeUnits,
 		// Signals: populated by detectors after snapshot creation.
 		// Risk: populated by risk engine after signal generation.
@@ -110,6 +126,7 @@ func detectLanguages(testFiles []models.TestFile) []string {
 	for l := range seen {
 		langs = append(langs, l)
 	}
+	sort.Strings(langs)
 	return langs
 }
 
@@ -134,6 +151,7 @@ func detectPackageManagers(root string) []string {
 			result = append(result, name)
 		}
 	}
+	sort.Strings(result)
 	return result
 }
 
@@ -155,6 +173,7 @@ func detectCISystems(root string) []string {
 			result = append(result, name)
 		}
 	}
+	sort.Strings(result)
 	return result
 }
 

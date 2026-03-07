@@ -176,9 +176,14 @@ func relPathExt(p string) string {
 }
 
 var (
+	// ESM export patterns
 	jsExportFuncPattern  = regexp.MustCompile(`export\s+(?:async\s+)?function\s+(\w+)`)
 	jsExportClassPattern = regexp.MustCompile(`export\s+class\s+(\w+)`)
 	jsExportConstPattern = regexp.MustCompile(`export\s+(?:const|let|var)\s+(\w+)`)
+
+	// CJS export patterns
+	cjsNamedExportPattern  = regexp.MustCompile(`(?:module\.)?exports\.(\w+)\s*=`)
+	cjsModuleExportPattern = regexp.MustCompile(`module\.exports\s*=\s*(\w+)\s*;?$`)
 
 	goExportFuncPattern = regexp.MustCompile(`func\s+([A-Z]\w*)\s*\(`)
 
@@ -191,24 +196,55 @@ func extractJSExports(root, relPath string) []models.CodeUnit {
 		return nil
 	}
 	src := string(content)
+	lines := strings.Split(src, "\n")
 	var units []models.CodeUnit
+	seen := map[string]bool{}
 
-	for _, m := range jsExportFuncPattern.FindAllStringSubmatch(src, -1) {
+	addUnit := func(name string, kind models.CodeUnitKind, line int) {
+		if seen[name] {
+			return
+		}
+		seen[name] = true
 		units = append(units, models.CodeUnit{
-			Name: m[1], Path: relPath, Kind: models.CodeUnitKindFunction, Exported: true,
+			UnitID:    buildUnitID(relPath, name, ""),
+			Name:      name,
+			Path:      relPath,
+			Kind:      kind,
+			Exported:  true,
+			Language:  "js",
+			StartLine: line,
 		})
 	}
-	for _, m := range jsExportClassPattern.FindAllStringSubmatch(src, -1) {
-		units = append(units, models.CodeUnit{
-			Name: m[1], Path: relPath, Kind: models.CodeUnitKindClass, Exported: true,
-		})
+
+	// Line-aware matching for ESM exports.
+	for i, line := range lines {
+		if m := jsExportFuncPattern.FindStringSubmatch(line); m != nil {
+			addUnit(m[1], models.CodeUnitKindFunction, i+1)
+		}
+		if m := jsExportClassPattern.FindStringSubmatch(line); m != nil {
+			addUnit(m[1], models.CodeUnitKindClass, i+1)
+		}
+		if m := jsExportConstPattern.FindStringSubmatch(line); m != nil {
+			addUnit(m[1], models.CodeUnitKindFunction, i+1)
+		}
+		if m := cjsNamedExportPattern.FindStringSubmatch(line); m != nil {
+			addUnit(m[1], models.CodeUnitKindFunction, i+1)
+		}
+		if m := cjsModuleExportPattern.FindStringSubmatch(line); m != nil {
+			addUnit(m[1], models.CodeUnitKindFunction, i+1)
+		}
 	}
-	for _, m := range jsExportConstPattern.FindAllStringSubmatch(src, -1) {
-		units = append(units, models.CodeUnit{
-			Name: m[1], Path: relPath, Kind: models.CodeUnitKindFunction, Exported: true,
-		})
-	}
+
 	return units
+}
+
+// buildUnitID constructs a deterministic code unit ID.
+// Format: path:name or path:parent.name for methods.
+func buildUnitID(path, name, parent string) string {
+	if parent != "" {
+		return path + ":" + parent + "." + name
+	}
+	return path + ":" + name
 }
 
 func extractGoExports(root, relPath string) []models.CodeUnit {
@@ -216,12 +252,20 @@ func extractGoExports(root, relPath string) []models.CodeUnit {
 	if err != nil {
 		return nil
 	}
-	src := string(content)
+	lines := strings.Split(string(content), "\n")
 	var units []models.CodeUnit
-	for _, m := range goExportFuncPattern.FindAllStringSubmatch(src, -1) {
-		units = append(units, models.CodeUnit{
-			Name: m[1], Path: relPath, Kind: models.CodeUnitKindFunction, Exported: true,
-		})
+	for i, line := range lines {
+		if m := goExportFuncPattern.FindStringSubmatch(line); m != nil {
+			units = append(units, models.CodeUnit{
+				UnitID:    buildUnitID(relPath, m[1], ""),
+				Name:      m[1],
+				Path:      relPath,
+				Kind:      models.CodeUnitKindFunction,
+				Exported:  true,
+				Language:  "go",
+				StartLine: i + 1,
+			})
+		}
 	}
 	return units
 }
@@ -232,11 +276,17 @@ func extractPythonExports(root, relPath string) []models.CodeUnit {
 		return nil
 	}
 	var units []models.CodeUnit
-	for _, line := range strings.Split(string(content), "\n") {
+	for i, line := range strings.Split(string(content), "\n") {
 		if m := pyDefPattern.FindStringSubmatch(line); m != nil {
 			if !strings.HasPrefix(m[1], "_") {
 				units = append(units, models.CodeUnit{
-					Name: m[1], Path: relPath, Kind: models.CodeUnitKindFunction, Exported: true,
+					UnitID:    buildUnitID(relPath, m[1], ""),
+					Name:      m[1],
+					Path:      relPath,
+					Kind:      models.CodeUnitKindFunction,
+					Exported:  true,
+					Language:  "python",
+					StartLine: i + 1,
 				})
 			}
 		}

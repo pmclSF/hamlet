@@ -175,3 +175,113 @@ func TestCompare_RepresentativeExamples(t *testing.T) {
 		t.Errorf("expected 1 resolved example, got %d", len(comp.ResolvedSignalExamples))
 	}
 }
+
+func TestCompare_TestCaseDeltas(t *testing.T) {
+	from := &models.TestSuiteSnapshot{
+		GeneratedAt: time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC),
+		TestCases: []models.TestCase{
+			{TestID: "aaa", TestName: "test_login"},
+			{TestID: "bbb", TestName: "test_logout"},
+			{TestID: "ccc", TestName: "test_signup"},
+		},
+	}
+	to := &models.TestSuiteSnapshot{
+		GeneratedAt: time.Date(2026, 3, 6, 0, 0, 0, 0, time.UTC),
+		TestCases: []models.TestCase{
+			{TestID: "aaa", TestName: "test_login"},
+			{TestID: "bbb", TestName: "test_logout"},
+			{TestID: "ddd", TestName: "test_checkout"},
+			{TestID: "eee", TestName: "test_payment"},
+		},
+	}
+
+	comp := Compare(from, to)
+	if comp.TestCaseDeltas == nil {
+		t.Fatal("expected TestCaseDeltas to be populated")
+	}
+	d := comp.TestCaseDeltas
+	if d.Stable != 2 {
+		t.Errorf("stable = %d, want 2", d.Stable)
+	}
+	if d.Added != 2 {
+		t.Errorf("added = %d, want 2", d.Added)
+	}
+	if d.Removed != 1 {
+		t.Errorf("removed = %d, want 1", d.Removed)
+	}
+	if len(d.RemovedExamples) != 1 || d.RemovedExamples[0] != "test_signup" {
+		t.Errorf("removed examples = %v, want [test_signup]", d.RemovedExamples)
+	}
+}
+
+func TestCompare_TestCaseDeltas_Empty(t *testing.T) {
+	snap := &models.TestSuiteSnapshot{
+		GeneratedAt: time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC),
+	}
+	comp := Compare(snap, snap)
+	if comp.TestCaseDeltas != nil {
+		t.Error("expected nil TestCaseDeltas when both snapshots have no test cases")
+	}
+}
+
+func TestCompare_CoverageDelta(t *testing.T) {
+	from := &models.TestSuiteSnapshot{
+		GeneratedAt: time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC),
+		CoverageSummary: &models.CoverageSummary{
+			LineCoveragePct:   65.0,
+			UncoveredExported: 10,
+			CoveredOnlyByE2E:  5,
+		},
+	}
+	to := &models.TestSuiteSnapshot{
+		GeneratedAt: time.Date(2026, 3, 6, 0, 0, 0, 0, time.UTC),
+		CoverageSummary: &models.CoverageSummary{
+			LineCoveragePct:   72.0,
+			UncoveredExported: 7,
+			CoveredOnlyByE2E:  3,
+		},
+	}
+
+	comp := Compare(from, to)
+	if comp.CoverageDelta == nil {
+		t.Fatal("expected CoverageDelta to be populated")
+	}
+	cd := comp.CoverageDelta
+	if cd.LineCoverageBefore != 65.0 {
+		t.Errorf("before = %f, want 65.0", cd.LineCoverageBefore)
+	}
+	if cd.LineCoverageAfter != 72.0 {
+		t.Errorf("after = %f, want 72.0", cd.LineCoverageAfter)
+	}
+	if cd.LineCoverageDelta != 7.0 {
+		t.Errorf("delta = %f, want 7.0", cd.LineCoverageDelta)
+	}
+	if cd.UncoveredExportedBefore != 10 || cd.UncoveredExportedAfter != 7 {
+		t.Errorf("uncovered exported = %d→%d, want 10→7", cd.UncoveredExportedBefore, cd.UncoveredExportedAfter)
+	}
+}
+
+func TestCompare_CoverageDelta_NilBoth(t *testing.T) {
+	snap := &models.TestSuiteSnapshot{
+		GeneratedAt: time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC),
+	}
+	comp := Compare(snap, snap)
+	if comp.CoverageDelta != nil {
+		t.Error("expected nil CoverageDelta when neither snapshot has coverage")
+	}
+}
+
+func TestCompare_HasMeaningfulChanges_TestCases(t *testing.T) {
+	from := &models.TestSuiteSnapshot{
+		GeneratedAt: time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC),
+		TestCases:   []models.TestCase{{TestID: "aaa", TestName: "test_a"}},
+	}
+	to := &models.TestSuiteSnapshot{
+		GeneratedAt: time.Date(2026, 3, 6, 0, 0, 0, 0, time.UTC),
+		TestCases:   []models.TestCase{{TestID: "bbb", TestName: "test_b"}},
+	}
+	comp := Compare(from, to)
+	if !comp.HasMeaningfulChanges() {
+		t.Error("expected meaningful changes when test cases differ")
+	}
+}

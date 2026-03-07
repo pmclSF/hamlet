@@ -98,6 +98,13 @@ func isTestFile(relPath string) bool {
 		if strings.Contains(relPath, "__tests__") {
 			return true
 		}
+		// Files inside test/ or tests/ directories (e.g. Express, Mocha projects)
+		parts := strings.Split(filepath.ToSlash(relPath), "/")
+		for _, p := range parts[:len(parts)-1] {
+			if p == "test" || p == "tests" {
+				return true
+			}
+		}
 	}
 
 	// Go test files

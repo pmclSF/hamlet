@@ -51,6 +51,14 @@ type ExecutiveSummary struct {
 	// RecommendedFocus is a concise, evidence-based prioritization note.
 	RecommendedFocus string `json:"recommendedFocus"`
 
+	// Recommendations provides structured, prioritized recommendations
+	// with what/why/where/evidence-strength context.
+	Recommendations []Recommendation `json:"recommendations,omitempty"`
+
+	// BlindSpots identifies areas where data is missing or evidence is weak,
+	// limiting confidence in the analysis.
+	BlindSpots []BlindSpot `json:"blindSpots,omitempty"`
+
 	// BenchmarkReadiness describes which dimensions are ready for future
 	// cross-repo comparison and where data gaps exist.
 	BenchmarkReadiness BenchmarkReadinessSummary `json:"benchmarkReadiness"`
@@ -116,6 +124,36 @@ type BenchmarkLimitation struct {
 	Reason    string `json:"reason"`
 }
 
+// Recommendation is a structured, evidence-aware action item.
+type Recommendation struct {
+	// What is the recommended action.
+	What string `json:"what"`
+
+	// Why explains the rationale.
+	Why string `json:"why"`
+
+	// Where identifies the scope (directory, file, owner).
+	Where string `json:"where"`
+
+	// EvidenceStrength is the confidence level of the underlying signals.
+	EvidenceStrength models.EvidenceStrength `json:"evidenceStrength"`
+
+	// Priority is a computed rank (lower = more urgent).
+	Priority int `json:"priority"`
+}
+
+// BlindSpot identifies an area where analysis confidence is limited.
+type BlindSpot struct {
+	// Area describes what is missing or limited.
+	Area string `json:"area"`
+
+	// Reason explains why.
+	Reason string `json:"reason"`
+
+	// Remediation suggests how to fill the gap.
+	Remediation string `json:"remediation,omitempty"`
+}
+
 // KeyNumbers provides essential aggregate counts.
 type KeyNumbers struct {
 	TestFiles        int `json:"testFiles"`
@@ -151,6 +189,8 @@ func Build(in *BuildInput) *ExecutiveSummary {
 		es.TrendHighlights = buildTrendHighlights(in.Comparison)
 	}
 
+	es.Recommendations = buildRecommendations(in.Snapshot, in.Heatmap)
+	es.BlindSpots = buildBlindSpots(in.Snapshot, in.Metrics)
 	es.RecommendedFocus = buildRecommendedFocus(es)
 
 	return es
@@ -228,7 +268,10 @@ func buildDominantDrivers(snap *models.TestSuiteSnapshot) []string {
 		pairs = append(pairs, kv{k, v})
 	}
 	sort.Slice(pairs, func(i, j int) bool {
-		return pairs[i].count > pairs[j].count
+		if pairs[i].count != pairs[j].count {
+			return pairs[i].count > pairs[j].count
+		}
+		return pairs[i].key < pairs[j].key
 	})
 
 	limit := 5
@@ -357,6 +400,166 @@ func buildBenchmarkReadiness(ms *metrics.Snapshot, seg *benchmark.Segment) Bench
 	_ = hasRuntime
 
 	return br
+}
+
+func buildRecommendations(snap *models.TestSuiteSnapshot, h *heatmap.Heatmap) []Recommendation {
+	var recs []Recommendation
+
+	// Group signals by directory and evidence strength.
+	type dirInfo struct {
+		signalCount int
+		strongCount int
+		modCount    int
+		weakCount   int
+		topType     string
+		topCount    int
+	}
+	dirs := map[string]*dirInfo{}
+	for _, s := range snap.Signals {
+		dir := dirFromFile(s.Location.File)
+		d, ok := dirs[dir]
+		if !ok {
+			d = &dirInfo{}
+			dirs[dir] = d
+		}
+		d.signalCount++
+		switch s.EvidenceStrength {
+		case models.EvidenceStrong:
+			d.strongCount++
+		case models.EvidenceModerate:
+			d.modCount++
+		default:
+			d.weakCount++
+		}
+		tkey := string(s.Type)
+		if d.topType == "" {
+			d.topType = tkey
+			d.topCount = 1
+		} else if tkey == d.topType {
+			d.topCount++
+		}
+	}
+
+	// Build recommendations from hotspots, prioritized by evidence strength then concentration.
+	limit := 5
+	if len(h.DirectoryHotSpots) < limit {
+		limit = len(h.DirectoryHotSpots)
+	}
+	for _, hs := range h.DirectoryHotSpots[:limit] {
+		if hs.Band == models.RiskBandLow {
+			continue
+		}
+		di := dirs[hs.Name]
+		strength := models.EvidenceWeak
+		if di != nil {
+			if di.strongCount > 0 {
+				strength = models.EvidenceStrong
+			} else if di.modCount > 0 {
+				strength = models.EvidenceModerate
+			}
+		}
+
+		riskType := "quality"
+		if len(hs.TopSignalTypes) > 0 {
+			riskType = categorizeSignalType(hs.TopSignalTypes[0])
+		}
+
+		rec := Recommendation{
+			What:             fmt.Sprintf("Reduce %s findings in %s (%d signals)", riskType, hs.Name, hs.SignalCount),
+			Why:              fmt.Sprintf("%s risk band with %s-confidence evidence", strings.ToUpper(string(hs.Band)[:1])+string(hs.Band)[1:], string(strength)),
+			Where:            hs.Name,
+			EvidenceStrength: strength,
+		}
+		recs = append(recs, rec)
+	}
+
+	// Prioritize: strong evidence first, then by signal count descending.
+	sort.SliceStable(recs, func(i, j int) bool {
+		si := evidenceOrder(recs[i].EvidenceStrength)
+		sj := evidenceOrder(recs[j].EvidenceStrength)
+		return si > sj
+	})
+	for i := range recs {
+		recs[i].Priority = i + 1
+	}
+
+	return recs
+}
+
+func buildBlindSpots(snap *models.TestSuiteSnapshot, ms *metrics.Snapshot) []BlindSpot {
+	var spots []BlindSpot
+
+	// Check for missing coverage data.
+	if snap.CoverageSummary == nil {
+		spots = append(spots, BlindSpot{
+			Area:        "Coverage data",
+			Reason:      "No coverage artifacts were ingested",
+			Remediation: "Run with --coverage <path> to include coverage analysis",
+		})
+	}
+
+	// Check for missing runtime data.
+	hasRuntimeNote := false
+	for _, note := range ms.Notes {
+		if strings.Contains(note, "runtime") || strings.Contains(note, "Runtime") {
+			hasRuntimeNote = true
+			break
+		}
+	}
+	if hasRuntimeNote {
+		spots = append(spots, BlindSpot{
+			Area:        "Runtime metrics",
+			Reason:      "No CI runtime data available",
+			Remediation: "Provide JUnit XML or CI artifacts for runtime analysis",
+		})
+	}
+
+	// Check for weak-evidence-only signals.
+	weakOnly := 0
+	total := 0
+	for _, s := range snap.Signals {
+		total++
+		if s.EvidenceStrength == models.EvidenceWeak || s.EvidenceStrength == "" {
+			weakOnly++
+		}
+	}
+	if total > 0 && weakOnly > total/2 {
+		spots = append(spots, BlindSpot{
+			Area:   "Signal confidence",
+			Reason: fmt.Sprintf("%d of %d signals rely on weak evidence (path/name heuristics)", weakOnly, total),
+		})
+	}
+
+	// Check for missing ownership data.
+	if len(snap.Ownership) == 0 {
+		spots = append(spots, BlindSpot{
+			Area:        "Ownership attribution",
+			Reason:      "No CODEOWNERS file detected",
+			Remediation: "Add a CODEOWNERS file for per-team risk attribution",
+		})
+	}
+
+	return spots
+}
+
+func dirFromFile(file string) string {
+	if idx := strings.LastIndex(file, "/"); idx >= 0 {
+		return file[:idx]
+	}
+	return "."
+}
+
+func evidenceOrder(s models.EvidenceStrength) int {
+	switch s {
+	case models.EvidenceStrong:
+		return 3
+	case models.EvidenceModerate:
+		return 2
+	case models.EvidenceWeak:
+		return 1
+	default:
+		return 0
+	}
 }
 
 func buildRecommendedFocus(es *ExecutiveSummary) string {

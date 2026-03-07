@@ -74,7 +74,10 @@ func Build(snap *models.TestSuiteSnapshot) *Heatmap {
 		}
 	}
 	sort.Slice(h.DirectoryHotSpots, func(i, j int) bool {
-		return h.DirectoryHotSpots[i].Score > h.DirectoryHotSpots[j].Score
+		if h.DirectoryHotSpots[i].Score != h.DirectoryHotSpots[j].Score {
+			return h.DirectoryHotSpots[i].Score > h.DirectoryHotSpots[j].Score
+		}
+		return h.DirectoryHotSpots[i].Name < h.DirectoryHotSpots[j].Name
 	})
 
 	// Build owner hotspots from signals.
@@ -98,7 +101,10 @@ func Build(snap *models.TestSuiteSnapshot) *Heatmap {
 		})
 	}
 	sort.Slice(h.OwnerHotSpots, func(i, j int) bool {
-		return h.OwnerHotSpots[i].Score > h.OwnerHotSpots[j].Score
+		if h.OwnerHotSpots[i].Score != h.OwnerHotSpots[j].Score {
+			return h.OwnerHotSpots[i].Score > h.OwnerHotSpots[j].Score
+		}
+		return h.OwnerHotSpots[i].Name < h.OwnerHotSpots[j].Name
 	})
 
 	// Compute aggregate posture.
@@ -160,7 +166,10 @@ func topTypes(signals []models.Signal, n int) []string {
 		pairs = append(pairs, kv{k, v})
 	}
 	sort.Slice(pairs, func(i, j int) bool {
-		return pairs[i].count > pairs[j].count
+		if pairs[i].count != pairs[j].count {
+			return pairs[i].count > pairs[j].count
+		}
+		return pairs[i].key < pairs[j].key
 	})
 
 	result := make([]string, 0, n)

@@ -83,7 +83,10 @@ func toSortedGroups(m map[string][]models.Signal) []ReviewGroup {
 		})
 	}
 	sort.Slice(groups, func(i, j int) bool {
-		return groups[i].Count > groups[j].Count
+		if groups[i].Count != groups[j].Count {
+			return groups[i].Count > groups[j].Count
+		}
+		return groups[i].Key < groups[j].Key
 	})
 	return groups
 }

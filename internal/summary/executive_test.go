@@ -278,6 +278,95 @@ func TestBuild_TrendWithWorsenedFocusRecommendation(t *testing.T) {
 	}
 }
 
+func TestBuild_Recommendations(t *testing.T) {
+	in := baseInput()
+	// Add evidence strength to signals.
+	in.Snapshot.Signals[0].EvidenceStrength = models.EvidenceStrong
+	in.Snapshot.Signals[1].EvidenceStrength = models.EvidenceModerate
+	in.Snapshot.Signals[2].EvidenceStrength = models.EvidenceWeak
+
+	es := Build(in)
+
+	if len(es.Recommendations) == 0 {
+		t.Fatal("expected recommendations")
+	}
+	// First recommendation should have highest evidence strength.
+	first := es.Recommendations[0]
+	if first.Priority != 1 {
+		t.Errorf("first recommendation priority = %d, want 1", first.Priority)
+	}
+	if first.What == "" || first.Why == "" || first.Where == "" {
+		t.Error("recommendation missing what/why/where")
+	}
+	if first.EvidenceStrength == "" {
+		t.Error("recommendation missing evidence strength")
+	}
+}
+
+func TestBuild_BlindSpots_NoCoverage(t *testing.T) {
+	in := baseInput()
+	// No CoverageSummary → should flag coverage blind spot.
+	es := Build(in)
+
+	found := false
+	for _, bs := range es.BlindSpots {
+		if bs.Area == "Coverage data" {
+			found = true
+			if bs.Remediation == "" {
+				t.Error("expected remediation for coverage blind spot")
+			}
+		}
+	}
+	if !found {
+		t.Error("expected coverage blind spot when no coverage data")
+	}
+}
+
+func TestBuild_BlindSpots_WeakEvidence(t *testing.T) {
+	in := baseInput()
+	// All signals weak → should flag weak evidence blind spot.
+	for i := range in.Snapshot.Signals {
+		in.Snapshot.Signals[i].EvidenceStrength = models.EvidenceWeak
+	}
+
+	es := Build(in)
+
+	found := false
+	for _, bs := range es.BlindSpots {
+		if bs.Area == "Signal confidence" {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("expected signal confidence blind spot when majority weak evidence")
+	}
+}
+
+func TestBuild_NoBlindSpots_WithCoverage(t *testing.T) {
+	in := baseInput()
+	in.Snapshot.CoverageSummary = &models.CoverageSummary{
+		LineCoveragePct: 80.0,
+	}
+	in.Snapshot.Ownership = map[string][]string{"src/auth": {"auth-team"}}
+	for i := range in.Snapshot.Signals {
+		in.Snapshot.Signals[i].EvidenceStrength = models.EvidenceStrong
+	}
+
+	es := Build(in)
+
+	for _, bs := range es.BlindSpots {
+		if bs.Area == "Coverage data" {
+			t.Error("should not flag coverage blind spot when coverage data exists")
+		}
+		if bs.Area == "Signal confidence" {
+			t.Error("should not flag weak evidence when signals are strong")
+		}
+		if bs.Area == "Ownership attribution" {
+			t.Error("should not flag ownership when CODEOWNERS present")
+		}
+	}
+}
+
 func TestRenderExecutiveSummary_Sections(t *testing.T) {
 	// Import test - verify rendering doesn't panic and includes expected sections
 	es := Build(baseInput())

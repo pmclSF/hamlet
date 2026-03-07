@@ -35,6 +35,54 @@ type SnapshotComparison struct {
 
 	// ResolvedSignalExamples shows representative resolved signals (up to 5).
 	ResolvedSignalExamples []SignalExample `json:"resolvedSignalExamples,omitempty"`
+
+	// TestCaseDeltas summarizes changes to individual test cases.
+	TestCaseDeltas *TestCaseDeltas `json:"testCaseDeltas,omitempty"`
+
+	// CoverageDelta summarizes changes to coverage metrics.
+	CoverageDelta *CoverageDelta `json:"coverageDelta,omitempty"`
+}
+
+// TestCaseDeltas summarizes changes in test case identity across snapshots.
+type TestCaseDeltas struct {
+	// Added is the number of new test cases (IDs in to but not from).
+	Added int `json:"added"`
+
+	// Removed is the number of removed test cases (IDs in from but not to).
+	Removed int `json:"removed"`
+
+	// Stable is the number of unchanged test cases (IDs in both).
+	Stable int `json:"stable"`
+
+	// AddedExamples are representative new test names (up to 5).
+	AddedExamples []string `json:"addedExamples,omitempty"`
+
+	// RemovedExamples are representative removed test names (up to 5).
+	RemovedExamples []string `json:"removedExamples,omitempty"`
+}
+
+// CoverageDelta summarizes changes to coverage metrics across snapshots.
+type CoverageDelta struct {
+	// LineCoverageBefore is the previous line coverage percentage.
+	LineCoverageBefore float64 `json:"lineCoverageBefore"`
+
+	// LineCoverageAfter is the current line coverage percentage.
+	LineCoverageAfter float64 `json:"lineCoverageAfter"`
+
+	// LineCoverageDelta is the change in line coverage percentage.
+	LineCoverageDelta float64 `json:"lineCoverageDelta"`
+
+	// UncoveredExportedBefore is the previous count of uncovered exports.
+	UncoveredExportedBefore int `json:"uncoveredExportedBefore"`
+
+	// UncoveredExportedAfter is the current count of uncovered exports.
+	UncoveredExportedAfter int `json:"uncoveredExportedAfter"`
+
+	// CoveredOnlyByE2EBefore is the previous count of e2e-only coverage.
+	CoveredOnlyByE2EBefore int `json:"coveredOnlyByE2eBefore"`
+
+	// CoveredOnlyByE2EAfter is the current count of e2e-only coverage.
+	CoveredOnlyByE2EAfter int `json:"coveredOnlyByE2eAfter"`
 }
 
 // SignalDelta represents the change in count for a signal type.
@@ -84,6 +132,8 @@ func Compare(from, to *models.TestSuiteSnapshot) *SnapshotComparison {
 	comp.RiskDeltas = compareRisk(from.Risk, to.Risk)
 	comp.FrameworkChanges = compareFrameworks(from.Frameworks, to.Frameworks)
 	comp.NewSignalExamples, comp.ResolvedSignalExamples = findRepresentativeChanges(from.Signals, to.Signals)
+	comp.TestCaseDeltas = compareTestCases(from.TestCases, to.TestCases)
+	comp.CoverageDelta = compareCoverage(from.CoverageSummary, to.CoverageSummary)
 
 	return comp
 }
@@ -99,6 +149,12 @@ func (c *SnapshotComparison) HasMeaningfulChanges() bool {
 		if r.Changed {
 			return true
 		}
+	}
+	if c.TestCaseDeltas != nil && (c.TestCaseDeltas.Added > 0 || c.TestCaseDeltas.Removed > 0) {
+		return true
+	}
+	if c.CoverageDelta != nil && c.CoverageDelta.LineCoverageDelta != 0 {
+		return true
 	}
 	return len(c.FrameworkChanges) > 0 || c.TestFileCountDelta != 0
 }
@@ -116,8 +172,17 @@ func compareSignals(from, to []models.Signal) []SignalDelta {
 		allTypes[t] = true
 	}
 
-	var deltas []SignalDelta
+	// Sort types for deterministic output.
+	sortedTypes := make([]models.SignalType, 0, len(allTypes))
 	for t := range allTypes {
+		sortedTypes = append(sortedTypes, t)
+	}
+	sort.Slice(sortedTypes, func(i, j int) bool {
+		return sortedTypes[i] < sortedTypes[j]
+	})
+
+	var deltas []SignalDelta
+	for _, t := range sortedTypes {
 		before := fromCounts[t]
 		after := toCounts[t]
 		if before != after {
@@ -132,7 +197,7 @@ func compareSignals(from, to []models.Signal) []SignalDelta {
 		}
 	}
 
-	// Sort by absolute delta descending
+	// Sort by absolute delta descending, then by type for determinism.
 	sort.Slice(deltas, func(i, j int) bool {
 		ai := deltas[i].Delta
 		if ai < 0 {
@@ -142,7 +207,10 @@ func compareSignals(from, to []models.Signal) []SignalDelta {
 		if aj < 0 {
 			aj = -aj
 		}
-		return ai > aj
+		if ai != aj {
+			return ai > aj
+		}
+		return deltas[i].Type < deltas[j].Type
 	})
 
 	return deltas
@@ -170,8 +238,15 @@ func compareRisk(from, to []models.RiskSurface) []RiskDelta {
 		allKeys[k] = true
 	}
 
+	// Sort keys for deterministic output.
+	sortedKeys := make([]string, 0, len(allKeys))
+	for k := range allKeys {
+		sortedKeys = append(sortedKeys, k)
+	}
+	sort.Strings(sortedKeys)
+
 	var deltas []RiskDelta
-	for key := range allKeys {
+	for _, key := range sortedKeys {
 		fromR := fromMap[key]
 		toR := toMap[key]
 
@@ -223,6 +298,12 @@ func compareFrameworks(from, to []models.Framework) []FrameworkChange {
 			changes = append(changes, FrameworkChange{Name: name, Change: "removed", Files: files})
 		}
 	}
+	sort.Slice(changes, func(i, j int) bool {
+		if changes[i].Change != changes[j].Change {
+			return changes[i].Change < changes[j].Change
+		}
+		return changes[i].Name < changes[j].Name
+	})
 	return changes
 }
 
@@ -284,4 +365,66 @@ func findCategory(from, to []models.Signal, t models.SignalType) models.SignalCa
 		}
 	}
 	return ""
+}
+
+func compareTestCases(from, to []models.TestCase) *TestCaseDeltas {
+	if len(from) == 0 && len(to) == 0 {
+		return nil
+	}
+
+	fromIDs := map[string]string{} // testID → testName
+	for _, tc := range from {
+		fromIDs[tc.TestID] = tc.TestName
+	}
+	toIDs := map[string]string{}
+	for _, tc := range to {
+		toIDs[tc.TestID] = tc.TestName
+	}
+
+	d := &TestCaseDeltas{}
+	for id, name := range toIDs {
+		if _, ok := fromIDs[id]; ok {
+			d.Stable++
+		} else {
+			d.Added++
+			if len(d.AddedExamples) < 5 {
+				d.AddedExamples = append(d.AddedExamples, name)
+			}
+		}
+	}
+	for id, name := range fromIDs {
+		if _, ok := toIDs[id]; !ok {
+			d.Removed++
+			if len(d.RemovedExamples) < 5 {
+				d.RemovedExamples = append(d.RemovedExamples, name)
+			}
+		}
+	}
+
+	// Sort examples for determinism.
+	sort.Strings(d.AddedExamples)
+	sort.Strings(d.RemovedExamples)
+
+	return d
+}
+
+func compareCoverage(from, to *models.CoverageSummary) *CoverageDelta {
+	if from == nil && to == nil {
+		return nil
+	}
+
+	d := &CoverageDelta{}
+	if from != nil {
+		d.LineCoverageBefore = from.LineCoveragePct
+		d.UncoveredExportedBefore = from.UncoveredExported
+		d.CoveredOnlyByE2EBefore = from.CoveredOnlyByE2E
+	}
+	if to != nil {
+		d.LineCoverageAfter = to.LineCoveragePct
+		d.UncoveredExportedAfter = to.UncoveredExported
+		d.CoveredOnlyByE2EAfter = to.CoveredOnlyByE2E
+	}
+	d.LineCoverageDelta = d.LineCoverageAfter - d.LineCoverageBefore
+
+	return d
 }

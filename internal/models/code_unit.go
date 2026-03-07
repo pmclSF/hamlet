@@ -19,6 +19,10 @@ const (
 //   - coverage blind spots
 //   - change risk by module
 type CodeUnit struct {
+	// UnitID is the deterministic stable identifier for this code unit.
+	// Format: normalized_path:symbol_name (or path:parent.symbol for methods).
+	UnitID string `json:"unitId,omitempty"`
+
 	// Name is the local identifier for the code unit.
 	Name string `json:"name"`
 
@@ -31,8 +35,20 @@ type CodeUnit struct {
 	// Exported indicates whether the code unit is externally visible.
 	Exported bool `json:"exported"`
 
+	// ParentName is the containing class/struct name for methods.
+	ParentName string `json:"parentName,omitempty"`
+
+	// Language is the programming language.
+	Language string `json:"language,omitempty"`
+
+	// StartLine is the approximate start line of the unit definition.
+	StartLine int `json:"startLine,omitempty"`
+
+	// EndLine is the approximate end line of the unit definition.
+	// May be zero if not determinable.
+	EndLine int `json:"endLine,omitempty"`
+
 	// Complexity is an optional lightweight complexity estimate.
-	// The exact definition may evolve over time.
 	Complexity float64 `json:"complexity,omitempty"`
 
 	// Coverage is an optional normalized coverage ratio for this unit.

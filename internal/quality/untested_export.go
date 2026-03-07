@@ -65,10 +65,12 @@ func (d *UntestedExportDetector) Detect(snap *models.TestSuiteSnapshot) []models
 
 		if !hasNearbyTest {
 			signals = append(signals, models.Signal{
-				Type:       "untestedExport",
-				Category:   models.CategoryQuality,
-				Severity:   models.SeverityMedium,
-				Confidence: 0.5,
+				Type:             "untestedExport",
+				Category:         models.CategoryQuality,
+				Severity:         models.SeverityMedium,
+				Confidence:       0.5,
+				EvidenceStrength: models.EvidenceWeak,
+				EvidenceSource:   models.SourcePathName,
 				Location: models.SignalLocation{
 					File:   cu.Path,
 					Symbol: cu.Name,

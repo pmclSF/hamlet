@@ -86,12 +86,44 @@ func detectJSFramework(absPath string) string {
 		return "jasmine"
 	}
 
+	// Mocha detection: done-callback pattern or node assert/supertest usage
+	// without explicit jest imports suggests mocha (common in Express, Koa, etc.)
+	if strings.Contains(content, "describe(") || strings.Contains(content, "it(") {
+		if hasMochaIndicators(content) {
+			return "mocha"
+		}
+	}
+
 	// Fallback: common test globals suggest jest (most common JS test framework)
 	if strings.Contains(content, "describe(") && strings.Contains(content, "expect(") {
 		return "jest"
 	}
 
 	return "unknown"
+}
+
+// hasMochaIndicators checks for patterns that suggest mocha rather than jest.
+// Mocha projects commonly use done callbacks, node's assert module, or supertest,
+// none of which are typical in jest projects.
+func hasMochaIndicators(content string) bool {
+	// done callback: function(done) or function (done) — idiomatic mocha, discouraged in jest
+	if strings.Contains(content, "function(done)") || strings.Contains(content, "function (done)") {
+		return true
+	}
+	// supertest: commonly paired with mocha for HTTP testing
+	if strings.Contains(content, "require('supertest')") || strings.Contains(content, "require(\"supertest\")") {
+		return true
+	}
+	// node assert module: common in mocha, not used in jest
+	if strings.Contains(content, "require('assert')") || strings.Contains(content, "require(\"assert\")") {
+		return true
+	}
+	// chai: assertion library commonly paired with mocha
+	if strings.Contains(content, "require('chai')") || strings.Contains(content, "require(\"chai\")") ||
+		strings.Contains(content, "from 'chai'") || strings.Contains(content, "from \"chai\"") {
+		return true
+	}
+	return false
 }
 
 // detectPythonFramework looks for framework-specific imports.
@@ -164,9 +196,12 @@ func buildFrameworkInventory(testFiles []models.TestFile) []models.Framework {
 		})
 	}
 
-	// Sort by file count descending for stable, useful output.
+	// Sort by file count descending, then by name for deterministic output.
 	sort.Slice(frameworks, func(i, j int) bool {
-		return frameworks[i].FileCount > frameworks[j].FileCount
+		if frameworks[i].FileCount != frameworks[j].FileCount {
+			return frameworks[i].FileCount > frameworks[j].FileCount
+		}
+		return frameworks[i].Name < frameworks[j].Name
 	})
 
 	return frameworks
