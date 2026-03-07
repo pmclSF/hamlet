@@ -1,0 +1,83 @@
+{
+  "posture": {
+    "overallBand": "high",
+    "overallStatement": "High risk detected. Prioritize remediation of concentrated risk areas.",
+    "dimensions": [
+      { "dimension": "reliability", "band": "medium" },
+      { "dimension": "change", "band": "high" },
+      { "dimension": "speed", "band": "low" }
+    ]
+  },
+  "topRiskAreas": [
+    {
+      "name": "src/payments",
+      "scope": "directory",
+      "band": "high",
+      "riskType": "quality",
+      "signalCount": 12
+    },
+    {
+      "name": "src/integration",
+      "scope": "directory",
+      "band": "high",
+      "riskType": "speed",
+      "signalCount": 8
+    }
+  ],
+  "trendHighlights": [
+    {
+      "description": "reliability risk worsened (low → medium)",
+      "direction": "worsened",
+      "dimension": "reliability"
+    },
+    {
+      "description": "weakAssertion findings decreased (-4)",
+      "direction": "improved",
+      "dimension": "quality"
+    },
+    {
+      "description": "flakyTest findings increased (+3)",
+      "direction": "worsened",
+      "dimension": "health"
+    }
+  ],
+  "hasTrendData": true,
+  "dominantDrivers": [
+    "weakAssertion",
+    "mockHeavyTest",
+    "slowTest",
+    "flakyTest",
+    "untestedExport"
+  ],
+  "recommendedFocus": "Address quality risk in src/payments; reduce weakAssertion findings; investigate reliability trend.",
+  "benchmarkReadiness": {
+    "readyDimensions": [
+      "test structure",
+      "quality metrics",
+      "migration blocker counts",
+      "governance metrics"
+    ],
+    "limitedDimensions": [
+      {
+        "dimension": "speed comparison",
+        "reason": "runtime data is partial or absent"
+      }
+    ],
+    "segment": {
+      "primaryLanguage": "javascript",
+      "primaryFramework": "jest",
+      "testFileBucket": "medium",
+      "frameworkCount": 3,
+      "hasCoverage": false,
+      "hasRuntimeData": false,
+      "hasPolicy": true
+    }
+  },
+  "keyNumbers": {
+    "testFiles": 142,
+    "frameworks": 3,
+    "totalSignals": 47,
+    "criticalFindings": 2,
+    "highRiskAreas": 4
+  }
+}

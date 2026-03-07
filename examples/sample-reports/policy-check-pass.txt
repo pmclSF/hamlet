@@ -1,0 +1,12 @@
+Hamlet Policy Check
+========================================
+
+Policy file
+  .hamlet/policy.yaml
+
+Violations
+----------------------------------------
+  (none)
+
+Status
+  PASS

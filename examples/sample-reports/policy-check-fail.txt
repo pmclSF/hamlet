@@ -1,0 +1,17 @@
+Hamlet Policy Check
+========================================
+
+Policy file
+  .hamlet/policy.yaml
+
+Violations
+----------------------------------------
+  - legacyFrameworkUsage: Policy disallows framework 'jest', but 124 test files were detected.
+    location: my-repo
+  - runtimeBudgetExceeded: Observed runtime 18200ms exceeds configured max_test_runtime_ms of 5000.
+    location: test/checkout-flow.test.ts
+  - policyViolation: Policy disallows skipped tests, but 3 skipped test signal(s) were detected.
+    location: my-repo
+
+Status
+  FAIL

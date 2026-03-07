@@ -1,0 +1,53 @@
+Hamlet Executive Summary
+==================================================
+
+Overall Posture
+--------------------------------------------------
+  reliability:         medium
+  change:              high
+  speed:               low
+
+Key Numbers
+--------------------------------------------------
+  Test files:          142
+  Frameworks:          3
+  Total signals:       47
+  Critical findings:   2
+  High-risk areas:     4
+
+Top Risk Areas
+--------------------------------------------------
+  src/payments              high quality risk
+  src/integration           high speed risk
+  src/checkout              medium reliability risk
+
+Trend Highlights
+--------------------------------------------------
+  ↑ reliability risk worsened (low → medium)
+  ↓ weakAssertion findings decreased (-4)
+  ↑ flakyTest findings increased (+3)
+  ↓ migrationBlocker findings decreased (-6)
+  ↑ slowTest findings increased (+2)
+
+Dominant Drivers
+--------------------------------------------------
+  weakAssertion
+  mockHeavyTest
+  slowTest
+  flakyTest
+  untestedExport
+
+Recommended Focus
+--------------------------------------------------
+  Address quality risk in src/payments; reduce weakAssertion findings; investigate reliability trend.
+
+Benchmark Readiness
+--------------------------------------------------
+  Ready:
+    test structure
+    quality metrics
+    migration blocker counts
+    governance metrics
+  Limited:
+    speed comparison (runtime data is partial or absent)
+

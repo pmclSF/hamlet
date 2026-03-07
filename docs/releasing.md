@@ -21,8 +21,8 @@ git tag v2.x.x && git push origin v2.x.x
     │                 └── Conversion smoke (jest→vitest)
     └── release job (needs: verify):
           ├── npm ci
-          ├── Create GitHub Release (auto-generated notes)
-          └── npm publish --provenance (NPM_TOKEN secret)
+          ├── npm publish --provenance (NPM_TOKEN secret)
+          └── Create GitHub Release (auto-generated notes)
 ```
 
 A single workflow (`release.yml`) handles the full pipeline: verify → release →
