@@ -63,14 +63,29 @@ Grouped triage for:
 - migration hints
 - future diff previews
 
-## Implementation status
+## Implementation
 
 Source files under `extension/vscode/src/`:
-- `types.ts` — TypeScript types aligned with CLI JSON snapshot contract (includes MigrationPreviewResult, MigrationReadiness)
-- `signal_renderer.ts` — Grouping/filtering helpers (groupByType, groupByOwner, groupByDirectory, reviewWorthy, migrationSignals)
-- `views.ts` — View data builders (buildOverview, buildHealth, buildQuality, buildReview, buildMigration) with migration area assessments and review migration blocker integration
 
-TreeDataProvider implementations pending.
+| File | Purpose |
+|------|---------|
+| `extension.ts` | Entry point: TreeDataProviders, commands, CLI integration, state management |
+| `types.ts` | TypeScript types aligned with CLI JSON snapshot contract |
+| `signal_renderer.ts` | Grouping/filtering helpers (groupByType, groupByOwner, groupByDirectory, reviewWorthy, migrationSignals) |
+| `views.ts` | View data builders (buildOverview, buildHealth, buildQuality, buildReview, buildMigration) |
+
+### Commands
+
+| Command | Description |
+|---------|-------------|
+| `hamlet.refresh` | Re-run analysis and refresh all views |
+| `hamlet.openSummary` | Open executive summary in terminal |
+| `hamlet.openMigrationBlockers` | Open migration blockers in terminal |
+| `hamlet.revealFile` | Open file associated with a finding |
+
+### States
+
+All views handle empty, loading, error, and loaded states gracefully.
 
 ## Rules
 

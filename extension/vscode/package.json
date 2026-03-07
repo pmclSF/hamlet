@@ -1,0 +1,106 @@
+{
+  "name": "hamlet-test-intelligence",
+  "displayName": "Hamlet Test Intelligence",
+  "description": "Signal-first test intelligence: risk, quality, migration readiness, and governance insights for your test suite.",
+  "version": "0.1.0",
+  "publisher": "pmclSF",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": ["Testing", "Linters"],
+  "activationEvents": [
+    "workspaceContains:**/*.test.*",
+    "workspaceContains:**/*_test.go",
+    "workspaceContains:**/*Test.java"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "hamlet",
+          "title": "Hamlet",
+          "icon": "$(beaker)"
+        }
+      ]
+    },
+    "views": {
+      "hamlet": [
+        {
+          "id": "hamlet.overview",
+          "name": "Overview"
+        },
+        {
+          "id": "hamlet.health",
+          "name": "Health"
+        },
+        {
+          "id": "hamlet.quality",
+          "name": "Quality"
+        },
+        {
+          "id": "hamlet.migration",
+          "name": "Migration"
+        },
+        {
+          "id": "hamlet.review",
+          "name": "Review"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "hamlet.refresh",
+        "title": "Hamlet: Refresh Analysis",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "hamlet.openSummary",
+        "title": "Hamlet: Open Executive Summary"
+      },
+      {
+        "command": "hamlet.openMigrationBlockers",
+        "title": "Hamlet: Show Migration Blockers"
+      },
+      {
+        "command": "hamlet.revealFile",
+        "title": "Hamlet: Reveal File"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "hamlet.refresh",
+          "when": "view =~ /^hamlet\\./",
+          "group": "navigation"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Hamlet",
+      "properties": {
+        "hamlet.binaryPath": {
+          "type": "string",
+          "default": "hamlet",
+          "description": "Path to the hamlet CLI binary."
+        },
+        "hamlet.autoRefresh": {
+          "type": "boolean",
+          "default": false,
+          "description": "Automatically refresh analysis when files change."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p ./tsconfig.json",
+    "watch": "tsc -watch -p ./tsconfig.json",
+    "lint": "eslint src --ext ts"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.85.0",
+    "@types/node": "^20.0.0",
+    "typescript": "^5.3.0"
+  }
+}
