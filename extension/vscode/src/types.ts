@@ -15,6 +15,15 @@ export interface Signal {
   category: "structure" | "health" | "quality" | "migration" | "governance";
   severity: "info" | "low" | "medium" | "high" | "critical";
   confidence?: number;
+  evidenceStrength?: "strong" | "moderate" | "weak";
+  evidenceSource?:
+    | "ast"
+    | "structural-pattern"
+    | "path-name"
+    | "runtime"
+    | "coverage"
+    | "policy"
+    | "codeowners";
   location: SignalLocation;
   owner?: string;
   explanation: string;
@@ -71,13 +80,88 @@ export interface RepositoryMetadata {
   branch?: string;
 }
 
+export interface TestCase {
+  testId: string;
+  canonicalIdentity: string;
+  filePath: string;
+  suiteHierarchy?: string[];
+  testName: string;
+  framework: string;
+  language: string;
+  line?: number;
+  extractionKind: string;
+  confidence: number;
+  testType?: string;
+  testTypeConfidence?: number;
+}
+
+export interface CoverageSummary {
+  totalCodeUnits: number;
+  coveredByUnitTests: number;
+  coveredByIntegration: number;
+  coveredByE2e: number;
+  coveredOnlyByE2e: number;
+  uncoveredExported: number;
+  uncovered: number;
+  lineCoveragePct?: number;
+  branchCoveragePct?: number;
+}
+
+// Migration preview types aligned with `hamlet migration preview --json`.
+export interface MigrationPreviewBlocker {
+  type: string;
+  pattern: string;
+  explanation: string;
+  remediation: string;
+}
+
+export interface MigrationPreviewResult {
+  file: string;
+  sourceFramework: string;
+  suggestedTarget?: string;
+  difficulty: "low" | "medium" | "high" | "unknown";
+  blockers?: MigrationPreviewBlocker[];
+  safePatterns?: string[];
+  previewAvailable: boolean;
+  explanation: string;
+  limitations?: string[];
+}
+
+// Migration readiness types aligned with `hamlet migration readiness --json`.
+export interface MigrationBlockerExample {
+  type: string;
+  file: string;
+  explanation: string;
+}
+
+export interface MigrationAreaAssessment {
+  directory: string;
+  classification: "safe" | "caution" | "risky";
+  migrationBlockers: number;
+  qualityIssues: number;
+  testFileCount: number;
+  explanation: string;
+}
+
+export interface MigrationReadiness {
+  frameworks: Framework[];
+  totalBlockers: number;
+  blockersByType: Record<string, number>;
+  representativeBlockers?: MigrationBlockerExample[];
+  readinessLevel: "low" | "medium" | "high" | "unknown";
+  explanation: string;
+  areaAssessments?: MigrationAreaAssessment[];
+}
+
 export interface TestSuiteSnapshot {
   repository: RepositoryMetadata;
   frameworks?: Framework[];
   testFiles?: TestFile[];
+  testCases?: TestCase[];
   codeUnits?: unknown[];
   signals?: Signal[];
   risk?: RiskSurface[];
+  coverageSummary?: CoverageSummary;
   ownership?: Record<string, string[]>;
   policies?: Record<string, unknown>;
   metadata?: Record<string, unknown>;

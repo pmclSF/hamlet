@@ -198,6 +198,89 @@ func TestFrameworkMigrationDetector_SingleFramework(t *testing.T) {
 	}
 }
 
+func TestUnsupportedSetupDetector_CypressCommands(t *testing.T) {
+	dir := t.TempDir()
+	writeTestFile(t, dir, "test/support/commands.js", `
+		Cypress.Commands.add('login', (user, pass) => {
+			cy.visit('/login');
+			cy.get('#username').type(user);
+			cy.get('#password').type(pass);
+			cy.get('form').submit();
+		});
+	`)
+
+	snap := &models.TestSuiteSnapshot{
+		TestFiles: []models.TestFile{
+			{Path: "test/support/commands.js", Framework: "cypress"},
+		},
+	}
+
+	d := &UnsupportedSetupDetector{RepoRoot: dir}
+	signals := d.Detect(snap)
+
+	if len(signals) != 1 {
+		t.Fatalf("expected 1 signal, got %d", len(signals))
+	}
+	if signals[0].Type != "unsupportedSetup" {
+		t.Errorf("type = %q, want unsupportedSetup", signals[0].Type)
+	}
+}
+
+func TestUnsupportedSetupDetector_FrameworkTestContext(t *testing.T) {
+	dir := t.TempDir()
+	writeTestFile(t, dir, "test/slow.test.js", `
+		describe('slow suite', function() {
+			this.timeout(10000);
+			it('takes a while', function() {
+				this.slow(5000);
+			});
+		});
+	`)
+
+	snap := &models.TestSuiteSnapshot{
+		TestFiles: []models.TestFile{
+			{Path: "test/slow.test.js", Framework: "mocha"},
+		},
+	}
+
+	d := &UnsupportedSetupDetector{RepoRoot: dir}
+	signals := d.Detect(snap)
+
+	if len(signals) == 0 {
+		t.Fatal("expected at least 1 signal for framework test context")
+	}
+	if signals[0].Type != "unsupportedSetup" {
+		t.Errorf("type = %q, want unsupportedSetup", signals[0].Type)
+	}
+}
+
+func TestUnsupportedSetupDetector_NoUnsupported(t *testing.T) {
+	dir := t.TempDir()
+	writeTestFile(t, dir, "test/clean.test.js", `
+		describe('clean suite', () => {
+			beforeEach(() => {
+				// standard setup
+			});
+			it('works', () => {
+				expect(true).toBe(true);
+			});
+		});
+	`)
+
+	snap := &models.TestSuiteSnapshot{
+		TestFiles: []models.TestFile{
+			{Path: "test/clean.test.js", Framework: "jest"},
+		},
+	}
+
+	d := &UnsupportedSetupDetector{RepoRoot: dir}
+	signals := d.Detect(snap)
+
+	if len(signals) != 0 {
+		t.Errorf("expected 0 signals for clean test, got %d", len(signals))
+	}
+}
+
 func TestFrameworkMigrationDetector_UnitPlusE2E(t *testing.T) {
 	snap := &models.TestSuiteSnapshot{
 		Frameworks: []models.Framework{

@@ -281,6 +281,26 @@ Suggested remediation direction:
 
 ---
 
+### unsupportedSetup
+Category: migration
+
+Description:
+Framework-specific setup or fixture patterns (global setup, root hooks,
+custom commands, test context APIs) that may not have equivalents in the
+target framework.
+
+Why it matters:
+Setup/fixture patterns are deeply framework-coupled. Migration tools cannot
+automatically translate custom commands, plugin events, or framework-specific
+lifecycle features.
+
+Suggested remediation direction:
+- catalog framework-specific setup patterns
+- identify equivalent mechanisms in the target framework
+- plan manual migration for non-portable patterns
+
+---
+
 ## Governance Signals
 
 ### policyViolation

@@ -1,0 +1,32 @@
+{
+  "file": "test/auth/login.test.js",
+  "sourceFramework": "jest",
+  "suggestedTarget": "vitest",
+  "difficulty": "medium",
+  "blockers": [
+    {
+      "type": "deprecated-pattern",
+      "pattern": "done-callback",
+      "explanation": "done() callbacks are deprecated in favor of async/await. Must be modernized before migration.",
+      "remediation": "Convert to async/await pattern."
+    },
+    {
+      "type": "custom-matcher",
+      "pattern": "custom-matcher",
+      "explanation": "Custom matchers are framework-specific and must be rewritten for the target framework.",
+      "remediation": "Document custom matchers and create equivalent implementations for the target framework."
+    }
+  ],
+  "safePatterns": [
+    "standard test structure (describe/it/test)",
+    "expect() assertions",
+    "standard lifecycle hooks (beforeEach/afterEach)"
+  ],
+  "previewAvailable": true,
+  "explanation": "Source framework: jest. Suggested target: vitest. 2 migration blocker(s) found. Difficulty: medium. 3 standard pattern(s) detected that should migrate cleanly.",
+  "limitations": [
+    "Preview is based on structural pattern analysis, not full AST parsing.",
+    "Custom build configurations and plugins are not assessed.",
+    "Runtime behavior differences between frameworks are not evaluated."
+  ]
+}

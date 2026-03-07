@@ -47,14 +47,16 @@ func (d *DeprecatedPatternDetector) Detect(snap *models.TestSuiteSnapshot) []mod
 			continue
 		}
 
-		found := detectDeprecatedJS(content)
+		found := detectDeprecatedJS(content, tf.Framework)
 		for _, pattern := range found {
 			signals = append(signals, models.Signal{
-				Type:       "deprecatedTestPattern",
-				Category:   models.CategoryMigration,
-				Severity:   models.SeverityMedium,
-				Confidence: 0.7,
-				Location:   models.SignalLocation{File: tf.Path},
+				Type:             "deprecatedTestPattern",
+				Category:         models.CategoryMigration,
+				Severity:         models.SeverityMedium,
+				Confidence:       0.7,
+				EvidenceStrength: models.EvidenceModerate,
+				EvidenceSource:   models.SourceStructuralPattern,
+				Location:         models.SignalLocation{File: tf.Path},
 				Owner:      tf.Owner,
 				Explanation: fmt.Sprintf(
 					"Deprecated pattern '%s' found in %s.",
@@ -93,11 +95,13 @@ func (d *DynamicTestGenerationDetector) Detect(snap *models.TestSuiteSnapshot) [
 
 		if hasDynamicTestGeneration(content) {
 			signals = append(signals, models.Signal{
-				Type:       "dynamicTestGeneration",
-				Category:   models.CategoryMigration,
-				Severity:   models.SeverityMedium,
-				Confidence: 0.6,
-				Location:   models.SignalLocation{File: tf.Path},
+				Type:             "dynamicTestGeneration",
+				Category:         models.CategoryMigration,
+				Severity:         models.SeverityMedium,
+				Confidence:       0.6,
+				EvidenceStrength: models.EvidenceModerate,
+				EvidenceSource:   models.SourceStructuralPattern,
+				Location:         models.SignalLocation{File: tf.Path},
 				Owner:      tf.Owner,
 				Explanation: fmt.Sprintf(
 					"Dynamic test generation detected in %s. This reduces migration predictability.",
@@ -135,11 +139,13 @@ func (d *CustomMatcherDetector) Detect(snap *models.TestSuiteSnapshot) []models.
 
 		if hasCustomMatchers(content) {
 			signals = append(signals, models.Signal{
-				Type:       "customMatcherRisk",
-				Category:   models.CategoryMigration,
-				Severity:   models.SeverityLow,
-				Confidence: 0.5,
-				Location:   models.SignalLocation{File: tf.Path},
+				Type:             "customMatcherRisk",
+				Category:         models.CategoryMigration,
+				Severity:         models.SeverityLow,
+				Confidence:       0.5,
+				EvidenceStrength: models.EvidenceWeak,
+				EvidenceSource:   models.SourceStructuralPattern,
+				Location:         models.SignalLocation{File: tf.Path},
 				Owner:      tf.Owner,
 				Explanation: fmt.Sprintf(
 					"Custom matcher or assertion helper usage in %s may need manual migration.",
@@ -169,9 +175,10 @@ var (
 	sinonPattern = regexp.MustCompile(`\bsinon\.(stub|mock|spy)\s*\(`)
 )
 
-func detectDeprecatedJS(content string) []string {
+func detectDeprecatedJS(content string, framework string) []string {
 	var found []string
-	if doneCallbackPattern.MatchString(content) {
+	// done-callback is idiomatic in mocha; only flag for other frameworks
+	if framework != "mocha" && doneCallbackPattern.MatchString(content) {
 		found = append(found, "done-callback")
 	}
 	if setTimeoutInTest.MatchString(content) {
@@ -240,6 +247,85 @@ func frameworkLanguage(framework string) string {
 	}
 }
 
+// UnsupportedSetupDetector identifies framework-specific setup and fixture
+// patterns that may not have equivalents in a target framework.
+type UnsupportedSetupDetector struct {
+	RepoRoot string
+}
+
+func (d *UnsupportedSetupDetector) Detect(snap *models.TestSuiteSnapshot) []models.Signal {
+	var signals []models.Signal
+
+	for _, tf := range snap.TestFiles {
+		lang := frameworkLanguage(tf.Framework)
+		if lang != "js" {
+			continue
+		}
+
+		content := readFile(d.RepoRoot, tf.Path)
+		if content == "" {
+			continue
+		}
+
+		found := detectUnsupportedSetup(content, tf.Framework)
+		for _, pattern := range found {
+			signals = append(signals, models.Signal{
+				Type:             "unsupportedSetup",
+				Category:         models.CategoryMigration,
+				Severity:         models.SeverityMedium,
+				Confidence:       0.6,
+				EvidenceStrength: models.EvidenceModerate,
+				EvidenceSource:   models.SourceStructuralPattern,
+				Location:         models.SignalLocation{File: tf.Path},
+				Owner:            tf.Owner,
+				Explanation: fmt.Sprintf(
+					"Framework-specific setup pattern '%s' in %s may not have a direct equivalent in other frameworks.",
+					pattern, tf.Path,
+				),
+				SuggestedAction: "Review setup/fixture patterns for migration compatibility.",
+				Metadata: map[string]any{
+					"pattern":     pattern,
+					"blockerType": BlockerUnsupportedSetup,
+				},
+			})
+		}
+	}
+	return signals
+}
+
+// Unsupported setup/fixture patterns
+var (
+	// Jest-specific global setup
+	jestGlobalSetup = regexp.MustCompile(`\bglobalSetup\b|\bglobalTeardown\b`)
+	// Mocha-specific root hooks
+	mochaRootHooks = regexp.MustCompile(`\brootHooks?\b|\bexports\.mochaHooks\b`)
+	// Cypress-specific commands and plugins
+	cypressCommands = regexp.MustCompile(`\bCypress\.Commands\.add\s*\(`)
+	cypressPlugins  = regexp.MustCompile(`\bCypress\.on\s*\(\s*['"]`)
+	// Framework-specific test context
+	testContextPattern = regexp.MustCompile(`\bthis\.timeout\s*\(|\bthis\.retries\s*\(|\bthis\.slow\s*\(`)
+)
+
+func detectUnsupportedSetup(content string, framework string) []string {
+	var found []string
+	if framework != "jest" && jestGlobalSetup.MatchString(content) {
+		found = append(found, "jest-global-setup")
+	}
+	if framework != "mocha" && mochaRootHooks.MatchString(content) {
+		found = append(found, "mocha-root-hooks")
+	}
+	if framework == "cypress" && cypressCommands.MatchString(content) {
+		found = append(found, "cypress-custom-commands")
+	}
+	if framework == "cypress" && cypressPlugins.MatchString(content) {
+		found = append(found, "cypress-plugin-events")
+	}
+	if testContextPattern.MatchString(content) {
+		found = append(found, "framework-test-context")
+	}
+	return found
+}
+
 // FrameworkMigrationDetector detects multi-framework situations that
 // suggest migration opportunity.
 type FrameworkMigrationDetector struct{}
@@ -267,10 +353,12 @@ func (d *FrameworkMigrationDetector) Detect(snap *models.TestSuiteSnapshot) []mo
 	}
 
 	return []models.Signal{{
-		Type:       "frameworkMigration",
-		Category:   models.CategoryMigration,
-		Severity:   models.SeverityInfo,
-		Confidence: 0.8,
+		Type:             "frameworkMigration",
+		Category:         models.CategoryMigration,
+		Severity:         models.SeverityInfo,
+		Confidence:       0.8,
+		EvidenceStrength: models.EvidenceStrong,
+		EvidenceSource:   models.SourceStructuralPattern,
 		Location: models.SignalLocation{
 			Repository: snap.Repository.Name,
 		},

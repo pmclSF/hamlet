@@ -22,6 +22,7 @@ const (
 	SignalDeprecatedTestPattern  models.SignalType = "deprecatedTestPattern"
 	SignalDynamicTestGeneration  models.SignalType = "dynamicTestGeneration"
 	SignalCustomMatcherRisk      models.SignalType = "customMatcherRisk"
+	SignalUnsupportedSetup      models.SignalType = "unsupportedSetup"
 	SignalPolicyViolation        models.SignalType = "policyViolation"
 	SignalLegacyFrameworkUsage   models.SignalType = "legacyFrameworkUsage"
 	SignalSkippedTestsInCI       models.SignalType = "skippedTestsInCI"
@@ -38,6 +39,7 @@ var MigrationSignalTypes = map[models.SignalType]bool{
 	SignalDeprecatedTestPattern: true,
 	SignalDynamicTestGeneration: true,
 	SignalCustomMatcherRisk:     true,
+	SignalUnsupportedSetup:     true,
 }
 
 // QualitySignalTypes is the canonical set of quality-related signal types.

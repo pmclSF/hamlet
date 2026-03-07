@@ -45,7 +45,11 @@ var changeRiskSignals = map[models.SignalType]bool{
 	"testsOnlyMocks":         true,
 	"coverageBlindSpot":      true,
 	"coverageThresholdBreak": true,
-	"migrationBlocker":       true,
+	"migrationBlocker":          true,
+	"deprecatedTestPattern":    true,
+	"dynamicTestGeneration":    true,
+	"customMatcherRisk":        true,
+	"unsupportedSetup":         true,
 }
 
 var speedSignals = map[models.SignalType]bool{
@@ -119,8 +123,16 @@ func computeDirectoryRisk(signals []models.Signal, riskType string, relevant map
 		dirWeights[dir] += severityWeight[s.Severity]
 	}
 
+	// Sort directory keys for deterministic output.
+	dirs := make([]string, 0, len(dirSignals))
+	for dir := range dirSignals {
+		dirs = append(dirs, dir)
+	}
+	sort.Strings(dirs)
+
 	var surfaces []models.RiskSurface
-	for dir, sigs := range dirSignals {
+	for _, dir := range dirs {
+		sigs := dirSignals[dir]
 		if len(sigs) < 2 {
 			continue // Only flag directories with multiple signals
 		}
@@ -138,9 +150,12 @@ func computeDirectoryRisk(signals []models.Signal, riskType string, relevant map
 		})
 	}
 
-	// Sort by score descending for useful output
+	// Sort by score descending, then by name for deterministic output.
 	sort.Slice(surfaces, func(i, j int) bool {
-		return surfaces[i].Score > surfaces[j].Score
+		if surfaces[i].Score != surfaces[j].Score {
+			return surfaces[i].Score > surfaces[j].Score
+		}
+		return surfaces[i].ScopeName < surfaces[j].ScopeName
 	})
 
 	return surfaces

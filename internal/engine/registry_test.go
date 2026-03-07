@@ -10,9 +10,9 @@ import (
 func TestDefaultRegistry_WithoutPolicy(t *testing.T) {
 	r := DefaultRegistry(Config{RepoRoot: "."})
 
-	// Should have 8 detectors (4 quality + 4 migration, no governance).
-	if r.Len() != 8 {
-		t.Errorf("DefaultRegistry without policy: Len() = %d, want 8", r.Len())
+	// Should have 9 detectors (4 quality + 5 migration, no governance).
+	if r.Len() != 9 {
+		t.Errorf("DefaultRegistry without policy: Len() = %d, want 9", r.Len())
 	}
 
 	quality := r.ByDomain(signals.DomainQuality)
@@ -26,8 +26,8 @@ func TestDefaultRegistry_WithoutPolicy(t *testing.T) {
 	}
 
 	migration := r.ByDomain(signals.DomainMigration)
-	if len(migration) != 4 {
-		t.Errorf("migration detectors = %d, want 4", len(migration))
+	if len(migration) != 5 {
+		t.Errorf("migration detectors = %d, want 5", len(migration))
 	}
 
 	governance := r.ByDomain(signals.DomainGovernance)
@@ -48,9 +48,9 @@ func TestDefaultRegistry_WithPolicy(t *testing.T) {
 	}
 	r := DefaultRegistry(cfg)
 
-	// Should have 9 detectors (4 quality + 4 migration + 1 governance).
-	if r.Len() != 9 {
-		t.Errorf("DefaultRegistry with policy: Len() = %d, want 9", r.Len())
+	// Should have 10 detectors (4 quality + 5 migration + 1 governance).
+	if r.Len() != 10 {
+		t.Errorf("DefaultRegistry with policy: Len() = %d, want 10", r.Len())
 	}
 
 	governance := r.ByDomain(signals.DomainGovernance)
@@ -70,6 +70,7 @@ func TestDefaultRegistry_DetectorIDs(t *testing.T) {
 		"migration.deprecated-pattern",
 		"migration.dynamic-test-generation",
 		"migration.custom-matcher",
+		"migration.unsupported-setup",
 		"migration.framework-migration",
 	}
 

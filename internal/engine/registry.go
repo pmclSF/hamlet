@@ -109,6 +109,17 @@ func DefaultRegistry(cfg Config) *signals.DetectorRegistry {
 	})
 	r.Register(signals.DetectorRegistration{
 		Meta: signals.DetectorMeta{
+			ID:           "migration.unsupported-setup",
+			Domain:       signals.DomainMigration,
+			EvidenceType: signals.EvidenceStructuralPattern,
+			Description:  "Detect framework-specific setup/fixture patterns.",
+			SignalTypes:   []models.SignalType{signals.SignalUnsupportedSetup},
+			RequiresFileIO: true,
+		},
+		Detector: &migration.UnsupportedSetupDetector{RepoRoot: cfg.RepoRoot},
+	})
+	r.Register(signals.DetectorRegistration{
+		Meta: signals.DetectorMeta{
 			ID:           "migration.framework-migration",
 			Domain:       signals.DomainMigration,
 			EvidenceType: signals.EvidenceStructuralPattern,

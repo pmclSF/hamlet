@@ -11,6 +11,14 @@ It must be:
 - readable
 - machine-friendly
 
+### `hamlet version`
+Purpose:
+Print version, commit, and build date.
+
+Output: `hamlet <version> (commit <sha>, built <date>)`
+
+---
+
 ## Core commands
 
 ### `hamlet analyze`
@@ -29,22 +37,74 @@ Must support:
 - JSON output
 - snapshot persistence
 
-### `hamlet health`
-Purpose:
-Render health-focused signals only.
+Flags:
+- `--root PATH` — repository root to analyze (default: current directory)
+- `--json` — output JSON snapshot
+- `--write-snapshot` — persist snapshot to .hamlet/snapshots/latest.json
+- `--coverage PATH` — ingest coverage data (LCOV, Istanbul JSON)
 
-### `hamlet quality`
+### `hamlet impact`
 Purpose:
-Render quality-focused signals only.
+Impact analysis for changed code. Shows which code units, test gaps,
+tests, and owners are affected by a git diff.
 
-### `hamlet migration`
-Purpose:
-Render migration readiness and blockers.
+Flags:
+- `--root PATH` — repository root (default: current directory)
+- `--base REF` — git base ref for diff (default: HEAD~1)
+- `--json` — output JSON impact result
+- `--show VIEW` — drill-down: units, gaps, tests, owners
+- `--owner NAME` — filter results by owner
 
-### `hamlet migrate`
+### `hamlet posture`
 Purpose:
-Execute or preview migration behavior.
-This remains in scope but is not the first V3 implementation priority.
+Detailed posture breakdown with measurement evidence by dimension.
+
+Flags:
+- `--root PATH` — repository root (default: current directory)
+- `--json` — output JSON posture snapshot
+
+### `hamlet migration readiness`
+Purpose:
+Assess migration readiness with framework inventory, blocker taxonomy,
+quality factors that compound migration risk, area-by-area safety
+classification, and coverage guidance.
+
+Must support:
+- human-readable output (default)
+- JSON output (`--json`)
+
+Flags:
+- `--root PATH` — repository root to analyze (default: current directory)
+- `--json` — output JSON readiness summary
+
+### `hamlet migration blockers`
+Purpose:
+List migration blockers by type and highest-risk areas. Focused view
+for teams actively planning a framework migration.
+
+Must support:
+- human-readable output (default)
+- JSON output (`--json`)
+
+Flags:
+- `--root PATH` — repository root to analyze (default: current directory)
+- `--json` — output JSON blockers summary
+
+### `hamlet migration preview`
+Purpose:
+Preview migration for a single file or directory scope. Shows source
+framework, suggested target, blockers, safe patterns, and difficulty
+assessment. Honest about limitations when preview is not possible.
+
+Must support:
+- human-readable output (default)
+- JSON output (`--json`)
+
+Flags:
+- `--root PATH` — repository root to analyze (default: current directory)
+- `--json` — output JSON preview result
+- `--file PATH` — preview a single file (relative to root)
+- `--scope DIR` — preview all files in a directory scope
 
 ### `hamlet compare`
 Purpose:

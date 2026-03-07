@@ -1,0 +1,32 @@
+Hamlet Migration Preview
+========================================
+
+File: test/auth/login.test.js
+Source Framework: jest
+Suggested Target: vitest
+Difficulty: MEDIUM
+
+Assessment
+----------------------------------------
+  Source framework: jest. Suggested target: vitest. 2 migration blocker(s) found. Difficulty: medium. 3 standard pattern(s) detected that should migrate cleanly.
+
+Migration Blockers (2)
+----------------------------------------
+  [deprecated-pattern] done-callback
+    done() callbacks are deprecated in favor of async/await. Must be modernized before migration.
+    -> Convert to async/await pattern.
+  [custom-matcher] custom-matcher
+    Custom matchers are framework-specific and must be rewritten for the target framework.
+    -> Document custom matchers and create equivalent implementations for the target framework.
+
+Safe Patterns (should migrate cleanly)
+----------------------------------------
+  + standard test structure (describe/it/test)
+  + expect() assertions
+  + standard lifecycle hooks (beforeEach/afterEach)
+
+Limitations
+----------------------------------------
+  - Preview is based on structural pattern analysis, not full AST parsing.
+  - Custom build configurations and plugins are not assessed.
+  - Runtime behavior differences between frameworks are not evaluated.

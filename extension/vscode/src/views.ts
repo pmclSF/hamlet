@@ -6,7 +6,13 @@
 // This file defines the view structure and data flow.
 // Actual VS Code TreeDataProvider implementations would import from here.
 
-import { TestSuiteSnapshot, Signal, RiskSurface } from "./types";
+import {
+  TestSuiteSnapshot,
+  Signal,
+  RiskSurface,
+  MigrationReadiness,
+  MigrationAreaAssessment,
+} from "./types";
 import {
   groupByType,
   groupByOwner,
@@ -85,16 +91,22 @@ export interface ReviewData {
   byType: GroupedItem[];
   byOwner: GroupedItem[];
   byDirectory: GroupedItem[];
+  /** Migration blockers surfaced as a first-class review grouping. */
+  migrationBlockers: GroupedItem[];
   totalCount: number;
 }
 
 export function buildReview(snap: TestSuiteSnapshot): ReviewData {
   const worthy = reviewWorthy(snap.signals || []);
+  const migBlockers = migrationSignals(snap.signals || []).filter((s) =>
+    new Set(["medium", "high", "critical"]).has(s.severity)
+  );
   return {
     signals: worthy,
     byType: groupByType(worthy),
     byOwner: groupByOwner(worthy),
     byDirectory: groupByDirectory(worthy),
+    migrationBlockers: groupByType(migBlockers),
     totalCount: worthy.length,
   };
 }
@@ -107,8 +119,21 @@ export interface MigrationData {
   signals: Signal[];
   blockerGroups: GroupedItem[];
   byOwner: GroupedItem[];
+  byDirectory: GroupedItem[];
   frameworkSummary: string[];
   totalBlockers: number;
+  /** Area assessments from readiness model, if available via separate CLI call. */
+  areaAssessments: MigrationAreaItem[];
+  /** Whether the preview command is available for file-level drill-down. */
+  previewAvailable: boolean;
+}
+
+/** Simplified area assessment for the extension view. */
+export interface MigrationAreaItem {
+  directory: string;
+  classification: "safe" | "caution" | "risky";
+  blockerCount: number;
+  qualityIssueCount: number;
 }
 
 export function buildMigration(snap: TestSuiteSnapshot): MigrationData {
@@ -117,11 +142,51 @@ export function buildMigration(snap: TestSuiteSnapshot): MigrationData {
     (f) => `${f.name} (${f.fileCount} files)`
   );
 
+  // Derive area assessments from migration signals grouped by directory.
+  const dirGroups = groupByDirectory(migSignals);
+  const qualitySignals = (snap.signals || []).filter(
+    (s) => s.category === "quality"
+  );
+  const qualityByDir = new Map<string, number>();
+  for (const s of qualitySignals) {
+    const file = s.location?.file || "";
+    const lastSlash = file.lastIndexOf("/");
+    const dir = lastSlash > 0 ? file.substring(0, lastSlash) : "(repo-level)";
+    qualityByDir.set(dir, (qualityByDir.get(dir) || 0) + 1);
+  }
+
+  const areaAssessments: MigrationAreaItem[] = dirGroups.map((g) => {
+    const qualityCount = qualityByDir.get(g.key) || 0;
+    let classification: "safe" | "caution" | "risky" = "safe";
+    if (g.count > 0 && qualityCount > 0) {
+      classification = "risky";
+    } else if (g.count > 0 || qualityCount > 0) {
+      classification = "caution";
+    }
+    return {
+      directory: g.key,
+      classification,
+      blockerCount: g.count,
+      qualityIssueCount: qualityCount,
+    };
+  });
+
+  // Sort: risky first, then caution.
+  const classOrder: Record<string, number> = { risky: 0, caution: 1, safe: 2 };
+  areaAssessments.sort(
+    (a, b) =>
+      (classOrder[a.classification] ?? 2) -
+      (classOrder[b.classification] ?? 2)
+  );
+
   return {
     signals: migSignals,
     blockerGroups: groupByType(migSignals),
     byOwner: groupByOwner(migSignals),
+    byDirectory: dirGroups,
     frameworkSummary: frameworks,
     totalBlockers: migSignals.length,
+    areaAssessments,
+    previewAvailable: true,
   };
 }

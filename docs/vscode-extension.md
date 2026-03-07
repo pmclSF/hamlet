@@ -40,15 +40,20 @@ Signals like:
 - coverage threshold breaks
 
 ### Migration
-- migration readiness
-- blockers
+- migration readiness level
+- blocker groups by type
+- blocker groups by directory with area assessments (safe/caution/risky)
+- blocker groups by owner
+- framework summary
+- preview affordance (file-level drill-down via `hamlet migration preview`)
 - representative examples
 
 ### Review
 Grouped triage for:
-- blockers
+- signal type
 - owners
-- packages
+- packages/directories
+- migration blockers (first-class grouping)
 - confidence/risk bands
 
 ## Editor interactions
@@ -61,9 +66,9 @@ Grouped triage for:
 ## Implementation status
 
 Source files under `extension/vscode/src/`:
-- `types.ts` — TypeScript types aligned with CLI JSON snapshot contract
+- `types.ts` — TypeScript types aligned with CLI JSON snapshot contract (includes MigrationPreviewResult, MigrationReadiness)
 - `signal_renderer.ts` — Grouping/filtering helpers (groupByType, groupByOwner, groupByDirectory, reviewWorthy, migrationSignals)
-- `views.ts` — View data builders (buildOverview, buildHealth, buildQuality, buildReview, buildMigration)
+- `views.ts` — View data builders (buildOverview, buildHealth, buildQuality, buildReview, buildMigration) with migration area assessments and review migration blocker integration
 
 TreeDataProvider implementations pending.
 

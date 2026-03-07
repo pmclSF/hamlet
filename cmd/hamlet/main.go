@@ -14,6 +14,9 @@
 //	hamlet summary --json       JSON executive summary
 //	hamlet compare              compare two snapshots
 //	hamlet compare --json       JSON comparison output
+//	hamlet migration readiness   migration readiness assessment
+//	hamlet migration blockers   list migration blockers
+//	hamlet migration preview    preview migration for a file or scope
 //	hamlet policy check         evaluate local policy and report violations
 //	hamlet policy check --json  JSON output for policy check
 //	hamlet export benchmark     benchmark-safe JSON export
@@ -36,12 +39,20 @@ import (
 	"github.com/pmclSF/hamlet/internal/heatmap"
 	"github.com/pmclSF/hamlet/internal/impact"
 	"github.com/pmclSF/hamlet/internal/metrics"
+	"github.com/pmclSF/hamlet/internal/migration"
 	"github.com/pmclSF/hamlet/internal/models"
 	"github.com/pmclSF/hamlet/internal/policy"
 	"github.com/pmclSF/hamlet/internal/quality"
 	"github.com/pmclSF/hamlet/internal/reporting"
 	"github.com/pmclSF/hamlet/internal/signals"
 	"github.com/pmclSF/hamlet/internal/summary"
+)
+
+// Build-time variables set via ldflags.
+var (
+	version = "dev"
+	commit  = "unknown"
+	date    = "unknown"
 )
 
 func main() {
@@ -56,8 +67,11 @@ func main() {
 		rootFlag := analyzeCmd.String("root", ".", "repository root to analyze")
 		jsonFlag := analyzeCmd.Bool("json", false, "output JSON snapshot")
 		writeSnapshot := analyzeCmd.Bool("write-snapshot", false, "persist snapshot to .hamlet/snapshots/latest.json")
+		coverageFlag := analyzeCmd.String("coverage", "", "path to coverage file or directory (LCOV, Istanbul JSON)")
+		runtimeFlag := analyzeCmd.String("runtime", "", "path to runtime artifact (JUnit XML, Jest JSON); comma-separated for multiple")
+		slowThreshold := analyzeCmd.Float64("slow-threshold", 0, "slow test threshold in ms (default: 5000)")
 		analyzeCmd.Parse(os.Args[2:])
-		if err := runAnalyze(*rootFlag, *jsonFlag, *writeSnapshot); err != nil {
+		if err := runAnalyze(*rootFlag, *jsonFlag, *writeSnapshot, *coverageFlag, *runtimeFlag, *slowThreshold); err != nil {
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)
 			os.Exit(1)
 		}
@@ -129,6 +143,23 @@ func main() {
 			os.Exit(1)
 		}
 
+	case "migration":
+		if len(os.Args) < 3 {
+			fmt.Fprintln(os.Stderr, "Usage: hamlet migration <readiness|blockers|preview> [flags]")
+			os.Exit(2)
+		}
+		subCmd := os.Args[2]
+		migCmd := flag.NewFlagSet("migration "+subCmd, flag.ExitOnError)
+		rootFlag := migCmd.String("root", ".", "repository root to analyze")
+		jsonFlag := migCmd.Bool("json", false, "output JSON")
+		fileFlag := migCmd.String("file", "", "file path for preview (relative to root)")
+		scopeFlag := migCmd.String("scope", "", "directory scope for preview")
+		migCmd.Parse(os.Args[3:])
+		if err := runMigration(subCmd, *rootFlag, *jsonFlag, *fileFlag, *scopeFlag); err != nil {
+			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			os.Exit(1)
+		}
+
 	case "export":
 		if len(os.Args) < 3 || os.Args[2] != "benchmark" {
 			fmt.Fprintln(os.Stderr, "Usage: hamlet export benchmark [flags]")
@@ -141,6 +172,9 @@ func main() {
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)
 			os.Exit(1)
 		}
+
+	case "version", "--version", "-v":
+		fmt.Printf("hamlet %s (commit %s, built %s)\n", version, commit, date)
 
 	case "--help", "-h", "help":
 		printUsage()
@@ -165,6 +199,9 @@ func printUsage() {
 	fmt.Fprintln(os.Stderr, "  summary [flags]          executive summary with risk, trends, benchmark readiness")
 	fmt.Fprintln(os.Stderr, "  posture [flags]          detailed posture breakdown with measurement evidence")
 	fmt.Fprintln(os.Stderr, "  metrics [flags]          aggregate metrics scorecard")
+	fmt.Fprintln(os.Stderr, "  migration readiness      migration readiness assessment")
+	fmt.Fprintln(os.Stderr, "  migration blockers       list migration blockers by type and area")
+	fmt.Fprintln(os.Stderr, "  migration preview        preview migration for a file or scope")
 	fmt.Fprintln(os.Stderr, "  compare [flags]          compare two snapshots for trend tracking")
 	fmt.Fprintln(os.Stderr, "  policy check [flags]     evaluate local policy rules")
 	fmt.Fprintln(os.Stderr, "  export benchmark [flags] privacy-safe JSON export for benchmarking")
@@ -180,6 +217,9 @@ func printUsage() {
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Analyze-specific flags:")
 	fmt.Fprintln(os.Stderr, "  --write-snapshot         persist snapshot for trend tracking")
+	fmt.Fprintln(os.Stderr, "  --coverage PATH          ingest coverage data (LCOV, Istanbul JSON)")
+	fmt.Fprintln(os.Stderr, "  --runtime PATH           ingest runtime artifacts (JUnit XML, Jest JSON; comma-separated)")
+	fmt.Fprintln(os.Stderr, "  --slow-threshold MS      slow test threshold in ms (default: 5000)")
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Compare-specific flags:")
 	fmt.Fprintln(os.Stderr, "  --from PATH              baseline snapshot (default: auto-detected)")
@@ -193,8 +233,21 @@ func printUsage() {
 	fmt.Fprintln(os.Stderr, "  5. hamlet compare                    see what changed")
 }
 
-func runAnalyze(root string, jsonOutput bool, writeSnap bool) error {
-	result, err := engine.RunPipeline(root)
+func runAnalyze(root string, jsonOutput bool, writeSnap bool, coveragePath string, runtimePaths string, slowThreshold float64) error {
+	opt := engine.PipelineOptions{CoveragePath: coveragePath, SlowTestThresholdMs: slowThreshold}
+	if runtimePaths != "" {
+		for _, p := range strings.Split(runtimePaths, ",") {
+			p = strings.TrimSpace(p)
+			if p != "" {
+				opt.RuntimePaths = append(opt.RuntimePaths, p)
+			}
+		}
+	}
+	var opts []engine.PipelineOptions
+	if opt.CoveragePath != "" || len(opt.RuntimePaths) > 0 || opt.SlowTestThresholdMs > 0 {
+		opts = append(opts, opt)
+	}
+	result, err := engine.RunPipeline(root, opts...)
 	if err != nil {
 		return fmt.Errorf("analysis failed: %w", err)
 	}
@@ -415,6 +468,71 @@ func runSummary(root string, jsonOutput bool) error {
 
 	reporting.RenderExecutiveSummary(os.Stdout, es)
 	return nil
+}
+
+// runMigration handles `hamlet migration readiness`, `hamlet migration blockers`,
+// and `hamlet migration preview`.
+func runMigration(subCmd, root string, jsonOutput bool, file, scope string) error {
+	result, err := engine.RunPipeline(root)
+	if err != nil {
+		return fmt.Errorf("analysis failed: %w", err)
+	}
+
+	absRoot, err := filepath.Abs(root)
+	if err != nil {
+		return err
+	}
+
+	switch subCmd {
+	case "readiness":
+		readiness := migration.ComputeReadiness(result.Snapshot)
+		if jsonOutput {
+			enc := json.NewEncoder(os.Stdout)
+			enc.SetIndent("", "  ")
+			return enc.Encode(readiness)
+		}
+		reporting.RenderMigrationReport(os.Stdout, readiness)
+		return nil
+
+	case "blockers":
+		readiness := migration.ComputeReadiness(result.Snapshot)
+		if jsonOutput {
+			enc := json.NewEncoder(os.Stdout)
+			enc.SetIndent("", "  ")
+			return enc.Encode(map[string]any{
+				"totalBlockers":          readiness.TotalBlockers,
+				"blockersByType":         readiness.BlockersByType,
+				"representativeBlockers": readiness.RepresentativeBlockers,
+				"areaAssessments":        readiness.AreaAssessments,
+			})
+		}
+		reporting.RenderMigrationBlockers(os.Stdout, readiness)
+		return nil
+
+	case "preview":
+		if file != "" {
+			preview := migration.PreviewFile(result.Snapshot, file, absRoot)
+			if jsonOutput {
+				enc := json.NewEncoder(os.Stdout)
+				enc.SetIndent("", "  ")
+				return enc.Encode(preview)
+			}
+			reporting.RenderMigrationPreview(os.Stdout, preview)
+			return nil
+		}
+		// Scope-based preview
+		previews := migration.PreviewScope(result.Snapshot, scope, absRoot)
+		if jsonOutput {
+			enc := json.NewEncoder(os.Stdout)
+			enc.SetIndent("", "  ")
+			return enc.Encode(previews)
+		}
+		reporting.RenderMigrationPreviewScope(os.Stdout, previews)
+		return nil
+
+	default:
+		return fmt.Errorf("unknown migration subcommand: %q (valid: readiness, blockers, preview)", subCmd)
+	}
 }
 
 // runExportBenchmark performs analysis and outputs a benchmark-safe JSON export.

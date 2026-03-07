@@ -47,6 +47,7 @@ export function migrationSignals(signals: Signal[]): Signal[] {
     "deprecatedTestPattern",
     "dynamicTestGeneration",
     "customMatcherRisk",
+    "unsupportedSetup",
     "legacyFrameworkUsage",
   ]);
   return signals.filter((s) => migrationTypes.has(s.type));

@@ -1,0 +1,54 @@
+Hamlet Migration Readiness
+========================================
+
+Frameworks
+----------------------------------------
+  jest                   42 files [unit]
+  mocha                   8 files [unit]
+  cypress                12 files [e2e]
+
+Readiness Level: MEDIUM
+  Some migration blockers (14 across 62 test files). Focus on: deprecated-pattern (6), custom-matcher (4), dynamic-generation (3), unsupported-setup (1).
+
+Migration Blockers: 14
+----------------------------------------
+  deprecated-pattern           6
+  custom-matcher               4
+  dynamic-generation           3
+  unsupported-setup            1
+
+Representative Blockers
+----------------------------------------
+  [deprecatedTestPattern] Deprecated pattern 'done-callback' found in test/auth/login.test.js.
+    test/auth/login.test.js
+  [customMatcherRisk] Custom matcher or assertion helper usage in test/utils/helpers.test.js may need manual migration.
+    test/utils/helpers.test.js
+  [dynamicTestGeneration] Dynamic test generation detected in test/api/endpoints.test.js. This reduces migration predictability.
+    test/api/endpoints.test.js
+  [unsupportedSetup] Framework-specific setup pattern 'jest-global-setup' in test/setup/global.test.js may not have a direct equivalent in other frameworks.
+    test/setup/global.test.js
+  [deprecatedTestPattern] Deprecated pattern 'enzyme-usage' found in test/components/Button.test.js.
+    test/components/Button.test.js
+
+Quality Factors Affecting Migration
+----------------------------------------
+  4 migration-target file(s) have weak assertions. Low assertion density means migrations may pass tests without verifying correctness.
+  2 migration-target file(s) are mock-heavy. Heavy mocking couples tests to implementation details that will change during migration.
+
+Area Assessments
+----------------------------------------
+  [RISKY] test/auth
+    3 migration blocker(s) compounded by 2 quality issue(s) across 5 test file(s). Address quality issues before migrating.
+  [CAUTION] test/api
+    2 migration blocker(s) in 4 test file(s), but test quality is adequate. Migration requires blocker remediation.
+  [CAUTION] test/components
+    No migration blockers, but 3 quality issue(s) in 8 test file(s). Consider improving test quality before or during migration.
+  [SAFE] test/utils
+    6 test file(s) with no migration blockers and no quality issues. Safe to modernize.
+
+Where Additional Coverage Reduces Migration Risk
+----------------------------------------
+  [HIGH] test/auth
+    migration blockers combined with quality issues
+  [MEDIUM] test/api
+    migration blockers present — stronger tests would increase confidence in blocker remediation
