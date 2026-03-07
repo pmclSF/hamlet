@@ -40,10 +40,22 @@ The V2 converter engine is preserved and functional. See [legacy/](legacy/) for 
 - [Deterministic Output](engineering/determinism.md) — deterministic output contract and enforcement
 - [Engineering Roadmap](engineering/future-work.md) — incremental analysis, parallelization, and layer separation
 - [Hosted Future](engineering/hosted-future.md) — what remains for hosted/org product
+- [Test Identity](engineering/test-identity.md) — deterministic test identity model
+- [Test Type Inference](engineering/test-type-inference.md) — evidence-based test classification
+- [Code Unit Inventory](engineering/code-unit-inventory.md) — normalized code structure model
+- [Coverage Ingestion](engineering/coverage-ingestion.md) — LCOV/Istanbul ingestion and normalization
+- [Coverage Attribution](engineering/coverage-attribution.md) — structural coverage for code units
+- [Per-Test Coverage](engineering/per-test-coverage.md) — per-test coverage attribution model
+- [Snapshot Test Lineage](engineering/snapshot-test-lineage.md) — longitudinal test tracking
+
+## User Guides
+
+- [Coverage by Type](user-guides/coverage-by-type.md) — analyze coverage by unit/integration/e2e
 
 ## Contributing
 
 - [Writing a Detector](contributing/writing-a-detector.md) — how to add a new signal detector
+- [Test Identity & Coverage](contributing/test-identity-and-coverage.md) — extending identity, inference, and coverage
 
 ## Release
 

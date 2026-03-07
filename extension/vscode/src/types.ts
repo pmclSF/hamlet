@@ -80,6 +80,12 @@ export interface RepositoryMetadata {
   branch?: string;
 }
 
+export interface ParameterizationInfo {
+  isTemplate: boolean;
+  paramSignature?: string;
+  estimatedInstances?: number;
+}
+
 export interface TestCase {
   testId: string;
   canonicalIdentity: string;
@@ -93,6 +99,33 @@ export interface TestCase {
   confidence: number;
   testType?: string;
   testTypeConfidence?: number;
+  testTypeEvidence?: string[];
+  parameterized?: ParameterizationInfo;
+}
+
+export interface CodeUnit {
+  unitId?: string;
+  name: string;
+  path: string;
+  kind: "function" | "method" | "class" | "module" | "unknown";
+  exported: boolean;
+  parentName?: string;
+  language?: string;
+  startLine?: number;
+  endLine?: number;
+  complexity?: number;
+  coverage?: number;
+  linkedTestFiles?: string[];
+  owner?: string;
+}
+
+export interface CoverageInsight {
+  type: string;
+  severity: string;
+  description: string;
+  path?: string;
+  unitId?: string;
+  suggestedAction?: string;
 }
 
 export interface CoverageSummary {
@@ -166,10 +199,11 @@ export interface TestSuiteSnapshot {
   frameworks?: Framework[];
   testFiles?: TestFile[];
   testCases?: TestCase[];
-  codeUnits?: unknown[];
+  codeUnits?: CodeUnit[];
   signals?: Signal[];
   risk?: RiskSurface[];
   coverageSummary?: CoverageSummary;
+  coverageInsights?: CoverageInsight[];
   ownership?: Record<string, string[]>;
   policies?: Record<string, unknown>;
   metadata?: Record<string, unknown>;

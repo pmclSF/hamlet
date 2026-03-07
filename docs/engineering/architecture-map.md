@@ -25,7 +25,7 @@ cmd/hamlet/main.go
   v
 engine.RunPipeline(root)
   |
-  |-- 1. analysis.New(root).Analyze()          --> TestSuiteSnapshot (frameworks, test files, code units)
+  |-- 1. analysis.New(root).Analyze()          --> TestSuiteSnapshot (frameworks, test files, code units, test cases)
   |-- 2. policy.Load(root)                     --> PolicyConfig (optional)
   |-- 3. engine.DefaultRegistry(cfg).Run(snap) --> Signals appended to snapshot
   |      |-- quality detectors (4)
@@ -129,10 +129,10 @@ It reads the snapshot and renders. That is the boundary.
 ```
 cmd/hamlet/          CLI entry point and command routing
 internal/
-  analysis/          Repository scanning, framework detection, test file discovery
+  analysis/          Repository scanning, framework detection, test file/case discovery
   benchmark/         Privacy-safe benchmark export and segmentation
   comparison/        Snapshot-to-snapshot trend comparison
-  coverage/          Coverage artifact ingestion (LCOV, Istanbul) and attribution
+  coverage/          Coverage ingestion (LCOV, Istanbul), attribution, by-type, per-test, insights
   engine/            Pipeline orchestration and detector registry
   governance/        Policy evaluation and governance signals
   health/            Runtime-backed health detectors (slow, flaky, skipped)
