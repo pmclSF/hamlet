@@ -144,7 +144,7 @@ benchmarks/results/
 benchmarks/run-benchmark.sh
 
 # Large local-only directories
-hamlet/
+/hamlet/
 testing/
 
 # Test output (generated during test runs)

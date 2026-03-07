@@ -32,6 +32,14 @@ The V2 converter engine is preserved and functional. See [legacy/](legacy/) for 
 - [Roadmap](roadmap.md) — milestone history and future work
 - [Implementation Workbook](implementation-workbook.md) — stage-by-stage implementation log
 
+## Engineering
+
+- [Detector Architecture](engineering/detector-architecture.md) — registry-based detector plugin system
+
+## Contributing
+
+- [Writing a Detector](contributing/writing-a-detector.md) — how to add a new signal detector
+
 ## Release
 
 - [Release Checklist](release-checklist.md) — launch readiness status

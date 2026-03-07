@@ -32,12 +32,15 @@ See [docs/architecture.md](docs/architecture.md) for the full layered architectu
 | [docs/signal-catalog.md](docs/signal-catalog.md) | All signal types and categories |
 | [docs/roadmap.md](docs/roadmap.md) | Milestone history and future work |
 | [docs/cli-spec.md](docs/cli-spec.md) | Full command and flag reference |
+| [docs/engineering/detector-architecture.md](docs/engineering/detector-architecture.md) | Registry-based detector plugin system |
+| [docs/contributing/writing-a-detector.md](docs/contributing/writing-a-detector.md) | How to add a new signal detector |
 
 ## Package Map
 
 ```
 cmd/hamlet/          CLI entry point
 internal/
+  engine/            Analysis pipeline orchestration, detector registry builder
   analysis/          Repository scanning, framework detection, test file discovery
   signals/           Signal detector interface, registry, runner
   quality/           Quality signal detectors (weak assertions, mock-heavy, untested exports)

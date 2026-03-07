@@ -1,0 +1,123 @@
+package signals
+
+import "github.com/pmclSF/hamlet/internal/models"
+
+// Domain classifies a detector's area of concern.
+type Domain string
+
+const (
+	DomainQuality    Domain = "quality"
+	DomainMigration  Domain = "migration"
+	DomainGovernance Domain = "governance"
+	DomainHealth     Domain = "health"
+	DomainCoverage   Domain = "coverage"
+)
+
+// EvidenceType describes how a detector obtains its evidence.
+type EvidenceType string
+
+const (
+	EvidenceStructuralPattern EvidenceType = "structural-pattern"
+	EvidencePathName          EvidenceType = "path-name"
+	EvidenceRuntime           EvidenceType = "runtime"
+	EvidenceCoverage          EvidenceType = "coverage"
+	EvidencePolicy            EvidenceType = "policy"
+	EvidenceCodeowners        EvidenceType = "codeowners"
+)
+
+// DetectorMeta describes a detector's identity and capabilities.
+type DetectorMeta struct {
+	// ID is a unique, stable identifier for the detector (e.g., "quality.weak-assertion").
+	ID string
+
+	// Domain is the detector's area of concern.
+	Domain Domain
+
+	// EvidenceType describes how the detector obtains evidence.
+	EvidenceType EvidenceType
+
+	// Description is a short human-readable summary.
+	Description string
+
+	// SignalTypes lists the signal types this detector may emit.
+	SignalTypes []models.SignalType
+
+	// RequiresFileIO indicates the detector reads files from disk beyond the snapshot.
+	RequiresFileIO bool
+
+	// DependsOnSignals indicates this detector reads signals from prior detectors.
+	DependsOnSignals bool
+}
+
+// DetectorRegistration pairs a Detector with its metadata.
+type DetectorRegistration struct {
+	Meta     DetectorMeta
+	Detector Detector
+}
+
+// DetectorRegistry holds an ordered set of detector registrations.
+//
+// Detectors are executed in registration order. Detectors that depend on
+// prior signals (DependsOnSignals=true) should be registered after the
+// detectors whose signals they read.
+type DetectorRegistry struct {
+	registrations []DetectorRegistration
+}
+
+// NewRegistry creates an empty DetectorRegistry.
+func NewRegistry() *DetectorRegistry {
+	return &DetectorRegistry{}
+}
+
+// Register adds a detector to the registry.
+func (r *DetectorRegistry) Register(reg DetectorRegistration) {
+	r.registrations = append(r.registrations, reg)
+}
+
+// All returns all registrations in registration order.
+func (r *DetectorRegistry) All() []DetectorRegistration {
+	out := make([]DetectorRegistration, len(r.registrations))
+	copy(out, r.registrations)
+	return out
+}
+
+// ByDomain returns registrations matching the given domain.
+func (r *DetectorRegistry) ByDomain(domain Domain) []DetectorRegistration {
+	var out []DetectorRegistration
+	for _, reg := range r.registrations {
+		if reg.Meta.Domain == domain {
+			out = append(out, reg)
+		}
+	}
+	return out
+}
+
+// Detectors returns the Detector instances in registration order.
+func (r *DetectorRegistry) Detectors() []Detector {
+	out := make([]Detector, len(r.registrations))
+	for i, reg := range r.registrations {
+		out[i] = reg.Detector
+	}
+	return out
+}
+
+// Run executes all registered detectors against the snapshot in
+// registration order, appending signals to snap.Signals.
+func (r *DetectorRegistry) Run(snap *models.TestSuiteSnapshot) {
+	RunDetectors(snap, r.Detectors()...)
+}
+
+// RunDomain executes only detectors matching the given domain.
+func (r *DetectorRegistry) RunDomain(snap *models.TestSuiteSnapshot, domain Domain) {
+	for _, reg := range r.registrations {
+		if reg.Meta.Domain == domain {
+			found := reg.Detector.Detect(snap)
+			snap.Signals = append(snap.Signals, found...)
+		}
+	}
+}
+
+// Len returns the number of registered detectors.
+func (r *DetectorRegistry) Len() int {
+	return len(r.registrations)
+}
