@@ -56,54 +56,19 @@ var (
 )
 
 func countTests(src, framework string) int {
-	switch frameworkLanguage(framework) {
-	case "js":
-		return len(jsTestPattern.FindAllString(src, -1))
-	case "go":
-		return len(goTestPattern.FindAllString(src, -1))
-	case "python":
-		return len(pyTestPattern.FindAllString(src, -1))
-	case "java":
-		return len(javaTestPattern.FindAllString(src, -1))
-	default:
-		return len(jsTestPattern.FindAllString(src, -1))
-	}
+	return getLanguageAnalyzer(frameworkLanguage(framework)).CountTests(src)
 }
 
 func countAssertions(src, framework string) int {
-	switch frameworkLanguage(framework) {
-	case "js":
-		return len(jsExpectPattern.FindAllString(src, -1)) +
-			len(jsAssertPattern.FindAllString(src, -1))
-	case "go":
-		return len(goAssertPattern.FindAllString(src, -1))
-	case "python":
-		return len(pyAssertPattern.FindAllString(src, -1))
-	case "java":
-		return len(javaAssertPattern.FindAllString(src, -1))
-	default:
-		return len(jsExpectPattern.FindAllString(src, -1))
-	}
+	return getLanguageAnalyzer(frameworkLanguage(framework)).CountAssertions(src)
 }
 
 func countMocks(src, framework string) int {
-	switch frameworkLanguage(framework) {
-	case "js":
-		return len(jsMockPattern.FindAllString(src, -1))
-	case "python":
-		return len(pyMockPattern.FindAllString(src, -1))
-	case "java":
-		return len(javaMockPattern.FindAllString(src, -1))
-	default:
-		return 0
-	}
+	return getLanguageAnalyzer(frameworkLanguage(framework)).CountMocks(src)
 }
 
 func countSnapshots(src, framework string) int {
-	if frameworkLanguage(framework) == "js" {
-		return len(jsSnapshotPattern.FindAllString(src, -1))
-	}
-	return 0
+	return getLanguageAnalyzer(frameworkLanguage(framework)).CountSnapshots(src)
 }
 
 func frameworkLanguage(framework string) string {
@@ -146,13 +111,10 @@ func extractExportedCodeUnits(root string, testFiles []models.TestFile) []models
 			return
 		}
 		ext := strings.ToLower(relPathExt(relPath))
-		switch {
-		case isJSSourceExt(ext):
-			units = append(units, extractJSExports(root, relPath)...)
-		case ext == ".go":
-			units = append(units, extractGoExports(root, relPath)...)
-		case ext == ".py":
-			units = append(units, extractPythonExports(root, relPath)...)
+		if lang, ok := languageForExt[ext]; ok {
+			if a := getLanguageAnalyzer(lang); a != nil {
+				units = append(units, a.ExtractExports(root, relPath)...)
+			}
 		}
 	})
 

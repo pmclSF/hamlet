@@ -53,6 +53,25 @@ type RiskSurface struct {
 	SuggestedAction string `json:"suggestedAction,omitempty"`
 }
 
+// SnapshotSchemaVersion is the current schema version for TestSuiteSnapshot.
+// Increment this when the snapshot JSON shape changes in a breaking way.
+const SnapshotSchemaVersion = "1.0.0"
+
+// SnapshotMeta holds machine-readable provenance for the snapshot artifact.
+type SnapshotMeta struct {
+	// SchemaVersion identifies the snapshot JSON schema version.
+	SchemaVersion string `json:"schemaVersion"`
+
+	// EngineVersion is the hamlet binary version that produced this snapshot.
+	EngineVersion string `json:"engineVersion,omitempty"`
+
+	// DetectorCount is the number of detectors that ran during analysis.
+	DetectorCount int `json:"detectorCount,omitempty"`
+
+	// Detectors lists the IDs of detectors that ran during analysis.
+	Detectors []string `json:"detectors,omitempty"`
+}
+
 // TestSuiteSnapshot is the canonical output artifact of Hamlet analysis.
 //
 // This is the main serialization boundary for:
@@ -61,6 +80,9 @@ type RiskSurface struct {
 //   - extension rendering
 //   - future hosted ingestion
 type TestSuiteSnapshot struct {
+	// SnapshotMeta holds schema version and engine provenance.
+	SnapshotMeta SnapshotMeta `json:"snapshotMeta"`
+
 	Repository RepositoryMetadata `json:"repository"`
 
 	Frameworks []Framework `json:"frameworks,omitempty"`

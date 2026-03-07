@@ -36,9 +36,10 @@ engine.RunPipeline(root)
   |-- 6. scoring.ComputeRisk()                 --> Risk surfaces
   |-- 7. coverage.Ingest() (optional)          --> CoverageSummary + insights
   |-- 8. measurement.ComputeSnapshot()         --> Posture measurements
+  |-- 9. models.SortSnapshot()                 --> Deterministic canonical ordering
   |
   v
-PipelineResult { Snapshot, HasPolicy }
+PipelineResult { Snapshot, HasPolicy, Diagnostics? }
 ```
 
 ## Snapshot Contract
@@ -47,6 +48,7 @@ The `TestSuiteSnapshot` is the serialized boundary between engine and consumers:
 
 ```
 TestSuiteSnapshot
+  ├── SnapshotMeta       schema version, engine version, detector manifest
   ├── Repository         metadata (name, root, languages, commit, branch)
   ├── Frameworks[]       detected frameworks with file counts
   ├── TestFiles[]        discovered test files with stats

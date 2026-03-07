@@ -56,6 +56,8 @@ var (
 )
 
 func main() {
+	engine.EngineVersion = version
+
 	if len(os.Args) < 2 {
 		printUsage()
 		os.Exit(2)

@@ -1,10 +1,13 @@
 package engine
 
 import (
+	"encoding/json"
+	"sort"
 	"testing"
 
 	"github.com/pmclSF/hamlet/internal/analysis"
 	"github.com/pmclSF/hamlet/internal/measurement"
+	"github.com/pmclSF/hamlet/internal/models"
 	"github.com/pmclSF/hamlet/internal/scoring"
 	"github.com/pmclSF/hamlet/internal/testdata"
 )
@@ -106,6 +109,18 @@ func TestRunPipeline_AnalysisTestdata(t *testing.T) {
 	if result.Snapshot.Measurements == nil {
 		t.Error("expected measurements")
 	}
+
+	// Verify schema version and detector manifest are populated.
+	meta := result.Snapshot.SnapshotMeta
+	if meta.SchemaVersion != models.SnapshotSchemaVersion {
+		t.Errorf("expected schema version %s, got %s", models.SnapshotSchemaVersion, meta.SchemaVersion)
+	}
+	if meta.DetectorCount == 0 {
+		t.Error("expected non-zero detector count")
+	}
+	if len(meta.Detectors) != meta.DetectorCount {
+		t.Errorf("detector list length %d != count %d", len(meta.Detectors), meta.DetectorCount)
+	}
 }
 
 // Verify that analysis.New returns something usable even for a nonexistent repo.
@@ -113,5 +128,71 @@ func TestAnalyzerNewDoesNotPanic(t *testing.T) {
 	a := analysis.New("/nonexistent/path")
 	if a == nil {
 		t.Error("expected non-nil analyzer")
+	}
+}
+
+// TestPipelineDeterminism verifies that running the pipeline twice on
+// identical input produces byte-identical JSON output (excluding timestamps).
+func TestPipelineDeterminism(t *testing.T) {
+	run := func() string {
+		snap := testdata.HealthyBalancedSnapshot()
+		registry := DefaultRegistry(Config{RepoRoot: "."})
+		registry.Run(snap)
+		snap.Risk = scoring.ComputeRisk(snap)
+		measRegistry := measurement.DefaultRegistry()
+		measSnap := measRegistry.ComputeSnapshot(snap)
+		snap.Measurements = measSnap.ToModel()
+		models.SortSnapshot(snap)
+		// Zero out timestamps for comparison.
+		snap.GeneratedAt = testdata.FixedTime
+		snap.Repository.SnapshotTimestamp = testdata.FixedTime
+		out, err := json.Marshal(snap)
+		if err != nil {
+			t.Fatalf("marshal failed: %v", err)
+		}
+		return string(out)
+	}
+
+	a := run()
+	b := run()
+	if a != b {
+		t.Error("pipeline output is not deterministic across identical runs")
+	}
+}
+
+// TestPipelineOutputSorted verifies that pipeline output slices are sorted.
+func TestPipelineOutputSorted(t *testing.T) {
+	result, err := RunPipeline("../analysis/testdata/sample-repo")
+	if err != nil {
+		t.Fatalf("RunPipeline failed: %v", err)
+	}
+	snap := result.Snapshot
+
+	if !sort.SliceIsSorted(snap.TestFiles, func(i, j int) bool {
+		return snap.TestFiles[i].Path < snap.TestFiles[j].Path
+	}) {
+		t.Error("test files not sorted by path")
+	}
+
+	if !sort.SliceIsSorted(snap.Signals, func(i, j int) bool {
+		a, b := snap.Signals[i], snap.Signals[j]
+		if a.Category != b.Category {
+			return a.Category < b.Category
+		}
+		if a.Type != b.Type {
+			return a.Type < b.Type
+		}
+		if a.Location.File != b.Location.File {
+			return a.Location.File < b.Location.File
+		}
+		return a.Location.Line < b.Location.Line
+	}) {
+		t.Error("signals not sorted in canonical order")
+	}
+
+	if !sort.SliceIsSorted(snap.Frameworks, func(i, j int) bool {
+		return snap.Frameworks[i].Name < snap.Frameworks[j].Name
+	}) {
+		t.Error("frameworks not sorted by name")
 	}
 }

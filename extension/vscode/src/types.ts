@@ -153,7 +153,15 @@ export interface MigrationReadiness {
   areaAssessments?: MigrationAreaAssessment[];
 }
 
+export interface SnapshotMeta {
+  schemaVersion: string;
+  engineVersion?: string;
+  detectorCount?: number;
+  detectors?: string[];
+}
+
 export interface TestSuiteSnapshot {
+  snapshotMeta?: SnapshotMeta;
   repository: RepositoryMetadata;
   frameworks?: Framework[];
   testFiles?: TestFile[];

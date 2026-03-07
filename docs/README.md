@@ -37,6 +37,8 @@ The V2 converter engine is preserved and functional. See [legacy/](legacy/) for 
 - [Architecture Map](engineering/architecture-map.md) — contributor-facing component map
 - [Detector Architecture](engineering/detector-architecture.md) — registry-based detector plugin system
 - [Detector Audit](engineering/detector-audit.md) — evidence classification for all detectors
+- [Deterministic Output](engineering/determinism.md) — deterministic output contract and enforcement
+- [Engineering Roadmap](engineering/future-work.md) — incremental analysis, parallelization, and layer separation
 - [Hosted Future](engineering/hosted-future.md) — what remains for hosted/org product
 
 ## Contributing
