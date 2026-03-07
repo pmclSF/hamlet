@@ -55,7 +55,7 @@ Responsibilities:
 - detector interfaces
 - health detectors
 - quality detectors
-- migration detectors
+- migration detectors (including preview boundary)
 - governance detectors
 - severity/confidence assignment
 - explanation and suggested-action generation

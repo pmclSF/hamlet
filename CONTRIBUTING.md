@@ -1,15 +1,25 @@
 # Contributing to Hamlet
 
-## Quick Start
+## Quick Start (V3 Go Engine)
 
 ```bash
 git clone https://github.com/pmclSF/hamlet.git
 cd hamlet
+make build
+make test
+./hamlet analyze
+```
+
+## Quick Start (V2 Legacy Converter)
+
+The JavaScript converter engine is still functional for framework conversion work:
+
+```bash
 npm install
 npm test
 ```
 
-## Adding a New Framework
+## Adding a New Framework (V2 Legacy)
 
 ### 1. Create Framework Definition
 

@@ -152,6 +152,24 @@ Make migration intelligence concrete and actionable.
 
 ---
 
+## Milestone J.1 -- Migration preview boundary [DONE]
+
+Deliverables:
+- UnsupportedSetupDetector (5th migration detector)
+- migration preview model (PreviewResult, PreviewBlocker)
+- file-level and scope-level preview functions
+- `hamlet migration preview` CLI command (--file, --scope, --json)
+- migration preview reporting (human-readable and JSON)
+- extension Migration view upgraded with area assessments and preview affordances
+- extension Review view now includes migration blockers as first-class grouping
+- migration signals now influence change risk in the risk engine
+- example artifacts: migration-readiness.txt, migration-preview.txt, migration-preview.json
+
+Goal:
+Make Hamlet a credible modernization assistant with honest, conservative preview.
+
+---
+
 ## Milestone K -- Historical comparison and trend detection [DONE]
 
 Deliverables:

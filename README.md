@@ -41,6 +41,8 @@ hamlet metrics --json
 | `hamlet analyze` | Analyze repository test suite — frameworks, signals, risk |
 | `hamlet summary` | Executive summary — posture, trends, focus, benchmark readiness |
 | `hamlet metrics` | Aggregate metrics scorecard (privacy-safe, benchmark-ready) |
+| `hamlet migration readiness` | Migration readiness assessment with quality factors |
+| `hamlet migration blockers` | List migration blockers by type and area |
 | `hamlet compare` | Compare two snapshots and show trend changes |
 | `hamlet policy check` | Evaluate repository against local policy rules |
 | `hamlet export benchmark` | Output benchmark-safe JSON export for future comparison |
@@ -109,6 +111,27 @@ hamlet policy check --json # JSON output for CI
 ```
 
 Exit code 0 = pass, 1 = violations found.
+
+## Migration Workflow
+
+Hamlet started with migration pain — "how hard will this migration be?" V3 turns that pain into broader test intelligence while keeping migration as a first-class workflow:
+
+```bash
+# Assess migration readiness
+hamlet migration readiness
+
+# List specific blockers
+hamlet migration blockers
+
+# Review policy and governance
+hamlet policy check
+
+# Save snapshot, fix issues, save another, then compare
+hamlet analyze --write-snapshot
+# ... fix blockers ...
+hamlet analyze --write-snapshot
+hamlet compare
+```
 
 ## Architecture
 

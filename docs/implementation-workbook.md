@@ -70,6 +70,24 @@ Implemented:
 - Detectors integrated into `hamlet analyze` pipeline
 - Tests for all detectors and readiness computation
 
+### Stage 9.1
+Migration preview boundary
+
+Implemented:
+- internal/migration: UnsupportedSetupDetector (5th detector for setup/fixture patterns)
+- internal/migration: PreviewFile() and PreviewScope() for file-level migration preview
+- PreviewResult model: sourceFramework, suggestedTarget, difficulty, blockers, safePatterns, limitations
+- PreviewBlocker model: type, pattern, explanation, remediation
+- Blocker taxonomy: unsupported-setup detector now active (was defined but unimplemented)
+- internal/reporting: RenderMigrationPreview, RenderMigrationPreviewScope
+- CLI: `hamlet migration preview --file PATH --scope DIR --json`
+- Extension: MigrationData now includes byDirectory, areaAssessments, previewAvailable
+- Extension: ReviewData now includes migrationBlockers as first-class grouping
+- Extension types: MigrationPreviewResult, MigrationReadiness types added
+- Risk engine: migration signals (deprecated, dynamic, custom matcher, unsupported setup) now contribute to change risk
+- Tests: 12 new tests (3 UnsupportedSetup detector, 7 preview boundary, 5 reporting)
+- Example artifacts: migration-readiness.txt, migration-preview.txt, migration-preview.json
+
 ### Stage 10
 Historical comparison and trend detection
 
