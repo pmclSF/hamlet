@@ -8,6 +8,8 @@
 //	hamlet analyze --write-snapshot  persist snapshot to .hamlet/snapshots/latest.json
 //	hamlet metrics              aggregate metrics scorecard (human-readable)
 //	hamlet metrics --json       JSON metrics snapshot
+//	hamlet posture              detailed posture breakdown with evidence
+//	hamlet posture --json       JSON posture snapshot
 //	hamlet summary              executive summary with risk, trends, benchmark readiness
 //	hamlet summary --json       JSON executive summary
 //	hamlet compare              compare two snapshots
@@ -32,6 +34,7 @@ import (
 	"github.com/pmclSF/hamlet/internal/engine"
 	"github.com/pmclSF/hamlet/internal/governance"
 	"github.com/pmclSF/hamlet/internal/heatmap"
+	"github.com/pmclSF/hamlet/internal/impact"
 	"github.com/pmclSF/hamlet/internal/metrics"
 	"github.com/pmclSF/hamlet/internal/models"
 	"github.com/pmclSF/hamlet/internal/policy"
@@ -59,6 +62,19 @@ func main() {
 			os.Exit(1)
 		}
 
+	case "impact":
+		impactCmd := flag.NewFlagSet("impact", flag.ExitOnError)
+		rootFlag := impactCmd.String("root", ".", "repository root to analyze")
+		baseRef := impactCmd.String("base", "", "git base ref for diff (default: HEAD~1)")
+		jsonFlag := impactCmd.Bool("json", false, "output JSON impact result")
+		showFlag := impactCmd.String("show", "", "drill-down view: units, gaps, tests, owners")
+		ownerFlag := impactCmd.String("owner", "", "filter results by owner")
+		impactCmd.Parse(os.Args[2:])
+		if err := runImpact(*rootFlag, *baseRef, *jsonFlag, *showFlag, *ownerFlag); err != nil {
+			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			os.Exit(1)
+		}
+
 	case "policy":
 		if len(os.Args) < 3 || os.Args[2] != "check" {
 			fmt.Fprintln(os.Stderr, "Usage: hamlet policy check [flags]")
@@ -77,6 +93,16 @@ func main() {
 		jsonFlag := metricsCmd.Bool("json", false, "output JSON metrics snapshot")
 		metricsCmd.Parse(os.Args[2:])
 		if err := runMetrics(*rootFlag, *jsonFlag); err != nil {
+			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			os.Exit(1)
+		}
+
+	case "posture":
+		postureCmd := flag.NewFlagSet("posture", flag.ExitOnError)
+		rootFlag := postureCmd.String("root", ".", "repository root to analyze")
+		jsonFlag := postureCmd.Bool("json", false, "output JSON posture snapshot")
+		postureCmd.Parse(os.Args[2:])
+		if err := runPosture(*rootFlag, *jsonFlag); err != nil {
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)
 			os.Exit(1)
 		}
@@ -128,44 +154,43 @@ func main() {
 func printUsage() {
 	fmt.Fprintln(os.Stderr, "Hamlet — signal-first test intelligence for engineering teams")
 	fmt.Fprintln(os.Stderr)
-	fmt.Fprintln(os.Stderr, "Usage:")
-	fmt.Fprintln(os.Stderr, "  hamlet analyze [flags]       analyze repository test suite")
-	fmt.Fprintln(os.Stderr, "  hamlet metrics [flags]       output aggregate metrics scorecard")
-	fmt.Fprintln(os.Stderr, "  hamlet summary [flags]       executive summary with risk, trends, and benchmark readiness")
-	fmt.Fprintln(os.Stderr, "  hamlet compare [flags]       compare two snapshots")
-	fmt.Fprintln(os.Stderr, "  hamlet policy check [flags]  evaluate local policy")
-	fmt.Fprintln(os.Stderr, "  hamlet export benchmark      output benchmark-safe JSON export")
+	fmt.Fprintln(os.Stderr, "Quick start:")
+	fmt.Fprintln(os.Stderr, "  hamlet analyze           see what Hamlet finds in your test suite")
+	fmt.Fprintln(os.Stderr, "  hamlet summary           leadership-ready overview")
+	fmt.Fprintln(os.Stderr, "  hamlet posture           evidence-backed posture by dimension")
 	fmt.Fprintln(os.Stderr)
-	fmt.Fprintln(os.Stderr, "Analyze flags:")
-	fmt.Fprintln(os.Stderr, "  --root PATH          repository root to analyze (default: current directory)")
-	fmt.Fprintln(os.Stderr, "  --json               output JSON snapshot instead of human-readable report")
-	fmt.Fprintln(os.Stderr, "  --write-snapshot     persist snapshot to .hamlet/snapshots/latest.json")
+	fmt.Fprintln(os.Stderr, "Commands:")
+	fmt.Fprintln(os.Stderr, "  analyze [flags]          full test suite analysis")
+	fmt.Fprintln(os.Stderr, "  impact [flags]           impact analysis for changed code")
+	fmt.Fprintln(os.Stderr, "  summary [flags]          executive summary with risk, trends, benchmark readiness")
+	fmt.Fprintln(os.Stderr, "  posture [flags]          detailed posture breakdown with measurement evidence")
+	fmt.Fprintln(os.Stderr, "  metrics [flags]          aggregate metrics scorecard")
+	fmt.Fprintln(os.Stderr, "  compare [flags]          compare two snapshots for trend tracking")
+	fmt.Fprintln(os.Stderr, "  policy check [flags]     evaluate local policy rules")
+	fmt.Fprintln(os.Stderr, "  export benchmark [flags] privacy-safe JSON export for benchmarking")
 	fmt.Fprintln(os.Stderr)
-	fmt.Fprintln(os.Stderr, "Policy check flags:")
-	fmt.Fprintln(os.Stderr, "  --root PATH          repository root to analyze (default: current directory)")
-	fmt.Fprintln(os.Stderr, "  --json               output JSON result instead of human-readable report")
+	fmt.Fprintln(os.Stderr, "Common flags (all commands):")
+	fmt.Fprintln(os.Stderr, "  --root PATH              repository root (default: current directory)")
+	fmt.Fprintln(os.Stderr, "  --json                   machine-readable JSON output")
 	fmt.Fprintln(os.Stderr)
-	fmt.Fprintln(os.Stderr, "Metrics flags:")
-	fmt.Fprintln(os.Stderr, "  --root PATH          repository root to analyze (default: current directory)")
-	fmt.Fprintln(os.Stderr, "  --json               output JSON metrics snapshot")
+	fmt.Fprintln(os.Stderr, "Impact-specific flags:")
+	fmt.Fprintln(os.Stderr, "  --base REF               git base ref for diff (default: HEAD~1)")
+	fmt.Fprintln(os.Stderr, "  --show VIEW              drill-down: units, gaps, tests, owners")
+	fmt.Fprintln(os.Stderr, "  --owner NAME             filter by owner")
 	fmt.Fprintln(os.Stderr)
-	fmt.Fprintln(os.Stderr, "Summary flags:")
-	fmt.Fprintln(os.Stderr, "  --root PATH          repository root to analyze (default: current directory)")
-	fmt.Fprintln(os.Stderr, "  --json               output JSON executive summary")
+	fmt.Fprintln(os.Stderr, "Analyze-specific flags:")
+	fmt.Fprintln(os.Stderr, "  --write-snapshot         persist snapshot for trend tracking")
 	fmt.Fprintln(os.Stderr)
-	fmt.Fprintln(os.Stderr, "Compare flags:")
-	fmt.Fprintln(os.Stderr, "  --root PATH          repository root (default: current directory)")
-	fmt.Fprintln(os.Stderr, "  --from PATH          baseline snapshot JSON (default: second-latest in .hamlet/snapshots/)")
-	fmt.Fprintln(os.Stderr, "  --to PATH            current snapshot JSON (default: latest in .hamlet/snapshots/)")
-	fmt.Fprintln(os.Stderr, "  --json               output JSON comparison")
+	fmt.Fprintln(os.Stderr, "Compare-specific flags:")
+	fmt.Fprintln(os.Stderr, "  --from PATH              baseline snapshot (default: auto-detected)")
+	fmt.Fprintln(os.Stderr, "  --to PATH                current snapshot (default: auto-detected)")
 	fmt.Fprintln(os.Stderr)
-	fmt.Fprintln(os.Stderr, "Export benchmark flags:")
-	fmt.Fprintln(os.Stderr, "  --root PATH          repository root to analyze (default: current directory)")
-	fmt.Fprintln(os.Stderr)
-	fmt.Fprintln(os.Stderr, "Exit codes (policy check):")
-	fmt.Fprintln(os.Stderr, "  0  no policy file or no violations")
-	fmt.Fprintln(os.Stderr, "  1  violations found or evaluation error")
-	fmt.Fprintln(os.Stderr, "  2  usage error")
+	fmt.Fprintln(os.Stderr, "Typical flow:")
+	fmt.Fprintln(os.Stderr, "  1. hamlet analyze                    see findings")
+	fmt.Fprintln(os.Stderr, "  2. hamlet summary                    get the leadership view")
+	fmt.Fprintln(os.Stderr, "  3. hamlet posture                    understand the evidence")
+	fmt.Fprintln(os.Stderr, "  4. hamlet analyze --write-snapshot    save for trend tracking")
+	fmt.Fprintln(os.Stderr, "  5. hamlet compare                    see what changed")
 }
 
 func runAnalyze(root string, jsonOutput bool, writeSnap bool) error {
@@ -258,6 +283,70 @@ func runPolicyCheck(root string, jsonOutput bool) int {
 		return 1
 	}
 	return 0
+}
+
+// runImpact performs impact analysis against a git diff.
+func runImpact(root, baseRef string, jsonOutput bool, show, ownerFilter string) error {
+	result, err := engine.RunPipeline(root)
+	if err != nil {
+		return fmt.Errorf("analysis failed: %w", err)
+	}
+
+	absRoot, err := filepath.Abs(root)
+	if err != nil {
+		return err
+	}
+
+	scope, err := impact.ChangeScopeFromGitDiff(absRoot, baseRef)
+	if err != nil {
+		return fmt.Errorf("failed to determine changed files: %w", err)
+	}
+
+	impactResult := impact.Analyze(scope, result.Snapshot)
+
+	// Apply owner filter if specified.
+	if ownerFilter != "" {
+		impactResult = impact.FilterByOwner(impactResult, ownerFilter)
+	}
+
+	if jsonOutput {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(impactResult)
+	}
+
+	switch show {
+	case "units":
+		reporting.RenderImpactUnits(os.Stdout, impactResult)
+	case "gaps":
+		reporting.RenderImpactGaps(os.Stdout, impactResult)
+	case "tests":
+		reporting.RenderImpactTests(os.Stdout, impactResult)
+	case "owners":
+		reporting.RenderImpactOwners(os.Stdout, impactResult)
+	case "":
+		reporting.RenderImpactReport(os.Stdout, impactResult)
+	default:
+		return fmt.Errorf("unknown --show value: %q (valid: units, gaps, tests, owners)", show)
+	}
+	return nil
+}
+
+// runPosture performs analysis and outputs a detailed posture breakdown.
+func runPosture(root string, jsonOutput bool) error {
+	result, err := engine.RunPipeline(root)
+	if err != nil {
+		return fmt.Errorf("analysis failed: %w", err)
+	}
+
+	if jsonOutput {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(result.Snapshot.Measurements)
+	}
+
+	reporting.RenderPostureReport(os.Stdout, result.Snapshot)
+	return nil
 }
 
 // runMetrics performs analysis and outputs aggregate metrics.

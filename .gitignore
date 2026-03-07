@@ -143,6 +143,11 @@ benchmarks/python/
 benchmarks/results/
 benchmarks/run-benchmark.sh
 
+# Public benchmark repos and artifacts (generated, not committed)
+benchmarks/repos/
+artifacts/public-benchmarks/
+hamlet-bench
+
 # Large local-only directories
 /hamlet/
 testing/

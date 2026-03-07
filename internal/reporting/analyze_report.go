@@ -143,6 +143,16 @@ func RenderAnalyzeReport(w io.Writer, snap *models.TestSuiteSnapshot) {
 	}
 	blank()
 
+	// Posture (measurement layer)
+	if snap.Measurements != nil && len(snap.Measurements.Posture) > 0 {
+		line("Posture")
+		line(strings.Repeat("-", 40))
+		for _, p := range snap.Measurements.Posture {
+			line("  %-24s %s", p.Dimension+":", strings.ToUpper(p.Band))
+		}
+		blank()
+	}
+
 	// Risk
 	line("Risk")
 	line(strings.Repeat("-", 40))
@@ -160,6 +170,12 @@ func RenderAnalyzeReport(w io.Writer, snap *models.TestSuiteSnapshot) {
 
 	// Footer
 	line("Generated:   %s", snap.GeneratedAt.Format("2006-01-02 15:04:05 UTC"))
-	line("Stage:       V3")
+	blank()
+
+	// Next command hints
+	line("Next steps:")
+	line("  hamlet summary       leadership-ready overview")
+	line("  hamlet posture       detailed posture with evidence")
+	line("  hamlet analyze --write-snapshot   save for trend tracking")
 	blank()
 }

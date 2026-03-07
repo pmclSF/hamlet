@@ -1,6 +1,6 @@
 # Hamlet — observability and intelligence for test suites
 
-.PHONY: build test lint clean demo
+.PHONY: build test lint clean demo benchmark-fetch benchmark-smoke benchmark-full benchmark-stress benchmark-summary
 
 # Build the CLI binary
 build:
@@ -43,3 +43,28 @@ demo:
 # Legacy JavaScript tests (requires Node.js 22+)
 test-legacy:
 	npm test
+
+# ── Public Benchmark Matrix ──────────────────────────────────
+
+# Download benchmark repos (shallow clone by default)
+benchmark-fetch:
+	./scripts/benchmarks/fetch_public_repos.sh
+
+# Quick benchmark (smoke-tier repos only)
+benchmark-smoke:
+	./scripts/benchmarks/run_public_matrix.sh smoke
+	python3 ./scripts/benchmarks/summarize_public_matrix.py
+
+# Full benchmark matrix
+benchmark-full:
+	./scripts/benchmarks/run_public_matrix.sh full
+	python3 ./scripts/benchmarks/summarize_public_matrix.py
+
+# Stress benchmark (all repos including very large ones)
+benchmark-stress:
+	./scripts/benchmarks/run_public_matrix.sh stress
+	python3 ./scripts/benchmarks/summarize_public_matrix.py
+
+# Just regenerate the summary from existing artifacts
+benchmark-summary:
+	python3 ./scripts/benchmarks/summarize_public_matrix.py

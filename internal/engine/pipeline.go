@@ -2,6 +2,7 @@ package engine
 
 import (
 	"github.com/pmclSF/hamlet/internal/analysis"
+	"github.com/pmclSF/hamlet/internal/measurement"
 	"github.com/pmclSF/hamlet/internal/models"
 	"github.com/pmclSF/hamlet/internal/ownership"
 	"github.com/pmclSF/hamlet/internal/policy"
@@ -55,6 +56,11 @@ func RunPipeline(root string) (*PipelineResult, error) {
 
 	// Step 5: Compute risk surfaces from signals.
 	snapshot.Risk = scoring.ComputeRisk(snapshot)
+
+	// Step 6: Compute measurement-layer posture.
+	measRegistry := measurement.DefaultRegistry()
+	measSnap := measRegistry.ComputeSnapshot(snapshot)
+	snapshot.Measurements = measSnap.ToModel()
 
 	return &PipelineResult{
 		Snapshot:  snapshot,

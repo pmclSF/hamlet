@@ -1,0 +1,40 @@
+{
+  "description": "Fragmented ownership migration-risk repo: many frameworks, migration blockers compounded by quality issues",
+  "repository": {
+    "name": "enterprise-platform",
+    "rootPath": "/workspace/enterprise-platform",
+    "languages": ["javascript", "typescript"],
+    "packageManagers": ["npm"],
+    "ciSystems": ["jenkins", "github-actions"],
+    "branch": "main",
+    "commitSHA": "m1g2r3a4t5"
+  },
+  "frameworks": [
+    {"name": "jest", "type": "unit", "fileCount": 20},
+    {"name": "mocha", "type": "unit", "fileCount": 15},
+    {"name": "jasmine", "type": "unit", "fileCount": 8},
+    {"name": "cypress", "type": "e2e", "fileCount": 10},
+    {"name": "protractor", "type": "e2e", "fileCount": 5}
+  ],
+  "testFiles": [
+    {"path": "src/legacy/__tests__/auth.spec.js", "framework": "jasmine", "testCount": 10, "assertionCount": 5},
+    {"path": "src/legacy/__tests__/payments.spec.js", "framework": "jasmine", "testCount": 8, "assertionCount": 4},
+    {"path": "src/core/__tests__/user.test.js", "framework": "jest", "testCount": 12, "assertionCount": 24},
+    {"path": "src/api/test/orders.test.js", "framework": "mocha", "testCount": 6, "assertionCount": 3},
+    {"path": "src/api/test/products.test.js", "framework": "mocha", "testCount": 8, "assertionCount": 4},
+    {"path": "e2e/legacy/admin.spec.js", "framework": "protractor", "testCount": 5, "assertionCount": 10},
+    {"path": "e2e/checkout.cy.js", "framework": "cypress", "testCount": 7, "assertionCount": 14}
+  ],
+  "signals": [
+    {"type": "migrationBlocker", "category": "migration", "severity": "high", "location": {"file": "src/legacy/__tests__/auth.spec.js"}, "explanation": "Uses Jasmine-specific async patterns incompatible with Jest.", "metadata": {"blockerType": "asyncPattern"}},
+    {"type": "migrationBlocker", "category": "migration", "severity": "high", "location": {"file": "src/legacy/__tests__/payments.spec.js"}, "explanation": "Uses Jasmine custom matchers not portable to Jest.", "metadata": {"blockerType": "customMatcher"}},
+    {"type": "migrationBlocker", "category": "migration", "severity": "high", "location": {"file": "e2e/legacy/admin.spec.js"}, "explanation": "Protractor-specific API not compatible with Cypress/Playwright.", "metadata": {"blockerType": "frameworkAPI"}},
+    {"type": "deprecatedTestPattern", "category": "migration", "severity": "medium", "location": {"file": "src/api/test/orders.test.js"}, "explanation": "Uses deprecated done() callback pattern."},
+    {"type": "weakAssertion", "category": "quality", "severity": "medium", "location": {"file": "src/legacy/__tests__/auth.spec.js"}, "explanation": "5 assertions for 10 tests (0.50 per test)."},
+    {"type": "weakAssertion", "category": "quality", "severity": "medium", "location": {"file": "src/legacy/__tests__/payments.spec.js"}, "explanation": "4 assertions for 8 tests (0.50 per test)."},
+    {"type": "weakAssertion", "category": "quality", "severity": "medium", "location": {"file": "src/api/test/orders.test.js"}, "explanation": "3 assertions for 6 tests (0.50 per test)."},
+    {"type": "mockHeavyTest", "category": "quality", "severity": "medium", "location": {"file": "src/api/test/products.test.js"}, "explanation": "Mock-to-assertion ratio exceeds threshold."},
+    {"type": "legacyFrameworkUsage", "category": "governance", "severity": "medium", "location": {"file": "src/legacy/__tests__/auth.spec.js"}, "explanation": "Jasmine is a legacy framework per policy."},
+    {"type": "legacyFrameworkUsage", "category": "governance", "severity": "medium", "location": {"file": "e2e/legacy/admin.spec.js"}, "explanation": "Protractor is a deprecated framework."}
+  ]
+}

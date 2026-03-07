@@ -1,0 +1,102 @@
+Hamlet Posture Report
+============================================================
+
+HEALTH
+  Posture: STRONG
+  health posture is strong across 4 measurement(s).
+
+  Measurements:
+    health.flaky_share                       0.0% [strong]
+      Evidence: weak
+      0 of 1 test file(s) flagged as flaky or unstable (0%).
+      * No runtime data available; result is based on static analysis only.
+    health.skip_density                      0.0% [strong]
+      Evidence: strong
+      0 of 1 test file(s) contain skipped tests (0%).
+    health.dead_test_share                   0.0% [strong]
+      Evidence: strong
+      0 of 1 test file(s) contain dead tests (0%).
+    health.slow_test_share                   0.0% [strong]
+      Evidence: weak
+      0 of 1 test file(s) flagged as slow (0%).
+      * No runtime data available; result is based on static analysis only.
+
+------------------------------------------------------------
+
+COVERAGE_DEPTH
+  Posture: STRONG
+  coverage_depth posture is strong across 3 measurement(s).
+
+  Measurements:
+    coverage_depth.uncovered_exports         0.0% [strong]
+      Evidence: partial
+      0 of 1 exported code unit(s) appear untested (0%).
+      * Test linkage is heuristic-based; some coverage may exist but not be detected.
+    coverage_depth.weak_assertion_share      0.0% [strong]
+      Evidence: strong
+      0 of 1 test file(s) have weak assertion density (0%).
+    coverage_depth.coverage_breach_share     0.0% [strong]
+      Evidence: weak
+      No coverage threshold breaches detected.
+      * No coverage data available; result may improve with coverage artifacts.
+
+------------------------------------------------------------
+
+COVERAGE_DIVERSITY
+  Posture: WEAK
+  coverage_diversity posture is weak. Driven by: coverage_diversity.framework_fragmentation.
+
+  Driving measurements: coverage_diversity.framework_fragmentation
+  Measurements:
+    coverage_diversity.mock_heavy_share      0.0% [strong]
+      Evidence: strong
+      0 of 1 test file(s) are mock-heavy (0%).
+    coverage_diversity.framework_fragmentation 100.0% [weak]
+      Evidence: strong
+      1 framework(s) across 1 test file(s).
+    coverage_diversity.e2e_concentration     0.0% [strong]
+      Evidence: strong
+      0 of 1 test file(s) use E2E frameworks (0%).
+
+------------------------------------------------------------
+
+STRUCTURAL_RISK
+  Posture: STRONG
+  structural_risk posture is strong across 3 measurement(s).
+
+  Measurements:
+    structural_risk.migration_blocker_density 0.0% [strong]
+      Evidence: strong
+      0 migration blocker(s) across 1 test file(s) (0%).
+    structural_risk.deprecated_pattern_share 0.0% [strong]
+      Evidence: strong
+      0 of 1 test file(s) use deprecated patterns (0%).
+    structural_risk.dynamic_generation_share 0.0% [strong]
+      Evidence: strong
+      0 of 1 test file(s) use dynamic test generation (0%).
+
+------------------------------------------------------------
+
+OPERATIONAL_RISK
+  Posture: STRONG
+  operational_risk posture is strong across 3 measurement(s).
+
+  Measurements:
+    operational_risk.policy_violation_density 0.0% [strong]
+      Evidence: strong
+      0 policy violation(s) across 1 test file(s) (0%).
+    operational_risk.legacy_framework_share  0.0% [strong]
+      Evidence: strong
+      0 of 1 test file(s) use legacy frameworks (0%).
+    operational_risk.runtime_budget_breach_share 0.0% [strong]
+      Evidence: weak
+      0 of 1 test file(s) exceed runtime budgets (0%).
+      * No runtime data available; result is based on static analysis only.
+
+------------------------------------------------------------
+
+Next steps:
+  hamlet summary       leadership-ready overview
+  hamlet metrics       aggregate scorecard
+  hamlet posture --json   machine-readable posture data
+

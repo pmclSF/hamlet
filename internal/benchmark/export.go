@@ -35,6 +35,10 @@ type Export struct {
 
 	// Metrics contains the aggregate metrics.
 	Metrics metrics.Snapshot `json:"metrics"`
+
+	// PostureBands contains per-dimension posture bands from the measurement layer.
+	// Privacy-safe: only band values, no raw data.
+	PostureBands map[string]string `json:"postureBands,omitempty"`
 }
 
 // Segment contains tags that allow meaningful benchmark grouping.
@@ -68,12 +72,25 @@ type Segment struct {
 
 // BuildExport creates a benchmark-safe Export from a snapshot and derived metrics.
 func BuildExport(snap *models.TestSuiteSnapshot, ms *metrics.Snapshot, hasPolicy bool) *Export {
-	return &Export{
+	e := &Export{
 		SchemaVersion: "2",
 		ExportedAt:    time.Now().UTC(),
 		Segment:       buildSegment(snap, ms, hasPolicy),
 		Metrics:       *ms,
 	}
+
+	// Include posture bands if measurements are available.
+	if snap.Measurements != nil {
+		bands := map[string]string{}
+		for _, p := range snap.Measurements.Posture {
+			bands[p.Dimension] = p.Band
+		}
+		if len(bands) > 0 {
+			e.PostureBands = bands
+		}
+	}
+
+	return e
 }
 
 func buildSegment(snap *models.TestSuiteSnapshot, ms *metrics.Snapshot, hasPolicy bool) Segment {

@@ -1,0 +1,34 @@
+{
+  "description": "Flaky concentrated repo: instability in auth tests, otherwise healthy",
+  "repository": {
+    "name": "payments-service",
+    "rootPath": "/workspace/payments-service",
+    "languages": ["javascript"],
+    "packageManagers": ["npm"],
+    "ciSystems": ["github-actions"],
+    "branch": "main",
+    "commitSHA": "f1a2b3c4d5"
+  },
+  "frameworks": [
+    {"name": "jest", "type": "unit", "fileCount": 30},
+    {"name": "cypress", "type": "e2e", "fileCount": 12}
+  ],
+  "testFiles": [
+    {"path": "src/auth/__tests__/oauth.test.js", "framework": "jest", "testCount": 8, "assertionCount": 6, "runtimeStats": {"avgRuntimeMs": 2500, "passRate": 0.72, "retryRate": 0.28}},
+    {"path": "src/auth/__tests__/token.test.js", "framework": "jest", "testCount": 6, "assertionCount": 4, "runtimeStats": {"avgRuntimeMs": 1800, "passRate": 0.80, "retryRate": 0.20}},
+    {"path": "src/auth/__tests__/session.test.js", "framework": "jest", "testCount": 10, "assertionCount": 5, "runtimeStats": {"avgRuntimeMs": 3200, "passRate": 0.65, "retryRate": 0.35}},
+    {"path": "src/payments/__tests__/charge.test.js", "framework": "jest", "testCount": 12, "assertionCount": 24},
+    {"path": "src/payments/__tests__/refund.test.js", "framework": "jest", "testCount": 8, "assertionCount": 16},
+    {"path": "e2e/checkout.spec.js", "framework": "cypress", "testCount": 5, "assertionCount": 10},
+    {"path": "e2e/payment-flow.spec.js", "framework": "cypress", "testCount": 7, "assertionCount": 14}
+  ],
+  "signals": [
+    {"type": "flakyTest", "category": "health", "severity": "high", "location": {"file": "src/auth/__tests__/oauth.test.js"}, "explanation": "Test has 28% retry rate across recent runs."},
+    {"type": "flakyTest", "category": "health", "severity": "high", "location": {"file": "src/auth/__tests__/session.test.js"}, "explanation": "Test has 35% retry rate across recent runs."},
+    {"type": "unstableSuite", "category": "health", "severity": "high", "location": {"file": "src/auth/__tests__/token.test.js"}, "explanation": "Suite has inconsistent pass rate (80%)."},
+    {"type": "slowTest", "category": "health", "severity": "medium", "location": {"file": "src/auth/__tests__/session.test.js"}, "explanation": "Average runtime 3200ms exceeds threshold."},
+    {"type": "slowTest", "category": "health", "severity": "medium", "location": {"file": "src/auth/__tests__/oauth.test.js"}, "explanation": "Average runtime 2500ms exceeds threshold."},
+    {"type": "weakAssertion", "category": "quality", "severity": "medium", "location": {"file": "src/auth/__tests__/oauth.test.js"}, "explanation": "6 assertions for 8 tests (0.75 per test)."},
+    {"type": "weakAssertion", "category": "quality", "severity": "medium", "location": {"file": "src/auth/__tests__/session.test.js"}, "explanation": "5 assertions for 10 tests (0.50 per test)."}
+  ]
+}

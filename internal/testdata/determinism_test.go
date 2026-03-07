@@ -1,0 +1,109 @@
+package testdata
+
+import (
+	"encoding/json"
+	"testing"
+
+	"github.com/pmclSF/hamlet/internal/heatmap"
+	"github.com/pmclSF/hamlet/internal/measurement"
+	"github.com/pmclSF/hamlet/internal/metrics"
+	"github.com/pmclSF/hamlet/internal/scoring"
+)
+
+// TestDeterminism_MetricsIdentical verifies that metrics.Derive produces
+// identical output across multiple runs with the same input.
+func TestDeterminism_MetricsIdentical(t *testing.T) {
+	snap := HealthyBalancedSnapshot()
+
+	results := make([]string, 10)
+	for i := 0; i < 10; i++ {
+		ms := metrics.Derive(snap)
+		ms.GeneratedAt = FixedTime // normalize time
+		data, _ := json.Marshal(ms)
+		results[i] = string(data)
+	}
+
+	for i := 1; i < 10; i++ {
+		if results[i] != results[0] {
+			t.Errorf("metrics run %d differs from run 0", i)
+		}
+	}
+}
+
+// TestDeterminism_MeasurementsIdentical verifies measurement computation
+// produces identical posture bands across multiple runs.
+func TestDeterminism_MeasurementsIdentical(t *testing.T) {
+	snap := HealthyBalancedSnapshot()
+
+	results := make([]string, 10)
+	for i := 0; i < 10; i++ {
+		reg := measurement.DefaultRegistry()
+		ms := reg.ComputeSnapshot(snap)
+		model := ms.ToModel()
+		data, _ := json.Marshal(model)
+		results[i] = string(data)
+	}
+
+	for i := 1; i < 10; i++ {
+		if results[i] != results[0] {
+			t.Errorf("measurement run %d differs from run 0", i)
+		}
+	}
+}
+
+// TestDeterminism_HeatmapIdentical verifies heatmap computation is deterministic.
+func TestDeterminism_HeatmapIdentical(t *testing.T) {
+	snap := HealthyBalancedSnapshot()
+	snap.Risk = scoring.ComputeRisk(snap)
+
+	results := make([]string, 10)
+	for i := 0; i < 10; i++ {
+		h := heatmap.Build(snap)
+		data, _ := json.Marshal(h)
+		results[i] = string(data)
+	}
+
+	for i := 1; i < 10; i++ {
+		if results[i] != results[0] {
+			t.Errorf("heatmap run %d differs from run 0", i)
+		}
+	}
+}
+
+// TestDeterminism_RiskScoringIdentical verifies risk scoring is deterministic.
+func TestDeterminism_RiskScoringIdentical(t *testing.T) {
+	snap := HealthyBalancedSnapshot()
+
+	results := make([]string, 10)
+	for i := 0; i < 10; i++ {
+		risks := scoring.ComputeRisk(snap)
+		data, _ := json.Marshal(risks)
+		results[i] = string(data)
+	}
+
+	for i := 1; i < 10; i++ {
+		if results[i] != results[0] {
+			t.Errorf("risk run %d differs from run 0", i)
+		}
+	}
+}
+
+// TestDeterminism_LargeScaleStable verifies determinism at scale.
+func TestDeterminism_LargeScaleStable(t *testing.T) {
+	snap := LargeScaleSnapshot()
+
+	results := make([]string, 5)
+	for i := 0; i < 5; i++ {
+		reg := measurement.DefaultRegistry()
+		ms := reg.ComputeSnapshot(snap)
+		model := ms.ToModel()
+		data, _ := json.Marshal(model)
+		results[i] = string(data)
+	}
+
+	for i := 1; i < 5; i++ {
+		if results[i] != results[0] {
+			t.Errorf("large-scale run %d differs from run 0", i)
+		}
+	}
+}

@@ -1,0 +1,39 @@
+{
+  "description": "E2E-heavy shallow-coverage repo: most tests are E2E, weak unit coverage",
+  "repository": {
+    "name": "storefront-app",
+    "rootPath": "/workspace/storefront-app",
+    "languages": ["javascript"],
+    "packageManagers": ["npm"],
+    "ciSystems": ["github-actions"],
+    "branch": "main",
+    "commitSHA": "e2e1a2b3c4"
+  },
+  "frameworks": [
+    {"name": "jest", "type": "unit", "fileCount": 5},
+    {"name": "cypress", "type": "e2e", "fileCount": 25}
+  ],
+  "testFiles": [
+    {"path": "src/utils/__tests__/format.test.js", "framework": "jest", "testCount": 4, "assertionCount": 8},
+    {"path": "src/utils/__tests__/validate.test.js", "framework": "jest", "testCount": 3, "assertionCount": 6},
+    {"path": "cypress/e2e/login.cy.js", "framework": "cypress", "testCount": 6, "assertionCount": 12},
+    {"path": "cypress/e2e/product-browse.cy.js", "framework": "cypress", "testCount": 8, "assertionCount": 16},
+    {"path": "cypress/e2e/cart.cy.js", "framework": "cypress", "testCount": 5, "assertionCount": 10},
+    {"path": "cypress/e2e/checkout.cy.js", "framework": "cypress", "testCount": 7, "assertionCount": 14},
+    {"path": "cypress/e2e/search.cy.js", "framework": "cypress", "testCount": 4, "assertionCount": 8}
+  ],
+  "codeUnits": [
+    {"name": "CartService", "path": "src/services/cart.js", "kind": "class", "exported": true},
+    {"name": "ProductAPI", "path": "src/api/products.js", "kind": "class", "exported": true},
+    {"name": "CheckoutFlow", "path": "src/services/checkout.js", "kind": "class", "exported": true},
+    {"name": "SearchEngine", "path": "src/services/search.js", "kind": "class", "exported": true},
+    {"name": "UserAuth", "path": "src/auth/auth.js", "kind": "class", "exported": true}
+  ],
+  "signals": [
+    {"type": "untestedExport", "category": "quality", "severity": "high", "location": {"file": "src/services/cart.js", "symbol": "CartService"}, "explanation": "CartService is exported but has no linked unit tests."},
+    {"type": "untestedExport", "category": "quality", "severity": "high", "location": {"file": "src/api/products.js", "symbol": "ProductAPI"}, "explanation": "ProductAPI is exported but has no linked unit tests."},
+    {"type": "untestedExport", "category": "quality", "severity": "high", "location": {"file": "src/services/checkout.js", "symbol": "CheckoutFlow"}, "explanation": "CheckoutFlow is exported but has no linked unit tests."},
+    {"type": "untestedExport", "category": "quality", "severity": "high", "location": {"file": "src/services/search.js", "symbol": "SearchEngine"}, "explanation": "SearchEngine is exported but has no linked unit tests."},
+    {"type": "untestedExport", "category": "quality", "severity": "high", "location": {"file": "src/auth/auth.js", "symbol": "UserAuth"}, "explanation": "UserAuth is exported but has no linked unit tests."}
+  ]
+}

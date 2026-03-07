@@ -1,0 +1,7 @@
+# Expectations for pallets/flask benchmark.
+# Flask is Python — Hamlet's coverage of Python is limited.
+# Expectations should be tightened after initial calibration run.
+min_test_files: 0
+min_code_units: 0
+require_posture: false
+analyze_must_succeed: true

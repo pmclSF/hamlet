@@ -1,0 +1,137 @@
+# Public repository benchmark matrix for Hamlet.
+#
+# Each entry defines a public repo that Hamlet will be run against.
+# Tiers:
+#   smoke  — small/moderate repos, fast signal, run frequently
+#   full   — the main representative matrix
+#   stress — large repos that take materially longer
+
+repos:
+  # ── Smoke tier ──────────────────────────────────────────────
+
+  - id: express
+    url: https://github.com/expressjs/express.git
+    branch: master
+    tier: smoke
+    category: backend-js
+    clone: shallow
+    description: >
+      Node.js HTTP framework. Moderate size, mocha test suite, well-structured.
+      Exercises JS unit-test detection, assertion counting, code-unit discovery.
+    expected:
+      min_test_files: 30
+      min_code_units: 10
+      frameworks: [mocha]
+
+  - id: fastify
+    url: https://github.com/fastify/fastify.git
+    branch: main
+    tier: smoke
+    category: backend-js
+    clone: shallow
+    description: >
+      Fast Node.js web framework. Uses tap and node:test. Moderate size.
+      Exercises multi-framework detection in a single-language repo.
+    expected:
+      min_test_files: 50
+      min_code_units: 10
+      frameworks: [tap]
+
+  # ── Full tier ───────────────────────────────────────────────
+
+  - id: jest
+    url: https://github.com/jestjs/jest.git
+    branch: main
+    tier: full
+    category: tooling-js-monorepo
+    clone: shallow
+    description: >
+      Meta's JavaScript testing framework. Large monorepo with workspaces.
+      Tests itself with Jest. Exercises monorepo detection, workspace analysis,
+      heavy test-file volumes, and meta-testing patterns.
+    expected:
+      min_test_files: 200
+      min_code_units: 50
+      frameworks: [jest]
+
+  - id: playwright
+    url: https://github.com/microsoft/playwright.git
+    branch: main
+    tier: full
+    category: e2e-ts
+    clone: shallow
+    description: >
+      Microsoft's browser automation framework. TypeScript, mix of Jest and
+      Playwright self-tests. Exercises E2E framework detection, TS support,
+      large file counts.
+    expected:
+      min_test_files: 100
+      min_code_units: 20
+      frameworks: [jest, playwright]
+
+  - id: vue
+    url: https://github.com/vuejs/core.git
+    branch: main
+    tier: full
+    category: frontend-ts-monorepo
+    clone: shallow
+    description: >
+      Vue.js 3 core. TypeScript monorepo with vitest. Exercises vitest
+      detection, monorepo workspace analysis, frontend framework patterns.
+    expected:
+      min_test_files: 50
+      min_code_units: 30
+      frameworks: [vitest]
+
+  - id: flask
+    url: https://github.com/pallets/flask.git
+    branch: main
+    tier: full
+    category: backend-python
+    clone: shallow
+    description: >
+      Python micro web framework. pytest test suite. Non-JS repo to exercise
+      cross-language analysis, Python framework detection, and degradation
+      behavior when outside Hamlet's primary language focus.
+    expected:
+      min_test_files: 5
+      min_code_units: 0
+      frameworks: [pytest]
+
+  - id: next.js
+    url: https://github.com/vercel/next.js.git
+    branch: canary
+    tier: full
+    category: frontend-ts-monorepo-large
+    clone: shallow
+    description: >
+      Vercel's React framework. Very large monorepo with Jest, Playwright,
+      and custom test infrastructure. Exercises scale, multi-framework
+      detection, and monorepo workspace analysis at volume.
+    expected:
+      min_test_files: 500
+      min_code_units: 50
+      frameworks: [jest, playwright]
+    notes: >
+      Large clone (~500MB shallow). May take 1-2 minutes to analyze.
+      Consider promoting to stress tier if too slow for regular runs.
+
+  # ── Stress tier ─────────────────────────────────────────────
+
+  - id: storybook
+    url: https://github.com/storybookjs/storybook.git
+    branch: next
+    tier: stress
+    category: tooling-js-monorepo-massive
+    clone: shallow
+    description: >
+      UI component workshop. Massive monorepo with 100+ packages, mix of
+      Jest and Vitest, multiple languages. Stress-tests Hamlet's scale
+      handling, framework fragmentation analysis, and memory usage.
+    expected:
+      min_test_files: 200
+      min_code_units: 50
+      frameworks: [jest, vitest]
+    notes: >
+      Very large repo (~800MB shallow). Analysis may take several minutes.
+      Intended for stress testing only.

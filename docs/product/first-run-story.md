@@ -1,0 +1,78 @@
+# First-Run Product Story
+
+## The first five minutes
+
+A developer clones a repo they've inherited, or wants to understand the test health of their own project. They install Hamlet and run:
+
+```
+hamlet analyze
+```
+
+### What they see first
+
+A structured report showing:
+1. **Repository shape** — languages, frameworks, test file count
+2. **Posture** — five dimensions rated strong/moderate/weak with evidence
+3. **Signals** — categorized findings (health, quality, migration, governance)
+4. **Risk surfaces** — where risk concentrates (directories, owners)
+5. **Top findings** — the most important signals with locations and explanations
+
+This is not a wall of text. It is a focused, scannable summary that fits in a terminal window.
+
+### What surprises them
+
+The "wow" moment in the first run comes from structural insight they did not have before:
+- "I didn't know 40% of our exported functions have no linked tests."
+- "I didn't know our auth tests are all mock-heavy AND have migration blockers."
+- "I didn't know 80% of our test suite is E2E."
+
+### What they do next
+
+The analyze output naturally leads to:
+
+```
+hamlet summary        # leadership-ready overview
+hamlet posture        # detailed posture with evidence per dimension
+hamlet focus          # where to look first
+```
+
+Each command output includes a "next useful command" hint.
+
+## The second session
+
+After the initial exploration, the user runs:
+
+```
+hamlet analyze --write-snapshot
+```
+
+This persists the snapshot. On the next run, `hamlet compare` shows what changed. The user now has trend tracking with zero infrastructure.
+
+## The team session
+
+The user shares `hamlet summary` output in a PR or Slack thread. It is designed to be copy-paste ready — no ANSI codes, no excessive width, clear headings.
+
+A tech lead reads it and immediately sees:
+- Overall posture
+- Key numbers (test files, frameworks, signals, critical findings)
+- Top risk areas
+- Recommended focus
+
+## Command flow
+
+```
+hamlet analyze              → full analysis, the "what"
+hamlet summary              → leadership view, the "so what"
+hamlet posture              → evidence detail, the "show me"
+hamlet focus                → prioritized action, the "now what"
+hamlet metrics              → aggregate scorecard
+hamlet compare              → trend tracking
+hamlet export benchmark     → privacy-safe export for future comparison
+```
+
+## Design constraints
+
+- No command requires arguments to produce useful output on a repo
+- Default output is human-readable; `--json` for machine consumption
+- No command takes more than 30 seconds on a 500-file repo
+- Error messages suggest what to do, not just what went wrong

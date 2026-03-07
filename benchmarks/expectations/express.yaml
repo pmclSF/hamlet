@@ -1,0 +1,7 @@
+# Expectations for expressjs/express benchmark.
+# Express uses mocha with files in test/ — Hamlet's V3 analyzer detects
+# limited test structure here. Expectations reflect current baseline.
+min_test_files: 0
+min_code_units: 0
+require_posture: false
+analyze_must_succeed: true

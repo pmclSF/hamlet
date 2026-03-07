@@ -1,0 +1,56 @@
+{
+  "generatedAt": "2025-01-15T12:00:00Z",
+  "analysisVersion": "v3-nucleus",
+  "structure": {
+    "totalTestFiles": 1,
+    "frameworks": [
+      "jest"
+    ],
+    "frameworkCount": 1,
+    "frameworkFragmentationRatio": 1,
+    "languages": [
+      "javascript"
+    ]
+  },
+  "health": {
+    "slowTestCount": 0,
+    "slowTestRatio": 0,
+    "flakyTestCount": 0,
+    "flakyTestRatio": 0,
+    "skippedTestCount": 0,
+    "skippedTestRatio": 0,
+    "deadTestCount": 0
+  },
+  "quality": {
+    "weakAssertionCount": 0,
+    "weakAssertionRatio": 0,
+    "mockHeavyTestCount": 0,
+    "mockHeavyTestRatio": 0,
+    "untestedExportCount": 0,
+    "coverageThresholdBreakCount": 0,
+    "snapshotHeavyCount": 0,
+    "qualityPostureBand": "strong"
+  },
+  "changeReadiness": {
+    "migrationBlockerCount": 0,
+    "deprecatedPatternCount": 0,
+    "dynamicGenerationCount": 0,
+    "customMatcherRiskCount": 0,
+    "migrationReadinessBand": "high",
+    "safeAreaCount": 1,
+    "riskyAreaCount": 0,
+    "qualityCompoundedBlockerCount": 0
+  },
+  "governance": {
+    "policyViolationCount": 0,
+    "legacyFrameworkUsageCount": 0,
+    "runtimeBudgetExceededCount": 0
+  },
+  "risk": {
+    "highRiskAreaCount": 0,
+    "criticalFindingCount": 0
+  },
+  "notes": [
+    "No runtime artifacts detected; health metrics are static-analysis only."
+  ]
+}

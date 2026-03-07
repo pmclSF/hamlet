@@ -73,6 +73,9 @@ type TestSuiteSnapshot struct {
 
 	Risk []RiskSurface `json:"risk,omitempty"`
 
+	// Measurements contains the measurement-layer snapshot when computed.
+	Measurements *MeasurementSnapshot `json:"measurements,omitempty"`
+
 	Ownership map[string][]string `json:"ownership,omitempty"`
 
 	Policies map[string]any `json:"policies,omitempty"`

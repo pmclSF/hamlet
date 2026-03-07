@@ -1,0 +1,39 @@
+Hamlet — Test Suite Analysis
+========================================
+
+Repository:  minimal-repo
+Root:        
+Languages:   javascript
+
+Frameworks
+----------------------------------------
+  jest                    1 files [unit]
+
+Test Files
+----------------------------------------
+  Discovered:  1
+    src/__tests__/utils.test.js  (jest)
+
+Signals
+----------------------------------------
+  No signals detected.
+
+Posture
+----------------------------------------
+  health:                  STRONG
+  coverage_depth:          STRONG
+  coverage_diversity:      WEAK
+  structural_risk:         STRONG
+  operational_risk:        STRONG
+
+Risk
+----------------------------------------
+  No risk surfaces detected.
+
+Generated:   2025-01-15 12:00:00 UTC
+
+Next steps:
+  hamlet summary       leadership-ready overview
+  hamlet posture       detailed posture with evidence
+  hamlet analyze --write-snapshot   save for trend tracking
+

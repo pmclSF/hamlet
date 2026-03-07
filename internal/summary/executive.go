@@ -162,6 +162,18 @@ func buildPosture(snap *models.TestSuiteSnapshot, h *heatmap.Heatmap) PostureSum
 		OverallStatement: h.PostureSummary,
 	}
 
+	// Include measurement-layer posture if available (preferred).
+	if snap.Measurements != nil && len(snap.Measurements.Posture) > 0 {
+		for _, p := range snap.Measurements.Posture {
+			ps.Dimensions = append(ps.Dimensions, DimensionPosture{
+				Dimension: p.Dimension,
+				Band:      models.RiskBand(p.Band),
+			})
+		}
+		return ps
+	}
+
+	// Fallback to risk surface posture.
 	for _, r := range snap.Risk {
 		if r.Scope == "repository" {
 			ps.Dimensions = append(ps.Dimensions, DimensionPosture{

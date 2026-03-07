@@ -47,7 +47,7 @@ func TestRenderAnalyzeReport_SmokeSections(t *testing.T) {
 		"Discovered:  2",
 		"Signals",
 		"Risk",
-		"Stage:       V3",
+		"Next steps:",
 	}
 
 	for _, s := range sections {

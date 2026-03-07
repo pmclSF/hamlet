@@ -114,4 +114,11 @@ func RenderExecutiveSummary(w io.Writer, es *summary.ExecutiveSummary) {
 		}
 	}
 	blank()
+
+	// Next command hints
+	line("Next steps:")
+	line("  hamlet posture       evidence behind each dimension")
+	line("  hamlet analyze       full signal-level detail")
+	line("  hamlet export benchmark   privacy-safe export")
+	blank()
 }

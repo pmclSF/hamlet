@@ -39,6 +39,19 @@ func RenderSummaryReport(w io.Writer, snap *models.TestSuiteSnapshot, h *heatmap
 	}
 	blank()
 
+	// Posture (measurement layer)
+	if snap.Measurements != nil && len(snap.Measurements.Posture) > 0 {
+		line("Posture Dimensions")
+		line(strings.Repeat("-", 50))
+		for _, p := range snap.Measurements.Posture {
+			line("  %-24s %s", p.Dimension+":", strings.ToUpper(p.Band))
+			if p.Explanation != "" {
+				line("    %s", p.Explanation)
+			}
+		}
+		blank()
+	}
+
 	// Risk bands
 	hasRisk := false
 	for _, r := range snap.Risk {
@@ -82,4 +95,11 @@ func RenderSummaryReport(w io.Writer, snap *models.TestSuiteSnapshot, h *heatmap
 		}
 		blank()
 	}
+
+	// Next command hints
+	line("Next steps:")
+	line("  hamlet posture       evidence behind each dimension")
+	line("  hamlet analyze       full signal-level detail")
+	line("  hamlet compare       see what changed since last snapshot")
+	blank()
 }
