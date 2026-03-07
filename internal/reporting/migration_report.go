@@ -64,4 +64,37 @@ func RenderMigrationReport(w io.Writer, readiness *migration.ReadinessSummary) {
 		}
 		blank()
 	}
+
+	// Quality factors compounding migration risk
+	if len(readiness.QualityFactors) > 0 {
+		line("Quality Factors Affecting Migration")
+		line(strings.Repeat("-", 40))
+		for _, qf := range readiness.QualityFactors {
+			line("  %s", qf.Explanation)
+		}
+		blank()
+	}
+
+	// Area assessments
+	if len(readiness.AreaAssessments) > 0 {
+		line("Area Assessments")
+		line(strings.Repeat("-", 40))
+		for _, area := range readiness.AreaAssessments {
+			badge := strings.ToUpper(area.Classification)
+			line("  [%s] %s", badge, area.Directory)
+			line("    %s", area.Explanation)
+		}
+		blank()
+	}
+
+	// Coverage guidance
+	if len(readiness.CoverageGuidance) > 0 {
+		line("Where Additional Coverage Reduces Migration Risk")
+		line(strings.Repeat("-", 40))
+		for _, cg := range readiness.CoverageGuidance {
+			line("  [%s] %s", strings.ToUpper(cg.Priority), cg.Directory)
+			line("    %s", cg.Reason)
+		}
+		blank()
+	}
 }
