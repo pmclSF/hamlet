@@ -21,7 +21,7 @@ func TestBuildExport_Basic(t *testing.T) {
 	ms := metrics.Derive(snap)
 	exp := BuildExport(snap, ms, false)
 
-	if exp.SchemaVersion != "2" {
+	if exp.SchemaVersion != "3" {
 		t.Errorf("schemaVersion = %q, want 2", exp.SchemaVersion)
 	}
 	if exp.Segment.PrimaryLanguage != "javascript" {
@@ -200,7 +200,7 @@ func TestExport_PrivacySafety(t *testing.T) {
 	}
 
 	// SchemaVersion should be 2.
-	if exp.SchemaVersion != "2" {
+	if exp.SchemaVersion != "3" {
 		t.Errorf("schemaVersion = %q, want 2", exp.SchemaVersion)
 	}
 }

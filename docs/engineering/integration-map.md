@@ -41,7 +41,7 @@ All subsystems import these sets from `signals` rather than defining local copie
       |
       +---> [summary/executive] → ExecutiveSummary (posture, focus, trends)
       |
-      +---> [benchmark/export] → privacy-safe Export (schema v2)
+      +---> [benchmark/export] → privacy-safe Export (schema v3)
       |
       +---> [reporting/] → human-readable CLI output
 ```
@@ -68,6 +68,8 @@ The `metrics.Snapshot` and `benchmark.Export` contain only:
 - Schema version for forward compatibility
 
 No raw file paths, symbol names, test names, or source code appear in benchmark-safe outputs. The `Export` struct is the serialization boundary between local analysis and any future hosted aggregation.
+
+For test identity and coverage-by-type integration details, see [integration-map-test-identity-coverage.md](integration-map-test-identity-coverage.md).
 
 ## Adding a New Signal Type
 

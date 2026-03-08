@@ -96,6 +96,48 @@ func RenderSummaryReport(w io.Writer, snap *models.TestSuiteSnapshot, h *heatmap
 		blank()
 	}
 
+	// Coverage by type
+	if snap.CoverageSummary != nil && snap.CoverageSummary.TotalCodeUnits > 0 {
+		cs := snap.CoverageSummary
+		line("Coverage by Type")
+		line(strings.Repeat("-", 50))
+		line("  Code units:          %d", cs.TotalCodeUnits)
+		if cs.CoveredByUnitTests > 0 {
+			line("  Covered by unit:     %d", cs.CoveredByUnitTests)
+		}
+		if cs.CoveredOnlyByE2E > 0 {
+			line("  Covered only by e2e: %d", cs.CoveredOnlyByE2E)
+		}
+		if cs.UncoveredExported > 0 {
+			line("  Uncovered exports:   %d", cs.UncoveredExported)
+		}
+		if cs.LineCoveragePct > 0 {
+			line("  Line coverage:       %.1f%%", cs.LineCoveragePct)
+		}
+		blank()
+	}
+
+	// Test identity summary
+	if len(snap.TestCases) > 0 {
+		typeCounts := map[string]int{}
+		for _, tc := range snap.TestCases {
+			if tc.TestType != "" {
+				typeCounts[tc.TestType]++
+			}
+		}
+		if len(typeCounts) > 0 {
+			line("Test Types")
+			line(strings.Repeat("-", 50))
+			line("  Total test cases:    %d", len(snap.TestCases))
+			for _, t := range []string{"unit", "integration", "e2e"} {
+				if c, ok := typeCounts[t]; ok {
+					line("  %-20s %d", t+":", c)
+				}
+			}
+			blank()
+		}
+	}
+
 	// Next command hints
 	line("Next steps:")
 	line("  hamlet posture       evidence behind each dimension")

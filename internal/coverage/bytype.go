@@ -94,6 +94,7 @@ func ComputeByType(artifacts []CoverageArtifact, units []models.CodeUnit) []Type
 		if len(types) == 1 {
 			for t := range types {
 				tc.ExclusiveType = t
+				break
 			}
 		}
 		result = append(result, tc)

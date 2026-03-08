@@ -32,6 +32,10 @@ type TestResult struct {
 
 	// Message is the failure or error message if applicable.
 	Message string
+
+	// TestID is the stable test identity if resolved against TestCase inventory.
+	// Empty when runtime data cannot be joined to extracted test cases.
+	TestID string
 }
 
 // TestStatus represents the outcome of a test execution.

@@ -57,6 +57,14 @@ COVERAGE_DIVERSITY
     coverage_diversity.e2e_concentration     0.0% [strong]
       Evidence: strong
       0 of 1 test file(s) use E2E frameworks (0%).
+    coverage_diversity.e2e_only_units        0.0% [unknown]
+      Evidence: none
+      No coverage data available.
+      * Provide labeled coverage artifacts (--coverage unit:path, --coverage e2e:path) for coverage-by-type analysis.
+    coverage_diversity.unit_test_coverage    0.0% [unknown]
+      Evidence: none
+      No coverage data available.
+      * Provide labeled coverage artifacts for coverage-by-type analysis.
 
 ------------------------------------------------------------
 

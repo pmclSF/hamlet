@@ -34,8 +34,8 @@ func TestE2E_FullAnalysisToSummary(t *testing.T) {
 
 	// Step 4: Build benchmark export.
 	export := benchmark.BuildExport(snap, ms, false)
-	if export.SchemaVersion != "2" {
-		t.Errorf("export schema version: got %q, want %q", export.SchemaVersion, "2")
+	if export.SchemaVersion != "3" {
+		t.Errorf("export schema version: got %q, want %q", export.SchemaVersion, "3")
 	}
 
 	// Step 5: Build executive summary.

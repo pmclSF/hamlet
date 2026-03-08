@@ -83,6 +83,12 @@ type CoverageDelta struct {
 
 	// CoveredOnlyByE2EAfter is the current count of e2e-only coverage.
 	CoveredOnlyByE2EAfter int `json:"coveredOnlyByE2eAfter"`
+
+	// UnitTestCoverageBefore is the previous count of units covered by unit tests.
+	UnitTestCoverageBefore int `json:"unitTestCoverageBefore,omitempty"`
+
+	// UnitTestCoverageAfter is the current count of units covered by unit tests.
+	UnitTestCoverageAfter int `json:"unitTestCoverageAfter,omitempty"`
 }
 
 // SignalDelta represents the change in count for a signal type.
@@ -418,11 +424,13 @@ func compareCoverage(from, to *models.CoverageSummary) *CoverageDelta {
 		d.LineCoverageBefore = from.LineCoveragePct
 		d.UncoveredExportedBefore = from.UncoveredExported
 		d.CoveredOnlyByE2EBefore = from.CoveredOnlyByE2E
+		d.UnitTestCoverageBefore = from.CoveredByUnitTests
 	}
 	if to != nil {
 		d.LineCoverageAfter = to.LineCoveragePct
 		d.UncoveredExportedAfter = to.UncoveredExported
 		d.CoveredOnlyByE2EAfter = to.CoveredOnlyByE2E
+		d.UnitTestCoverageAfter = to.CoveredByUnitTests
 	}
 	d.LineCoverageDelta = d.LineCoverageAfter - d.LineCoverageBefore
 

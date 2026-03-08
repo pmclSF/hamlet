@@ -66,6 +66,22 @@ func CoverageDiversityMeasurements() []Definition {
 			Inputs:      []string{"frameworks"},
 			Compute:     computeE2EConcentration,
 		},
+		{
+			ID:          "coverage_diversity.e2e_only_units",
+			Dimension:   DimensionCoverageDiversity,
+			Description: "Share of code units covered only by e2e tests.",
+			Units:       UnitsRatio,
+			Inputs:      []string{"coverageSummary"},
+			Compute:     computeE2EOnlyUnits,
+		},
+		{
+			ID:          "coverage_diversity.unit_test_coverage",
+			Dimension:   DimensionCoverageDiversity,
+			Description: "Share of code units covered by unit tests.",
+			Units:       UnitsRatio,
+			Inputs:      []string{"coverageSummary"},
+			Compute:     computeUnitTestCoverage,
+		},
 	}
 }
 
@@ -264,5 +280,62 @@ func computeE2EConcentration(snap *models.TestSuiteSnapshot) Result {
 		Evidence:    EvidenceStrong,
 		Explanation: fmt.Sprintf("%d of %d test file(s) use E2E frameworks (%.0f%%).", e2eCount, total, ratio*100),
 		Inputs:      []string{"frameworks"},
+	}
+}
+
+func computeE2EOnlyUnits(snap *models.TestSuiteSnapshot) Result {
+	if snap.CoverageSummary == nil || snap.CoverageSummary.TotalCodeUnits == 0 {
+		return Result{
+			ID: "coverage_diversity.e2e_only_units", Dimension: DimensionCoverageDiversity,
+			Value: 0, Units: UnitsRatio, Band: "unknown",
+			Evidence:    EvidenceNone,
+			Explanation: "No coverage data available.",
+			Limitations: []string{"Provide labeled coverage artifacts (--coverage unit:path, --coverage e2e:path) for coverage-by-type analysis."},
+		}
+	}
+
+	total := snap.CoverageSummary.TotalCodeUnits
+	e2eOnly := snap.CoverageSummary.CoveredOnlyByE2E
+	ratio := float64(e2eOnly) / float64(total)
+	band := ratioToBand(ratio, 0.05, 0.15, 0.30)
+
+	return Result{
+		ID: "coverage_diversity.e2e_only_units", Dimension: DimensionCoverageDiversity,
+		Value: ratio, Units: UnitsRatio, Band: band,
+		Evidence:    EvidenceStrong,
+		Explanation: fmt.Sprintf("%d of %d code unit(s) covered only by e2e tests (%.0f%%).", e2eOnly, total, ratio*100),
+		Inputs:      []string{"coverageSummary"},
+	}
+}
+
+func computeUnitTestCoverage(snap *models.TestSuiteSnapshot) Result {
+	if snap.CoverageSummary == nil || snap.CoverageSummary.TotalCodeUnits == 0 {
+		return Result{
+			ID: "coverage_diversity.unit_test_coverage", Dimension: DimensionCoverageDiversity,
+			Value: 0, Units: UnitsRatio, Band: "unknown",
+			Evidence:    EvidenceNone,
+			Explanation: "No coverage data available.",
+			Limitations: []string{"Provide labeled coverage artifacts for coverage-by-type analysis."},
+		}
+	}
+
+	total := snap.CoverageSummary.TotalCodeUnits
+	covered := snap.CoverageSummary.CoveredByUnitTests
+	ratio := float64(covered) / float64(total)
+
+	// For unit test coverage, higher is better — invert the band logic.
+	band := "strong"
+	if ratio < 0.50 {
+		band = "weak"
+	} else if ratio < 0.70 {
+		band = "moderate"
+	}
+
+	return Result{
+		ID: "coverage_diversity.unit_test_coverage", Dimension: DimensionCoverageDiversity,
+		Value: ratio, Units: UnitsRatio, Band: band,
+		Evidence:    EvidenceStrong,
+		Explanation: fmt.Sprintf("%d of %d code unit(s) covered by unit tests (%.0f%%).", covered, total, ratio*100),
+		Inputs:      []string{"coverageSummary"},
 	}
 }

@@ -39,6 +39,29 @@ type Export struct {
 	// PostureBands contains per-dimension posture bands from the measurement layer.
 	// Privacy-safe: only band values, no raw data.
 	PostureBands map[string]string `json:"postureBands,omitempty"`
+
+	// CoverageByType contains privacy-safe coverage-by-type aggregates.
+	// Only percentages and counts — no file paths or symbol names.
+	CoverageByType *CoverageByTypeAggregate `json:"coverageByType,omitempty"`
+
+	// TestIdentityStats contains privacy-safe test identity aggregates.
+	TestIdentityStats *TestIdentityAggregate `json:"testIdentityStats,omitempty"`
+}
+
+// CoverageByTypeAggregate holds privacy-safe coverage-by-type percentages.
+type CoverageByTypeAggregate struct {
+	TotalCodeUnits        int     `json:"totalCodeUnits"`
+	UnitTestCoveragePct   float64 `json:"unitTestCoveragePct"`
+	E2EOnlyCoveragePct    float64 `json:"e2eOnlyCoveragePct"`
+	UncoveredExportedPct  float64 `json:"uncoveredExportedPct"`
+	CoverageDiversityBand string  `json:"coverageDiversityBand"`
+}
+
+// TestIdentityAggregate holds privacy-safe test identity statistics.
+type TestIdentityAggregate struct {
+	TotalTestCases    int                `json:"totalTestCases"`
+	TypeDistribution  map[string]float64 `json:"typeDistribution,omitempty"`
+	HealthSignalCount int                `json:"healthSignalCount"`
 }
 
 // Segment contains tags that allow meaningful benchmark grouping.
@@ -73,7 +96,7 @@ type Segment struct {
 // BuildExport creates a benchmark-safe Export from a snapshot and derived metrics.
 func BuildExport(snap *models.TestSuiteSnapshot, ms *metrics.Snapshot, hasPolicy bool) *Export {
 	e := &Export{
-		SchemaVersion: "2",
+		SchemaVersion: "3",
 		ExportedAt:    time.Now().UTC(),
 		Segment:       buildSegment(snap, ms, hasPolicy),
 		Metrics:       *ms,
@@ -87,6 +110,69 @@ func BuildExport(snap *models.TestSuiteSnapshot, ms *metrics.Snapshot, hasPolicy
 		}
 		if len(bands) > 0 {
 			e.PostureBands = bands
+		}
+	}
+
+	// Include coverage-by-type aggregates (privacy-safe).
+	if snap.CoverageSummary != nil && snap.CoverageSummary.TotalCodeUnits > 0 {
+		cs := snap.CoverageSummary
+		total := float64(cs.TotalCodeUnits)
+		agg := &CoverageByTypeAggregate{
+			TotalCodeUnits:      cs.TotalCodeUnits,
+			UnitTestCoveragePct: float64(cs.CoveredByUnitTests) / total * 100,
+			E2EOnlyCoveragePct:  float64(cs.CoveredOnlyByE2E) / total * 100,
+		}
+		exported := 0
+		for _, cu := range snap.CodeUnits {
+			if cu.Exported {
+				exported++
+			}
+		}
+		if exported > 0 {
+			agg.UncoveredExportedPct = float64(cs.UncoveredExported) / float64(exported) * 100
+		}
+		// Derive diversity band from e2e-only share.
+		e2eRatio := float64(cs.CoveredOnlyByE2E) / total
+		switch {
+		case e2eRatio <= 0.05:
+			agg.CoverageDiversityBand = "strong"
+		case e2eRatio <= 0.15:
+			agg.CoverageDiversityBand = "moderate"
+		case e2eRatio <= 0.30:
+			agg.CoverageDiversityBand = "weak"
+		default:
+			agg.CoverageDiversityBand = "critical"
+		}
+		e.CoverageByType = agg
+	}
+
+	// Include test identity aggregates (privacy-safe).
+	if len(snap.TestCases) > 0 {
+		typeCounts := map[string]int{}
+		for _, tc := range snap.TestCases {
+			if tc.TestType != "" {
+				typeCounts[tc.TestType]++
+			}
+		}
+		total := float64(len(snap.TestCases))
+		dist := make(map[string]float64, len(typeCounts))
+		for t, c := range typeCounts {
+			dist[t] = float64(c) / total * 100
+		}
+
+		healthCount := 0
+		for _, s := range snap.Signals {
+			if s.Category == models.CategoryHealth {
+				if _, ok := s.Metadata["testId"]; ok {
+					healthCount++
+				}
+			}
+		}
+
+		e.TestIdentityStats = &TestIdentityAggregate{
+			TotalTestCases:    len(snap.TestCases),
+			TypeDistribution:  dist,
+			HealthSignalCount: healthCount,
 		}
 	}
 

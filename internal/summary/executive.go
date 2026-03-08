@@ -191,6 +191,20 @@ func Build(in *BuildInput) *ExecutiveSummary {
 
 	es.Recommendations = buildRecommendations(in.Snapshot, in.Heatmap)
 	es.BlindSpots = buildBlindSpots(in.Snapshot, in.Metrics)
+
+	// Enrich recommendations with coverage-by-type and test identity findings.
+	es.Recommendations = appendCoverageRecommendations(es.Recommendations, in.Snapshot)
+
+	// Re-sort and re-number after enrichment.
+	sort.SliceStable(es.Recommendations, func(i, j int) bool {
+		si := evidenceOrder(es.Recommendations[i].EvidenceStrength)
+		sj := evidenceOrder(es.Recommendations[j].EvidenceStrength)
+		return si > sj
+	})
+	for i := range es.Recommendations {
+		es.Recommendations[i].Priority = i + 1
+	}
+
 	es.RecommendedFocus = buildRecommendedFocus(es)
 
 	return es
@@ -625,4 +639,76 @@ func bandOrder(b models.RiskBand) int {
 	default:
 		return 0
 	}
+}
+
+// appendCoverageRecommendations adds recommendations derived from
+// coverage-by-type data and test identity when available.
+func appendCoverageRecommendations(recs []Recommendation, snap *models.TestSuiteSnapshot) []Recommendation {
+	cs := snap.CoverageSummary
+	if cs == nil {
+		return recs
+	}
+
+	// Recommend adding unit tests for e2e-only code units.
+	if cs.CoveredOnlyByE2E > 0 {
+		recs = append(recs, Recommendation{
+			What:             fmt.Sprintf("Add unit tests for %d code unit(s) covered only by e2e tests", cs.CoveredOnlyByE2E),
+			Why:              "Code covered only by e2e tests has no fast feedback loop. Failures are expensive to diagnose.",
+			Where:            "see coverage insights for specific functions",
+			EvidenceStrength: models.EvidenceStrong,
+		})
+	}
+
+	// Recommend covering uncovered exported functions.
+	if cs.UncoveredExported > 0 {
+		recs = append(recs, Recommendation{
+			What:             fmt.Sprintf("Add test coverage for %d uncovered exported function(s)", cs.UncoveredExported),
+			Why:              "Public API surface without tests risks silent regressions.",
+			Where:            "see untestedExport signals for specific functions",
+			EvidenceStrength: models.EvidenceStrong,
+		})
+	}
+
+	// Recommend improving coverage diversity when unit test coverage is low.
+	if cs.TotalCodeUnits > 0 && cs.CoveredByUnitTests > 0 {
+		unitRatio := float64(cs.CoveredByUnitTests) / float64(cs.TotalCodeUnits)
+		if unitRatio < 0.40 {
+			recs = append(recs, Recommendation{
+				What:             fmt.Sprintf("Increase unit test coverage (currently %.0f%% of code units)", unitRatio*100),
+				Why:              "Low unit test coverage means most validation depends on slower, broader tests.",
+				Where:            "prioritize exported functions and high-complexity modules",
+				EvidenceStrength: models.EvidenceStrong,
+			})
+		}
+	}
+
+	// Surface concentrated health instability from test identity data.
+	healthByTest := map[string]int{}
+	for _, s := range snap.Signals {
+		if s.Category != models.CategoryHealth {
+			continue
+		}
+		if testID, ok := s.Metadata["testId"].(string); ok && testID != "" {
+			healthByTest[testID]++
+		}
+	}
+	if len(healthByTest) > 0 {
+		// Find the test with most health signals.
+		maxCount := 0
+		for _, c := range healthByTest {
+			if c > maxCount {
+				maxCount = c
+			}
+		}
+		if maxCount >= 2 {
+			recs = append(recs, Recommendation{
+				What:             fmt.Sprintf("Investigate %d test(s) with concentrated instability", len(healthByTest)),
+				Why:              "Health signals (slow, flaky, skipped) cluster around specific persistent tests.",
+				Where:            "see health signals with testId metadata for specific tests",
+				EvidenceStrength: models.EvidenceStrong,
+			})
+		}
+	}
+
+	return recs
 }

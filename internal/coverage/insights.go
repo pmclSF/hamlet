@@ -46,6 +46,13 @@ func DeriveInsights(typeCov []TypeCoverage, units []models.CodeUnit) []CoverageI
 			onlyE2E = append(onlyE2E, tc)
 		}
 	}
+	// Sort for deterministic top-5 selection.
+	sort.Slice(onlyE2E, func(i, j int) bool {
+		if onlyE2E[i].Path != onlyE2E[j].Path {
+			return onlyE2E[i].Path < onlyE2E[j].Path
+		}
+		return onlyE2E[i].UnitID < onlyE2E[j].UnitID
+	})
 	if len(onlyE2E) > 0 {
 		insights = append(insights, CoverageInsight{
 			Type:        "only_e2e_coverage",
@@ -81,6 +88,13 @@ func DeriveInsights(typeCov []TypeCoverage, units []models.CodeUnit) []CoverageI
 			uncoveredExported = append(uncoveredExported, tc)
 		}
 	}
+	// Sort for deterministic top-5 selection.
+	sort.Slice(uncoveredExported, func(i, j int) bool {
+		if uncoveredExported[i].Path != uncoveredExported[j].Path {
+			return uncoveredExported[i].Path < uncoveredExported[j].Path
+		}
+		return uncoveredExported[i].UnitID < uncoveredExported[j].UnitID
+	})
 	if len(uncoveredExported) > 0 {
 		insights = append(insights, CoverageInsight{
 			Type:        "uncovered_exported",
@@ -130,7 +144,10 @@ func DeriveInsights(typeCov []TypeCoverage, units []models.CodeUnit) []CoverageI
 		}
 	}
 	sort.Slice(riskyFiles, func(i, j int) bool {
-		return riskyFiles[i].e2eOnly > riskyFiles[j].e2eOnly
+		if riskyFiles[i].e2eOnly != riskyFiles[j].e2eOnly {
+			return riskyFiles[i].e2eOnly > riskyFiles[j].e2eOnly
+		}
+		return riskyFiles[i].path < riskyFiles[j].path
 	})
 	limit := 3
 	if len(riskyFiles) < limit {

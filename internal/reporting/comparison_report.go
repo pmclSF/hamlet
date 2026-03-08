@@ -119,4 +119,59 @@ func RenderComparisonReport(w io.Writer, comp *comparison.SnapshotComparison) {
 		}
 		blank()
 	}
+
+	// Test case identity changes
+	if comp.TestCaseDeltas != nil {
+		tcd := comp.TestCaseDeltas
+		if tcd.Added > 0 || tcd.Removed > 0 {
+			line("Test Identity Changes")
+			line(strings.Repeat("-", 40))
+			line("  Added:   %d", tcd.Added)
+			line("  Removed: %d", tcd.Removed)
+			line("  Stable:  %d", tcd.Stable)
+			if len(tcd.AddedExamples) > 0 {
+				line("  New tests:")
+				for _, ex := range tcd.AddedExamples {
+					line("    + %s", ex)
+				}
+			}
+			if len(tcd.RemovedExamples) > 0 {
+				line("  Removed tests:")
+				for _, ex := range tcd.RemovedExamples {
+					line("    - %s", ex)
+				}
+			}
+			blank()
+		}
+	}
+
+	// Coverage trend
+	if comp.CoverageDelta != nil {
+		cd := comp.CoverageDelta
+		hasDelta := cd.LineCoverageDelta != 0 ||
+			cd.UncoveredExportedBefore != cd.UncoveredExportedAfter ||
+			cd.CoveredOnlyByE2EBefore != cd.CoveredOnlyByE2EAfter
+
+		if hasDelta {
+			line("Coverage Trend")
+			line(strings.Repeat("-", 40))
+			if cd.LineCoverageDelta != 0 {
+				sign := "+"
+				if cd.LineCoverageDelta < 0 {
+					sign = ""
+				}
+				line("  Line coverage:       %.1f%% → %.1f%% (%s%.1f%%)", cd.LineCoverageBefore, cd.LineCoverageAfter, sign, cd.LineCoverageDelta)
+			}
+			if cd.UncoveredExportedBefore != cd.UncoveredExportedAfter {
+				line("  Uncovered exports:   %d → %d", cd.UncoveredExportedBefore, cd.UncoveredExportedAfter)
+			}
+			if cd.CoveredOnlyByE2EBefore != cd.CoveredOnlyByE2EAfter {
+				line("  E2E-only coverage:   %d → %d", cd.CoveredOnlyByE2EBefore, cd.CoveredOnlyByE2EAfter)
+			}
+			if cd.UnitTestCoverageBefore != cd.UnitTestCoverageAfter {
+				line("  Unit test coverage:  %d → %d units", cd.UnitTestCoverageBefore, cd.UnitTestCoverageAfter)
+			}
+			blank()
+		}
+	}
 }

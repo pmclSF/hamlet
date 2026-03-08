@@ -376,6 +376,15 @@ func computeCoverageGuidance(areas []AreaAssessment, snap *models.TestSuiteSnaps
 		}
 	}
 
+	// Build a set of directories with e2e-only coverage from insights.
+	e2eOnlyDirs := map[string]int{}
+	for _, ci := range snap.CoverageInsights {
+		if ci.Type == "e2e_only_coverage" && ci.Path != "" {
+			dir := filepath.Dir(ci.Path)
+			e2eOnlyDirs[dir]++
+		}
+	}
+
 	var guidance []CoverageGuidanceItem
 
 	for _, area := range areas {
@@ -394,6 +403,11 @@ func computeCoverageGuidance(areas []AreaAssessment, snap *models.TestSuiteSnaps
 		if count, ok := untestedDirs[area.Directory]; ok && count > 0 {
 			priority = "high"
 			reasons = append(reasons, fmt.Sprintf("%d untested export(s) in migration target", count))
+		}
+
+		if count, ok := e2eOnlyDirs[area.Directory]; ok && count > 0 {
+			priority = "high"
+			reasons = append(reasons, fmt.Sprintf("%d code unit(s) covered only by e2e — no fast feedback during migration", count))
 		}
 
 		if area.MigrationBlockers > 0 && area.QualityIssues == 0 {

@@ -25,7 +25,10 @@ func SortSnapshot(snap *TestSuiteSnapshot) {
 	})
 
 	sort.Slice(snap.TestCases, func(i, j int) bool {
-		return snap.TestCases[i].TestID < snap.TestCases[j].TestID
+		if snap.TestCases[i].TestID != snap.TestCases[j].TestID {
+			return snap.TestCases[i].TestID < snap.TestCases[j].TestID
+		}
+		return snap.TestCases[i].FilePath < snap.TestCases[j].FilePath
 	})
 
 	sort.Slice(snap.CodeUnits, func(i, j int) bool {

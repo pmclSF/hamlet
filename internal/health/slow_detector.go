@@ -40,6 +40,14 @@ func (d *SlowTestDetector) Detect(results []runtime.TestResult) []models.Signal 
 		}
 		if r.DurationMs > threshold {
 			sev := slowSeverity(r.DurationMs, threshold)
+			meta := map[string]any{
+				"durationMs":  r.DurationMs,
+				"thresholdMs": threshold,
+				"suite":       r.Suite,
+			}
+			if r.TestID != "" {
+				meta["testId"] = r.TestID
+			}
 			signals = append(signals, models.Signal{
 				Type:     "slowTest",
 				Category: models.CategoryHealth,
@@ -56,11 +64,7 @@ func (d *SlowTestDetector) Detect(results []runtime.TestResult) []models.Signal 
 				SuggestedAction: "Reduce fixture/setup cost, split expensive scenarios, or isolate integration-heavy behavior.",
 				EvidenceStrength: models.EvidenceStrong,
 				EvidenceSource:   models.SourceRuntime,
-				Metadata: map[string]any{
-					"durationMs":  r.DurationMs,
-					"thresholdMs": threshold,
-					"suite":       r.Suite,
-				},
+				Metadata: meta,
 			})
 		}
 	}

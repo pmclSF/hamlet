@@ -186,6 +186,9 @@ func ingestRuntime(snapshot *models.TestSuiteSnapshot, paths []string, slowThres
 		return nil
 	}
 
+	// Resolve stable test IDs by joining runtime results to extracted test cases.
+	runtime.ResolveTestIDs(allResults, snapshot.TestCases)
+
 	// Apply runtime stats to matching test files.
 	updates := make([]runtime.TestFileUpdate, len(snapshot.TestFiles))
 	for i, tf := range snapshot.TestFiles {
