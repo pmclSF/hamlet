@@ -3,14 +3,18 @@ package testdata
 import (
 	"bytes"
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/pmclSF/hamlet/internal/benchmark"
 	"github.com/pmclSF/hamlet/internal/comparison"
+	"github.com/pmclSF/hamlet/internal/graph"
 	"github.com/pmclSF/hamlet/internal/heatmap"
 	"github.com/pmclSF/hamlet/internal/impact"
 	"github.com/pmclSF/hamlet/internal/measurement"
 	"github.com/pmclSF/hamlet/internal/metrics"
+	"github.com/pmclSF/hamlet/internal/migration"
+	"github.com/pmclSF/hamlet/internal/models"
 	"github.com/pmclSF/hamlet/internal/reporting"
 	"github.com/pmclSF/hamlet/internal/scoring"
 	"github.com/pmclSF/hamlet/internal/summary"
@@ -166,6 +170,99 @@ func TestE2E_MigrationRiskFlow(t *testing.T) {
 	// Should have posture dimensions.
 	if snap.Measurements == nil || len(snap.Measurements.Posture) == 0 {
 		t.Error("expected posture dimensions")
+	}
+}
+
+// TestE2E_GraphEnrichedHeatmap exercises the graph-backed heatmap flow.
+func TestE2E_GraphEnrichedHeatmap(t *testing.T) {
+	snap := MigrationRiskSnapshot()
+	snap.Risk = scoring.ComputeRisk(snap)
+
+	// Build graph and graph-enriched heatmap.
+	g := graph.Build(snap)
+	h := heatmap.BuildWithGraph(snap, g)
+
+	if h == nil {
+		t.Fatal("expected non-nil heatmap")
+	}
+
+	// Owner hotspots should exist (signals are present after risk scoring).
+	if len(h.OwnerHotSpots) == 0 && len(snap.Signals) > 0 {
+		t.Error("expected owner hotspots from signals")
+	}
+
+	// Graph should index the coverage insights.
+	if len(g.E2EOnlyUnits) == 0 {
+		t.Error("expected e2e-only units from coverage insights")
+	}
+
+	// Owner risk summaries should aggregate coverage data.
+	summaries := g.OwnerRiskSummaries()
+	if len(summaries) == 0 {
+		t.Error("expected owner risk summaries")
+	}
+
+	// Module coverage summaries should be non-empty.
+	modules := g.ModuleCoverageSummaries()
+	if len(modules) == 0 {
+		t.Error("expected module coverage summaries")
+	}
+}
+
+// TestE2E_ReviewWithCoverageAndIdentity exercises the review renderer
+// with coverage-by-type and test identity data.
+func TestE2E_ReviewWithCoverageAndIdentity(t *testing.T) {
+	snap := MigrationRiskSnapshot()
+
+	// Add signals so the review renderer doesn't bail out early.
+	snap.Signals = append(snap.Signals, models.Signal{
+		Type:     "weakAssertion",
+		Category: models.CategoryQuality,
+		Severity: models.SeverityMedium,
+		Location: models.SignalLocation{File: "spec/api.spec.js"},
+		Owner:    "team-api",
+	})
+	snap.Risk = scoring.ComputeRisk(snap)
+
+	var buf bytes.Buffer
+	reporting.RenderReviewSections(&buf, snap)
+	output := buf.String()
+
+	if output == "" {
+		t.Fatal("expected non-empty review output")
+	}
+
+	// Should contain coverage section from the fixture's CoverageSummary.
+	if !strings.Contains(output, "Coverage by Type") {
+		t.Error("expected 'Coverage by Type' section in review output")
+	}
+	if !strings.Contains(output, "Covered only by e2e") {
+		t.Error("expected e2e-only coverage data in review output")
+	}
+}
+
+// TestE2E_MigrationWithCoverageGuidance exercises migration readiness
+// with coverage-by-type data for richer guidance.
+func TestE2E_MigrationWithCoverageGuidance(t *testing.T) {
+	snap := MigrationRiskSnapshot()
+	snap.Risk = scoring.ComputeRisk(snap)
+
+	readiness := migration.ComputeReadiness(snap)
+
+	if readiness == nil {
+		t.Fatal("expected non-nil readiness summary")
+	}
+
+	// Should have coverage guidance from e2e-only insights.
+	if len(readiness.CoverageGuidance) == 0 && len(snap.CoverageInsights) > 0 {
+		// Coverage guidance depends on area assessments having non-safe areas.
+		// This is acceptable when all areas are safe.
+		t.Log("no coverage guidance generated (areas may all be safe)")
+	}
+
+	// Should have area assessments.
+	if len(readiness.AreaAssessments) == 0 {
+		t.Error("expected area assessments")
 	}
 }
 

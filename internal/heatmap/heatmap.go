@@ -8,6 +8,7 @@ package heatmap
 import (
 	"sort"
 
+	"github.com/pmclSF/hamlet/internal/graph"
 	"github.com/pmclSF/hamlet/internal/models"
 )
 
@@ -30,6 +31,18 @@ type HotSpot struct {
 
 	// TopSignalTypes lists the most frequent signal types in this area.
 	TopSignalTypes []string `json:"topSignalTypes"`
+
+	// UncoveredExported is the count of exported code units with no coverage.
+	// Populated when the graph is available.
+	UncoveredExported int `json:"uncoveredExported,omitempty"`
+
+	// E2EOnlyUnits is the count of code units covered only by e2e tests.
+	// Populated when the graph is available.
+	E2EOnlyUnits int `json:"e2eOnlyUnits,omitempty"`
+
+	// HealthSignals is the count of health-category signals (flaky, slow, skipped).
+	// Populated when the graph is available.
+	HealthSignals int `json:"healthSignals,omitempty"`
 }
 
 // Heatmap is the full risk concentration model.
@@ -57,7 +70,18 @@ type Heatmap struct {
 }
 
 // Build creates a Heatmap from a TestSuiteSnapshot.
+// For richer owner hotspots with coverage data, use BuildWithGraph.
 func Build(snap *models.TestSuiteSnapshot) *Heatmap {
+	return buildHeatmap(snap, nil)
+}
+
+// BuildWithGraph creates a Heatmap enriched with graph-derived coverage
+// and health data for owner hotspots.
+func BuildWithGraph(snap *models.TestSuiteSnapshot, g *graph.Graph) *Heatmap {
+	return buildHeatmap(snap, g)
+}
+
+func buildHeatmap(snap *models.TestSuiteSnapshot, g *graph.Graph) *Heatmap {
 	h := &Heatmap{}
 
 	// Extract directory hotspots from risk surfaces.
@@ -100,6 +124,22 @@ func Build(snap *models.TestSuiteSnapshot) *Heatmap {
 			TopSignalTypes: topTypes(sigs, 3),
 		})
 	}
+	// Enrich owner hotspots with graph data when available.
+	if g != nil {
+		ownerSummaries := g.OwnerRiskSummaries()
+		summaryMap := make(map[string]*graph.OwnerRiskSummary, len(ownerSummaries))
+		for i := range ownerSummaries {
+			summaryMap[ownerSummaries[i].Owner] = &ownerSummaries[i]
+		}
+		for i := range h.OwnerHotSpots {
+			if s, ok := summaryMap[h.OwnerHotSpots[i].Name]; ok {
+				h.OwnerHotSpots[i].UncoveredExported = s.UncoveredExported
+				h.OwnerHotSpots[i].E2EOnlyUnits = s.E2EOnlyUnits
+				h.OwnerHotSpots[i].HealthSignals = s.HealthSignals
+			}
+		}
+	}
+
 	sort.Slice(h.OwnerHotSpots, func(i, j int) bool {
 		if h.OwnerHotSpots[i].Score != h.OwnerHotSpots[j].Score {
 			return h.OwnerHotSpots[i].Score > h.OwnerHotSpots[j].Score

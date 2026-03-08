@@ -170,4 +170,56 @@ func RenderReviewSections(w io.Writer, snap *models.TestSuiteSnapshot) {
 		}
 		blank()
 	}
+
+	// Coverage by type summary
+	if snap.CoverageSummary != nil {
+		cs := snap.CoverageSummary
+		line("Coverage by Type")
+		line(strings.Repeat("-", 40))
+		if cs.TotalCodeUnits > 0 {
+			line("  Total code units:          %d", cs.TotalCodeUnits)
+			line("  Covered by unit tests:     %d", cs.CoveredByUnitTests)
+			line("  Covered by e2e:            %d", cs.CoveredByE2E)
+			line("  Covered only by e2e:       %d", cs.CoveredOnlyByE2E)
+			line("  Uncovered exported:        %d", cs.UncoveredExported)
+		}
+		if cs.LineCoveragePct > 0 {
+			line("  Line coverage:             %.1f%%", cs.LineCoveragePct)
+		}
+		blank()
+	}
+
+	// Test identity summary
+	if len(snap.TestCases) > 0 {
+		line("Test Identity")
+		line(strings.Repeat("-", 40))
+		typeCounts := map[string]int{}
+		for _, tc := range snap.TestCases {
+			t := tc.TestType
+			if t == "" {
+				t = "unknown"
+			}
+			typeCounts[t]++
+		}
+		line("  Total test cases:          %d", len(snap.TestCases))
+		for _, tt := range []string{"unit", "integration", "e2e", "unknown"} {
+			if c, ok := typeCounts[tt]; ok {
+				line("  %-28s %d", tt+":", c)
+			}
+		}
+
+		// Health signals with test ID
+		testIDCount := 0
+		for _, s := range snap.Signals {
+			if s.Category == models.CategoryHealth {
+				if _, ok := s.Metadata["testId"].(string); ok {
+					testIDCount++
+				}
+			}
+		}
+		if testIDCount > 0 {
+			line("  Health signals with testId: %d", testIDCount)
+		}
+		blank()
+	}
 }
