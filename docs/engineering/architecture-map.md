@@ -143,7 +143,7 @@ internal/
   metrics/           Aggregate metric derivation
   migration/         Migration detectors, readiness model, preview boundary
   models/            Canonical data models (Signal, Snapshot, Risk, Framework, etc.)
-  ownership/         Ownership resolution (CODEOWNERS, config, directory fallback)
+  ownership/         Ownership resolution (CODEOWNERS, config, optional git history, directory fallback)
   policy/            Policy config model and YAML loader
   quality/           Quality signal detectors
   reporting/         Human-readable report renderers

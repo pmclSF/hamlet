@@ -112,6 +112,15 @@ type TestSuiteSnapshot struct {
 	// CoverageInsights holds actionable findings derived from coverage analysis.
 	CoverageInsights []CoverageInsight `json:"coverageInsights,omitempty"`
 
+	// ImportGraph maps test file paths to their resolved source module imports.
+	// Used by quality detectors for precise test-to-code linkage.
+	// Omitted from JSON output to keep snapshots compact.
+	ImportGraph map[string]map[string]bool `json:"-"`
+
+	// DataSources tracks which data sources were attempted during analysis,
+	// whether they succeeded, and what impact their absence has on results.
+	DataSources []DataSource `json:"dataSources,omitempty"`
+
 	Ownership map[string][]string `json:"ownership,omitempty"`
 
 	Policies map[string]any `json:"policies,omitempty"`
@@ -120,6 +129,28 @@ type TestSuiteSnapshot struct {
 
 	GeneratedAt time.Time `json:"generatedAt"`
 }
+
+// DataSource tracks the status of a data source attempted during analysis.
+type DataSource struct {
+	// Name identifies the data source (e.g. "runtime", "coverage", "policy").
+	Name string `json:"name"`
+
+	// Status is "available", "unavailable", or "error".
+	Status string `json:"status"`
+
+	// Detail provides context (path attempted, error message, etc.).
+	Detail string `json:"detail,omitempty"`
+
+	// Impact describes what analysis is affected by this source's absence.
+	Impact string `json:"impact,omitempty"`
+}
+
+// DataSource status constants.
+const (
+	DataSourceAvailable   = "available"
+	DataSourceUnavailable = "unavailable"
+	DataSourceError       = "error"
+)
 
 // CoverageSummary holds aggregated coverage statistics for the snapshot.
 type CoverageSummary struct {

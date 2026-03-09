@@ -134,6 +134,106 @@ func RenderImpactTests(w io.Writer, result *impact.ImpactResult) {
 	}
 }
 
+// RenderImpactGraph writes a summary of the impact graph.
+func RenderImpactGraph(w io.Writer, result *impact.ImpactResult) {
+	line := func(format string, args ...any) { fmt.Fprintf(w, format+"\n", args...) }
+	blank := func() { fmt.Fprintln(w) }
+
+	line("Impact Graph")
+	line(strings.Repeat("=", 60))
+	blank()
+
+	if result.Graph == nil {
+		line("  No impact graph available.")
+		blank()
+		return
+	}
+
+	g := result.Graph
+	line("  Total edges:      %d", g.Stats.TotalEdges)
+	line("  Exact edges:      %d", g.Stats.ExactEdges)
+	line("  Inferred edges:   %d", g.Stats.InferredEdges)
+	line("  Weak edges:       %d", g.Stats.WeakEdges)
+	line("  Connected units:  %d", g.Stats.ConnectedUnits)
+	line("  Isolated units:   %d", g.Stats.IsolatedUnits)
+	line("  Connected tests:  %d", g.Stats.ConnectedTests)
+	blank()
+
+	// Show edges for impacted units.
+	if len(result.ImpactedUnits) > 0 {
+		line("Edges for impacted units")
+		line(strings.Repeat("-", 60))
+		for _, iu := range result.ImpactedUnits {
+			edges := g.EdgesForUnit(iu.UnitID)
+			if len(edges) == 0 {
+				line("  %-30s (no edges)", iu.Name)
+				continue
+			}
+			line("  %s", iu.Name)
+			for _, e := range edges {
+				line("    -> %-40s [%s] %s", e.TargetID, e.Confidence, e.Kind)
+			}
+		}
+		blank()
+	}
+
+	line("Next: hamlet impact --show units   view impacted code units")
+	blank()
+}
+
+// RenderProtectiveSet writes the enhanced protective test set.
+func RenderProtectiveSet(w io.Writer, result *impact.ImpactResult) {
+	line := func(format string, args ...any) { fmt.Fprintf(w, format+"\n", args...) }
+	blank := func() { fmt.Fprintln(w) }
+
+	line("Protective Test Set")
+	line(strings.Repeat("=", 60))
+	blank()
+
+	if result.ProtectiveSet == nil || len(result.ProtectiveSet.Tests) == 0 {
+		line("  No protective tests identified.")
+		blank()
+		return
+	}
+
+	ps := result.ProtectiveSet
+	line("  Strategy:   %s", ps.SetKind)
+	line("  Tests:      %d", len(ps.Tests))
+	line("  Covered:    %d unit(s)", ps.CoveredUnitCount)
+	line("  Uncovered:  %d unit(s)", ps.UncoveredUnitCount)
+	blank()
+
+	line("  %s", ps.Explanation)
+	blank()
+
+	line("Selected Tests")
+	line(strings.Repeat("-", 60))
+	for _, t := range ps.Tests {
+		changed := ""
+		if t.IsDirectlyChanged {
+			changed = " [changed]"
+		}
+		line("  %s  [%s]%s", t.Path, t.ImpactConfidence, changed)
+		for _, r := range t.Reasons {
+			if r.CodeUnitID != "" {
+				line("    - %s (%s)", r.Reason, r.CodeUnitID)
+			} else {
+				line("    - %s", r.Reason)
+			}
+		}
+	}
+	blank()
+
+	if ps.UncoveredUnitCount > 0 {
+		line("Warning: %d impacted unit(s) have no covering tests in the selected set.", ps.UncoveredUnitCount)
+		line("Consider adding tests or running the full suite.")
+		blank()
+	}
+
+	line("Next: hamlet impact --show gaps   view protection gaps")
+	blank()
+}
+
 // RenderImpactOwners writes a focused view of impacted owners.
 func RenderImpactOwners(w io.Writer, result *impact.ImpactResult) {
 	line := func(format string, args ...any) { fmt.Fprintf(w, format+"\n", args...) }

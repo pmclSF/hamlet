@@ -3,7 +3,10 @@ package impact
 import (
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
+
+	"github.com/pmclSF/hamlet/internal/models"
 )
 
 // ChangeScopeFromGitDiff creates a ChangeScope from git diff against a base ref.
@@ -115,4 +118,109 @@ func isTestFilePath(path string) bool {
 		}
 	}
 	return false
+}
+
+// ChangeScopeFromCIList creates a ChangeScope from a newline-separated list
+// of changed file paths, as typically provided by CI systems.
+// All files are treated as modified unless they match known patterns.
+func ChangeScopeFromCIList(fileList string, repoRoot string) *ChangeScope {
+	scope := &ChangeScope{
+		Source: "ci-changed-files",
+	}
+
+	for _, line := range strings.Split(strings.TrimSpace(fileList), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+
+		// Normalize to repo-relative path.
+		path := line
+		if filepath.IsAbs(path) && repoRoot != "" {
+			rel, err := filepath.Rel(repoRoot, path)
+			if err == nil {
+				path = rel
+			}
+		}
+		// Clean path separators.
+		path = filepath.ToSlash(filepath.Clean(path))
+
+		scope.ChangedFiles = append(scope.ChangedFiles, ChangedFile{
+			Path:       path,
+			ChangeKind: ChangeModified,
+			IsTestFile: isTestFilePath(path),
+		})
+	}
+
+	return scope
+}
+
+// ChangeScopeFromComparison creates a ChangeScope by comparing two snapshots.
+// It identifies files that were added, removed, or modified between snapshots
+// by comparing test file and code unit inventories.
+func ChangeScopeFromComparison(from, to *models.TestSuiteSnapshot) *ChangeScope {
+	scope := &ChangeScope{
+		Source: "snapshot-compare",
+	}
+
+	if from == nil || to == nil {
+		return scope
+	}
+
+	// Collect all file paths from both snapshots.
+	fromFiles := collectSnapshotFiles(from)
+	toFiles := collectSnapshotFiles(to)
+
+	// Find added files (in to but not from).
+	for path := range toFiles {
+		if !fromFiles[path] {
+			scope.ChangedFiles = append(scope.ChangedFiles, ChangedFile{
+				Path:       path,
+				ChangeKind: ChangeAdded,
+				IsTestFile: isTestFilePath(path),
+			})
+		}
+	}
+
+	// Find deleted files (in from but not to).
+	for path := range fromFiles {
+		if !toFiles[path] {
+			scope.ChangedFiles = append(scope.ChangedFiles, ChangedFile{
+				Path:       path,
+				ChangeKind: ChangeDeleted,
+				IsTestFile: isTestFilePath(path),
+			})
+		}
+	}
+
+	// Files in both are assumed modified (we can't know without content diff).
+	for path := range toFiles {
+		if fromFiles[path] {
+			scope.ChangedFiles = append(scope.ChangedFiles, ChangedFile{
+				Path:       path,
+				ChangeKind: ChangeModified,
+				IsTestFile: isTestFilePath(path),
+			})
+		}
+	}
+
+	// Sort for determinism.
+	sort.Slice(scope.ChangedFiles, func(i, j int) bool {
+		return scope.ChangedFiles[i].Path < scope.ChangedFiles[j].Path
+	})
+
+	return scope
+}
+
+// collectSnapshotFiles collects all unique file paths from a snapshot's
+// test files and code units.
+func collectSnapshotFiles(snap *models.TestSuiteSnapshot) map[string]bool {
+	files := map[string]bool{}
+	for _, tf := range snap.TestFiles {
+		files[tf.Path] = true
+	}
+	for _, cu := range snap.CodeUnits {
+		files[cu.Path] = true
+	}
+	return files
 }

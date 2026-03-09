@@ -540,29 +540,29 @@ func computeFragmentation(owners []OwnerAggregate, totalSignals int) float64 {
 	if totalSignals == 0 || len(owners) <= 1 {
 		return 0
 	}
-	// Count owners with signals.
-	activeOwners := 0
+	// Collect signal counts for active owners, sorted for deterministic
+	// floating-point accumulation regardless of input order.
+	var counts []int
 	for _, o := range owners {
 		if o.SignalCount > 0 {
-			activeOwners++
+			counts = append(counts, o.SignalCount)
 		}
 	}
-	if activeOwners <= 1 {
+	if len(counts) <= 1 {
 		return 0
 	}
+	sort.Ints(counts)
 
 	// Normalized Herfindahl index (inverted so higher = more fragmented).
 	total := float64(totalSignals)
 	sumSquares := 0.0
-	for _, o := range owners {
-		if o.SignalCount > 0 {
-			share := float64(o.SignalCount) / total
-			sumSquares += share * share
-		}
+	for _, c := range counts {
+		share := float64(c) / total
+		sumSquares += share * share
 	}
 	// HHI ranges from 1/n (perfectly even) to 1 (all in one).
 	// Normalize: 0 = concentrated, 1 = perfectly even.
-	minHHI := 1.0 / float64(activeOwners)
+	minHHI := 1.0 / float64(len(counts))
 	if sumSquares >= 1.0 {
 		return 0
 	}

@@ -37,8 +37,9 @@ Resolution evaluates sources in this order (highest to lowest):
 1. **Explicit config** (`.hamlet/ownership.yaml` rules) — `ConfidenceHigh`
 2. **CODEOWNERS** (standard GitHub locations) — `ConfidenceHigh`
 3. **Path mappings** (`.hamlet/ownership.yaml` path_mappings) — `ConfidenceMedium`
-4. **Directory fallback** (top-level directory name) — `ConfidenceLow`
-5. **Unknown** — `ConfidenceNone`
+4. **Git history fallback** (`.hamlet/ownership.yaml` git_history, opt-in) — `ConfidenceLow`
+5. **Directory fallback** (top-level directory name) — `ConfidenceLow`
+6. **Unknown** — `ConfidenceNone`
 
 The first source that matches wins. Within CODEOWNERS, the last matching rule wins (GitHub convention).
 
@@ -62,6 +63,7 @@ Direct assignments always override inherited ones.
 │  │ .hamlet/ownership.yaml│   │
 │  │ CODEOWNERS            │   │
 │  │ Path mappings         │   │
+│  │ Git history (opt-in)  │   │
 │  └─────────────────────┘    │
 └──────────┬──────────────────┘
            │
@@ -175,9 +177,14 @@ ownership:
   path_mappings:
     - prefix: "lib/shared/"
       owners: ["team-platform", "team-infra"]
+  git_history:
+    enabled: true
+    max_commits: 1000
 ```
 
 Rules use longest-prefix matching. Path mappings support multiple owners.
+`git_history` is optional fallback behavior that uses recent commit author names when
+explicit mappings and CODEOWNERS do not match.
 
 ## File Inventory
 

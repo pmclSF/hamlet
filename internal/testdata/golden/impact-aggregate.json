@@ -1,0 +1,25 @@
+{
+  "changedFileCount": 3,
+  "changedTestFileCount": 1,
+  "impactedUnitCount": 2,
+  "exportedUnitCount": 2,
+  "protectionCounts": {},
+  "gapCount": 0,
+  "highSeverityGapCount": 0,
+  "impactedTestCount": 8,
+  "selectedTestCount": 2,
+  "ownerCount": 2,
+  "posture": "partially_protected",
+  "confidenceCounts": {},
+  "selectionSetKind": "exact",
+  "graphStats": {
+    "totalEdges": 8,
+    "exactEdges": 0,
+    "inferredEdges": 8,
+    "weakEdges": 0,
+    "connectedUnits": 8,
+    "isolatedUnits": 0,
+    "connectedTests": 8
+  },
+  "isSparse": true
+}

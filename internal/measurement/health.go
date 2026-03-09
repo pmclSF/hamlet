@@ -60,6 +60,19 @@ func computeFlakyShare(snap *models.TestSuiteSnapshot) Result {
 	band := ratioToBand(ratio, 0.05, 0.15, 0.30)
 	evidence := runtimeEvidence(snap)
 
+	// Without runtime data and no signals, flakiness cannot be assessed —
+	// report unknown rather than a false "strong".
+	if evidence == EvidenceWeak && count == 0 {
+		return Result{
+			ID: "health.flaky_share", Dimension: DimensionHealth,
+			Value: 0, Units: UnitsRatio, Band: "unknown",
+			Evidence:    evidence,
+			Explanation: "No runtime data available; flakiness cannot be assessed from static analysis alone.",
+			Inputs:      []string{"flakyTest", "unstableSuite"},
+			Limitations: evidenceLimitations(evidence),
+		}
+	}
+
 	return Result{
 		ID: "health.flaky_share", Dimension: DimensionHealth,
 		Value: ratio, Units: UnitsRatio, Band: band,
@@ -130,6 +143,19 @@ func computeSlowTestShare(snap *models.TestSuiteSnapshot) Result {
 	ratio := float64(count) / float64(total)
 	band := ratioToBand(ratio, 0.10, 0.25, 0.50)
 	evidence := runtimeEvidence(snap)
+
+	// Without runtime data and no signals, slowness cannot be assessed —
+	// report unknown rather than a false "strong".
+	if evidence == EvidenceWeak && count == 0 {
+		return Result{
+			ID: "health.slow_test_share", Dimension: DimensionHealth,
+			Value: 0, Units: UnitsRatio, Band: "unknown",
+			Evidence:    evidence,
+			Explanation: "No runtime data available; test speed cannot be assessed from static analysis alone.",
+			Inputs:      []string{"slowTest"},
+			Limitations: evidenceLimitations(evidence),
+		}
+	}
 
 	return Result{
 		ID: "health.slow_test_share", Dimension: DimensionHealth,

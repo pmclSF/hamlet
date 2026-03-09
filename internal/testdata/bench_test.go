@@ -3,10 +3,12 @@ package testdata
 import (
 	"testing"
 
+	"github.com/pmclSF/hamlet/internal/comparison"
 	"github.com/pmclSF/hamlet/internal/heatmap"
 	"github.com/pmclSF/hamlet/internal/impact"
 	"github.com/pmclSF/hamlet/internal/measurement"
 	"github.com/pmclSF/hamlet/internal/metrics"
+	"github.com/pmclSF/hamlet/internal/portfolio"
 	"github.com/pmclSF/hamlet/internal/scoring"
 )
 
@@ -70,6 +72,52 @@ func BenchmarkImpactAnalysis(b *testing.B) {
 			{Path: "src/payment.js", ChangeKind: impact.ChangeModified},
 		},
 	}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		impact.Analyze(scope, snap)
+	}
+}
+
+func BenchmarkComparison(b *testing.B) {
+	from := FlakyConcentratedSnapshot()
+	to := HealthyBalancedSnapshot()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		comparison.Compare(from, to)
+	}
+}
+
+func BenchmarkPortfolio(b *testing.B) {
+	snap := FlakyConcentratedSnapshot()
+	snap.Risk = scoring.ComputeRisk(snap)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		portfolio.Analyze(snap)
+	}
+}
+
+func BenchmarkFullPipeline_VeryLarge(b *testing.B) {
+	snap := VeryLargeSnapshot()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		snap.Risk = scoring.ComputeRisk(snap)
+		reg := measurement.DefaultRegistry()
+		reg.ComputeSnapshot(snap)
+		metrics.Derive(snap)
+		heatmap.Build(snap)
+	}
+}
+
+func BenchmarkImpact_LargeScope(b *testing.B) {
+	snap := LargeScaleSnapshot()
+	var files []impact.ChangedFile
+	for i := 0; i < 50; i++ {
+		files = append(files, impact.ChangedFile{
+			Path:       "src/auth/module" + string(rune('0'+i%10)) + ".js",
+			ChangeKind: impact.ChangeModified,
+		})
+	}
+	scope := &impact.ChangeScope{ChangedFiles: files}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		impact.Analyze(scope, snap)

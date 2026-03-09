@@ -54,6 +54,11 @@ def summarize_repo(repo_dir: Path) -> dict:
 
         if name == "determinism":
             entry["determinism"] = meta.get("determinism", "unknown")
+            # Capture per-command determinism details.
+            det_details = {k: v for k, v in meta.items()
+                          if k not in ("determinism", "determinism_checks")}
+            if det_details:
+                entry["determinism_details"] = det_details
             continue
 
         if name == "expectations":
@@ -85,6 +90,21 @@ def summarize_repo(repo_dir: Path) -> dict:
             entry["posture_bands"] = {
                 p["dimension"]: p["band"] for p in meas["posture"]
             }
+
+    # Extract portfolio data.
+    portfolio_json = parse_json_safe(repo_dir / "portfolio_json.stdout")
+    if portfolio_json:
+        agg = portfolio_json.get("aggregates", {})
+        entry["portfolio_posture"] = agg.get("portfolioPostureBand", "unknown")
+        entry["portfolio_assets"] = agg.get("totalAssets", len(portfolio_json.get("assets", [])))
+
+    # Extract migration readiness data.
+    migration_json = parse_json_safe(repo_dir / "migration_readiness_json.stdout")
+    if migration_json:
+        entry["migration_readiness"] = migration_json.get("readinessLevel", "unknown")
+        entry["migration_blockers"] = migration_json.get("totalBlockers", 0)
+        fws = migration_json.get("frameworks", [])
+        entry["detected_frameworks"] = [f.get("name", "?") for f in fws]
 
     # Total duration across all commands.
     entry["total_duration_ms"] = sum(
@@ -120,8 +140,8 @@ def generate_markdown(results):
         "",
         f"Generated: {results[0].get('_timestamp', 'unknown') if results else 'N/A'}",
         "",
-        "| Repo | Status | Duration | Tests | Units | Frameworks | Determinism | Expectations |",
-        "|------|--------|----------|-------|-------|------------|-------------|--------------|",
+        "| Repo | Status | Duration | Tests | Units | FWs | Migration | Portfolio | Determ | Expect |",
+        "|------|--------|----------|-------|-------|-----|-----------|-----------|--------|--------|",
     ]
 
     for r in results:
@@ -130,9 +150,11 @@ def generate_markdown(results):
         tests = str(r.get("test_files", "—"))
         units = str(r.get("code_units", "—"))
         fws = str(r.get("frameworks", "—"))
+        mig = r.get("migration_readiness", "—")
+        port = r.get("portfolio_posture", "—")
         det = r.get("determinism", "—")
         exp = r.get("expectations", "—")
-        lines.append(f"| {r['id']} | {status} | {dur} | {tests} | {units} | {fws} | {det} | {exp} |")
+        lines.append(f"| {r['id']} | {status} | {dur} | {tests} | {units} | {fws} | {mig} | {port} | {det} | {exp} |")
 
     lines.append("")
 
@@ -151,9 +173,30 @@ def generate_markdown(results):
 
         # Posture bands if available.
         if "posture_bands" in r:
-            lines.append("Posture:")
+            lines.append("**Posture:**")
             for dim, band in r["posture_bands"].items():
                 lines.append(f"- {dim}: {band}")
+            lines.append("")
+
+        # Migration readiness if available.
+        if "migration_readiness" in r:
+            lines.append(f"**Migration:** {r['migration_readiness']}"
+                         f" ({r.get('migration_blockers', 0)} blockers)")
+            if "detected_frameworks" in r:
+                lines.append(f"**Frameworks:** {', '.join(r['detected_frameworks'])}")
+            lines.append("")
+
+        # Portfolio if available.
+        if "portfolio_posture" in r:
+            lines.append(f"**Portfolio:** {r['portfolio_posture']}"
+                         f" ({r.get('portfolio_assets', '?')} assets)")
+            lines.append("")
+
+        # Determinism details if available.
+        if "determinism_details" in r:
+            lines.append("**Determinism details:**")
+            for cmd, status in r["determinism_details"].items():
+                lines.append(f"- {cmd}: {status}")
             lines.append("")
 
     # Warnings.
@@ -211,7 +254,7 @@ def main():
 
     print(f"  Repos: {len(results)}  Pass: {total_pass}  Fail: {total_fail}  Degraded: {total_degraded}\n")
 
-    header = f"  {'Repo':<16} {'Status':<10} {'Duration':<10} {'Tests':<7} {'Units':<7} {'FWs':<5} {'Determ':<8} {'Expect'}"
+    header = f"  {'Repo':<16} {'Status':<10} {'Duration':<10} {'Tests':<7} {'Units':<7} {'FWs':<5} {'Migrate':<10} {'Portfolio':<10} {'Determ':<8} {'Expect'}"
     print(header)
     print("  " + "-" * (len(header) - 2))
 
@@ -221,9 +264,11 @@ def main():
         tests = str(r.get("test_files", "—"))
         units = str(r.get("code_units", "—"))
         fws = str(r.get("frameworks", "—"))
+        mig = r.get("migration_readiness", "—")[:9]
+        port = r.get("portfolio_posture", "—")[:9]
         det = r.get("determinism", "—")
         exp = r.get("expectations", "—").split("\n")[0][:10]
-        print(f"  {r['id']:<16} {status:<10} {dur:<10} {tests:<7} {units:<7} {fws:<5} {det:<8} {exp}")
+        print(f"  {r['id']:<16} {status:<10} {dur:<10} {tests:<7} {units:<7} {fws:<5} {mig:<10} {port:<10} {det:<8} {exp}")
 
     print()
 

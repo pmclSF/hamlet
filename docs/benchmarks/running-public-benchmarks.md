@@ -16,7 +16,7 @@ make benchmark-fetch
 # Or just smoke tier:
 ./scripts/benchmarks/fetch_public_repos.sh --tier smoke
 
-# 2. Run smoke benchmark (~1-2 minutes)
+# 2. Run smoke benchmark (~2-5 minutes)
 make benchmark-smoke
 
 # 3. View results
@@ -25,11 +25,13 @@ cat artifacts/public-benchmarks/summary.md
 
 ## Tiers
 
-| Tier | Repos | Estimated time | Disk space |
-|------|-------|---------------|------------|
-| smoke | express, fastify | 1-2 min | ~100MB |
-| full | + jest, playwright, vue, flask, next.js | 5-15 min | ~2GB |
-| stress | + storybook | 15-30 min | ~3GB |
+| Tier | Repos | Commands/repo | Estimated time | Disk space |
+|------|-------|---------------|---------------|------------|
+| smoke | express, fastify | 26 | 2-5 min | ~100MB |
+| full | + jest, playwright, vue, flask, next.js | 26 | 10-30 min | ~2GB |
+| stress | + storybook | 26 | 30-60 min | ~3GB |
+
+Each repo runs 14 commands + 12 determinism checks (6 JSON commands run twice).
 
 ## Commands
 
@@ -73,6 +75,26 @@ cat artifacts/public-benchmarks/express/analyze_json.stdout  # raw output
 ./scripts/benchmarks/update_public_repos.sh --id jest  # pull one
 ```
 
+## What gets run per repo
+
+### Core commands (14)
+- `analyze` (text + JSON)
+- `summary`
+- `posture` (text + JSON)
+- `portfolio` (text + JSON)
+- `metrics` (text + JSON)
+- `migration readiness` (text + JSON)
+- `migration blockers`
+- `policy check`
+- `export benchmark`
+
+### Determinism checks (6 x 2 = 12 runs)
+- analyze, metrics, portfolio, posture, migration, export — each run twice
+- Outputs normalized (timestamps stripped) and compared
+
+### Expectation checks
+- min test files, min code units, posture required, portfolio/migration must succeed
+
 ## Adding a new public repo
 
 1. Add an entry to `benchmarks/public-repos.yaml`:
@@ -95,6 +117,8 @@ cat artifacts/public-benchmarks/express/analyze_json.stdout  # raw output
    min_code_units: 5
    require_posture: true
    analyze_must_succeed: true
+   portfolio_must_succeed: true
+   migration_must_succeed: true
    ```
 
 3. Fetch and test:
@@ -116,12 +140,14 @@ cat artifacts/public-benchmarks/express/analyze_json.stdout  # raw output
 | Tests | Number of test files detected |
 | Units | Number of code units discovered |
 | FWs | Number of frameworks detected |
+| Migrate | Migration readiness level |
+| Portfolio | Portfolio posture |
 | Determ | pass/fail — determinism check |
 | Expect | pass/fail — expectation check |
 
 ### Failure types
 
-- **Command failure (exit ≠ 0)**: Hamlet crashed or errored. This is likely a bug.
+- **Command failure (exit != 0)**: Hamlet crashed or errored. This is likely a bug.
 - **Expectation miss**: Fewer tests/units than expected. Either the repo changed or Hamlet regressed.
 - **Determinism failure**: Two runs of the same command produced different structured output. Investigate — could be map ordering, timestamps leaking, or non-deterministic logic.
 - **Degraded**: Not a hard failure, but something is off (usually determinism).
@@ -132,18 +158,36 @@ Each repo produces artifacts under `artifacts/public-benchmarks/<repo-id>/`:
 
 ```
 artifacts/public-benchmarks/express/
-  analyze_json.stdout       # JSON snapshot
-  analyze_json.stderr       # stderr
-  analyze_json.meta         # exit code, duration, timestamp
-  analyze_text.stdout       # human-readable output
+  analyze_json.stdout          # JSON snapshot
+  analyze_json.stderr          # stderr
+  analyze_json.meta            # exit code, duration, timestamp
+  analyze_text.stdout          # human-readable output
   summary.stdout
   posture.stdout
+  posture_json.stdout
+  portfolio.stdout
+  portfolio_json.stdout
+  metrics_text.stdout
   metrics_json.stdout
+  migration_readiness.stdout
+  migration_readiness_json.stdout
+  migration_blockers.stdout
+  policy_check.stdout
   export.stdout
-  determinism_run1.json     # first determinism run
-  determinism_run2.json     # second determinism run
-  determinism.meta          # pass/fail
-  expectations.meta         # expectation check results
+  determinism_analyze_run1.json   # determinism runs
+  determinism_analyze_run2.json
+  determinism_metrics_run1.json
+  determinism_metrics_run2.json
+  determinism_portfolio_run1.json
+  determinism_portfolio_run2.json
+  determinism_posture_run1.json
+  determinism_posture_run2.json
+  determinism_migration_run1.json
+  determinism_migration_run2.json
+  determinism_export_run1.json
+  determinism_export_run2.json
+  determinism.meta              # per-command determinism results
+  expectations.meta             # expectation check results
 ```
 
 ## Disk space and clone time

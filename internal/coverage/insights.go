@@ -82,40 +82,21 @@ func DeriveInsights(typeCov []TypeCoverage, units []models.CodeUnit) []CoverageI
 	}
 
 	// 2. Exported functions with no coverage at all.
-	var uncoveredExported []TypeCoverage
+	// Only emit an aggregate summary insight here. Per-unit detail is already
+	// surfaced by the untestedExport quality signal to avoid duplication.
+	var uncoveredExportedCount int
 	for _, tc := range typeCov {
 		if tc.Uncovered && exported[tc.UnitID] {
-			uncoveredExported = append(uncoveredExported, tc)
+			uncoveredExportedCount++
 		}
 	}
-	// Sort for deterministic top-5 selection.
-	sort.Slice(uncoveredExported, func(i, j int) bool {
-		if uncoveredExported[i].Path != uncoveredExported[j].Path {
-			return uncoveredExported[i].Path < uncoveredExported[j].Path
-		}
-		return uncoveredExported[i].UnitID < uncoveredExported[j].UnitID
-	})
-	if len(uncoveredExported) > 0 {
+	if uncoveredExportedCount > 0 {
 		insights = append(insights, CoverageInsight{
 			Type:        "uncovered_exported",
 			Severity:    "high",
-			Description: fmt.Sprintf("%d exported/public function(s) have no test coverage.", len(uncoveredExported)),
+			Description: fmt.Sprintf("%d exported/public function(s) have no test coverage. See untestedExport signals for per-unit detail.", uncoveredExportedCount),
 			SuggestedAction: "Prioritize adding tests for public API surface.",
 		})
-		limit := 5
-		if len(uncoveredExported) < limit {
-			limit = len(uncoveredExported)
-		}
-		for _, tc := range uncoveredExported[:limit] {
-			insights = append(insights, CoverageInsight{
-				Type:        "uncovered_exported_unit",
-				Severity:    "high",
-				Description: fmt.Sprintf("Exported function %s (%s) has no test coverage.", tc.Name, tc.Path),
-				Path:        tc.Path,
-				UnitID:      tc.UnitID,
-				SuggestedAction: fmt.Sprintf("Add tests for %s — this is public API surface.", tc.Name),
-			})
-		}
 	}
 
 	// 3. Files with weak coverage diversity.

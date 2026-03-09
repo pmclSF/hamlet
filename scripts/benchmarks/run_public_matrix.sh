@@ -82,7 +82,15 @@ COMMANDS=(
     "analyze_text:analyze"
     "summary:summary"
     "posture:posture"
+    "posture_json:posture --json"
+    "portfolio:portfolio"
+    "portfolio_json:portfolio --json"
     "metrics_json:metrics --json"
+    "metrics_text:metrics"
+    "migration_readiness:migration readiness"
+    "migration_readiness_json:migration readiness --json"
+    "migration_blockers:migration blockers"
+    "policy_check:policy check"
     "export:export benchmark"
 )
 
@@ -127,55 +135,75 @@ EOF
     return $exit_code
 }
 
-# Determinism check: run analyze --json twice, compare with timestamps stripped.
+# Normalize JSON by stripping time-dependent fields and sorting keys.
+normalize_json() {
+    local file="$1"
+    python3 -c "
+import json, sys
+with open('$file') as f:
+    d = json.load(f)
+TIME_KEYS = {'generatedAt', 'snapshotTimestamp', 'exportedAt', 'timestamp', 'analyzedAt'}
+def strip_times(obj):
+    if isinstance(obj, dict):
+        return {k: strip_times(v) for k, v in obj.items() if k not in TIME_KEYS}
+    if isinstance(obj, list):
+        return [strip_times(v) for v in obj]
+    return obj
+print(json.dumps(strip_times(d), sort_keys=True))
+" 2>/dev/null || echo "PARSE_ERROR"
+}
+
+# Determinism check: run structured JSON commands twice each, compare normalized output.
 run_determinism_check() {
     local repo_id="$1"
     local repo_dir="$2"
     local out_dir="$3"
-
-    local run1="$out_dir/determinism_run1.json"
-    local run2="$out_dir/determinism_run2.json"
     local result_file="$out_dir/determinism.meta"
 
-    "$HAMLET_BIN" analyze --json --root "$repo_dir" >"$run1" 2>/dev/null || true
-    "$HAMLET_BIN" analyze --json --root "$repo_dir" >"$run2" 2>/dev/null || true
+    local all_pass=true
 
-    # Strip timestamps and generatedAt fields for comparison.
-    local norm1 norm2
-    norm1=$(python3 -c "
-import json, sys
-with open('$run1') as f:
-    d = json.load(f)
-def strip_times(obj):
-    if isinstance(obj, dict):
-        return {k: strip_times(v) for k, v in obj.items()
-                if k not in ('generatedAt', 'snapshotTimestamp', 'exportedAt', 'timestamp')}
-    if isinstance(obj, list):
-        return [strip_times(v) for v in obj]
-    return obj
-print(json.dumps(strip_times(d), sort_keys=True))
-" 2>/dev/null || echo "PARSE_ERROR")
+    # Commands to check for determinism (all produce JSON).
+    local det_commands=(
+        "analyze:analyze --json"
+        "metrics:metrics --json"
+        "portfolio:portfolio --json"
+        "posture:posture --json"
+        "migration:migration readiness --json"
+        "export:export benchmark"
+    )
 
-    norm2=$(python3 -c "
-import json, sys
-with open('$run2') as f:
-    d = json.load(f)
-def strip_times(obj):
-    if isinstance(obj, dict):
-        return {k: strip_times(v) for k, v in obj.items()
-                if k not in ('generatedAt', 'snapshotTimestamp', 'exportedAt', 'timestamp')}
-    if isinstance(obj, list):
-        return [strip_times(v) for v in obj]
-    return obj
-print(json.dumps(strip_times(d), sort_keys=True))
-" 2>/dev/null || echo "PARSE_ERROR")
+    echo "determinism_checks:" > "$result_file"
 
-    if [[ "$norm1" == "$norm2" && "$norm1" != "PARSE_ERROR" ]]; then
-        echo "determinism: pass" > "$result_file"
-        printf "    %-20s OK\n" "determinism"
+    for det_spec in "${det_commands[@]}"; do
+        local det_name="${det_spec%%:*}"
+        local det_args="${det_spec#*:}"
+
+        local run1="$out_dir/determinism_${det_name}_run1.json"
+        local run2="$out_dir/determinism_${det_name}_run2.json"
+
+        # shellcheck disable=SC2086
+        "$HAMLET_BIN" $det_args --root "$repo_dir" >"$run1" 2>/dev/null || true
+        # shellcheck disable=SC2086
+        "$HAMLET_BIN" $det_args --root "$repo_dir" >"$run2" 2>/dev/null || true
+
+        local norm1 norm2
+        norm1=$(normalize_json "$run1")
+        norm2=$(normalize_json "$run2")
+
+        if [[ "$norm1" == "$norm2" && "$norm1" != "PARSE_ERROR" ]]; then
+            echo "  ${det_name}: pass" >> "$result_file"
+            printf "    %-20s OK  (determinism)\n" "det_${det_name}"
+        else
+            echo "  ${det_name}: fail" >> "$result_file"
+            printf "    %-20s FAIL (determinism — outputs differ)\n" "det_${det_name}"
+            all_pass=false
+        fi
+    done
+
+    if [[ "$all_pass" == "true" ]]; then
+        echo "determinism: pass" >> "$result_file"
     else
-        echo "determinism: fail" > "$result_file"
-        printf "    %-20s FAIL (outputs differ)\n" "determinism"
+        echo "determinism: fail" >> "$result_file"
     fi
 }
 
@@ -198,7 +226,7 @@ check_expectations() {
     fi
 
     python3 -c "
-import yaml, json, sys
+import yaml, json, sys, os
 
 with open('$expect_file') as f:
     expect = yaml.safe_load(f) or {}
@@ -230,7 +258,25 @@ if expect.get('require_posture', False):
     if not meas or not meas.get('posture'):
         failures.append('posture dimensions missing')
 
-# Check that analyze must succeed (checked by caller via exit code).
+# Check that portfolio succeeded if required.
+if expect.get('portfolio_must_succeed', False):
+    meta_path = os.path.join('$out_dir', 'portfolio.meta')
+    if os.path.exists(meta_path):
+        for line in open(meta_path):
+            if 'exit_code' in line and line.strip().split(': ')[-1] != '0':
+                failures.append('portfolio command failed')
+    else:
+        failures.append('portfolio command not run')
+
+# Check that migration succeeded if required.
+if expect.get('migration_must_succeed', False):
+    meta_path = os.path.join('$out_dir', 'migration_readiness.meta')
+    if os.path.exists(meta_path):
+        for line in open(meta_path):
+            if 'exit_code' in line and line.strip().split(': ')[-1] != '0':
+                failures.append('migration readiness command failed')
+    else:
+        failures.append('migration readiness command not run')
 
 if failures:
     print('expectations: fail')

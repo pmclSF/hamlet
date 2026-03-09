@@ -1,0 +1,33 @@
+Hamlet Impact Analysis
+============================================================
+
+Summary: 2 file(s) changed, 2 code unit(s) impacted, 8 test(s) relevant. Posture: partially_protected.
+
+Change-Risk Posture: PARTIALLY_PROTECTED
+  This change has partial protection. 0 protection gap(s) identified.
+  protection:          well_protected
+  exposure:            partially_protected
+  coordination:        well_protected
+  instability:         well_protected
+
+Impacted Code Units
+------------------------------------------------------------
+  AuthService                    modified  strong [exported]
+    Owner: team-platform
+  PaymentProcessor               modified  strong [exported]
+    Owner: team-payments
+
+Recommended Tests (2)
+------------------------------------------------------------
+  src/__tests__/auth.test.js [exact]
+    covers impacted code unit
+  src/__tests__/payment.test.js [exact]
+    covers impacted code unit
+
+Impacted Owners: team-payments, team-platform
+
+Next steps:
+  hamlet analyze       full repo analysis
+  hamlet posture       evidence-backed posture
+  hamlet impact --json   machine-readable impact data
+

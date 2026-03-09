@@ -84,6 +84,9 @@ type ImpactedCodeUnit struct {
 	// Path is the file containing the code unit.
 	Path string `json:"path"`
 
+	// Kind is the code unit kind (function, method, class, module).
+	Kind string `json:"kind,omitempty"`
+
 	// ChangeKind describes how the unit was affected.
 	ChangeKind ChangeKind `json:"changeKind"`
 
@@ -101,6 +104,12 @@ type ImpactedCodeUnit struct {
 
 	// CoveringTests lists test IDs that cover this unit.
 	CoveringTests []string `json:"coveringTests,omitempty"`
+
+	// CoverageTypes describes the mix of coverage types for this unit.
+	CoverageTypes *CoverageTypeInfo `json:"coverageTypes,omitempty"`
+
+	// Complexity is the unit's complexity if known.
+	Complexity float64 `json:"complexity,omitempty"`
 }
 
 // ProtectionStatus summarizes test protection for a code unit.
@@ -194,6 +203,12 @@ type ImpactResult struct {
 	// SelectedTests is the recommended protective test set.
 	SelectedTests []ImpactedTest `json:"selectedTests,omitempty"`
 
+	// ProtectiveSet is the enhanced protective test set with explanations.
+	ProtectiveSet *ProtectiveTestSet `json:"protectiveSet,omitempty"`
+
+	// Graph is the impact graph connecting code units to tests.
+	Graph *ImpactGraph `json:"graph,omitempty"`
+
 	// Posture is the change-risk assessment.
 	Posture ChangeRiskPosture `json:"posture"`
 
@@ -213,17 +228,23 @@ func Analyze(scope *ChangeScope, snap *models.TestSuiteSnapshot) *ImpactResult {
 		Scope: *scope,
 	}
 
+	// Build impact graph for relationship lookups.
+	result.Graph = BuildImpactGraph(snap)
+
 	// Map changed files to code units.
 	result.ImpactedUnits = mapChangedUnits(scope, snap)
 
-	// Find impacted tests.
+	// Find impacted tests (using graph when available).
 	result.ImpactedTests = findImpactedTests(scope, snap, result.ImpactedUnits)
 
-	// Identify protection gaps.
+	// Identify protection gaps (enhanced with coverage diversity).
 	result.ProtectionGaps = findProtectionGaps(result.ImpactedUnits, result.ImpactedTests, snap)
 
-	// Select protective test set.
+	// Select protective test set (legacy flat list for backward compatibility).
 	result.SelectedTests = selectProtectiveTests(result.ImpactedTests, result.ImpactedUnits)
+
+	// Build enhanced protective set with explanations.
+	result.ProtectiveSet = buildProtectiveSet(result)
 
 	// Compute change-risk posture.
 	result.Posture = computeChangeRiskPosture(result)

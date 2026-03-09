@@ -9,6 +9,47 @@ import (
 	"github.com/pmclSF/hamlet/internal/models"
 )
 
+// CoverageTypeInfo describes the coverage type mix for an impacted code unit.
+type CoverageTypeInfo struct {
+	HasUnitCoverage        bool `json:"hasUnitCoverage"`
+	HasIntegrationCoverage bool `json:"hasIntegrationCoverage"`
+	HasE2ECoverage         bool `json:"hasE2eCoverage"`
+}
+
+// SelectionReason explains why a test was included in the protective set.
+type SelectionReason struct {
+	Reason      string `json:"reason"`
+	CodeUnitID  string `json:"codeUnitId,omitempty"`
+	EdgeKind    string `json:"edgeKind,omitempty"`
+}
+
+// ProtectiveTestSet is the recommended test set with explanation metadata.
+type ProtectiveTestSet struct {
+	// Tests is the recommended set of tests to run.
+	Tests []SelectedTest `json:"tests"`
+
+	// SetKind describes the selection strategy used.
+	// Values: "exact", "near_minimal", "fallback_broad"
+	SetKind string `json:"setKind"`
+
+	// CoveredUnitCount is the number of impacted units covered by this set.
+	CoveredUnitCount int `json:"coveredUnitCount"`
+
+	// UncoveredUnitCount is the number of impacted units NOT covered.
+	UncoveredUnitCount int `json:"uncoveredUnitCount"`
+
+	// Explanation describes the selection strategy and coverage.
+	Explanation string `json:"explanation"`
+}
+
+// SelectedTest is a test in the protective set with selection reasoning.
+type SelectedTest struct {
+	ImpactedTest
+
+	// Reasons explains why this test was selected.
+	Reasons []SelectionReason `json:"reasons,omitempty"`
+}
+
 // mapChangedUnits maps changed files to impacted code units.
 func mapChangedUnits(scope *ChangeScope, snap *models.TestSuiteSnapshot) []ImpactedCodeUnit {
 	// Build code-unit index by file path.
@@ -48,11 +89,14 @@ func mapChangedUnits(scope *ChangeScope, snap *models.TestSuiteSnapshot) []Impac
 				UnitID:           cu.Path + ":" + cu.Name,
 				Name:             cu.Name,
 				Path:             cu.Path,
+				Kind:             string(cu.Kind),
 				ChangeKind:       cf.ChangeKind,
 				Exported:         cu.Exported,
 				ImpactConfidence: confidence,
 				ProtectionStatus: classifyUnitProtection(cu, snap),
 				CoveringTests:    findCoveringTests(cu, snap),
+				CoverageTypes:    classifyCoverageTypes(cu, snap),
+				Complexity:       cu.Complexity,
 			}
 
 			// Resolve owner from snapshot ownership map.
@@ -200,6 +244,9 @@ func findProtectionGaps(units []ImpactedCodeUnit, tests []ImpactedTest, snap *mo
 		}
 	}
 
+	// Add coverage diversity gaps.
+	gaps = append(gaps, findCoverageDiversityGaps(units)...)
+
 	return gaps
 }
 
@@ -232,6 +279,16 @@ func computeChangeRiskPosture(result *ImpactResult) ChangeRiskPosture {
 		computeProtectionDimension(result),
 		computeExposureDimension(result),
 		computeCoordinationDimension(result),
+		computeInstabilityDimension(result),
+	}
+
+	// Check if evidence is limited — if so, override band.
+	if isEvidenceLimited(result) {
+		return ChangeRiskPosture{
+			Band:        "evidence_limited",
+			Explanation: "Insufficient data to assess change risk confidently. No code units or coverage lineage available.",
+			Dimensions:  dims,
+		}
 	}
 
 	// Overall band is the worst dimension.
@@ -351,6 +408,79 @@ func buildPostureExplanation(band string, result *ImpactResult) string {
 	default:
 		return "Unable to determine change-risk posture."
 	}
+}
+
+// computeInstabilityDimension assesses whether impacted units have
+// historical instability signals (flaky tests, high complexity, weak coverage).
+func computeInstabilityDimension(result *ImpactResult) ChangeRiskDimension {
+	if len(result.ImpactedUnits) == 0 {
+		return ChangeRiskDimension{
+			Name: "instability", Band: "well_protected",
+			Explanation: "No impacted code units to assess for instability.",
+		}
+	}
+
+	// Count units with instability indicators.
+	weakCoverage := 0
+	highComplexity := 0
+	for _, iu := range result.ImpactedUnits {
+		if iu.ProtectionStatus == ProtectionNone || iu.ProtectionStatus == ProtectionWeak {
+			weakCoverage++
+		}
+		if iu.Complexity > 10 {
+			highComplexity++
+		}
+	}
+
+	instabilityScore := float64(weakCoverage+highComplexity) / float64(len(result.ImpactedUnits)*2)
+
+	switch {
+	case instabilityScore == 0:
+		return ChangeRiskDimension{
+			Name: "instability", Band: "well_protected",
+			Explanation: "Impacted code has stable coverage and low complexity.",
+		}
+	case instabilityScore < 0.3:
+		return ChangeRiskDimension{
+			Name: "instability", Band: "partially_protected",
+			Explanation: fmt.Sprintf("%d unit(s) with weak coverage or high complexity.", weakCoverage+highComplexity),
+		}
+	case instabilityScore < 0.6:
+		return ChangeRiskDimension{
+			Name: "instability", Band: "weakly_protected",
+			Explanation: fmt.Sprintf("%d unit(s) with weak coverage or high complexity out of %d impacted.", weakCoverage+highComplexity, len(result.ImpactedUnits)),
+		}
+	default:
+		return ChangeRiskDimension{
+			Name: "instability", Band: "high_risk",
+			Explanation: fmt.Sprintf("Most impacted units have instability indicators: %d weak coverage, %d high complexity.", weakCoverage, highComplexity),
+		}
+	}
+}
+
+// isEvidenceLimited returns true when there is insufficient data to
+// produce a meaningful change-risk assessment.
+func isEvidenceLimited(result *ImpactResult) bool {
+	// No code units and no tests means we have no structural data.
+	if len(result.ImpactedUnits) == 0 && len(result.ImpactedTests) == 0 {
+		return true
+	}
+
+	// If all impact mappings are weak confidence, evidence is limited.
+	if len(result.ImpactedUnits) > 0 {
+		allWeak := true
+		for _, iu := range result.ImpactedUnits {
+			if iu.ImpactConfidence != ConfidenceWeak {
+				allWeak = false
+				break
+			}
+		}
+		if allWeak {
+			return true
+		}
+	}
+
+	return false
 }
 
 // collectOwners collects unique owners from impacted units.
@@ -483,4 +613,157 @@ func confidenceOrder(c Confidence) int {
 	default:
 		return 3
 	}
+}
+
+// classifyCoverageTypes determines the mix of coverage types for a code unit.
+func classifyCoverageTypes(cu models.CodeUnit, snap *models.TestSuiteSnapshot) *CoverageTypeInfo {
+	unitID := cu.Path + ":" + cu.Name
+	info := &CoverageTypeInfo{}
+
+	fwTypes := map[string]models.FrameworkType{}
+	for _, fw := range snap.Frameworks {
+		fwTypes[fw.Name] = fw.Type
+	}
+
+	for _, tf := range snap.TestFiles {
+		for _, linked := range tf.LinkedCodeUnits {
+			if linked == unitID || linked == cu.Name {
+				switch fwTypes[tf.Framework] {
+				case models.FrameworkTypeUnit:
+					info.HasUnitCoverage = true
+				case models.FrameworkTypeE2E:
+					info.HasE2ECoverage = true
+				default:
+					info.HasIntegrationCoverage = true
+				}
+			}
+		}
+	}
+
+	return info
+}
+
+// buildProtectiveSet creates an enhanced protective test set with
+// selection reasoning and coverage gap awareness.
+func buildProtectiveSet(result *ImpactResult) *ProtectiveTestSet {
+	set := &ProtectiveTestSet{}
+
+	if len(result.SelectedTests) == 0 && len(result.ImpactedTests) == 0 {
+		set.SetKind = "fallback_broad"
+		set.Explanation = "No impacted tests identified."
+		return set
+	}
+
+	// Determine set kind.
+	hasExact := false
+	for _, t := range result.SelectedTests {
+		if t.ImpactConfidence == ConfidenceExact || t.IsDirectlyChanged {
+			hasExact = true
+			break
+		}
+	}
+
+	if hasExact {
+		set.SetKind = "exact"
+	} else if len(result.SelectedTests) > 0 {
+		set.SetKind = "near_minimal"
+	} else {
+		set.SetKind = "fallback_broad"
+	}
+
+	// Build selected tests with reasons.
+	for _, t := range result.SelectedTests {
+		st := SelectedTest{ImpactedTest: t}
+
+		if t.IsDirectlyChanged {
+			st.Reasons = append(st.Reasons, SelectionReason{
+				Reason: "test file directly changed",
+			})
+		}
+
+		if t.ImpactConfidence == ConfidenceExact {
+			for _, unitID := range t.CoversUnits {
+				st.Reasons = append(st.Reasons, SelectionReason{
+					Reason:     "exact coverage of impacted unit",
+					CodeUnitID: unitID,
+					EdgeKind:   "exact_coverage",
+				})
+			}
+		} else if t.ImpactConfidence == ConfidenceInferred {
+			st.Reasons = append(st.Reasons, SelectionReason{
+				Reason:   "inferred structural relationship",
+				EdgeKind: "structural_link",
+			})
+		}
+
+		if len(st.Reasons) == 0 {
+			st.Reasons = append(st.Reasons, SelectionReason{
+				Reason: t.Relevance,
+			})
+		}
+
+		set.Tests = append(set.Tests, st)
+	}
+
+	// Compute coverage counts.
+	coveredUnits := map[string]bool{}
+	for _, t := range result.SelectedTests {
+		for _, uid := range t.CoversUnits {
+			coveredUnits[uid] = true
+		}
+	}
+	set.CoveredUnitCount = len(coveredUnits)
+	set.UncoveredUnitCount = len(result.ImpactedUnits) - set.CoveredUnitCount
+	if set.UncoveredUnitCount < 0 {
+		set.UncoveredUnitCount = 0
+	}
+
+	// Build explanation.
+	switch set.SetKind {
+	case "exact":
+		set.Explanation = fmt.Sprintf(
+			"%d test(s) with exact coverage of %d impacted unit(s).",
+			len(set.Tests), set.CoveredUnitCount,
+		)
+	case "near_minimal":
+		set.Explanation = fmt.Sprintf(
+			"%d test(s) selected via structural heuristics. %d unit(s) remain uncovered.",
+			len(set.Tests), set.UncoveredUnitCount,
+		)
+	case "fallback_broad":
+		set.Explanation = "No precise test selection possible. Consider running full test suite."
+	}
+
+	if set.UncoveredUnitCount > 0 && set.SetKind != "fallback_broad" {
+		set.Explanation += fmt.Sprintf(" %d impacted unit(s) have no covering tests in the selected set.", set.UncoveredUnitCount)
+	}
+
+	return set
+}
+
+// findCoverageDiversityGaps detects units with limited coverage diversity.
+func findCoverageDiversityGaps(units []ImpactedCodeUnit) []ProtectionGap {
+	var gaps []ProtectionGap
+
+	for _, iu := range units {
+		if iu.CoverageTypes == nil || !iu.Exported {
+			continue
+		}
+
+		// Exported unit covered only by E2E — no unit-level protection.
+		if iu.CoverageTypes.HasE2ECoverage && !iu.CoverageTypes.HasUnitCoverage && !iu.CoverageTypes.HasIntegrationCoverage {
+			if iu.ProtectionStatus != ProtectionNone { // don't duplicate no_coverage gaps
+				gaps = append(gaps, ProtectionGap{
+					GapType:         "e2e_only_export",
+					CodeUnitID:      iu.UnitID,
+					Path:            iu.Path,
+					Explanation:     fmt.Sprintf("Exported %s is covered only by E2E tests — no unit or integration coverage.", iu.Name),
+					Severity:        "medium",
+					SuggestedAction: fmt.Sprintf("Add unit tests for %s to improve coverage diversity and speed.", iu.Name),
+				})
+			}
+		}
+	}
+
+	return gaps
 }

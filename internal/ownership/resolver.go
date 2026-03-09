@@ -7,8 +7,8 @@
 // Resolution precedence (highest to lowest):
 //  1. Explicit Hamlet ownership config (.hamlet/ownership.yaml)
 //  2. CODEOWNERS file matching
-//  3. Package metadata ownership (package.json maintainers, etc.)
-//  4. Path-prefix mapping (.hamlet/ownership.yaml path_mappings)
+//  3. Path-prefix mapping (.hamlet/ownership.yaml path_mappings)
+//  4. Optional git-history fallback (.hamlet/ownership.yaml git_history)
 //  5. Directory-based fallback (top-level directory name)
 //  6. "unknown" when nothing matches
 //
@@ -38,10 +38,17 @@ type PathMapping struct {
 	Owners []string `yaml:"owners"`
 }
 
+// GitHistoryConfig controls optional git-history ownership fallback.
+type GitHistoryConfig struct {
+	Enabled    bool `yaml:"enabled"`
+	MaxCommits int  `yaml:"max_commits"`
+}
+
 // Config is the explicit ownership configuration from .hamlet/ownership.yaml.
 type Config struct {
-	Rules        []Rule        `yaml:"rules"`
-	PathMappings []PathMapping `yaml:"path_mappings"`
+	Rules        []Rule           `yaml:"rules"`
+	PathMappings []PathMapping    `yaml:"path_mappings"`
+	GitHistory   GitHistoryConfig `yaml:"git_history"`
 }
 
 // Resolver resolves file ownership using configured rules and CODEOWNERS.
@@ -49,12 +56,16 @@ type Config struct {
 // The resolver loads all available ownership sources at construction time
 // and evaluates them in precedence order during resolution.
 type Resolver struct {
-	repoRoot      string
-	explicitRules []Rule
-	pathMappings  []PathMapping
-	codeowners    *CodeownersFile
-	diagnostics   []Diagnostic
-	sourcesUsed   []SourceType
+	repoRoot          string
+	explicitRules     []Rule
+	pathMappings      []PathMapping
+	codeowners        *CodeownersFile
+	gitHistoryEnabled bool
+	gitHistoryMaxLogs int
+	gitHistoryOwners  map[string]string
+	gitHistoryLoaded  bool
+	diagnostics       []Diagnostic
+	sourcesUsed       []SourceType
 }
 
 // NewResolver creates a Resolver by loading ownership config and CODEOWNERS
@@ -93,7 +104,12 @@ func (r *Resolver) ResolveAssignment(relPath string) OwnershipAssignment {
 		return a
 	}
 
-	// 4. Directory fallback: use top-level directory name.
+	// 4. Optional git-history fallback.
+	if a, ok := r.matchGitHistoryAssignment(relPath); ok {
+		return a
+	}
+
+	// 5. Directory fallback: use top-level directory name.
 	normalized := filepath.ToSlash(relPath)
 	parts := strings.SplitN(normalized, "/", 2)
 	if len(parts) > 1 && parts[0] != "" && parts[0] != "." {
@@ -105,7 +121,7 @@ func (r *Resolver) ResolveAssignment(relPath string) OwnershipAssignment {
 		}
 	}
 
-	// 5. Unknown.
+	// 6. Unknown.
 	return OwnershipAssignment{
 		Source:     SourceUnknown,
 		Confidence: ConfidenceNone,
@@ -158,6 +174,9 @@ func (r *Resolver) SourcesUsed() []SourceType {
 	if len(r.pathMappings) > 0 {
 		sources = append(sources, SourcePathMapping)
 	}
+	if r.gitHistoryEnabled {
+		sources = append(sources, SourceGitHistory)
+	}
 	return sources
 }
 
@@ -186,6 +205,11 @@ func (r *Resolver) loadExplicitConfig(root string) {
 	}
 	r.explicitRules = ownershipFile.Ownership.Rules
 	r.pathMappings = ownershipFile.Ownership.PathMappings
+	r.gitHistoryEnabled = ownershipFile.Ownership.GitHistory.Enabled
+	r.gitHistoryMaxLogs = ownershipFile.Ownership.GitHistory.MaxCommits
+	if r.gitHistoryEnabled && r.gitHistoryMaxLogs <= 0 {
+		r.gitHistoryMaxLogs = 1000
+	}
 }
 
 func (r *Resolver) loadCodeownersFile(root string) {

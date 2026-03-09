@@ -27,6 +27,68 @@ const (
 	BlockerUnsupportedSetup  = "unsupported-setup"
 )
 
+// Blocker severity tiers control how signals affect migration readiness.
+const (
+	// TierHardBlocker: genuinely prevents migration without significant rework.
+	// Examples: Enzyme usage (unmaintained library), Cypress plugin internals.
+	TierHardBlocker = "hard-blocker"
+
+	// TierSoftBlocker: requires effort but has a clear migration path.
+	// Examples: custom matchers (need rewriting), done-callbacks (need async/await).
+	TierSoftBlocker = "soft-blocker"
+
+	// TierAdvisory: worth knowing about but doesn't affect migration readiness.
+	// Examples: setTimeout in tests (works everywhere), dynamic test generation
+	// (standard practice), snapshot testing (supported by all modern frameworks).
+	TierAdvisory = "advisory"
+)
+
+// patternToTier maps specific deprecated patterns to their severity tier.
+var patternToTier = map[string]string{
+	// Hard blockers — genuinely block migration.
+	"enzyme-usage":           TierHardBlocker,
+	"cypress-custom-commands": TierHardBlocker,
+	"cypress-plugin-events":  TierHardBlocker,
+
+	// Soft blockers — require effort but have clear migration paths.
+	"done-callback":          TierSoftBlocker,
+	"sinon-standalone":       TierSoftBlocker,
+	"jest-global-setup":      TierSoftBlocker,
+	"mocha-root-hooks":       TierSoftBlocker,
+	"framework-test-context": TierSoftBlocker,
+
+	// Advisories — valid patterns that work across frameworks.
+	"setTimeout-in-test":     TierAdvisory,
+}
+
+// blockerTypeToDefaultTier maps blocker categories to their default tier
+// when no specific pattern-level override exists.
+var blockerTypeToDefaultTier = map[string]string{
+	BlockerCustomMatcher:     TierSoftBlocker,
+	BlockerDynamicGeneration: TierAdvisory,
+	BlockerDeprecatedPattern: TierSoftBlocker,
+	BlockerFrameworkHelper:   TierSoftBlocker,
+	BlockerUnsupportedSetup:  TierSoftBlocker,
+}
+
+// TierForSignal determines the blocker tier for a migration signal
+// based on its metadata.
+func TierForSignal(s models.Signal) string {
+	// Check for explicit pattern-level tier first.
+	if pattern, ok := s.Metadata["pattern"].(string); ok {
+		if tier, ok := patternToTier[pattern]; ok {
+			return tier
+		}
+	}
+	// Fall back to blocker-type-level default.
+	if bt, ok := s.Metadata["blockerType"].(string); ok {
+		if tier, ok := blockerTypeToDefaultTier[bt]; ok {
+			return tier
+		}
+	}
+	return TierSoftBlocker // conservative default
+}
+
 // DeprecatedPatternDetector identifies deprecated or outdated test patterns
 // that complicate migration and should be modernized.
 type DeprecatedPatternDetector struct {
@@ -97,19 +159,20 @@ func (d *DynamicTestGenerationDetector) Detect(snap *models.TestSuiteSnapshot) [
 			signals = append(signals, models.Signal{
 				Type:             "dynamicTestGeneration",
 				Category:         models.CategoryMigration,
-				Severity:         models.SeverityMedium,
+				Severity:         models.SeverityLow,
 				Confidence:       0.6,
 				EvidenceStrength: models.EvidenceModerate,
 				EvidenceSource:   models.SourceStructuralPattern,
 				Location:         models.SignalLocation{File: tf.Path},
 				Owner:      tf.Owner,
 				Explanation: fmt.Sprintf(
-					"Dynamic test generation detected in %s. This reduces migration predictability.",
+					"Dynamic test generation detected in %s. Parameterized tests are standard practice but may need syntax adjustment during migration.",
 					tf.Path,
 				),
 				SuggestedAction: "Review dynamic test generation for migration compatibility.",
 				Metadata: map[string]any{
 					"blockerType": BlockerDynamicGeneration,
+					"blockerTier": TierAdvisory,
 				},
 			})
 		}

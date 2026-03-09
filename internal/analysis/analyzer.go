@@ -42,7 +42,10 @@ func (a *Analyzer) Analyze() (*models.TestSuiteSnapshot, error) {
 		return nil, err
 	}
 
-	testFiles, err := discoverTestFiles(absRoot)
+	// Layer 1: Detect project-level frameworks from config files and dependencies.
+	projectCtx := DetectProjectFrameworks(absRoot)
+
+	testFiles, err := discoverTestFiles(absRoot, projectCtx)
 	if err != nil {
 		return nil, err
 	}
@@ -60,6 +63,9 @@ func (a *Analyzer) Analyze() (*models.TestSuiteSnapshot, error) {
 
 	// Extract exported code units for untested-export detection.
 	codeUnits := extractExportedCodeUnits(absRoot, testFiles)
+
+	// Build import graph for precise test-to-code linkage.
+	importGraph := BuildImportGraph(absRoot, testFiles)
 
 	// Extract individual test cases with stable IDs.
 	var rawTestCases []models.TestCase
@@ -93,7 +99,8 @@ func (a *Analyzer) Analyze() (*models.TestSuiteSnapshot, error) {
 		Frameworks: frameworks,
 		TestFiles:  testFiles,
 		TestCases:  testCases,
-		CodeUnits:  codeUnits,
+		CodeUnits:   codeUnits,
+		ImportGraph: importGraph.TestImports,
 		// Signals: populated by detectors after snapshot creation.
 		// Risk: populated by risk engine after signal generation.
 		GeneratedAt: time.Now().UTC(),

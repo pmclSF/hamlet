@@ -1,6 +1,7 @@
 package migration
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/pmclSF/hamlet/internal/models"
@@ -438,6 +439,162 @@ func TestComputeReadiness_CoverageGuidance_UntestedExportsHighPriority(t *testin
 	}
 	if !found {
 		t.Error("expected high-priority coverage guidance for src/ due to untested exports + migration blocker")
+	}
+}
+
+// --- Tier taxonomy tests ---
+
+func TestTierForSignal_PatternOverride(t *testing.T) {
+	// enzyme-usage should be hard-blocker via pattern map.
+	s := models.Signal{
+		Type:     "deprecatedTestPattern",
+		Metadata: map[string]any{"pattern": "enzyme-usage", "blockerType": BlockerDeprecatedPattern},
+	}
+	tier := TierForSignal(s)
+	if tier != TierHardBlocker {
+		t.Errorf("TierForSignal(enzyme-usage) = %q, want %q", tier, TierHardBlocker)
+	}
+}
+
+func TestTierForSignal_BlockerTypeDefault(t *testing.T) {
+	// dynamic-generation without pattern should be advisory via blockerType map.
+	s := models.Signal{
+		Type:     "dynamicTestGeneration",
+		Metadata: map[string]any{"blockerType": BlockerDynamicGeneration},
+	}
+	tier := TierForSignal(s)
+	if tier != TierAdvisory {
+		t.Errorf("TierForSignal(dynamic-generation) = %q, want %q", tier, TierAdvisory)
+	}
+}
+
+func TestTierForSignal_FallbackToSoftBlocker(t *testing.T) {
+	// No pattern or blockerType metadata → conservative soft-blocker default.
+	s := models.Signal{
+		Type:     "migrationBlocker",
+		Metadata: map[string]any{},
+	}
+	tier := TierForSignal(s)
+	if tier != TierSoftBlocker {
+		t.Errorf("TierForSignal(no metadata) = %q, want %q", tier, TierSoftBlocker)
+	}
+}
+
+func TestTierForSignal_SetTimeoutIsAdvisory(t *testing.T) {
+	s := models.Signal{
+		Type:     "deprecatedTestPattern",
+		Metadata: map[string]any{"pattern": "setTimeout-in-test", "blockerType": BlockerDeprecatedPattern},
+	}
+	tier := TierForSignal(s)
+	if tier != TierAdvisory {
+		t.Errorf("TierForSignal(setTimeout-in-test) = %q, want %q", tier, TierAdvisory)
+	}
+}
+
+func TestComputeReadiness_TierCounting(t *testing.T) {
+	snap := &models.TestSuiteSnapshot{
+		TestFiles: make([]models.TestFile, 20),
+		Signals: []models.Signal{
+			// Hard blocker: enzyme
+			{Type: "deprecatedTestPattern", Category: models.CategoryMigration, Metadata: map[string]any{"pattern": "enzyme-usage", "blockerType": BlockerDeprecatedPattern}},
+			// Soft blocker: done-callback
+			{Type: "deprecatedTestPattern", Category: models.CategoryMigration, Metadata: map[string]any{"pattern": "done-callback", "blockerType": BlockerDeprecatedPattern}},
+			// Advisory: setTimeout
+			{Type: "deprecatedTestPattern", Category: models.CategoryMigration, Metadata: map[string]any{"pattern": "setTimeout-in-test", "blockerType": BlockerDeprecatedPattern}},
+			// Advisory: dynamic generation
+			{Type: "dynamicTestGeneration", Category: models.CategoryMigration, Metadata: map[string]any{"blockerType": BlockerDynamicGeneration}},
+		},
+	}
+
+	r := ComputeReadiness(snap)
+	if r.HardBlockers != 1 {
+		t.Errorf("HardBlockers = %d, want 1", r.HardBlockers)
+	}
+	if r.SoftBlockers != 1 {
+		t.Errorf("SoftBlockers = %d, want 1", r.SoftBlockers)
+	}
+	if r.Advisories != 2 {
+		t.Errorf("Advisories = %d, want 2", r.Advisories)
+	}
+	// TotalBlockers = hard + soft only.
+	if r.TotalBlockers != 2 {
+		t.Errorf("TotalBlockers = %d, want 2 (hard+soft only)", r.TotalBlockers)
+	}
+	if r.BlockersByTier[TierHardBlocker] != 1 {
+		t.Errorf("BlockersByTier[hard-blocker] = %d, want 1", r.BlockersByTier[TierHardBlocker])
+	}
+	if r.BlockersByTier[TierAdvisory] != 2 {
+		t.Errorf("BlockersByTier[advisory] = %d, want 2", r.BlockersByTier[TierAdvisory])
+	}
+}
+
+func TestComputeReadiness_AdvisoryOnlyIsHigh(t *testing.T) {
+	snap := &models.TestSuiteSnapshot{
+		TestFiles: make([]models.TestFile, 10),
+		Signals: []models.Signal{
+			{Type: "deprecatedTestPattern", Category: models.CategoryMigration, Metadata: map[string]any{"pattern": "setTimeout-in-test", "blockerType": BlockerDeprecatedPattern}},
+			{Type: "dynamicTestGeneration", Category: models.CategoryMigration, Metadata: map[string]any{"blockerType": BlockerDynamicGeneration}},
+		},
+	}
+
+	r := ComputeReadiness(snap)
+	if r.ReadinessLevel != "high" {
+		t.Errorf("readiness = %q, want high when only advisories present", r.ReadinessLevel)
+	}
+	if r.TotalBlockers != 0 {
+		t.Errorf("TotalBlockers = %d, want 0 (advisories don't count)", r.TotalBlockers)
+	}
+}
+
+func TestComputeReadiness_LowFrameworkConfidence(t *testing.T) {
+	snap := &models.TestSuiteSnapshot{
+		Frameworks: []models.Framework{
+			{Name: "unknown", Confidence: 0.3},
+		},
+		TestFiles: make([]models.TestFile, 10),
+		Signals: []models.Signal{
+			{Type: "deprecatedTestPattern", Category: models.CategoryMigration, Metadata: map[string]any{"blockerType": BlockerDeprecatedPattern}},
+		},
+	}
+
+	r := ComputeReadiness(snap)
+	if r.ReadinessLevel != "unknown" {
+		t.Errorf("readiness = %q, want unknown when framework confidence < 0.5", r.ReadinessLevel)
+	}
+}
+
+func TestComputeReadiness_RepresentativeBlockersPrioritizeHard(t *testing.T) {
+	signals := []models.Signal{}
+	// Add 3 soft blockers first, then 2 hard blockers.
+	for i := 0; i < 3; i++ {
+		signals = append(signals, models.Signal{
+			Type:     "deprecatedTestPattern",
+			Category: models.CategoryMigration,
+			Location: models.SignalLocation{File: fmt.Sprintf("src/soft%d.test.js", i)},
+			Metadata: map[string]any{"pattern": "done-callback", "blockerType": BlockerDeprecatedPattern},
+		})
+	}
+	for i := 0; i < 2; i++ {
+		signals = append(signals, models.Signal{
+			Type:     "deprecatedTestPattern",
+			Category: models.CategoryMigration,
+			Location: models.SignalLocation{File: fmt.Sprintf("src/hard%d.test.js", i)},
+			Metadata: map[string]any{"pattern": "enzyme-usage", "blockerType": BlockerDeprecatedPattern},
+		})
+	}
+
+	snap := &models.TestSuiteSnapshot{
+		TestFiles: make([]models.TestFile, 20),
+		Signals:   signals,
+	}
+
+	r := ComputeReadiness(snap)
+	if len(r.RepresentativeBlockers) < 2 {
+		t.Fatalf("representative blockers count = %d, want >= 2", len(r.RepresentativeBlockers))
+	}
+	// Hard blockers should appear first.
+	if r.RepresentativeBlockers[0].File != "src/hard0.test.js" && r.RepresentativeBlockers[0].File != "src/hard1.test.js" {
+		t.Errorf("first representative blocker file = %q, want a hard blocker file", r.RepresentativeBlockers[0].File)
 	}
 }
 

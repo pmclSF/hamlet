@@ -51,8 +51,8 @@ type PipelineOptions struct {
 //  3. Signal detection via the detector registry
 //  4. Ownership resolution
 //  5. Runtime ingestion (optional)
-//  6. Risk scoring
-//  7. Coverage ingestion (optional)
+//  6. Coverage ingestion (optional) — before risk scoring for context
+//  7. Risk scoring
 //  8. Measurement-layer posture
 //  9. Portfolio intelligence
 //  10. Deterministic sorting
@@ -82,12 +82,30 @@ func RunPipeline(root string, opts ...PipelineOptions) (*PipelineResult, error) 
 	}
 
 	// Step 2: Load policy config (needed to configure governance detector).
-	policyResult, _ := policy.Load(root)
+	policyResult, policyErr := policy.Load(root)
 	hasPolicy := policyResult != nil && policyResult.Found
 
 	var policyCfg *policy.Config
 	if hasPolicy {
 		policyCfg = policyResult.Config
+		snapshot.DataSources = append(snapshot.DataSources, models.DataSource{
+			Name:   "policy",
+			Status: models.DataSourceAvailable,
+			Detail: ".hamlet/policy.yaml",
+		})
+	} else if policyErr != nil {
+		snapshot.DataSources = append(snapshot.DataSources, models.DataSource{
+			Name:   "policy",
+			Status: models.DataSourceError,
+			Detail: policyErr.Error(),
+			Impact: "Governance checks will not run. Policy violations cannot be detected.",
+		})
+	} else {
+		snapshot.DataSources = append(snapshot.DataSources, models.DataSource{
+			Name:   "policy",
+			Status: models.DataSourceUnavailable,
+			Impact: "No .hamlet/policy.yaml found. Governance checks will not run.",
+		})
 	}
 
 	// Step 3: Build detector registry and run all detectors.
@@ -127,28 +145,65 @@ func RunPipeline(root string, opts ...PipelineOptions) (*PipelineResult, error) 
 		stepStart = time.Now()
 		if err := ingestRuntime(snapshot, opt.RuntimePaths, opt.SlowTestThresholdMs); err != nil {
 			fmt.Fprintf(os.Stderr, "warning: runtime ingestion failed: %v\n", err)
+			snapshot.DataSources = append(snapshot.DataSources, models.DataSource{
+				Name:   "runtime",
+				Status: models.DataSourceError,
+				Detail: err.Error(),
+				Impact: "Health measurements (flaky_share, slow_test_share) will report unknown. Risk scoring lacks runtime context.",
+			})
+		} else {
+			snapshot.DataSources = append(snapshot.DataSources, models.DataSource{
+				Name:   "runtime",
+				Status: models.DataSourceAvailable,
+				Detail: fmt.Sprintf("%d artifact(s) ingested", len(opt.RuntimePaths)),
+			})
 		}
 		if diag != nil {
 			diag.add("runtime-ingestion", time.Since(stepStart), len(opt.RuntimePaths))
 		}
+	} else {
+		snapshot.DataSources = append(snapshot.DataSources, models.DataSource{
+			Name:   "runtime",
+			Status: models.DataSourceUnavailable,
+			Impact: "Health measurements (flaky_share, slow_test_share) will report unknown. Portfolio cost estimates use type heuristics instead of observed runtime.",
+		})
 	}
 
-	// Step 6: Compute risk surfaces from signals (including runtime-backed ones).
-	stepStart = time.Now()
-	snapshot.Risk = scoring.ComputeRisk(snapshot)
-	if diag != nil {
-		diag.add("risk-scoring", time.Since(stepStart), len(snapshot.Risk))
-	}
-
-	// Step 7: Coverage ingestion (optional).
+	// Step 6: Coverage ingestion (optional).
+	// Moved before risk scoring so risk surfaces can account for coverage context.
 	if opt.CoveragePath != "" {
 		stepStart = time.Now()
 		if err := ingestCoverage(snapshot, opt.CoveragePath); err != nil {
 			fmt.Fprintf(os.Stderr, "warning: coverage ingestion failed: %v\n", err)
+			snapshot.DataSources = append(snapshot.DataSources, models.DataSource{
+				Name:   "coverage",
+				Status: models.DataSourceError,
+				Detail: fmt.Sprintf("path: %s, error: %v", opt.CoveragePath, err),
+				Impact: "Coverage measurements will report unknown. Portfolio breadth estimates use module heuristics. untestedExport signals rely on import graph only.",
+			})
+		} else {
+			snapshot.DataSources = append(snapshot.DataSources, models.DataSource{
+				Name:   "coverage",
+				Status: models.DataSourceAvailable,
+				Detail: fmt.Sprintf("path: %s", opt.CoveragePath),
+			})
 		}
 		if diag != nil {
 			diag.add("coverage-ingestion", time.Since(stepStart), len(snapshot.CoverageInsights))
 		}
+	} else {
+		snapshot.DataSources = append(snapshot.DataSources, models.DataSource{
+			Name:   "coverage",
+			Status: models.DataSourceUnavailable,
+			Impact: "Coverage measurements will report unknown. Portfolio breadth estimates use module heuristics. No coverage-based insights will be generated.",
+		})
+	}
+
+	// Step 7: Compute risk surfaces from signals (now after coverage ingestion).
+	stepStart = time.Now()
+	snapshot.Risk = scoring.ComputeRisk(snapshot)
+	if diag != nil {
+		diag.add("risk-scoring", time.Since(stepStart), len(snapshot.Risk))
 	}
 
 	// Step 8: Compute measurement-layer posture.

@@ -1,0 +1,19 @@
+Hamlet Snapshot Comparison
+========================================
+
+Compared
+  from: 2025-01-15 12:00:00 UTC
+  to:   2025-01-15 12:00:00 UTC
+
+Test Files: +1
+
+Framework Changes
+----------------------------------------
+  added playwright (3 files)
+  removed cypress (6 files)
+
+Ownership Trend
+----------------------------------------
+  Distinct owners:     0 → 3
+  Owned files:         0 → 6 (improved)
+

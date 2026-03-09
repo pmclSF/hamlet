@@ -112,6 +112,7 @@ Resolve file ownership for grouping and visibility.
 Responsibilities:
 - load .hamlet/ownership.yaml (explicit config)
 - parse CODEOWNERS files
+- optional git-history fallback (commit author names)
 - directory-based fallback
 - attach owner labels to test files and signals
 

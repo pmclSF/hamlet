@@ -12,6 +12,7 @@
 package benchmark
 
 import (
+	"sort"
 	"time"
 
 	"github.com/pmclSF/hamlet/internal/metrics"
@@ -297,19 +298,23 @@ func buildOwnershipAggregate(snap *models.TestSuiteSnapshot) *OwnershipAggregate
 	}
 
 	// Fragmentation index.
+	// Sort signal counts for deterministic float accumulation.
 	if totalSignals > 0 && len(sigsByOwner) > 1 {
 		total := float64(totalSignals)
-		sumSquares := 0.0
-		activeOwners := 0
+		var sigCounts []int
 		for _, c := range sigsByOwner {
 			if c > 0 {
-				activeOwners++
-				share := float64(c) / total
-				sumSquares += share * share
+				sigCounts = append(sigCounts, c)
 			}
 		}
-		if activeOwners > 1 && sumSquares < 1.0 {
-			minHHI := 1.0 / float64(activeOwners)
+		sort.Ints(sigCounts)
+		sumSquares := 0.0
+		for _, c := range sigCounts {
+			share := float64(c) / total
+			sumSquares += share * share
+		}
+		if len(sigCounts) > 1 && sumSquares < 1.0 {
+			minHHI := 1.0 / float64(len(sigCounts))
 			agg.FragmentationIndex = (1.0 - sumSquares) / (1.0 - minHHI)
 		}
 	}
