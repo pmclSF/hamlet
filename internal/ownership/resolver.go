@@ -1,23 +1,22 @@
-// Package ownership implements Hamlet's local ownership resolution.
+// Package ownership implements Hamlet's normalized ownership subsystem.
 //
-// Ownership is used for grouping and visibility, not surveillance.
-// It helps teams understand which areas of the codebase are affected
-// by test quality, health, and migration findings.
+// Ownership is a routing layer, not a blame layer. It exists to make
+// findings actionable by connecting risk, health, quality, and migration
+// data to the people and teams who can act on it.
 //
-// Resolution precedence:
+// Resolution precedence (highest to lowest):
 //  1. Explicit Hamlet ownership config (.hamlet/ownership.yaml)
 //  2. CODEOWNERS file matching
-//  3. Directory-based fallback (top-level directory name)
-//  4. "unknown" when nothing matches
+//  3. Package metadata ownership (package.json maintainers, etc.)
+//  4. Path-prefix mapping (.hamlet/ownership.yaml path_mappings)
+//  5. Directory-based fallback (top-level directory name)
+//  6. "unknown" when nothing matches
 //
-// Future expansion points:
-//   - git blame heuristics (not implemented yet)
-//   - org-level ownership registry
-//   - team identity resolution
+// Each resolution level produces a full OwnershipAssignment with
+// provenance, confidence, and inheritance metadata.
 package ownership
 
 import (
-	"bufio"
 	"os"
 	"path/filepath"
 	"strings"
@@ -33,57 +32,138 @@ type Rule struct {
 	Owner string `yaml:"owner"`
 }
 
+// PathMapping maps a path prefix to one or more owners.
+type PathMapping struct {
+	Prefix string   `yaml:"prefix"`
+	Owners []string `yaml:"owners"`
+}
+
 // Config is the explicit ownership configuration from .hamlet/ownership.yaml.
 type Config struct {
-	Rules []Rule `yaml:"rules"`
+	Rules        []Rule        `yaml:"rules"`
+	PathMappings []PathMapping `yaml:"path_mappings"`
 }
 
 // Resolver resolves file ownership using configured rules and CODEOWNERS.
+//
+// The resolver loads all available ownership sources at construction time
+// and evaluates them in precedence order during resolution.
 type Resolver struct {
+	repoRoot      string
 	explicitRules []Rule
-	codeowners    []codeownersEntry
-}
-
-type codeownersEntry struct {
-	pattern string
-	owner   string
+	pathMappings  []PathMapping
+	codeowners    *CodeownersFile
+	diagnostics   []Diagnostic
+	sourcesUsed   []SourceType
 }
 
 // NewResolver creates a Resolver by loading ownership config and CODEOWNERS
 // from the given repository root. Missing files are handled gracefully.
 func NewResolver(repoRoot string) *Resolver {
-	r := &Resolver{}
+	r := &Resolver{repoRoot: repoRoot}
 	r.loadExplicitConfig(repoRoot)
-	r.loadCodeowners(repoRoot)
+	r.loadCodeownersFile(repoRoot)
 	return r
 }
 
-// Resolve returns the owner for a given repository-relative file path.
+// Resolve returns the primary owner ID for a given repository-relative file path.
+// This is the backward-compatible API used by existing callers.
 //
-// Precedence:
-//  1. Explicit Hamlet ownership config
-//  2. CODEOWNERS
-//  3. Top-level directory fallback
-//  4. "unknown"
+// For full ownership metadata, use ResolveAssignment instead.
 func (r *Resolver) Resolve(relPath string) string {
-	// 1. Explicit config rules (longest prefix match)
-	if owner := r.matchExplicit(relPath); owner != "" {
-		return owner
+	a := r.ResolveAssignment(relPath)
+	return a.PrimaryOwnerID()
+}
+
+// ResolveAssignment returns a full OwnershipAssignment for a file path,
+// including all owners, provenance, confidence, and source metadata.
+func (r *Resolver) ResolveAssignment(relPath string) OwnershipAssignment {
+	// 1. Explicit config rules (longest prefix match, highest precedence).
+	if a, ok := r.matchExplicitAssignment(relPath); ok {
+		return a
 	}
 
-	// 2. CODEOWNERS (last matching entry wins, per GitHub convention)
-	if owner := r.matchCodeowners(relPath); owner != "" {
-		return owner
+	// 2. CODEOWNERS (last matching entry wins, per GitHub convention).
+	if a, ok := r.matchCodeownersAssignment(relPath); ok {
+		return a
 	}
 
-	// 3. Directory fallback: use top-level directory name
-	parts := strings.SplitN(filepath.ToSlash(relPath), "/", 2)
+	// 3. Path mappings from config.
+	if a, ok := r.matchPathMapping(relPath); ok {
+		return a
+	}
+
+	// 4. Directory fallback: use top-level directory name.
+	normalized := filepath.ToSlash(relPath)
+	parts := strings.SplitN(normalized, "/", 2)
 	if len(parts) > 1 && parts[0] != "" && parts[0] != "." {
-		return parts[0]
+		return OwnershipAssignment{
+			Owners:      []Owner{{ID: parts[0]}},
+			Source:      SourceDirectoryFallback,
+			Confidence:  ConfidenceLow,
+			Inheritance: InheritanceDirect,
+		}
 	}
 
-	// 4. Unknown
-	return unknownOwner
+	// 5. Unknown.
+	return OwnershipAssignment{
+		Source:     SourceUnknown,
+		Confidence: ConfidenceNone,
+	}
+}
+
+// ResolveAll resolves ownership for a list of file paths and returns
+// a map of path to assignment.
+func (r *Resolver) ResolveAll(paths []string) map[string]OwnershipAssignment {
+	result := make(map[string]OwnershipAssignment, len(paths))
+	for _, p := range paths {
+		result[p] = r.ResolveAssignment(p)
+	}
+	return result
+}
+
+// InheritFrom creates an inherited assignment from a parent (file-level)
+// assignment. The inheritance kind is set to Inherited and the source
+// metadata is preserved.
+func InheritFrom(parent OwnershipAssignment) OwnershipAssignment {
+	return OwnershipAssignment{
+		Owners:      parent.Owners,
+		Source:      parent.Source,
+		Confidence:  parent.Confidence,
+		Inheritance: InheritanceInherited,
+		MatchedRule: parent.MatchedRule,
+		SourceFile:  parent.SourceFile,
+	}
+}
+
+// Diagnostics returns any warnings or issues from loading ownership sources.
+func (r *Resolver) Diagnostics() []Diagnostic {
+	var diags []Diagnostic
+	diags = append(diags, r.diagnostics...)
+	if r.codeowners != nil {
+		diags = append(diags, r.codeowners.Diagnostics...)
+	}
+	return diags
+}
+
+// SourcesUsed returns which ownership sources were loaded.
+func (r *Resolver) SourcesUsed() []SourceType {
+	var sources []SourceType
+	if len(r.explicitRules) > 0 {
+		sources = append(sources, SourceExplicitConfig)
+	}
+	if r.codeowners != nil && len(r.codeowners.Rules) > 0 {
+		sources = append(sources, SourceCodeowners)
+	}
+	if len(r.pathMappings) > 0 {
+		sources = append(sources, SourcePathMapping)
+	}
+	return sources
+}
+
+// HasCodeowners returns true if a CODEOWNERS file was found and parsed.
+func (r *Resolver) HasCodeowners() bool {
+	return r.codeowners != nil && len(r.codeowners.Rules) > 0
 }
 
 func (r *Resolver) loadExplicitConfig(root string) {
@@ -97,81 +177,97 @@ func (r *Resolver) loadExplicitConfig(root string) {
 		Ownership Config `yaml:"ownership"`
 	}
 	if err := yaml.Unmarshal(data, &ownershipFile); err != nil {
+		r.diagnostics = append(r.diagnostics, Diagnostic{
+			Level:   "warning",
+			Message: "failed to parse ownership config: " + err.Error(),
+			Source:  ".hamlet/ownership.yaml",
+		})
 		return
 	}
 	r.explicitRules = ownershipFile.Ownership.Rules
+	r.pathMappings = ownershipFile.Ownership.PathMappings
 }
 
-func (r *Resolver) loadCodeowners(root string) {
-	// Check standard CODEOWNERS locations
-	candidates := []string{
-		filepath.Join(root, "CODEOWNERS"),
-		filepath.Join(root, ".github", "CODEOWNERS"),
-		filepath.Join(root, "docs", "CODEOWNERS"),
+func (r *Resolver) loadCodeownersFile(root string) {
+	absPath, relPath, found := FindCodeownersFile(root)
+	if !found {
+		return
 	}
-
-	for _, path := range candidates {
-		f, err := os.Open(path)
-		if err != nil {
-			continue
-		}
-		defer f.Close()
-
-		scanner := bufio.NewScanner(f)
-		for scanner.Scan() {
-			line := strings.TrimSpace(scanner.Text())
-			if line == "" || strings.HasPrefix(line, "#") {
-				continue
-			}
-			fields := strings.Fields(line)
-			if len(fields) >= 2 {
-				r.codeowners = append(r.codeowners, codeownersEntry{
-					pattern: fields[0],
-					owner:   fields[1],
-				})
-			}
-		}
-		return // Use first found CODEOWNERS file
-	}
+	r.codeowners = ParseCodeownersFile(absPath, relPath)
 }
 
-func (r *Resolver) matchExplicit(relPath string) string {
+func (r *Resolver) matchExplicitAssignment(relPath string) (OwnershipAssignment, bool) {
 	normalized := filepath.ToSlash(relPath)
-	var bestMatch string
+	var bestRule *Rule
 	var bestLen int
 
-	for _, rule := range r.explicitRules {
+	for i := range r.explicitRules {
+		rule := &r.explicitRules[i]
 		prefix := filepath.ToSlash(rule.Path)
-		// Ensure prefix matching works with or without trailing slash
 		prefix = strings.TrimSuffix(prefix, "/")
 		if strings.HasPrefix(normalized, prefix) && len(prefix) > bestLen {
-			bestMatch = rule.Owner
+			bestRule = rule
 			bestLen = len(prefix)
 		}
 	}
-	return bestMatch
+
+	if bestRule == nil {
+		return OwnershipAssignment{}, false
+	}
+
+	return OwnershipAssignment{
+		Owners:      []Owner{{ID: NormalizeOwnerID(bestRule.Owner)}},
+		Source:      SourceExplicitConfig,
+		Confidence:  ConfidenceHigh,
+		Inheritance: InheritanceDirect,
+		MatchedRule: bestRule.Path,
+		SourceFile:  ".hamlet/ownership.yaml",
+	}, true
 }
 
-func (r *Resolver) matchCodeowners(relPath string) string {
+func (r *Resolver) matchCodeownersAssignment(relPath string) (OwnershipAssignment, bool) {
+	if r.codeowners == nil || len(r.codeowners.Rules) == 0 {
+		return OwnershipAssignment{}, false
+	}
+
+	rule, matched := MatchCodeowners(r.codeowners.Rules, relPath)
+	if !matched {
+		return OwnershipAssignment{}, false
+	}
+
+	return rule.ToAssignment(r.codeowners.Path), true
+}
+
+func (r *Resolver) matchPathMapping(relPath string) (OwnershipAssignment, bool) {
 	normalized := filepath.ToSlash(relPath)
-	var lastMatch string
+	var bestMapping *PathMapping
+	var bestLen int
 
-	for _, entry := range r.codeowners {
-		pattern := entry.pattern
-		// Simple prefix matching (covers most practical CODEOWNERS patterns)
-		// Full glob matching could be added later if needed.
-		cleanPattern := strings.TrimSuffix(strings.TrimPrefix(pattern, "/"), "/")
-
-		if strings.HasPrefix(normalized, cleanPattern) {
-			lastMatch = entry.owner
-		}
-		// Also handle wildcard suffix patterns like "*.js"
-		if strings.HasPrefix(pattern, "*") {
-			ext := strings.TrimPrefix(pattern, "*")
-			if strings.HasSuffix(normalized, ext) {
-				lastMatch = entry.owner
-			}
+	for i := range r.pathMappings {
+		pm := &r.pathMappings[i]
+		prefix := filepath.ToSlash(pm.Prefix)
+		prefix = strings.TrimSuffix(prefix, "/")
+		if strings.HasPrefix(normalized, prefix) && len(prefix) > bestLen {
+			bestMapping = pm
+			bestLen = len(prefix)
 		}
 	}
-	return lastMatch
+
+	if bestMapping == nil {
+		return OwnershipAssignment{}, false
+	}
+
+	owners := make([]Owner, len(bestMapping.Owners))
+	for i, o := range bestMapping.Owners {
+		owners[i] = Owner{ID: NormalizeOwnerID(o)}
+	}
+
+	return OwnershipAssignment{
+		Owners:      owners,
+		Source:      SourcePathMapping,
+		Confidence:  ConfidenceMedium,
+		Inheritance: InheritanceDirect,
+		MatchedRule: bestMapping.Prefix,
+		SourceFile:  ".hamlet/ownership.yaml",
+	}, true
 }
