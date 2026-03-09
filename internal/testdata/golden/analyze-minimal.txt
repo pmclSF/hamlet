@@ -30,10 +30,16 @@ Risk
 ----------------------------------------
   No risk surfaces detected.
 
+Portfolio Intelligence
+----------------------------------------
+  Assets: 1    Findings: 0
+  Posture: STRONG
+
 Generated:   2025-01-15 12:00:00 UTC
 
 Next steps:
   hamlet summary       leadership-ready overview
   hamlet posture       detailed posture with evidence
+  hamlet portfolio     cost, leverage, and redundancy insights
   hamlet analyze --write-snapshot   save for trend tracking
 

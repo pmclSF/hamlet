@@ -165,6 +165,9 @@ func RenderAnalyzeReport(w io.Writer, snap *models.TestSuiteSnapshot) {
 	}
 	blank()
 
+	// Portfolio intelligence summary
+	RenderPortfolioSection(w, snap.Portfolio)
+
 	// Review sections (owner grouping, directory grouping, migration blockers)
 	RenderReviewSections(w, snap)
 
@@ -176,6 +179,7 @@ func RenderAnalyzeReport(w io.Writer, snap *models.TestSuiteSnapshot) {
 	line("Next steps:")
 	line("  hamlet summary       leadership-ready overview")
 	line("  hamlet posture       detailed posture with evidence")
+	line("  hamlet portfolio     cost, leverage, and redundancy insights")
 	line("  hamlet analyze --write-snapshot   save for trend tracking")
 	blank()
 }

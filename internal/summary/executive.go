@@ -544,13 +544,38 @@ func buildBlindSpots(snap *models.TestSuiteSnapshot, ms *metrics.Snapshot) []Bli
 		})
 	}
 
-	// Check for missing ownership data.
+	// Check for missing or weak ownership data.
 	if len(snap.Ownership) == 0 {
 		spots = append(spots, BlindSpot{
 			Area:        "Ownership attribution",
-			Reason:      "No CODEOWNERS file detected",
+			Reason:      "No ownership data available",
 			Remediation: "Add a CODEOWNERS file for per-team risk attribution",
 		})
+	} else {
+		// Check if ownership is sparse.
+		allFiles := map[string]bool{}
+		for _, tf := range snap.TestFiles {
+			allFiles[tf.Path] = true
+		}
+		for _, cu := range snap.CodeUnits {
+			allFiles[cu.Path] = true
+		}
+		if len(allFiles) > 0 {
+			ownedCount := 0
+			for path := range allFiles {
+				if _, ok := snap.Ownership[path]; ok {
+					ownedCount++
+				}
+			}
+			ratio := float64(ownedCount) / float64(len(allFiles))
+			if ratio < 0.50 {
+				spots = append(spots, BlindSpot{
+					Area:        "Ownership coverage",
+					Reason:      fmt.Sprintf("Only %d of %d files have ownership (%0.f%%)", ownedCount, len(allFiles), ratio*100),
+					Remediation: "Expand CODEOWNERS or .hamlet/ownership.yaml to cover more files",
+				})
+			}
+		}
 	}
 
 	return spots

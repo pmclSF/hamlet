@@ -1,0 +1,48 @@
+Hamlet Portfolio Intelligence
+==================================================
+
+Overview
+--------------------------------------------------
+  Test assets:          10
+  Total runtime:        112000ms
+  Runtime concentration: 42% in top 20%
+  Portfolio posture:    CRITICAL
+
+Findings
+--------------------------------------------------
+  Low-value high-cost:      6
+
+Top Findings
+--------------------------------------------------
+  [LOW-VALUE] cypress/e2e/flow1.cy.js
+    cypress/e2e/flow1.cy.js costs 12000ms with 30% retry rate; coverage data unavailable to confirm value.
+    Action: Review whether this test can be optimized, scoped down, or replaced with faster alternatives.
+  [LOW-VALUE] cypress/e2e/flow2.cy.js
+    cypress/e2e/flow2.cy.js costs 15000ms with 40% retry rate; coverage data unavailable to confirm value.
+    Action: Review whether this test can be optimized, scoped down, or replaced with faster alternatives.
+  [LOW-VALUE] cypress/e2e/flow3.cy.js
+    cypress/e2e/flow3.cy.js costs 18000ms with 35% retry rate; coverage data unavailable to confirm value.
+    Action: Review whether this test can be optimized, scoped down, or replaced with faster alternatives.
+  [LOW-VALUE] cypress/e2e/flow4.cy.js
+    cypress/e2e/flow4.cy.js costs 20000ms with 45% retry rate; coverage data unavailable to confirm value.
+    Action: Review whether this test can be optimized, scoped down, or replaced with faster alternatives.
+  [LOW-VALUE] cypress/e2e/flow5.cy.js
+    cypress/e2e/flow5.cy.js costs 22000ms with 50% retry rate; coverage data unavailable to confirm value.
+    Action: Review whether this test can be optimized, scoped down, or replaced with faster alternatives.
+  [LOW-VALUE] cypress/e2e/flow6.cy.js
+    cypress/e2e/flow6.cy.js costs 25000ms with 50% retry rate; coverage data unavailable to confirm value.
+    Action: Review whether this test can be optimized, scoped down, or replaced with faster alternatives.
+
+By Owner
+--------------------------------------------------
+  unknown                  6 finding(s)
+
+Evidence
+--------------------------------------------------
+  Runtime and coverage data available. Findings are high-confidence.
+
+Next steps:
+  hamlet portfolio --json     full portfolio data as JSON
+  hamlet posture              see measurement-level evidence
+  hamlet summary              leadership-ready overview
+

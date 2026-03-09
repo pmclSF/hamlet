@@ -174,4 +174,67 @@ func RenderComparisonReport(w io.Writer, comp *comparison.SnapshotComparison) {
 			blank()
 		}
 	}
+
+	// Posture trend
+	if len(comp.PostureDeltas) > 0 {
+		line("Posture Changes")
+		line(strings.Repeat("-", 40))
+		for _, pd := range comp.PostureDeltas {
+			before := pd.Before
+			if before == "" {
+				before = "(none)"
+			}
+			after := pd.After
+			if after == "" {
+				after = "(none)"
+			}
+			line("  %-26s %s → %s", pd.Dimension, strings.ToUpper(before), strings.ToUpper(after))
+		}
+		blank()
+	}
+
+	// Measurement changes
+	if len(comp.MeasurementDeltas) > 0 {
+		// Show up to 5 most significant measurement changes.
+		limit := 5
+		if len(comp.MeasurementDeltas) < limit {
+			limit = len(comp.MeasurementDeltas)
+		}
+		line("Measurement Changes")
+		line(strings.Repeat("-", 40))
+		for _, md := range comp.MeasurementDeltas[:limit] {
+			sign := "+"
+			if md.Delta < 0 {
+				sign = ""
+			}
+			line("  %-36s %s%.1f%%", md.ID, sign, md.Delta*100)
+			if md.BandChanged {
+				line("    band: %s → %s", md.BandBefore, md.BandAfter)
+			}
+		}
+		if len(comp.MeasurementDeltas) > limit {
+			line("  ... and %d more", len(comp.MeasurementDeltas)-limit)
+		}
+		blank()
+	}
+
+	// Ownership trend
+	if comp.OwnershipDelta != nil {
+		od := comp.OwnershipDelta
+		if od.OwnerCountBefore != od.OwnerCountAfter || od.OwnedFilesBefore != od.OwnedFilesAfter {
+			line("Ownership Trend")
+			line(strings.Repeat("-", 40))
+			if od.OwnerCountBefore != od.OwnerCountAfter {
+				line("  Distinct owners:     %d → %d", od.OwnerCountBefore, od.OwnerCountAfter)
+			}
+			if od.OwnedFilesBefore != od.OwnedFilesAfter {
+				dir := "improved"
+				if od.OwnedFilesAfter < od.OwnedFilesBefore {
+					dir = "decreased"
+				}
+				line("  Owned files:         %d → %d (%s)", od.OwnedFilesBefore, od.OwnedFilesAfter, dir)
+			}
+			blank()
+		}
+	}
 }

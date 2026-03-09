@@ -72,5 +72,13 @@
     "health": "strong",
     "operational_risk": "strong",
     "structural_risk": "strong"
+  },
+  "portfolioStats": {
+    "runtimeConcentrationBand": "unknown",
+    "redundancyCandidateShareBand": "minimal",
+    "overbroadShareBand": "minimal",
+    "lowValueHighCostShareBand": "minimal",
+    "highLeverageShareBand": "minimal",
+    "portfolioPostureBand": "strong"
   }
 }

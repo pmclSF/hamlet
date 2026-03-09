@@ -102,6 +102,9 @@ type TestSuiteSnapshot struct {
 	// Measurements contains the measurement-layer snapshot when computed.
 	Measurements *MeasurementSnapshot `json:"measurements,omitempty"`
 
+	// Portfolio contains portfolio intelligence results when computed.
+	Portfolio *PortfolioSnapshot `json:"portfolio,omitempty"`
+
 	// CoverageSummary holds aggregated coverage statistics when coverage
 	// artifacts have been ingested.
 	CoverageSummary *CoverageSummary `json:"coverageSummary,omitempty"`

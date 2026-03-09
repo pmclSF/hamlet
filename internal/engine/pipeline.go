@@ -12,6 +12,7 @@ import (
 	"github.com/pmclSF/hamlet/internal/models"
 	"github.com/pmclSF/hamlet/internal/ownership"
 	"github.com/pmclSF/hamlet/internal/policy"
+	"github.com/pmclSF/hamlet/internal/portfolio"
 	"github.com/pmclSF/hamlet/internal/runtime"
 	"github.com/pmclSF/hamlet/internal/scoring"
 )
@@ -46,9 +47,15 @@ type PipelineOptions struct {
 
 // RunPipeline executes the full analysis pipeline:
 //  1. Static analysis (file discovery, framework detection, code units)
-//  2. Signal detection via the detector registry
-//  3. Ownership resolution
-//  4. Risk scoring
+//  2. Policy loading
+//  3. Signal detection via the detector registry
+//  4. Ownership resolution
+//  5. Runtime ingestion (optional)
+//  6. Risk scoring
+//  7. Coverage ingestion (optional)
+//  8. Measurement-layer posture
+//  9. Portfolio intelligence
+//  10. Deterministic sorting
 //
 // This replaces the duplicated detector invocation across CLI commands.
 func RunPipeline(root string, opts ...PipelineOptions) (*PipelineResult, error) {
@@ -107,14 +114,10 @@ func RunPipeline(root string, opts ...PipelineOptions) (*PipelineResult, error) 
 		Detectors:     detectorIDs,
 	}
 
-	// Step 4: Propagate ownership to signals.
+	// Step 4: Propagate ownership to signals, code units, and test files.
 	stepStart = time.Now()
 	resolver := ownership.NewResolver(root)
-	for i := range snapshot.Signals {
-		if snapshot.Signals[i].Owner == "" && snapshot.Signals[i].Location.File != "" {
-			snapshot.Signals[i].Owner = resolver.Resolve(snapshot.Signals[i].Location.File)
-		}
-	}
+	ownership.Propagate(resolver, snapshot)
 	if diag != nil {
 		diag.add("ownership-resolution", time.Since(stepStart), len(snapshot.Signals))
 	}
@@ -157,7 +160,15 @@ func RunPipeline(root string, opts ...PipelineOptions) (*PipelineResult, error) 
 		diag.add("measurement", time.Since(stepStart), len(snapshot.Measurements.Posture))
 	}
 
-	// Step 9: Sort all snapshot slices into canonical order for determinism.
+	// Step 9: Compute portfolio intelligence.
+	stepStart = time.Now()
+	portfolioSummary := portfolio.Analyze(snapshot)
+	snapshot.Portfolio = portfolioSummary.ToModel()
+	if diag != nil {
+		diag.add("portfolio", time.Since(stepStart), len(portfolioSummary.Findings))
+	}
+
+	// Step 10: Sort all snapshot slices into canonical order for determinism.
 	models.SortSnapshot(snapshot)
 
 	if diag != nil {

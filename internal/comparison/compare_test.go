@@ -271,6 +271,81 @@ func TestCompare_CoverageDelta_NilBoth(t *testing.T) {
 	}
 }
 
+func TestCompare_PostureDeltas(t *testing.T) {
+	from := &models.TestSuiteSnapshot{
+		GeneratedAt: time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC),
+		Measurements: &models.MeasurementSnapshot{
+			Posture: []models.DimensionPostureResult{
+				{Dimension: "health", Band: "strong"},
+				{Dimension: "coverage_depth", Band: "moderate"},
+			},
+			Measurements: []models.MeasurementResult{
+				{ID: "health.flaky_share", Dimension: "health", Value: 0.02, Band: "strong"},
+				{ID: "coverage_depth.uncovered_exports", Dimension: "coverage_depth", Value: 0.20, Band: "moderate"},
+			},
+		},
+	}
+	to := &models.TestSuiteSnapshot{
+		GeneratedAt: time.Date(2026, 3, 6, 0, 0, 0, 0, time.UTC),
+		Measurements: &models.MeasurementSnapshot{
+			Posture: []models.DimensionPostureResult{
+				{Dimension: "health", Band: "weak"},
+				{Dimension: "coverage_depth", Band: "moderate"},
+			},
+			Measurements: []models.MeasurementResult{
+				{ID: "health.flaky_share", Dimension: "health", Value: 0.25, Band: "weak"},
+				{ID: "coverage_depth.uncovered_exports", Dimension: "coverage_depth", Value: 0.20, Band: "moderate"},
+			},
+		},
+	}
+
+	comp := Compare(from, to)
+
+	// Posture: health changed, coverage_depth did not.
+	if len(comp.PostureDeltas) != 1 {
+		t.Fatalf("expected 1 posture delta, got %d", len(comp.PostureDeltas))
+	}
+	if comp.PostureDeltas[0].Dimension != "health" {
+		t.Errorf("posture delta dimension = %q, want %q", comp.PostureDeltas[0].Dimension, "health")
+	}
+	if comp.PostureDeltas[0].Before != "strong" || comp.PostureDeltas[0].After != "weak" {
+		t.Errorf("posture delta = %q→%q, want strong→weak", comp.PostureDeltas[0].Before, comp.PostureDeltas[0].After)
+	}
+
+	// Measurement: flaky_share changed value and band, uncovered_exports unchanged.
+	if len(comp.MeasurementDeltas) != 1 {
+		t.Fatalf("expected 1 measurement delta, got %d", len(comp.MeasurementDeltas))
+	}
+	md := comp.MeasurementDeltas[0]
+	if md.ID != "health.flaky_share" {
+		t.Errorf("measurement delta ID = %q, want %q", md.ID, "health.flaky_share")
+	}
+	if md.Before != 0.02 || md.After != 0.25 {
+		t.Errorf("measurement values = %.2f→%.2f, want 0.02→0.25", md.Before, md.After)
+	}
+	if !md.BandChanged || md.BandBefore != "strong" || md.BandAfter != "weak" {
+		t.Errorf("band change = %v %q→%q, want true strong→weak", md.BandChanged, md.BandBefore, md.BandAfter)
+	}
+
+	// Should be meaningful.
+	if !comp.HasMeaningfulChanges() {
+		t.Error("expected meaningful changes when posture changed")
+	}
+}
+
+func TestCompare_PostureDeltas_NilMeasurements(t *testing.T) {
+	snap := &models.TestSuiteSnapshot{
+		GeneratedAt: time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC),
+	}
+	comp := Compare(snap, snap)
+	if len(comp.PostureDeltas) != 0 {
+		t.Errorf("expected no posture deltas when measurements are nil, got %d", len(comp.PostureDeltas))
+	}
+	if len(comp.MeasurementDeltas) != 0 {
+		t.Errorf("expected no measurement deltas when measurements are nil, got %d", len(comp.MeasurementDeltas))
+	}
+}
+
 func TestCompare_HasMeaningfulChanges_TestCases(t *testing.T) {
 	from := &models.TestSuiteSnapshot{
 		GeneratedAt: time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC),

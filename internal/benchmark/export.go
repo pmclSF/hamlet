@@ -46,6 +46,32 @@ type Export struct {
 
 	// TestIdentityStats contains privacy-safe test identity aggregates.
 	TestIdentityStats *TestIdentityAggregate `json:"testIdentityStats,omitempty"`
+
+	// OwnershipStats contains privacy-safe ownership aggregates.
+	// No owner names, paths, or identifying details.
+	OwnershipStats *OwnershipAggregate `json:"ownershipStats,omitempty"`
+
+	// PortfolioStats contains privacy-safe portfolio intelligence aggregates.
+	// No file paths, owner names, or finding details — only bands and ratios.
+	PortfolioStats *PortfolioAggregate `json:"portfolioStats,omitempty"`
+}
+
+// OwnershipAggregate holds privacy-safe ownership statistics.
+type OwnershipAggregate struct {
+	// OwnerCount is the number of distinct owners.
+	OwnerCount int `json:"ownerCount"`
+
+	// CoveragePosture is the ownership coverage posture.
+	CoveragePosture string `json:"coveragePosture"`
+
+	// TopOwnerRiskSharePct is the percentage of signals in the top owner.
+	TopOwnerRiskSharePct float64 `json:"topOwnerRiskSharePct"`
+
+	// UnownedCriticalPct is the percentage of critical code in unowned areas.
+	UnownedCriticalPct float64 `json:"unownedCriticalPct"`
+
+	// FragmentationIndex measures risk distribution across owners (0-1).
+	FragmentationIndex float64 `json:"fragmentationIndex"`
 }
 
 // CoverageByTypeAggregate holds privacy-safe coverage-by-type percentages.
@@ -176,7 +202,125 @@ func BuildExport(snap *models.TestSuiteSnapshot, ms *metrics.Snapshot, hasPolicy
 		}
 	}
 
+	// Include ownership aggregates (privacy-safe).
+	if len(snap.Ownership) > 0 {
+		e.OwnershipStats = buildOwnershipAggregate(snap)
+	}
+
+	// Include portfolio aggregates (privacy-safe).
+	if snap.Portfolio != nil && snap.Portfolio.Aggregates.TotalAssets > 0 {
+		e.PortfolioStats = buildPortfolioAggregate(snap.Portfolio)
+	}
+
 	return e
+}
+
+// buildOwnershipAggregate creates a privacy-safe ownership aggregate.
+// No owner names or file paths are included.
+func buildOwnershipAggregate(snap *models.TestSuiteSnapshot) *OwnershipAggregate {
+	owners := map[string]bool{}
+	for _, ownerList := range snap.Ownership {
+		for _, o := range ownerList {
+			owners[o] = true
+		}
+	}
+	if len(owners) == 0 {
+		return nil
+	}
+
+	agg := &OwnershipAggregate{
+		OwnerCount: len(owners),
+	}
+
+	// Coverage posture.
+	allFiles := map[string]bool{}
+	for _, tf := range snap.TestFiles {
+		allFiles[tf.Path] = true
+	}
+	for _, cu := range snap.CodeUnits {
+		allFiles[cu.Path] = true
+	}
+	ownedCount := 0
+	for path := range allFiles {
+		if _, ok := snap.Ownership[path]; ok {
+			ownedCount++
+		}
+	}
+	if len(allFiles) > 0 {
+		ratio := float64(ownedCount) / float64(len(allFiles))
+		switch {
+		case ratio >= 0.80:
+			agg.CoveragePosture = "strong"
+		case ratio >= 0.50:
+			agg.CoveragePosture = "partial"
+		case ratio > 0:
+			agg.CoveragePosture = "weak"
+		default:
+			agg.CoveragePosture = "none"
+		}
+	}
+
+	// Top owner risk share.
+	sigsByOwner := map[string]int{}
+	totalSignals := 0
+	for _, s := range snap.Signals {
+		owner := s.Owner
+		if owner == "" {
+			owner = "unknown"
+		}
+		sigsByOwner[owner]++
+		totalSignals++
+	}
+	maxSigs := 0
+	for _, c := range sigsByOwner {
+		if c > maxSigs {
+			maxSigs = c
+		}
+	}
+	if totalSignals > 0 {
+		agg.TopOwnerRiskSharePct = float64(maxSigs) / float64(totalSignals) * 100
+	}
+
+	// Unowned critical code.
+	totalExported := 0
+	unownedExported := 0
+	for _, cu := range snap.CodeUnits {
+		if cu.Exported {
+			totalExported++
+			if cu.Owner == "" || cu.Owner == "unknown" {
+				unownedExported++
+			}
+		}
+	}
+	if totalExported > 0 {
+		agg.UnownedCriticalPct = float64(unownedExported) / float64(totalExported) * 100
+	}
+
+	// Fragmentation index.
+	if totalSignals > 0 && len(sigsByOwner) > 1 {
+		total := float64(totalSignals)
+		sumSquares := 0.0
+		activeOwners := 0
+		for _, c := range sigsByOwner {
+			if c > 0 {
+				activeOwners++
+				share := float64(c) / total
+				sumSquares += share * share
+			}
+		}
+		if activeOwners > 1 && sumSquares < 1.0 {
+			minHHI := 1.0 / float64(activeOwners)
+			agg.FragmentationIndex = (1.0 - sumSquares) / (1.0 - minHHI)
+		}
+	}
+
+	// Suppress for sparse repos (fewer than 3 owners or 5 files).
+	if agg.OwnerCount < 3 || len(allFiles) < 5 {
+		agg.FragmentationIndex = 0
+		agg.TopOwnerRiskSharePct = 0
+	}
+
+	return agg
 }
 
 func buildSegment(snap *models.TestSuiteSnapshot, ms *metrics.Snapshot, hasPolicy bool) Segment {
@@ -224,6 +368,71 @@ func buildSegment(snap *models.TestSuiteSnapshot, ms *metrics.Snapshot, hasPolic
 	}
 
 	return seg
+}
+
+// PortfolioAggregate holds privacy-safe portfolio intelligence statistics.
+type PortfolioAggregate struct {
+	// RuntimeConcentrationBand describes how concentrated runtime is.
+	RuntimeConcentrationBand string `json:"runtimeConcentrationBand"`
+
+	// RedundancyCandidateShareBand describes the share of redundancy candidates.
+	RedundancyCandidateShareBand string `json:"redundancyCandidateShareBand"`
+
+	// OverbroadShareBand describes the share of overbroad tests.
+	OverbroadShareBand string `json:"overbroadShareBand"`
+
+	// LowValueHighCostShareBand describes the share of low-value high-cost tests.
+	LowValueHighCostShareBand string `json:"lowValueHighCostShareBand"`
+
+	// HighLeverageShareBand describes the share of high-leverage tests.
+	HighLeverageShareBand string `json:"highLeverageShareBand"`
+
+	// PortfolioPostureBand is the overall portfolio balance posture.
+	PortfolioPostureBand string `json:"portfolioPostureBand"`
+}
+
+func buildPortfolioAggregate(p *models.PortfolioSnapshot) *PortfolioAggregate {
+	total := float64(p.Aggregates.TotalAssets)
+	if total == 0 {
+		return nil
+	}
+
+	return &PortfolioAggregate{
+		RuntimeConcentrationBand:     concentrationBand(p.Aggregates.RuntimeConcentration),
+		RedundancyCandidateShareBand: shareBand(float64(p.Aggregates.RedundancyCandidateCount) / total),
+		OverbroadShareBand:           shareBand(float64(p.Aggregates.OverbroadCount) / total),
+		LowValueHighCostShareBand:    shareBand(float64(p.Aggregates.LowValueHighCostCount) / total),
+		HighLeverageShareBand:        shareBand(float64(p.Aggregates.HighLeverageCount) / total),
+		PortfolioPostureBand:         p.Aggregates.PortfolioPostureBand,
+	}
+}
+
+func concentrationBand(ratio float64) string {
+	switch {
+	case ratio <= 0:
+		return "unknown"
+	case ratio <= 0.50:
+		return "balanced"
+	case ratio <= 0.70:
+		return "moderate"
+	case ratio <= 0.85:
+		return "concentrated"
+	default:
+		return "highly_concentrated"
+	}
+}
+
+func shareBand(ratio float64) string {
+	switch {
+	case ratio <= 0.02:
+		return "minimal"
+	case ratio <= 0.10:
+		return "low"
+	case ratio <= 0.25:
+		return "moderate"
+	default:
+		return "high"
+	}
 }
 
 func hasCoverageSignals(snap *models.TestSuiteSnapshot) bool {

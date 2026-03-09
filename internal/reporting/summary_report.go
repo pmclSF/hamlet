@@ -138,6 +138,38 @@ func RenderSummaryReport(w io.Writer, snap *models.TestSuiteSnapshot, h *heatmap
 		}
 	}
 
+	// Ownership coverage
+	if len(snap.Ownership) > 0 {
+		ownedCount := 0
+		allFiles := map[string]bool{}
+		for _, tf := range snap.TestFiles {
+			allFiles[tf.Path] = true
+		}
+		for _, cu := range snap.CodeUnits {
+			allFiles[cu.Path] = true
+		}
+		for path := range allFiles {
+			if _, ok := snap.Ownership[path]; ok {
+				ownedCount++
+			}
+		}
+		unowned := len(allFiles) - ownedCount
+		line("Ownership Coverage")
+		line(strings.Repeat("-", 50))
+		line("  Files with owners:   %d / %d", ownedCount, len(allFiles))
+		if unowned > 0 {
+			line("  Unowned files:       %d", unowned)
+		}
+		owners := map[string]bool{}
+		for _, ownerList := range snap.Ownership {
+			for _, o := range ownerList {
+				owners[o] = true
+			}
+		}
+		line("  Distinct owners:     %d", len(owners))
+		blank()
+	}
+
 	// Next command hints
 	line("Next steps:")
 	line("  hamlet posture       evidence behind each dimension")

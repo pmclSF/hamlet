@@ -9,6 +9,7 @@ package comparison
 import (
 	"sort"
 
+	"github.com/pmclSF/hamlet/internal/lifecycle"
 	"github.com/pmclSF/hamlet/internal/models"
 )
 
@@ -41,6 +42,36 @@ type SnapshotComparison struct {
 
 	// CoverageDelta summarizes changes to coverage metrics.
 	CoverageDelta *CoverageDelta `json:"coverageDelta,omitempty"`
+
+	// OwnershipDelta summarizes changes to ownership coverage.
+	OwnershipDelta *OwnershipDelta `json:"ownershipDelta,omitempty"`
+
+	// PostureDeltas summarizes changes to posture dimensions.
+	PostureDeltas []PostureDelta `json:"postureDeltas,omitempty"`
+
+	// MeasurementDeltas summarizes changes to individual measurements.
+	MeasurementDeltas []MeasurementDelta `json:"measurementDeltas,omitempty"`
+
+	// LifecycleContinuity holds test lifecycle analysis between the two snapshots.
+	LifecycleContinuity *lifecycle.ContinuityResult `json:"lifecycleContinuity,omitempty"`
+}
+
+// OwnershipDelta summarizes changes to ownership metrics across snapshots.
+type OwnershipDelta struct {
+	// OwnerCountBefore is the number of distinct owners before.
+	OwnerCountBefore int `json:"ownerCountBefore"`
+
+	// OwnerCountAfter is the number of distinct owners after.
+	OwnerCountAfter int `json:"ownerCountAfter"`
+
+	// OwnedFilesBefore is the count of files with ownership before.
+	OwnedFilesBefore int `json:"ownedFilesBefore"`
+
+	// OwnedFilesAfter is the count of files with ownership after.
+	OwnedFilesAfter int `json:"ownedFilesAfter"`
+
+	// OwnershipImproved is true if ownership coverage increased.
+	OwnershipImproved bool `json:"ownershipImproved"`
 }
 
 // TestCaseDeltas summarizes changes in test case identity across snapshots.
@@ -89,6 +120,48 @@ type CoverageDelta struct {
 
 	// UnitTestCoverageAfter is the current count of units covered by unit tests.
 	UnitTestCoverageAfter int `json:"unitTestCoverageAfter,omitempty"`
+}
+
+// PostureDelta represents a change in a posture dimension band.
+type PostureDelta struct {
+	// Dimension is the posture dimension name (e.g. "health").
+	Dimension string `json:"dimension"`
+
+	// Before is the band in the baseline snapshot.
+	Before string `json:"before"`
+
+	// After is the band in the current snapshot.
+	After string `json:"after"`
+
+	// Changed is true if the band changed.
+	Changed bool `json:"changed"`
+}
+
+// MeasurementDelta represents a change in an individual measurement.
+type MeasurementDelta struct {
+	// ID is the measurement identifier (e.g. "health.flaky_share").
+	ID string `json:"id"`
+
+	// Dimension is the posture dimension this measurement feeds.
+	Dimension string `json:"dimension"`
+
+	// Before is the measurement value in the baseline snapshot.
+	Before float64 `json:"before"`
+
+	// After is the measurement value in the current snapshot.
+	After float64 `json:"after"`
+
+	// Delta is the change in value (After - Before).
+	Delta float64 `json:"delta"`
+
+	// BandBefore is the qualitative band before.
+	BandBefore string `json:"bandBefore,omitempty"`
+
+	// BandAfter is the qualitative band after.
+	BandAfter string `json:"bandAfter,omitempty"`
+
+	// BandChanged is true if the band changed.
+	BandChanged bool `json:"bandChanged,omitempty"`
 }
 
 // SignalDelta represents the change in count for a signal type.
@@ -140,6 +213,9 @@ func Compare(from, to *models.TestSuiteSnapshot) *SnapshotComparison {
 	comp.NewSignalExamples, comp.ResolvedSignalExamples = findRepresentativeChanges(from.Signals, to.Signals)
 	comp.TestCaseDeltas = compareTestCases(from.TestCases, to.TestCases)
 	comp.CoverageDelta = compareCoverage(from.CoverageSummary, to.CoverageSummary)
+	comp.OwnershipDelta = compareOwnership(from.Ownership, to.Ownership)
+	comp.PostureDeltas, comp.MeasurementDeltas = compareMeasurements(from.Measurements, to.Measurements)
+	comp.LifecycleContinuity = lifecycle.InferContinuity(from, to)
 
 	return comp
 }
@@ -160,6 +236,9 @@ func (c *SnapshotComparison) HasMeaningfulChanges() bool {
 		return true
 	}
 	if c.CoverageDelta != nil && c.CoverageDelta.LineCoverageDelta != 0 {
+		return true
+	}
+	if len(c.PostureDeltas) > 0 {
 		return true
 	}
 	return len(c.FrameworkChanges) > 0 || c.TestFileCountDelta != 0
@@ -433,6 +512,153 @@ func compareCoverage(from, to *models.CoverageSummary) *CoverageDelta {
 		d.UnitTestCoverageAfter = to.CoveredByUnitTests
 	}
 	d.LineCoverageDelta = d.LineCoverageAfter - d.LineCoverageBefore
+
+	return d
+}
+
+func compareMeasurements(from, to *models.MeasurementSnapshot) ([]PostureDelta, []MeasurementDelta) {
+	if from == nil && to == nil {
+		return nil, nil
+	}
+
+	// Build posture deltas.
+	fromPosture := map[string]string{}
+	if from != nil {
+		for _, p := range from.Posture {
+			fromPosture[p.Dimension] = p.Band
+		}
+	}
+	toPosture := map[string]string{}
+	if to != nil {
+		for _, p := range to.Posture {
+			toPosture[p.Dimension] = p.Band
+		}
+	}
+
+	allDims := map[string]bool{}
+	for d := range fromPosture {
+		allDims[d] = true
+	}
+	for d := range toPosture {
+		allDims[d] = true
+	}
+
+	sortedDims := make([]string, 0, len(allDims))
+	for d := range allDims {
+		sortedDims = append(sortedDims, d)
+	}
+	sort.Strings(sortedDims)
+
+	var postureDeltas []PostureDelta
+	for _, dim := range sortedDims {
+		before := fromPosture[dim]
+		after := toPosture[dim]
+		if before != after {
+			postureDeltas = append(postureDeltas, PostureDelta{
+				Dimension: dim,
+				Before:    before,
+				After:     after,
+				Changed:   true,
+			})
+		}
+	}
+
+	// Build measurement deltas.
+	fromMeas := map[string]models.MeasurementResult{}
+	if from != nil {
+		for _, m := range from.Measurements {
+			fromMeas[m.ID] = m
+		}
+	}
+	toMeas := map[string]models.MeasurementResult{}
+	if to != nil {
+		for _, m := range to.Measurements {
+			toMeas[m.ID] = m
+		}
+	}
+
+	allIDs := map[string]bool{}
+	for id := range fromMeas {
+		allIDs[id] = true
+	}
+	for id := range toMeas {
+		allIDs[id] = true
+	}
+
+	sortedIDs := make([]string, 0, len(allIDs))
+	for id := range allIDs {
+		sortedIDs = append(sortedIDs, id)
+	}
+	sort.Strings(sortedIDs)
+
+	var measDeltas []MeasurementDelta
+	for _, id := range sortedIDs {
+		fm := fromMeas[id]
+		tm := toMeas[id]
+		delta := tm.Value - fm.Value
+		if delta == 0 && fm.Band == tm.Band {
+			continue
+		}
+		dim := tm.Dimension
+		if dim == "" {
+			dim = fm.Dimension
+		}
+		measDeltas = append(measDeltas, MeasurementDelta{
+			ID:          id,
+			Dimension:   dim,
+			Before:      fm.Value,
+			After:       tm.Value,
+			Delta:       delta,
+			BandBefore:  fm.Band,
+			BandAfter:   tm.Band,
+			BandChanged: fm.Band != tm.Band,
+		})
+	}
+
+	// Sort by absolute delta descending, then by ID.
+	sort.Slice(measDeltas, func(i, j int) bool {
+		ai := measDeltas[i].Delta
+		if ai < 0 {
+			ai = -ai
+		}
+		aj := measDeltas[j].Delta
+		if aj < 0 {
+			aj = -aj
+		}
+		if ai != aj {
+			return ai > aj
+		}
+		return measDeltas[i].ID < measDeltas[j].ID
+	})
+
+	return postureDeltas, measDeltas
+}
+
+func compareOwnership(from, to map[string][]string) *OwnershipDelta {
+	if len(from) == 0 && len(to) == 0 {
+		return nil
+	}
+
+	fromOwners := map[string]bool{}
+	for _, owners := range from {
+		for _, o := range owners {
+			fromOwners[o] = true
+		}
+	}
+	toOwners := map[string]bool{}
+	for _, owners := range to {
+		for _, o := range owners {
+			toOwners[o] = true
+		}
+	}
+
+	d := &OwnershipDelta{
+		OwnerCountBefore: len(fromOwners),
+		OwnerCountAfter:  len(toOwners),
+		OwnedFilesBefore: len(from),
+		OwnedFilesAfter:  len(to),
+		OwnershipImproved: len(to) > len(from),
+	}
 
 	return d
 }

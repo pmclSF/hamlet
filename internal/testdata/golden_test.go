@@ -12,6 +12,7 @@ import (
 	"github.com/pmclSF/hamlet/internal/heatmap"
 	"github.com/pmclSF/hamlet/internal/measurement"
 	"github.com/pmclSF/hamlet/internal/metrics"
+	"github.com/pmclSF/hamlet/internal/portfolio"
 	"github.com/pmclSF/hamlet/internal/reporting"
 	"github.com/pmclSF/hamlet/internal/scoring"
 )
@@ -73,9 +74,10 @@ func TestGolden_ExportJSON(t *testing.T) {
 	// Zero out time-dependent fields for determinism.
 	ms.GeneratedAt = FixedTime
 
-	// Compute measurements so posture bands are included.
+	// Compute measurements and portfolio so all export fields are populated.
 	measReg := measurement.DefaultRegistry()
 	snap.Measurements = measReg.ComputeSnapshot(snap).ToModel()
+	snap.Portfolio = portfolio.Analyze(snap).ToModel()
 
 	export := benchmark.BuildExport(snap, ms, false)
 	export.ExportedAt = FixedTime
@@ -92,10 +94,23 @@ func TestGolden_AnalyzeText(t *testing.T) {
 	snap.Risk = scoring.ComputeRisk(snap)
 	measReg := measurement.DefaultRegistry()
 	snap.Measurements = measReg.ComputeSnapshot(snap).ToModel()
+	snap.Portfolio = portfolio.Analyze(snap).ToModel()
 
 	var buf bytes.Buffer
 	reporting.RenderAnalyzeReport(&buf, snap)
 	assertGolden(t, "analyze-minimal.txt", buf.Bytes())
+}
+
+func TestGolden_PortfolioText(t *testing.T) {
+	snap := FlakyConcentratedSnapshot()
+	snap.Risk = scoring.ComputeRisk(snap)
+	measReg := measurement.DefaultRegistry()
+	snap.Measurements = measReg.ComputeSnapshot(snap).ToModel()
+	snap.Portfolio = portfolio.Analyze(snap).ToModel()
+
+	var buf bytes.Buffer
+	reporting.RenderPortfolioReport(&buf, snap)
+	assertGolden(t, "portfolio-flaky.txt", buf.Bytes())
 }
 
 func TestGolden_SummaryText(t *testing.T) {

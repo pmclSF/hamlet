@@ -12,6 +12,8 @@
 //	hamlet posture --json       JSON posture snapshot
 //	hamlet summary              executive summary with risk, trends, benchmark readiness
 //	hamlet summary --json       JSON executive summary
+//	hamlet portfolio             portfolio intelligence (cost, breadth, leverage, redundancy)
+//	hamlet portfolio --json     JSON portfolio snapshot
 //	hamlet compare              compare two snapshots
 //	hamlet compare --json       JSON comparison output
 //	hamlet migration readiness   migration readiness assessment
@@ -33,9 +35,11 @@ import (
 
 	"github.com/pmclSF/hamlet/internal/analysis"
 	"github.com/pmclSF/hamlet/internal/benchmark"
+	"github.com/pmclSF/hamlet/internal/changescope"
 	"github.com/pmclSF/hamlet/internal/comparison"
 	"github.com/pmclSF/hamlet/internal/engine"
 	"github.com/pmclSF/hamlet/internal/governance"
+	"github.com/pmclSF/hamlet/internal/graph"
 	"github.com/pmclSF/hamlet/internal/heatmap"
 	"github.com/pmclSF/hamlet/internal/impact"
 	"github.com/pmclSF/hamlet/internal/metrics"
@@ -123,6 +127,16 @@ func main() {
 			os.Exit(1)
 		}
 
+	case "portfolio":
+		portfolioCmd := flag.NewFlagSet("portfolio", flag.ExitOnError)
+		rootFlag := portfolioCmd.String("root", ".", "repository root to analyze")
+		jsonFlag := portfolioCmd.Bool("json", false, "output JSON portfolio snapshot")
+		portfolioCmd.Parse(os.Args[2:])
+		if err := runPortfolio(*rootFlag, *jsonFlag); err != nil {
+			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			os.Exit(1)
+		}
+
 	case "summary":
 		summaryCmd := flag.NewFlagSet("summary", flag.ExitOnError)
 		rootFlag := summaryCmd.String("root", ".", "repository root to analyze")
@@ -162,6 +176,38 @@ func main() {
 			os.Exit(1)
 		}
 
+	case "pr":
+		prCmd := flag.NewFlagSet("pr", flag.ExitOnError)
+		rootFlag := prCmd.String("root", ".", "repository root to analyze")
+		baseRef := prCmd.String("base", "", "git base ref for diff (default: HEAD~1)")
+		jsonFlag := prCmd.Bool("json", false, "output JSON PR analysis")
+		formatFlag := prCmd.String("format", "", "output format: markdown, comment, annotation")
+		prCmd.Parse(os.Args[2:])
+		if err := runPR(*rootFlag, *baseRef, *jsonFlag, *formatFlag); err != nil {
+			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			os.Exit(1)
+		}
+
+	case "show":
+		if len(os.Args) < 3 {
+			fmt.Fprintln(os.Stderr, "Usage: hamlet show <test|unit|owner|finding> <id-or-path>")
+			os.Exit(2)
+		}
+		showSubCmd := os.Args[2]
+		showCmd := flag.NewFlagSet("show", flag.ExitOnError)
+		rootFlag := showCmd.String("root", ".", "repository root to analyze")
+		jsonFlag := showCmd.Bool("json", false, "output JSON")
+		showCmd.Parse(os.Args[3:])
+		showArgs := showCmd.Args()
+		showID := ""
+		if len(showArgs) > 0 {
+			showID = showArgs[0]
+		}
+		if err := runShow(showSubCmd, showID, *rootFlag, *jsonFlag); err != nil {
+			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			os.Exit(1)
+		}
+
 	case "export":
 		if len(os.Args) < 3 || os.Args[2] != "benchmark" {
 			fmt.Fprintln(os.Stderr, "Usage: hamlet export benchmark [flags]")
@@ -197,9 +243,12 @@ func printUsage() {
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Commands:")
 	fmt.Fprintln(os.Stderr, "  analyze [flags]          full test suite analysis")
-	fmt.Fprintln(os.Stderr, "  impact [flags]           impact analysis for changed code")
 	fmt.Fprintln(os.Stderr, "  summary [flags]          executive summary with risk, trends, benchmark readiness")
 	fmt.Fprintln(os.Stderr, "  posture [flags]          detailed posture breakdown with measurement evidence")
+	fmt.Fprintln(os.Stderr, "  portfolio [flags]        portfolio intelligence: cost, breadth, leverage, redundancy")
+	fmt.Fprintln(os.Stderr, "  impact [flags]           impact analysis for changed code")
+	fmt.Fprintln(os.Stderr, "  pr [flags]               PR/change-scoped analysis")
+	fmt.Fprintln(os.Stderr, "  show <entity> <id>       drill into test, unit, owner, or finding")
 	fmt.Fprintln(os.Stderr, "  metrics [flags]          aggregate metrics scorecard")
 	fmt.Fprintln(os.Stderr, "  migration readiness      migration readiness assessment")
 	fmt.Fprintln(os.Stderr, "  migration blockers       list migration blockers by type and area")
@@ -217,6 +266,10 @@ func printUsage() {
 	fmt.Fprintln(os.Stderr, "  --show VIEW              drill-down: units, gaps, tests, owners")
 	fmt.Fprintln(os.Stderr, "  --owner NAME             filter by owner")
 	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, "PR-specific flags:")
+	fmt.Fprintln(os.Stderr, "  --base REF               git base ref for diff (default: HEAD~1)")
+	fmt.Fprintln(os.Stderr, "  --format FORMAT          output: markdown, comment, annotation")
+	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Analyze-specific flags:")
 	fmt.Fprintln(os.Stderr, "  --write-snapshot         persist snapshot for trend tracking")
 	fmt.Fprintln(os.Stderr, "  --coverage PATH          ingest coverage data (LCOV, Istanbul JSON)")
@@ -231,8 +284,9 @@ func printUsage() {
 	fmt.Fprintln(os.Stderr, "  1. hamlet analyze                    see findings")
 	fmt.Fprintln(os.Stderr, "  2. hamlet summary                    get the leadership view")
 	fmt.Fprintln(os.Stderr, "  3. hamlet posture                    understand the evidence")
-	fmt.Fprintln(os.Stderr, "  4. hamlet analyze --write-snapshot    save for trend tracking")
-	fmt.Fprintln(os.Stderr, "  5. hamlet compare                    see what changed")
+	fmt.Fprintln(os.Stderr, "  4. hamlet portfolio                  see cost, leverage, and redundancy")
+	fmt.Fprintln(os.Stderr, "  5. hamlet analyze --write-snapshot    save for trend tracking")
+	fmt.Fprintln(os.Stderr, "  6. hamlet compare                    see what changed")
 }
 
 func runAnalyze(root string, jsonOutput bool, writeSnap bool, coveragePath string, runtimePaths string, slowThreshold float64) error {
@@ -387,6 +441,23 @@ func runImpact(root, baseRef string, jsonOutput bool, show, ownerFilter string) 
 	return nil
 }
 
+// runPortfolio performs analysis and outputs portfolio intelligence.
+func runPortfolio(root string, jsonOutput bool) error {
+	result, err := engine.RunPipeline(root)
+	if err != nil {
+		return fmt.Errorf("analysis failed: %w", err)
+	}
+
+	if jsonOutput {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(result.Snapshot.Portfolio)
+	}
+
+	reporting.RenderPortfolioReport(os.Stdout, result.Snapshot)
+	return nil
+}
+
 // runPosture performs analysis and outputs a detailed posture breakdown.
 func runPosture(root string, jsonOutput bool) error {
 	result, err := engine.RunPipeline(root)
@@ -432,8 +503,9 @@ func runSummary(root string, jsonOutput bool) error {
 	}
 	snapshot := result.Snapshot
 
-	// Build heatmap and derive metrics.
-	h := heatmap.Build(snapshot)
+	// Build graph, heatmap (enriched with graph data), and derive metrics.
+	g := graph.Build(snapshot)
+	h := heatmap.BuildWithGraph(snapshot, g)
 	ms := metrics.Derive(snapshot)
 
 	// Attempt to load prior snapshot for trend comparison.
@@ -675,4 +747,308 @@ func persistSnapshot(snapshot *models.TestSuiteSnapshot, root string) error {
 	fmt.Fprintf(os.Stderr, "Snapshot written to %s\n", latestPath)
 	fmt.Fprintf(os.Stderr, "Archive written to %s\n", archivePath)
 	return nil
+}
+
+// runPR performs a PR/change-scoped analysis.
+func runPR(root, baseRef string, jsonOutput bool, format string) error {
+	result, err := engine.RunPipeline(root)
+	if err != nil {
+		return fmt.Errorf("analysis failed: %w", err)
+	}
+
+	absRoot, err := filepath.Abs(root)
+	if err != nil {
+		return err
+	}
+
+	scope, err := impact.ChangeScopeFromGitDiff(absRoot, baseRef)
+	if err != nil {
+		return fmt.Errorf("failed to determine changed files: %w", err)
+	}
+
+	pr := changescope.AnalyzePR(scope, result.Snapshot)
+
+	if jsonOutput {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(pr)
+	}
+
+	switch format {
+	case "markdown", "md":
+		changescope.RenderPRSummaryMarkdown(os.Stdout, pr)
+	case "comment":
+		changescope.RenderPRCommentConcise(os.Stdout, pr)
+	case "annotation", "ci":
+		changescope.RenderCIAnnotation(os.Stdout, pr)
+	default:
+		changescope.RenderChangeScopedReport(os.Stdout, pr)
+	}
+	return nil
+}
+
+// runShow handles entity drill-down commands.
+func runShow(entity, id, root string, jsonOutput bool) error {
+	result, err := engine.RunPipeline(root)
+	if err != nil {
+		return fmt.Errorf("analysis failed: %w", err)
+	}
+	snap := result.Snapshot
+
+	switch entity {
+	case "test":
+		return showTest(id, snap, jsonOutput)
+	case "unit", "codeunit":
+		return showCodeUnit(id, snap, jsonOutput)
+	case "owner":
+		return showOwner(id, snap, jsonOutput)
+	case "finding":
+		return showFinding(id, snap, jsonOutput)
+	default:
+		return fmt.Errorf("unknown entity type: %q (valid: test, unit, owner, finding)", entity)
+	}
+}
+
+func showTest(id string, snap *models.TestSuiteSnapshot, jsonOutput bool) error {
+	// Search by test ID or file path.
+	for _, tf := range snap.TestFiles {
+		if tf.Path == id {
+			if jsonOutput {
+				enc := json.NewEncoder(os.Stdout)
+				enc.SetIndent("", "  ")
+				return enc.Encode(tf)
+			}
+			renderTestDetail(tf, snap)
+			return nil
+		}
+	}
+	// Search test cases by ID.
+	for _, tc := range snap.TestCases {
+		if tc.TestID == id || tc.CanonicalIdentity == id {
+			if jsonOutput {
+				enc := json.NewEncoder(os.Stdout)
+				enc.SetIndent("", "  ")
+				return enc.Encode(tc)
+			}
+			renderTestCaseDetail(tc, snap)
+			return nil
+		}
+	}
+	return fmt.Errorf("test not found: %s", id)
+}
+
+func showCodeUnit(id string, snap *models.TestSuiteSnapshot, jsonOutput bool) error {
+	for _, cu := range snap.CodeUnits {
+		unitID := cu.Path + ":" + cu.Name
+		if unitID == id || cu.Name == id || cu.Path == id {
+			if jsonOutput {
+				enc := json.NewEncoder(os.Stdout)
+				enc.SetIndent("", "  ")
+				return enc.Encode(cu)
+			}
+			renderCodeUnitDetail(cu, snap)
+			return nil
+		}
+	}
+	return fmt.Errorf("code unit not found: %s", id)
+}
+
+func showOwner(id string, snap *models.TestSuiteSnapshot, jsonOutput bool) error {
+	ownerID := strings.ToLower(id)
+
+	// Collect owner's files, signals, test files.
+	type ownerData struct {
+		Owner       string              `json:"owner"`
+		OwnedFiles []string            `json:"ownedFiles"`
+		TestFiles   []string            `json:"testFiles"`
+		SignalCount int                 `json:"signalCount"`
+		Signals     []models.Signal     `json:"signals,omitempty"`
+	}
+
+	data := ownerData{Owner: id}
+
+	if snap.Ownership != nil {
+		for path, owners := range snap.Ownership {
+			for _, o := range owners {
+				if strings.ToLower(o) == ownerID {
+					data.OwnedFiles = append(data.OwnedFiles, path)
+				}
+			}
+		}
+	}
+	sort.Strings(data.OwnedFiles)
+
+	for _, tf := range snap.TestFiles {
+		if strings.ToLower(tf.Owner) == ownerID {
+			data.TestFiles = append(data.TestFiles, tf.Path)
+		}
+	}
+
+	for _, sig := range snap.Signals {
+		if strings.ToLower(sig.Owner) == ownerID {
+			data.SignalCount++
+			if len(data.Signals) < 10 {
+				data.Signals = append(data.Signals, sig)
+			}
+		}
+	}
+
+	if len(data.OwnedFiles) == 0 && len(data.TestFiles) == 0 && data.SignalCount == 0 {
+		return fmt.Errorf("owner not found: %s", id)
+	}
+
+	if jsonOutput {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(data)
+	}
+
+	fmt.Printf("Owner: %s\n", data.Owner)
+	fmt.Printf("Owned files: %d\n", len(data.OwnedFiles))
+	fmt.Printf("Test files: %d\n", len(data.TestFiles))
+	fmt.Printf("Signals: %d\n", data.SignalCount)
+	if len(data.OwnedFiles) > 0 {
+		fmt.Println("\nOwned files:")
+		limit := 10
+		if len(data.OwnedFiles) < limit {
+			limit = len(data.OwnedFiles)
+		}
+		for _, f := range data.OwnedFiles[:limit] {
+			fmt.Printf("  %s\n", f)
+		}
+		if len(data.OwnedFiles) > 10 {
+			fmt.Printf("  ... and %d more\n", len(data.OwnedFiles)-10)
+		}
+	}
+	if data.SignalCount > 0 {
+		fmt.Println("\nTop signals:")
+		for _, sig := range data.Signals {
+			fmt.Printf("  [%s] %s — %s\n", sig.Severity, sig.Type, sig.Location.File)
+		}
+	}
+	fmt.Println("\nNext: hamlet show test <path>   drill into a specific test file")
+	return nil
+}
+
+func showFinding(id string, snap *models.TestSuiteSnapshot, jsonOutput bool) error {
+	// Findings are identified by index or type.
+	if snap.Portfolio != nil {
+		for i, f := range snap.Portfolio.Findings {
+			findingID := fmt.Sprintf("%d", i)
+			if findingID == id || f.Type == id {
+				if jsonOutput {
+					enc := json.NewEncoder(os.Stdout)
+					enc.SetIndent("", "  ")
+					return enc.Encode(f)
+				}
+				fmt.Printf("Finding: %s\n", f.Type)
+				fmt.Printf("Path: %s\n", f.Path)
+				fmt.Printf("Confidence: %s\n", f.Confidence)
+				fmt.Printf("Explanation: %s\n", f.Explanation)
+				if f.SuggestedAction != "" {
+					fmt.Printf("Action: %s\n", f.SuggestedAction)
+				}
+				return nil
+			}
+		}
+	}
+	// Also search signals.
+	for i, sig := range snap.Signals {
+		sigID := fmt.Sprintf("s%d", i)
+		if sigID == id || string(sig.Type) == id {
+			if jsonOutput {
+				enc := json.NewEncoder(os.Stdout)
+				enc.SetIndent("", "  ")
+				return enc.Encode(sig)
+			}
+			fmt.Printf("Signal: %s\n", sig.Type)
+			fmt.Printf("Category: %s\n", sig.Category)
+			fmt.Printf("Severity: %s\n", sig.Severity)
+			fmt.Printf("File: %s\n", sig.Location.File)
+			fmt.Printf("Explanation: %s\n", sig.Explanation)
+			return nil
+		}
+	}
+	return fmt.Errorf("finding not found: %s", id)
+}
+
+func renderTestDetail(tf models.TestFile, snap *models.TestSuiteSnapshot) {
+	fmt.Printf("Test File: %s\n", tf.Path)
+	fmt.Printf("Framework: %s\n", tf.Framework)
+	if tf.Owner != "" {
+		fmt.Printf("Owner: %s\n", tf.Owner)
+	}
+	fmt.Printf("Tests: %d    Assertions: %d\n", tf.TestCount, tf.AssertionCount)
+	if tf.MockCount > 0 {
+		fmt.Printf("Mocks: %d\n", tf.MockCount)
+	}
+	if tf.RuntimeStats != nil {
+		fmt.Printf("Runtime: %.0fms    Pass rate: %.0f%%    Retry rate: %.0f%%\n",
+			tf.RuntimeStats.AvgRuntimeMs,
+			tf.RuntimeStats.PassRate*100,
+			tf.RuntimeStats.RetryRate*100)
+	}
+	if len(tf.LinkedCodeUnits) > 0 {
+		fmt.Printf("Covers: %s\n", strings.Join(tf.LinkedCodeUnits, ", "))
+	}
+
+	// Show signals for this file.
+	var fileSignals []models.Signal
+	for _, sig := range snap.Signals {
+		if sig.Location.File == tf.Path {
+			fileSignals = append(fileSignals, sig)
+		}
+	}
+	if len(fileSignals) > 0 {
+		fmt.Printf("\nSignals (%d):\n", len(fileSignals))
+		for _, sig := range fileSignals {
+			fmt.Printf("  [%s] %s: %s\n", sig.Severity, sig.Type, sig.Explanation)
+		}
+	}
+	fmt.Println("\nNext: hamlet impact --show tests   see impact analysis")
+}
+
+func renderTestCaseDetail(tc models.TestCase, snap *models.TestSuiteSnapshot) {
+	fmt.Printf("Test: %s\n", tc.TestName)
+	fmt.Printf("ID: %s\n", tc.TestID)
+	fmt.Printf("File: %s\n", tc.FilePath)
+	if len(tc.SuiteHierarchy) > 0 {
+		fmt.Printf("Suite: %s\n", strings.Join(tc.SuiteHierarchy, " > "))
+	}
+	fmt.Printf("Framework: %s\n", tc.Framework)
+	if tc.TestType != "" {
+		fmt.Printf("Type: %s (confidence: %.0f%%)\n", tc.TestType, tc.TestTypeConfidence*100)
+	}
+	fmt.Printf("Extraction: %s (confidence: %.0f%%)\n", tc.ExtractionKind, tc.Confidence*100)
+}
+
+func renderCodeUnitDetail(cu models.CodeUnit, snap *models.TestSuiteSnapshot) {
+	fmt.Printf("Code Unit: %s\n", cu.Name)
+	fmt.Printf("Path: %s\n", cu.Path)
+	fmt.Printf("Kind: %s\n", cu.Kind)
+	fmt.Printf("Exported: %v\n", cu.Exported)
+	if cu.Owner != "" {
+		fmt.Printf("Owner: %s\n", cu.Owner)
+	}
+
+	// Find covering tests.
+	unitID := cu.Path + ":" + cu.Name
+	var coveringTests []string
+	for _, tf := range snap.TestFiles {
+		for _, linked := range tf.LinkedCodeUnits {
+			if linked == unitID || linked == cu.Name {
+				coveringTests = append(coveringTests, tf.Path)
+				break
+			}
+		}
+	}
+	if len(coveringTests) > 0 {
+		fmt.Printf("\nCovering tests (%d):\n", len(coveringTests))
+		for _, t := range coveringTests {
+			fmt.Printf("  %s\n", t)
+		}
+	} else {
+		fmt.Println("\nNo covering tests detected.")
+	}
+	fmt.Println("\nNext: hamlet show test <path>   drill into a covering test")
 }
