@@ -1,6 +1,7 @@
 package impact
 
 import (
+	"fmt"
 	"os/exec"
 	"path/filepath"
 	"sort"
@@ -12,17 +13,21 @@ import (
 // ChangeScopeFromGitDiff creates a ChangeScope from git diff against a base ref.
 func ChangeScopeFromGitDiff(repoRoot, baseRef string) (*ChangeScope, error) {
 	if baseRef == "" {
-		baseRef = "HEAD~1"
+		if refExists(repoRoot, "HEAD~1") {
+			baseRef = "HEAD~1"
+		}
 	}
 
-	cmd := exec.Command("git", "diff", "--name-status", baseRef)
-	cmd.Dir = repoRoot
-	out, err := cmd.Output()
+	out, err := gitDiffNameStatus(repoRoot, baseRef)
 	if err != nil {
 		return nil, err
 	}
 
-	return parseGitDiffOutput(string(out), repoRoot), nil
+	scope := parseGitDiffOutput(string(out), repoRoot)
+	if baseRef == "" {
+		scope.Source = "git-diff-working-tree"
+	}
+	return scope, nil
 }
 
 // ChangeScopeFromPaths creates a ChangeScope from explicit file paths.
@@ -50,7 +55,10 @@ func parseGitDiffOutput(output, repoRoot string) *ChangeScope {
 			continue
 		}
 
-		parts := strings.Fields(line)
+		parts := strings.Split(line, "\t")
+		if len(parts) < 2 {
+			parts = strings.Fields(line)
+		}
 		if len(parts) < 2 {
 			continue
 		}
@@ -83,6 +91,7 @@ func parseGitDiffOutput(output, repoRoot string) *ChangeScope {
 			if len(parts) >= 3 {
 				cf.OldPath = path
 				cf.Path = parts[2]
+				cf.IsTestFile = isTestFilePath(cf.Path)
 			}
 		default:
 			cf.ChangeKind = ChangeModified
@@ -92,6 +101,33 @@ func parseGitDiffOutput(output, repoRoot string) *ChangeScope {
 	}
 
 	return scope
+}
+
+func gitDiffNameStatus(repoRoot, baseRef string) ([]byte, error) {
+	args := []string{"diff", "--name-status"}
+	if baseRef != "" {
+		args = append(args, baseRef)
+	}
+	cmd := exec.Command("git", args...)
+	cmd.Dir = repoRoot
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		msg := strings.TrimSpace(string(out))
+		if msg == "" {
+			msg = err.Error()
+		}
+		if baseRef == "" {
+			return nil, fmt.Errorf("git diff failed: %s", msg)
+		}
+		return nil, fmt.Errorf("git diff against %q failed: %s", baseRef, msg)
+	}
+	return out, nil
+}
+
+func refExists(repoRoot, ref string) bool {
+	cmd := exec.Command("git", "rev-parse", "--verify", "--quiet", ref+"^{commit}")
+	cmd.Dir = repoRoot
+	return cmd.Run() == nil
 }
 
 func isTestFilePath(path string) bool {

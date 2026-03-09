@@ -43,6 +43,31 @@ func TestResolver_ExplicitConfig(t *testing.T) {
 	}
 }
 
+func TestResolver_ExplicitConfig_PathBoundary(t *testing.T) {
+	dir := t.TempDir()
+	hamletDir := filepath.Join(dir, ".hamlet")
+	os.MkdirAll(hamletDir, 0o755)
+
+	config := `ownership:
+  rules:
+    - path: "src/auth/"
+      owner: "auth-team"
+`
+	os.WriteFile(filepath.Join(hamletDir, "ownership.yaml"), []byte(config), 0o644)
+
+	r := NewResolver(dir)
+
+	gotExact := r.Resolve("src/auth/login.js")
+	if gotExact != "auth-team" {
+		t.Fatalf("Resolve exact prefix = %q, want %q", gotExact, "auth-team")
+	}
+
+	gotSibling := r.Resolve("src/authorization/login.js")
+	if gotSibling == "auth-team" {
+		t.Fatalf("Resolve sibling path = %q, want non-match fallback", gotSibling)
+	}
+}
+
 func TestResolver_CODEOWNERS(t *testing.T) {
 	dir := t.TempDir()
 	githubDir := filepath.Join(dir, ".github")
@@ -248,6 +273,32 @@ func TestResolver_PathMappings(t *testing.T) {
 	}
 	if a.Confidence != ConfidenceMedium {
 		t.Errorf("confidence = %q, want %q", a.Confidence, ConfidenceMedium)
+	}
+}
+
+func TestResolver_PathMappings_PathBoundary(t *testing.T) {
+	dir := t.TempDir()
+	hamletDir := filepath.Join(dir, ".hamlet")
+	os.MkdirAll(hamletDir, 0o755)
+
+	config := `ownership:
+  rules: []
+  path_mappings:
+    - prefix: "lib/auth/"
+      owners: ["@team-auth"]
+`
+	os.WriteFile(filepath.Join(hamletDir, "ownership.yaml"), []byte(config), 0o644)
+
+	r := NewResolver(dir)
+
+	gotExact := r.Resolve("lib/auth/login.go")
+	if gotExact != "team-auth" {
+		t.Fatalf("Resolve exact mapping = %q, want %q", gotExact, "team-auth")
+	}
+
+	gotSibling := r.Resolve("lib/authorization/login.go")
+	if gotSibling == "team-auth" {
+		t.Fatalf("Resolve sibling mapping = %q, want non-match fallback", gotSibling)
 	}
 }
 

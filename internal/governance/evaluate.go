@@ -58,9 +58,9 @@ func checkDisallowedFrameworks(snap *models.TestSuiteSnapshot, cfg *policy.Confi
 	for _, fw := range snap.Frameworks {
 		if disallowed[strings.ToLower(fw.Name)] {
 			signals = append(signals, models.Signal{
-				Type:     "legacyFrameworkUsage",
-				Category: models.CategoryGovernance,
-				Severity: models.SeverityHigh,
+				Type:       "legacyFrameworkUsage",
+				Category:   models.CategoryGovernance,
+				Severity:   models.SeverityHigh,
 				Confidence: 1.0,
 				Location: models.SignalLocation{
 					Repository: snap.Repository.Name,
@@ -202,12 +202,8 @@ func checkWeakAssertionThreshold(snap *models.TestSuiteSnapshot, cfg *policy.Con
 		return nil
 	}
 
+	count := countSignalsForType(snap.Signals, "weakAssertion")
 	topFiles := topFilesForType(snap.Signals, "weakAssertion", 5)
-	count := 0
-	for _, tf := range topFiles {
-		count += tf.count
-	}
-
 	max := *cfg.Rules.MaxWeakAssertions
 	if count <= max {
 		return nil
@@ -242,12 +238,8 @@ func checkMockHeavyThreshold(snap *models.TestSuiteSnapshot, cfg *policy.Config)
 		return nil
 	}
 
+	count := countSignalsForType(snap.Signals, "mockHeavyTest")
 	topFiles := topFilesForType(snap.Signals, "mockHeavyTest", 5)
-	count := 0
-	for _, tf := range topFiles {
-		count += tf.count
-	}
-
 	max := *cfg.Rules.MaxMockHeavyTests
 	if count <= max {
 		return nil
@@ -279,6 +271,16 @@ func checkMockHeavyThreshold(snap *models.TestSuiteSnapshot, cfg *policy.Config)
 type fileCount struct {
 	file  string
 	count int
+}
+
+func countSignalsForType(signals []models.Signal, signalType models.SignalType) int {
+	total := 0
+	for _, s := range signals {
+		if s.Type == signalType {
+			total++
+		}
+	}
+	return total
 }
 
 // topFilesForType returns the top N files with the most signals of the given type.

@@ -18,9 +18,9 @@ type CoverageTypeInfo struct {
 
 // SelectionReason explains why a test was included in the protective set.
 type SelectionReason struct {
-	Reason      string `json:"reason"`
-	CodeUnitID  string `json:"codeUnitId,omitempty"`
-	EdgeKind    string `json:"edgeKind,omitempty"`
+	Reason     string `json:"reason"`
+	CodeUnitID string `json:"codeUnitId,omitempty"`
+	EdgeKind   string `json:"edgeKind,omitempty"`
 }
 
 // ProtectiveTestSet is the recommended test set with explanation metadata.
@@ -57,6 +57,7 @@ func mapChangedUnits(scope *ChangeScope, snap *models.TestSuiteSnapshot) []Impac
 	for _, cu := range snap.CodeUnits {
 		unitsByFile[cu.Path] = append(unitsByFile[cu.Path], cu)
 	}
+	nameCounts := codeUnitNameCounts(snap.CodeUnits)
 
 	var impacted []ImpactedCodeUnit
 
@@ -93,9 +94,9 @@ func mapChangedUnits(scope *ChangeScope, snap *models.TestSuiteSnapshot) []Impac
 				ChangeKind:       cf.ChangeKind,
 				Exported:         cu.Exported,
 				ImpactConfidence: confidence,
-				ProtectionStatus: classifyUnitProtection(cu, snap),
-				CoveringTests:    findCoveringTests(cu, snap),
-				CoverageTypes:    classifyCoverageTypes(cu, snap),
+				ProtectionStatus: classifyUnitProtection(cu, snap, nameCounts),
+				CoveringTests:    findCoveringTests(cu, snap, nameCounts),
+				CoverageTypes:    classifyCoverageTypes(cu, snap, nameCounts),
 				Complexity:       cu.Complexity,
 			}
 
@@ -553,7 +554,7 @@ func classifyProtection(filePath string, snap *models.TestSuiteSnapshot) Protect
 	return ProtectionNone
 }
 
-func classifyUnitProtection(cu models.CodeUnit, snap *models.TestSuiteSnapshot) ProtectionStatus {
+func classifyUnitProtection(cu models.CodeUnit, snap *models.TestSuiteSnapshot, nameCounts map[string]int) ProtectionStatus {
 	unitID := cu.Path + ":" + cu.Name
 	hasUnit := false
 	hasE2E := false
@@ -566,7 +567,7 @@ func classifyUnitProtection(cu models.CodeUnit, snap *models.TestSuiteSnapshot) 
 
 	for _, tf := range snap.TestFiles {
 		for _, linked := range tf.LinkedCodeUnits {
-			if linked == unitID || linked == cu.Name {
+			if linkedMatchesCodeUnit(linked, unitID, cu.Name, nameCounts) {
 				fwType := fwTypes[tf.Framework]
 				if fwType == models.FrameworkTypeUnit {
 					hasUnit = true
@@ -588,12 +589,12 @@ func classifyUnitProtection(cu models.CodeUnit, snap *models.TestSuiteSnapshot) 
 	return ProtectionNone
 }
 
-func findCoveringTests(cu models.CodeUnit, snap *models.TestSuiteSnapshot) []string {
+func findCoveringTests(cu models.CodeUnit, snap *models.TestSuiteSnapshot, nameCounts map[string]int) []string {
 	unitID := cu.Path + ":" + cu.Name
 	var tests []string
 	for _, tf := range snap.TestFiles {
 		for _, linked := range tf.LinkedCodeUnits {
-			if linked == unitID || linked == cu.Name {
+			if linkedMatchesCodeUnit(linked, unitID, cu.Name, nameCounts) {
 				tests = append(tests, tf.Path)
 				break
 			}
@@ -616,7 +617,7 @@ func confidenceOrder(c Confidence) int {
 }
 
 // classifyCoverageTypes determines the mix of coverage types for a code unit.
-func classifyCoverageTypes(cu models.CodeUnit, snap *models.TestSuiteSnapshot) *CoverageTypeInfo {
+func classifyCoverageTypes(cu models.CodeUnit, snap *models.TestSuiteSnapshot, nameCounts map[string]int) *CoverageTypeInfo {
 	unitID := cu.Path + ":" + cu.Name
 	info := &CoverageTypeInfo{}
 
@@ -627,7 +628,7 @@ func classifyCoverageTypes(cu models.CodeUnit, snap *models.TestSuiteSnapshot) *
 
 	for _, tf := range snap.TestFiles {
 		for _, linked := range tf.LinkedCodeUnits {
-			if linked == unitID || linked == cu.Name {
+			if linkedMatchesCodeUnit(linked, unitID, cu.Name, nameCounts) {
 				switch fwTypes[tf.Framework] {
 				case models.FrameworkTypeUnit:
 					info.HasUnitCoverage = true
@@ -641,6 +642,25 @@ func classifyCoverageTypes(cu models.CodeUnit, snap *models.TestSuiteSnapshot) *
 	}
 
 	return info
+}
+
+func codeUnitNameCounts(units []models.CodeUnit) map[string]int {
+	counts := map[string]int{}
+	for _, cu := range units {
+		if cu.Name != "" {
+			counts[cu.Name]++
+		}
+	}
+	return counts
+}
+
+func linkedMatchesCodeUnit(linked, unitID, unitName string, nameCounts map[string]int) bool {
+	if linked == unitID {
+		return true
+	}
+	// Legacy snapshots may contain only symbol names. Only accept
+	// name-only matches when the symbol is unique in the snapshot.
+	return linked == unitName && nameCounts[unitName] == 1
 }
 
 // buildProtectiveSet creates an enhanced protective test set with

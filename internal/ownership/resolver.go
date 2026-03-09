@@ -229,7 +229,7 @@ func (r *Resolver) matchExplicitAssignment(relPath string) (OwnershipAssignment,
 		rule := &r.explicitRules[i]
 		prefix := filepath.ToSlash(rule.Path)
 		prefix = strings.TrimSuffix(prefix, "/")
-		if strings.HasPrefix(normalized, prefix) && len(prefix) > bestLen {
+		if pathHasPrefix(normalized, prefix) && len(prefix) > bestLen {
 			bestRule = rule
 			bestLen = len(prefix)
 		}
@@ -271,7 +271,7 @@ func (r *Resolver) matchPathMapping(relPath string) (OwnershipAssignment, bool) 
 		pm := &r.pathMappings[i]
 		prefix := filepath.ToSlash(pm.Prefix)
 		prefix = strings.TrimSuffix(prefix, "/")
-		if strings.HasPrefix(normalized, prefix) && len(prefix) > bestLen {
+		if pathHasPrefix(normalized, prefix) && len(prefix) > bestLen {
 			bestMapping = pm
 			bestLen = len(prefix)
 		}
@@ -294,4 +294,22 @@ func (r *Resolver) matchPathMapping(relPath string) (OwnershipAssignment, bool) 
 		MatchedRule: bestMapping.Prefix,
 		SourceFile:  ".hamlet/ownership.yaml",
 	}, true
+}
+
+func pathHasPrefix(path, prefix string) bool {
+	if prefix == "" || prefix == "." {
+		return false
+	}
+
+	normPath := filepath.ToSlash(filepath.Clean(path))
+	normPrefix := filepath.ToSlash(filepath.Clean(prefix))
+	if normPrefix == "." {
+		return false
+	}
+
+	if normPath == normPrefix {
+		return true
+	}
+
+	return strings.HasPrefix(normPath, normPrefix+"/")
 }

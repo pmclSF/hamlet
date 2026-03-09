@@ -10,6 +10,8 @@ func TestNormalizeOwnerID(t *testing.T) {
 		{"@team-auth", "team-auth"},
 		{"team-auth", "team-auth"},
 		{"@org/team-platform", "org/team-platform"},
+		{"  @team-auth  ", "team-auth"},
+		{"  @ team-auth  ", "team-auth"},
 		{"", ""},
 		{"@", ""},
 	}

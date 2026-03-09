@@ -12,6 +12,8 @@
 //   - consistent attachment to files, modules, test cases, code units, and insights
 package ownership
 
+import "strings"
+
 // SourceType identifies where an ownership assignment came from.
 type SourceType string
 
@@ -249,11 +251,9 @@ func (a *OwnershipAssignment) HasOwner(ownerID string) bool {
 
 // NormalizeOwnerID strips leading @ and whitespace from an owner identifier.
 func NormalizeOwnerID(raw string) string {
-	id := raw
-	if len(id) > 0 && id[0] == '@' {
-		id = id[1:]
-	}
-	return id
+	id := strings.TrimSpace(raw)
+	id = strings.TrimPrefix(id, "@")
+	return strings.TrimSpace(id)
 }
 
 // SourceConfidence returns the default confidence for a given source type.

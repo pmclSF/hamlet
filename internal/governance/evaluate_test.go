@@ -7,9 +7,9 @@ import (
 	"github.com/pmclSF/hamlet/internal/policy"
 )
 
-func boolPtr(v bool) *bool       { return &v }
+func boolPtr(v bool) *bool          { return &v }
 func float64Ptr(v float64) *float64 { return &v }
-func intPtr(v int) *int           { return &v }
+func intPtr(v int) *int             { return &v }
 
 func TestEvaluate_NoPolicy(t *testing.T) {
 	snap := &models.TestSuiteSnapshot{}
@@ -202,6 +202,43 @@ func TestEvaluate_WeakAssertionThreshold(t *testing.T) {
 	}
 }
 
+func TestEvaluate_WeakAssertionThreshold_CountsBeyondTopFiveFiles(t *testing.T) {
+	signals := make([]models.Signal, 0, 6)
+	for i := 0; i < 6; i++ {
+		signals = append(signals, models.Signal{
+			Type: "weakAssertion",
+			Location: models.SignalLocation{
+				File: "test/file" + string(rune('A'+i)) + ".test.js",
+			},
+		})
+	}
+
+	snap := &models.TestSuiteSnapshot{
+		Repository: models.RepositoryMetadata{Name: "test-repo"},
+		Signals:    signals,
+	}
+	cfg := &policy.Config{
+		Rules: policy.Rules{
+			MaxWeakAssertions: intPtr(5),
+		},
+	}
+
+	result := Evaluate(snap, cfg)
+	if result.Pass {
+		t.Fatal("expected FAIL when total weakAssertion count exceeds max across more than five files")
+	}
+	if len(result.Violations) != 1 {
+		t.Fatalf("expected 1 violation, got %d", len(result.Violations))
+	}
+	gotCount, ok := result.Violations[0].Metadata["count"].(int)
+	if !ok {
+		t.Fatalf("expected count metadata as int, got %T", result.Violations[0].Metadata["count"])
+	}
+	if gotCount != 6 {
+		t.Fatalf("count metadata = %d, want 6", gotCount)
+	}
+}
+
 func TestEvaluate_WeakAssertionThreshold_UnderLimit(t *testing.T) {
 	snap := &models.TestSuiteSnapshot{
 		Signals: []models.Signal{
@@ -237,6 +274,43 @@ func TestEvaluate_MockHeavyThreshold(t *testing.T) {
 	result := Evaluate(snap, cfg)
 	if result.Pass {
 		t.Error("expected FAIL when mockHeavyTest count exceeds max")
+	}
+}
+
+func TestEvaluate_MockHeavyThreshold_CountsBeyondTopFiveFiles(t *testing.T) {
+	signals := make([]models.Signal, 0, 6)
+	for i := 0; i < 6; i++ {
+		signals = append(signals, models.Signal{
+			Type: "mockHeavyTest",
+			Location: models.SignalLocation{
+				File: "test/mock" + string(rune('A'+i)) + ".test.js",
+			},
+		})
+	}
+
+	snap := &models.TestSuiteSnapshot{
+		Repository: models.RepositoryMetadata{Name: "test-repo"},
+		Signals:    signals,
+	}
+	cfg := &policy.Config{
+		Rules: policy.Rules{
+			MaxMockHeavyTests: intPtr(5),
+		},
+	}
+
+	result := Evaluate(snap, cfg)
+	if result.Pass {
+		t.Fatal("expected FAIL when total mockHeavyTest count exceeds max across more than five files")
+	}
+	if len(result.Violations) != 1 {
+		t.Fatalf("expected 1 violation, got %d", len(result.Violations))
+	}
+	gotCount, ok := result.Violations[0].Metadata["count"].(int)
+	if !ok {
+		t.Fatalf("expected count metadata as int, got %T", result.Violations[0].Metadata["count"])
+	}
+	if gotCount != 6 {
+		t.Fatalf("count metadata = %d, want 6", gotCount)
 	}
 }
 

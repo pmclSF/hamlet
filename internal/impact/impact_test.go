@@ -1,6 +1,9 @@
 package impact
 
 import (
+	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -85,6 +88,38 @@ func TestAnalyze_UntestedExportGap(t *testing.T) {
 	}
 	if result.ProtectionGaps[0].Severity != "high" {
 		t.Errorf("expected high severity, got %s", result.ProtectionGaps[0].Severity)
+	}
+}
+
+func TestAnalyze_NameOnlyLinkingRequiresUniqueSymbol(t *testing.T) {
+	snap := &models.TestSuiteSnapshot{
+		TestFiles: []models.TestFile{
+			{Path: "test/handler.test.js", Framework: "jest", LinkedCodeUnits: []string{"Handler"}},
+		},
+		CodeUnits: []models.CodeUnit{
+			{Name: "Handler", Path: "src/a/handler.js", Kind: "function", Exported: true},
+			{Name: "Handler", Path: "src/b/handler.js", Kind: "function", Exported: true},
+		},
+		Frameworks: []models.Framework{
+			{Name: "jest", Type: models.FrameworkTypeUnit, FileCount: 1},
+		},
+	}
+
+	scope := &ChangeScope{
+		ChangedFiles: []ChangedFile{
+			{Path: "src/a/handler.js", ChangeKind: ChangeModified, IsTestFile: false},
+		},
+	}
+
+	result := Analyze(scope, snap)
+	if len(result.ImpactedUnits) != 1 {
+		t.Fatalf("expected 1 impacted unit, got %d", len(result.ImpactedUnits))
+	}
+	if result.ImpactedUnits[0].ProtectionStatus != ProtectionNone {
+		t.Fatalf("expected no protection for ambiguous name-only linkage, got %s", result.ImpactedUnits[0].ProtectionStatus)
+	}
+	if len(result.ImpactedUnits[0].CoveringTests) != 0 {
+		t.Fatalf("expected 0 covering tests for ambiguous linkage, got %d", len(result.ImpactedUnits[0].CoveringTests))
 	}
 }
 
@@ -245,6 +280,53 @@ R100	src/old/name.js	src/new/name.js`
 	}
 }
 
+func TestParseGitDiffOutput_PathWithSpaces(t *testing.T) {
+	output := "M\tsrc/with space/file name.js"
+	scope := parseGitDiffOutput(output, "/repo")
+	if len(scope.ChangedFiles) != 1 {
+		t.Fatalf("expected 1 changed file, got %d", len(scope.ChangedFiles))
+	}
+	if scope.ChangedFiles[0].Path != "src/with space/file name.js" {
+		t.Fatalf("path = %q, want %q", scope.ChangedFiles[0].Path, "src/with space/file name.js")
+	}
+}
+
+func TestChangeScopeFromGitDiff_DefaultsToWorkingTreeWhenHeadMinusOneMissing(t *testing.T) {
+	requireGit(t)
+	repo := initImpactTestRepo(t)
+
+	if err := os.WriteFile(filepath.Join(repo, "src", "app.js"), []byte("console.log('v2')\n"), 0o644); err != nil {
+		t.Fatalf("write modified file: %v", err)
+	}
+
+	scope, err := ChangeScopeFromGitDiff(repo, "")
+	if err != nil {
+		t.Fatalf("ChangeScopeFromGitDiff returned error: %v", err)
+	}
+	if scope.Source != "git-diff-working-tree" {
+		t.Fatalf("source = %q, want %q", scope.Source, "git-diff-working-tree")
+	}
+	if len(scope.ChangedFiles) != 1 {
+		t.Fatalf("expected 1 changed file, got %d", len(scope.ChangedFiles))
+	}
+	if scope.ChangedFiles[0].Path != "src/app.js" {
+		t.Fatalf("path = %q, want %q", scope.ChangedFiles[0].Path, "src/app.js")
+	}
+}
+
+func TestChangeScopeFromGitDiff_InvalidBaseIncludesContext(t *testing.T) {
+	requireGit(t)
+	repo := initImpactTestRepo(t)
+
+	_, err := ChangeScopeFromGitDiff(repo, "DOES_NOT_EXIST")
+	if err == nil {
+		t.Fatal("expected error for invalid base ref")
+	}
+	if !strings.Contains(err.Error(), `against "DOES_NOT_EXIST"`) {
+		t.Fatalf("expected contextual error, got: %v", err)
+	}
+}
+
 func TestIsTestFilePath(t *testing.T) {
 	tests := []struct {
 		path string
@@ -265,6 +347,45 @@ func TestIsTestFilePath(t *testing.T) {
 		if got != tt.want {
 			t.Errorf("isTestFilePath(%q) = %v, want %v", tt.path, got, tt.want)
 		}
+	}
+}
+
+func requireGit(t *testing.T) {
+	t.Helper()
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not available")
+	}
+}
+
+func initImpactTestRepo(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+
+	runGit(t, dir, "init")
+	runGit(t, dir, "config", "user.name", "Test User")
+	runGit(t, dir, "config", "user.email", "test@example.com")
+
+	srcDir := filepath.Join(dir, "src")
+	if err := os.MkdirAll(srcDir, 0o755); err != nil {
+		t.Fatalf("mkdir src: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(srcDir, "app.js"), []byte("console.log('v1')\n"), 0o644); err != nil {
+		t.Fatalf("write app.js: %v", err)
+	}
+
+	runGit(t, dir, "add", ".")
+	runGit(t, dir, "commit", "-m", "initial")
+
+	return dir
+}
+
+func runGit(t *testing.T, dir string, args ...string) {
+	t.Helper()
+	cmd := exec.Command("git", args...)
+	cmd.Dir = dir
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("git %v failed: %v\n%s", args, err, string(out))
 	}
 }
 
