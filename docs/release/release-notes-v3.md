@@ -229,7 +229,9 @@ All commands support `--json` for machine-readable output.
 - **Signal-first architecture**: all findings trace back to detected signals with evidence metadata
 - **Measurement framework**: 18 measurements with transparent computation, evidence strength, and stated limitations
 - **Portfolio intelligence**: cost/value/leverage analysis for test assets
-- **Impact analysis**: git-integrated change-risk assessment
+- **Impact analysis framework**: formal impact graph connecting code units to tests with edge provenance, change-risk posture with 4 dimensions (protection, exposure, coordination, instability), protective test-set selection with explanation metadata, and privacy-safe aggregate exports
+- **Impact graph**: durable code-unit-to-test graph built from coverage lineage, structural links, and naming conventions, with exact/inferred/weak confidence classification per edge
+- **Protective test selection**: `hamlet select-tests` recommends a focused test set for a change, with selection reasoning and gap reporting
 - **Test identity tracking**: stable identifiers for test files and code units across snapshots
 - **Benchmark exports**: privacy-safe aggregate exports for cross-repo comparison
 - **Registry-based detector plugins**: extensible signal detection without modifying the engine core
@@ -249,6 +251,9 @@ All commands support `--json` for machine-readable output.
 | `hamlet posture` | Detailed posture breakdown with measurement evidence |
 | `hamlet portfolio` | Portfolio intelligence: cost, breadth, leverage, redundancy |
 | `hamlet impact` | Impact analysis for changed code against git diff |
+| `hamlet impact --show graph` | View impact graph edges for impacted units |
+| `hamlet impact --show selected` | View protective test set with selection reasoning |
+| `hamlet select-tests` | Recommend protective test set for a change |
 | `hamlet metrics` | Aggregate metrics scorecard |
 | `hamlet migration readiness` | Migration readiness assessment |
 | `hamlet migration blockers` | List migration blockers by type and area |
@@ -307,3 +312,19 @@ hamlet posture           # measurement evidence
 hamlet portfolio         # cost and leverage analysis
 hamlet impact            # what changed and is it tested?
 ```
+
+## Verification System
+
+V3 includes a formal, layered verification system:
+
+- **Unit tests** — deterministic core logic across identity, lifecycle, ownership, coverage, measurement, scoring, and impact
+- **Golden tests** — 9 golden outputs protecting metrics, exports, reports, and impact analysis artifacts
+- **Determinism tests** — 9 repeat-run tests ensuring identical outputs across runs for all critical subsystems
+- **Schema tests** — 9 round-trip and forward-compatibility tests for persisted artifacts
+- **Adversarial tests** — 19 tests for nil/empty/malformed/partial inputs with honest degradation
+- **E2E scenario tests** — 14 flagship workflow tests from analysis to rendering
+- **CLI regression tests** — 13 tests covering build, help, commands, output structure, and JSON modes
+- **Benchmarks** — 11 Go benchmarks for metrics, measurements, heatmap, scoring, impact, comparison, portfolio, and full pipeline
+- **15 fixture factories** — realistic scenarios from minimal repos to 2000+ test file stress tests
+
+Release gates: `make pr-gate` (fast, every PR) and `make release-gate` (full verification before release).

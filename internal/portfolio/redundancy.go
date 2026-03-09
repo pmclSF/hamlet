@@ -8,18 +8,31 @@ import (
 // detectRedundancy finds pairs of test assets that cover substantially
 // overlapping code surfaces. Two tests are redundancy candidates when:
 //   - They share ≥70% of their covered code units
-//   - Both have coverage data
+//   - Both have coverage or import linkage data
+//
+// When an import graph is available, overlap is computed from actual source
+// file imports rather than module directories, giving much higher precision.
 //
 // Redundancy candidates are not bugs — they are investment signals.
 // The team may choose to keep both for different reasons (speed, isolation).
 func detectRedundancy(assets []TestAsset) []Finding {
-	// Build index of assets with coverage data.
+	// Build index of assets with coverage or import data.
 	type assetUnits struct {
 		idx   int
 		units map[string]bool
 	}
 	var covered []assetUnits
 	for i, a := range assets {
+		// Prefer import graph data (source-level precision).
+		if len(a.ImportedSources) > 0 {
+			units := map[string]bool{}
+			for _, src := range a.ImportedSources {
+				units[src] = true
+			}
+			covered = append(covered, assetUnits{idx: i, units: units})
+			continue
+		}
+		// Fall back to coverage-based modules.
 		if !a.HasCoverageData || a.CoveredUnitCount == 0 {
 			continue
 		}
@@ -77,9 +90,18 @@ func detectRedundancy(assets []TestAsset) []Finding {
 			}
 			seen[key] = true
 
+			// Higher confidence when using import graph (source-level) vs module directories.
+			hasImportData := len(assets[a.idx].ImportedSources) > 0 || len(assets[b.idx].ImportedSources) > 0
 			confidence := ConfidenceModerate
 			if ratio >= 0.90 {
 				confidence = ConfidenceHigh
+			} else if !hasImportData {
+				confidence = ConfidenceLow
+			}
+
+			overlapUnit := "modules"
+			if hasImportData {
+				overlapUnit = "source files"
 			}
 
 			findings = append(findings, Finding{
@@ -89,13 +111,14 @@ func detectRedundancy(assets []TestAsset) []Finding {
 				Owner:        assets[a.idx].Owner,
 				Confidence:   confidence,
 				Explanation: fmt.Sprintf(
-					"%s and %s cover %.0f%% overlapping modules (%d shared).",
-					assets[a.idx].Path, assets[b.idx].Path, ratio*100, overlap,
+					"%s and %s cover %.0f%% overlapping %s (%d shared).",
+					assets[a.idx].Path, assets[b.idx].Path, ratio*100, overlapUnit, overlap,
 				),
 				SuggestedAction: "Consider consolidating or clarifying distinct purpose for each test.",
 				Metadata: map[string]any{
 					"overlapRatio": ratio,
 					"sharedCount":  overlap,
+					"source":       overlapUnit,
 				},
 			})
 		}

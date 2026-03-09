@@ -9,31 +9,74 @@ import (
 	"github.com/pmclSF/hamlet/internal/models"
 )
 
+// FrameworkResult holds the result of framework detection for a single file.
+type FrameworkResult struct {
+	Framework  string
+	Confidence float64
+	Source     string // "import", "config", "fallback"
+}
+
 // detectFramework infers the test framework for a single file.
 //
-// This is a first-pass heuristic detector. It uses:
-//   - file extension to determine language
-//   - simple content patterns for JS/TS files
-//   - naming conventions for Go, Python, Java
+// Detection uses a layered approach:
+//  1. Per-file content patterns (import/require statements) — highest per-file confidence
+//  2. Project-level context fallback (config files, package.json) — when per-file is inconclusive
 //
 // Limitations:
 //   - Does not perform full AST analysis.
 //   - May misidentify framework if multiple frameworks are used in one file.
-//   - Config-based detection (e.g. reading jest.config.js) is a future enhancement.
 func detectFramework(relPath string, absPath string) string {
+	return detectFrameworkWithContext(relPath, absPath, nil).Framework
+}
+
+// detectFrameworkWithContext detects framework with optional project-level context.
+// When projectCtx is provided and per-file detection yields "unknown", the project
+// default is used as a fallback.
+func detectFrameworkWithContext(relPath string, absPath string, projectCtx *ProjectContext) FrameworkResult {
 	ext := strings.ToLower(filepath.Ext(relPath))
 
+	var result FrameworkResult
 	switch {
 	case isJSExt(ext):
-		return detectJSFramework(absPath)
+		result = detectJSFrameworkResult(absPath)
 	case ext == ".go":
-		return "go-testing"
+		result = FrameworkResult{Framework: "go-testing", Confidence: 0.99, Source: "convention"}
 	case ext == ".py":
-		return detectPythonFramework(absPath)
+		result = detectPythonFrameworkResult(absPath)
 	case ext == ".java":
-		return detectJavaFramework(absPath)
+		result = detectJavaFrameworkResult(absPath)
 	default:
-		return "unknown"
+		result = FrameworkResult{Framework: "unknown", Confidence: 0, Source: ""}
+	}
+
+	// Layer 2: project-level fallback for unknown frameworks.
+	if result.Framework == "unknown" && projectCtx != nil {
+		lang := extToLanguage(ext)
+		if fallback := projectCtx.DefaultFramework(lang); fallback != "" {
+			result = FrameworkResult{
+				Framework:  fallback,
+				Confidence: 0.4,
+				Source:     "project-fallback",
+			}
+		}
+	}
+
+	return result
+}
+
+// extToLanguage maps file extensions to language identifiers for framework fallback.
+func extToLanguage(ext string) string {
+	switch {
+	case isJSExt(ext):
+		return "javascript"
+	case ext == ".go":
+		return "go"
+	case ext == ".py":
+		return "python"
+	case ext == ".java":
+		return "java"
+	default:
+		return ""
 	}
 }
 
@@ -50,56 +93,66 @@ func isJSExt(ext string) bool {
 //
 // Priority order: more specific frameworks first.
 func detectJSFramework(absPath string) string {
+	return detectJSFrameworkResult(absPath).Framework
+}
+
+// detectJSFrameworkResult returns a full FrameworkResult with confidence and source.
+func detectJSFrameworkResult(absPath string) FrameworkResult {
 	content := readHead(absPath, 4096)
 	if content == "" {
-		return "unknown"
+		return FrameworkResult{Framework: "unknown", Confidence: 0, Source: ""}
 	}
 
 	// E2E frameworks — check first as they are more specific
 	if strings.Contains(content, "playwright") || strings.Contains(content, "@playwright/test") {
-		return "playwright"
+		return FrameworkResult{Framework: "playwright", Confidence: 0.9, Source: "import"}
 	}
 	if strings.Contains(content, "cypress") || strings.Contains(content, "cy.") {
-		return "cypress"
+		return FrameworkResult{Framework: "cypress", Confidence: 0.9, Source: "import"}
 	}
 	if strings.Contains(content, "puppeteer") {
-		return "puppeteer"
+		return FrameworkResult{Framework: "puppeteer", Confidence: 0.9, Source: "import"}
 	}
 	if strings.Contains(content, "webdriverio") || strings.Contains(content, "wdio") {
-		return "webdriverio"
+		return FrameworkResult{Framework: "webdriverio", Confidence: 0.9, Source: "import"}
 	}
 	if strings.Contains(content, "testcafe") || strings.Contains(content, "TestCafe") {
-		return "testcafe"
+		return FrameworkResult{Framework: "testcafe", Confidence: 0.9, Source: "import"}
+	}
+
+	// Node.js built-in test runner
+	if strings.Contains(content, "node:test") {
+		return FrameworkResult{Framework: "node-test", Confidence: 0.95, Source: "import"}
 	}
 
 	// Unit test frameworks
 	if strings.Contains(content, "vitest") || strings.Contains(content, "from 'vitest'") || strings.Contains(content, "from \"vitest\"") {
-		return "vitest"
+		return FrameworkResult{Framework: "vitest", Confidence: 0.9, Source: "import"}
 	}
 	if strings.Contains(content, "from '@jest") || strings.Contains(content, "jest.") || strings.Contains(content, "from 'jest") {
-		return "jest"
+		return FrameworkResult{Framework: "jest", Confidence: 0.85, Source: "import"}
 	}
 	if strings.Contains(content, "from 'mocha'") || strings.Contains(content, "require('mocha')") {
-		return "mocha"
+		return FrameworkResult{Framework: "mocha", Confidence: 0.9, Source: "import"}
 	}
 	if strings.Contains(content, "from 'jasmine'") || strings.Contains(content, "jasmine.") {
-		return "jasmine"
+		return FrameworkResult{Framework: "jasmine", Confidence: 0.85, Source: "import"}
 	}
 
 	// Mocha detection: done-callback pattern or node assert/supertest usage
 	// without explicit jest imports suggests mocha (common in Express, Koa, etc.)
 	if strings.Contains(content, "describe(") || strings.Contains(content, "it(") {
 		if hasMochaIndicators(content) {
-			return "mocha"
+			return FrameworkResult{Framework: "mocha", Confidence: 0.7, Source: "import"}
 		}
 	}
 
 	// Fallback: common test globals suggest jest (most common JS test framework)
 	if strings.Contains(content, "describe(") && strings.Contains(content, "expect(") {
-		return "jest"
+		return FrameworkResult{Framework: "jest", Confidence: 0.5, Source: "import"}
 	}
 
-	return "unknown"
+	return FrameworkResult{Framework: "unknown", Confidence: 0, Source: ""}
 }
 
 // hasMochaIndicators checks for patterns that suggest mocha rather than jest.
@@ -128,38 +181,50 @@ func hasMochaIndicators(content string) bool {
 
 // detectPythonFramework looks for framework-specific imports.
 func detectPythonFramework(absPath string) string {
+	return detectPythonFrameworkResult(absPath).Framework
+}
+
+// detectPythonFrameworkResult returns a full FrameworkResult.
+func detectPythonFrameworkResult(absPath string) FrameworkResult {
 	content := readHead(absPath, 4096)
 	if content == "" {
-		return "unknown"
+		return FrameworkResult{Framework: "unknown", Confidence: 0, Source: ""}
 	}
 	if strings.Contains(content, "import pytest") || strings.Contains(content, "from pytest") {
-		return "pytest"
+		return FrameworkResult{Framework: "pytest", Confidence: 0.9, Source: "import"}
 	}
 	if strings.Contains(content, "import unittest") || strings.Contains(content, "from unittest") {
-		return "unittest"
+		return FrameworkResult{Framework: "unittest", Confidence: 0.9, Source: "import"}
 	}
 	if strings.Contains(content, "import nose") || strings.Contains(content, "from nose") {
-		return "nose2"
+		return FrameworkResult{Framework: "nose2", Confidence: 0.9, Source: "import"}
 	}
-	return "pytest" // pytest is conventional default for Python
+	// pytest is conventional default for Python test files.
+	return FrameworkResult{Framework: "pytest", Confidence: 0.5, Source: "convention"}
 }
 
 // detectJavaFramework looks for framework-specific imports.
 func detectJavaFramework(absPath string) string {
+	return detectJavaFrameworkResult(absPath).Framework
+}
+
+// detectJavaFrameworkResult returns a full FrameworkResult.
+func detectJavaFrameworkResult(absPath string) FrameworkResult {
 	content := readHead(absPath, 4096)
 	if content == "" {
-		return "unknown"
+		return FrameworkResult{Framework: "unknown", Confidence: 0, Source: ""}
 	}
 	if strings.Contains(content, "org.testng") {
-		return "testng"
+		return FrameworkResult{Framework: "testng", Confidence: 0.9, Source: "import"}
 	}
-	if strings.Contains(content, "org.junit.jupiter") || strings.Contains(content, "org.junit.Test") {
-		if strings.Contains(content, "org.junit.jupiter") {
-			return "junit5"
-		}
-		return "junit4"
+	if strings.Contains(content, "org.junit.jupiter") {
+		return FrameworkResult{Framework: "junit5", Confidence: 0.9, Source: "import"}
 	}
-	return "junit5" // default for Java
+	if strings.Contains(content, "org.junit.Test") {
+		return FrameworkResult{Framework: "junit4", Confidence: 0.9, Source: "import"}
+	}
+	// junit5 is conventional default for Java test files.
+	return FrameworkResult{Framework: "junit5", Confidence: 0.5, Source: "convention"}
 }
 
 // readHead reads the first n bytes of a file for content-based detection.
@@ -210,7 +275,7 @@ func buildFrameworkInventory(testFiles []models.TestFile) []models.Framework {
 // inferFrameworkType maps framework names to their broad category.
 func inferFrameworkType(name string) models.FrameworkType {
 	switch name {
-	case "jest", "vitest", "mocha", "jasmine", "go-testing", "pytest", "unittest", "nose2", "junit4", "junit5", "testng":
+	case "jest", "vitest", "mocha", "jasmine", "go-testing", "pytest", "unittest", "nose2", "junit4", "junit5", "testng", "node-test":
 		return models.FrameworkTypeUnit
 	case "playwright", "cypress", "puppeteer", "webdriverio", "testcafe", "selenium":
 		return models.FrameworkTypeE2E

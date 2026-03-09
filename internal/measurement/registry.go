@@ -178,10 +178,18 @@ func resolvePostureBand(bands []string) PostureBand {
 		"strong":   1,
 	}
 
+	// Filter out "unknown" bands — they represent missing data, not assessments.
+	// Only resolved bands participate in posture computation.
 	worst := 0
 	weakCount := 0
+	resolvedCount := 0
 	for _, b := range bands {
 		o := order[b]
+		if o == 0 {
+			// Unknown or unrecognized band — skip.
+			continue
+		}
+		resolvedCount++
 		if o > worst {
 			worst = o
 		}
@@ -190,8 +198,13 @@ func resolvePostureBand(bands []string) PostureBand {
 		}
 	}
 
-	// If majority of measurements are weak+, escalate.
-	if len(bands) > 1 && weakCount > len(bands)/2 && worst < 4 {
+	// If no bands could be resolved, the dimension is unknown.
+	if resolvedCount == 0 {
+		return PostureUnknown
+	}
+
+	// If majority of resolved measurements are weak+, escalate.
+	if resolvedCount > 1 && weakCount > resolvedCount/2 && worst < 4 {
 		worst = 3 // at least weak
 	}
 

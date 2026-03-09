@@ -4,9 +4,12 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/pmclSF/hamlet/internal/comparison"
 	"github.com/pmclSF/hamlet/internal/heatmap"
+	"github.com/pmclSF/hamlet/internal/impact"
 	"github.com/pmclSF/hamlet/internal/measurement"
 	"github.com/pmclSF/hamlet/internal/metrics"
+	"github.com/pmclSF/hamlet/internal/portfolio"
 	"github.com/pmclSF/hamlet/internal/scoring"
 )
 
@@ -104,6 +107,89 @@ func TestDeterminism_LargeScaleStable(t *testing.T) {
 	for i := 1; i < 5; i++ {
 		if results[i] != results[0] {
 			t.Errorf("large-scale run %d differs from run 0", i)
+		}
+	}
+}
+
+// TestDeterminism_ImpactIdentical verifies impact analysis is deterministic.
+func TestDeterminism_ImpactIdentical(t *testing.T) {
+	snap := HealthyBalancedSnapshot()
+	scope := impact.ChangeScopeFromPaths(
+		[]string{"src/auth.js", "src/payment.js", "src/__tests__/auth.test.js"},
+		impact.ChangeModified,
+	)
+
+	results := make([]string, 5)
+	for i := 0; i < 5; i++ {
+		result := impact.Analyze(scope, snap)
+		data, _ := json.Marshal(result)
+		results[i] = string(data)
+	}
+
+	for i := 1; i < 5; i++ {
+		if results[i] != results[0] {
+			t.Errorf("impact run %d differs from run 0", i)
+		}
+	}
+}
+
+// TestDeterminism_ComparisonIdentical verifies comparison is deterministic.
+func TestDeterminism_ComparisonIdentical(t *testing.T) {
+	from := FlakyConcentratedSnapshot()
+	to := HealthyBalancedSnapshot()
+
+	results := make([]string, 5)
+	for i := 0; i < 5; i++ {
+		comp := comparison.Compare(from, to)
+		data, _ := json.Marshal(comp)
+		results[i] = string(data)
+	}
+
+	for i := 1; i < 5; i++ {
+		if results[i] != results[0] {
+			t.Errorf("comparison run %d differs from run 0", i)
+		}
+	}
+}
+
+// TestDeterminism_PortfolioIdentical verifies portfolio analysis is deterministic.
+func TestDeterminism_PortfolioIdentical(t *testing.T) {
+	snap := FlakyConcentratedSnapshot()
+	snap.Risk = scoring.ComputeRisk(snap)
+
+	results := make([]string, 5)
+	for i := 0; i < 5; i++ {
+		ps := portfolio.Analyze(snap)
+		data, _ := json.Marshal(ps.ToModel())
+		results[i] = string(data)
+	}
+
+	for i := 1; i < 5; i++ {
+		if results[i] != results[0] {
+			t.Errorf("portfolio run %d differs from run 0", i)
+		}
+	}
+}
+
+// TestDeterminism_ImpactAggregateIdentical verifies impact aggregate is deterministic.
+func TestDeterminism_ImpactAggregateIdentical(t *testing.T) {
+	snap := HealthyBalancedSnapshot()
+	scope := impact.ChangeScopeFromPaths(
+		[]string{"src/auth.js", "src/user.js"},
+		impact.ChangeModified,
+	)
+
+	results := make([]string, 5)
+	for i := 0; i < 5; i++ {
+		result := impact.Analyze(scope, snap)
+		agg := impact.BuildAggregate(result)
+		data, _ := json.Marshal(agg)
+		results[i] = string(data)
+	}
+
+	for i := 1; i < 5; i++ {
+		if results[i] != results[0] {
+			t.Errorf("impact aggregate run %d differs from run 0", i)
 		}
 	}
 }

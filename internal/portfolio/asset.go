@@ -49,6 +49,16 @@ func BuildAssets(snap *models.TestSuiteSnapshot) []TestAsset {
 		// Protection breadth from linked code units.
 		populateProtection(&a, tf, unitsByLinked, snap)
 
+		// Import graph linkage for precise redundancy detection.
+		if imports, ok := snap.ImportGraph[tf.Path]; ok && len(imports) > 0 {
+			sources := make([]string, 0, len(imports))
+			for src := range imports {
+				sources = append(sources, src)
+			}
+			sort.Strings(sources)
+			a.ImportedSources = sources
+		}
+
 		assets = append(assets, a)
 	}
 

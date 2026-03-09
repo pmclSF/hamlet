@@ -9,7 +9,9 @@ import (
 	"testing"
 
 	"github.com/pmclSF/hamlet/internal/benchmark"
+	"github.com/pmclSF/hamlet/internal/comparison"
 	"github.com/pmclSF/hamlet/internal/heatmap"
+	"github.com/pmclSF/hamlet/internal/impact"
 	"github.com/pmclSF/hamlet/internal/measurement"
 	"github.com/pmclSF/hamlet/internal/metrics"
 	"github.com/pmclSF/hamlet/internal/portfolio"
@@ -134,4 +136,50 @@ func TestGolden_PostureText(t *testing.T) {
 	var buf bytes.Buffer
 	reporting.RenderPostureReport(&buf, snap)
 	assertGolden(t, "posture-minimal.txt", buf.Bytes())
+}
+
+func TestGolden_ImpactText(t *testing.T) {
+	snap := HealthyBalancedSnapshot()
+	measReg := measurement.DefaultRegistry()
+	snap.Measurements = measReg.ComputeSnapshot(snap).ToModel()
+
+	scope := impact.ChangeScopeFromPaths(
+		[]string{"src/auth.js", "src/payment.js"},
+		impact.ChangeModified,
+	)
+	result := impact.Analyze(scope, snap)
+
+	var buf bytes.Buffer
+	reporting.RenderImpactReport(&buf, result)
+	assertGolden(t, "impact-balanced.txt", buf.Bytes())
+}
+
+func TestGolden_CompareText(t *testing.T) {
+	from := FlakyConcentratedSnapshot()
+	to := HealthyBalancedSnapshot()
+
+	comp := comparison.Compare(from, to)
+
+	var buf bytes.Buffer
+	reporting.RenderComparisonReport(&buf, comp)
+	assertGolden(t, "compare-trend.txt", buf.Bytes())
+}
+
+func TestGolden_ImpactAggregateJSON(t *testing.T) {
+	snap := HealthyBalancedSnapshot()
+	measReg := measurement.DefaultRegistry()
+	snap.Measurements = measReg.ComputeSnapshot(snap).ToModel()
+
+	scope := impact.ChangeScopeFromPaths(
+		[]string{"src/auth.js", "src/payment.js", "src/__tests__/auth.test.js"},
+		impact.ChangeModified,
+	)
+	result := impact.Analyze(scope, snap)
+	agg := impact.BuildAggregate(result)
+
+	data, err := json.MarshalIndent(agg, "", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertGolden(t, "impact-aggregate.json", data)
 }

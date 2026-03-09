@@ -260,6 +260,71 @@ func TestHealth_SlowTestShare_RuntimeEvidence(t *testing.T) {
 	}
 }
 
+func TestHealth_FlakyShare_UnknownWithoutRuntime(t *testing.T) {
+	// No runtime data and no flaky signals → band should be "unknown", not "strong".
+	snap := makeSnap(10)
+	r := computeFlakyShare(snap)
+	if r.Band != "unknown" {
+		t.Errorf("flaky_share band without runtime data = %q, want 'unknown'", r.Band)
+	}
+	if r.Evidence != EvidenceWeak {
+		t.Errorf("flaky_share evidence = %q, want 'weak'", r.Evidence)
+	}
+}
+
+func TestHealth_FlakyShare_StrongWithRuntime(t *testing.T) {
+	// With runtime data and no flaky signals → band should be "strong".
+	snap := makeSnap(10)
+	snap.TestFiles[0].RuntimeStats = &models.RuntimeStats{AvgRuntimeMs: 100}
+	r := computeFlakyShare(snap)
+	if r.Band != "strong" {
+		t.Errorf("flaky_share band with runtime data = %q, want 'strong'", r.Band)
+	}
+	if r.Evidence != EvidenceStrong {
+		t.Errorf("flaky_share evidence = %q, want 'strong'", r.Evidence)
+	}
+}
+
+func TestHealth_SlowTestShare_UnknownWithoutRuntime(t *testing.T) {
+	// No runtime data and no slow signals → band should be "unknown".
+	snap := makeSnap(10)
+	r := computeSlowTestShare(snap)
+	if r.Band != "unknown" {
+		t.Errorf("slow_test_share band without runtime data = %q, want 'unknown'", r.Band)
+	}
+}
+
+func TestHealth_SlowTestShare_StrongWithRuntime(t *testing.T) {
+	// With runtime data and no slow signals → band should be "strong".
+	snap := makeSnap(10)
+	snap.TestFiles[0].RuntimeStats = &models.RuntimeStats{AvgRuntimeMs: 100}
+	r := computeSlowTestShare(snap)
+	if r.Band != "strong" {
+		t.Errorf("slow_test_share band with runtime data = %q, want 'strong'", r.Band)
+	}
+}
+
+func TestResolvePostureBand_SkipsUnknown(t *testing.T) {
+	tests := []struct {
+		name  string
+		bands []string
+		want  PostureBand
+	}{
+		{"all unknown", []string{"unknown", "unknown"}, PostureUnknown},
+		{"unknown with strong", []string{"unknown", "strong"}, PostureStrong},
+		{"unknown with weak", []string{"unknown", "weak", "strong"}, PostureWeak},
+		{"unknown ignored in count", []string{"unknown", "unknown", "weak"}, PostureWeak},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := resolvePostureBand(tt.bands)
+			if got != tt.want {
+				t.Errorf("resolvePostureBand(%v) = %q, want %q", tt.bands, got, tt.want)
+			}
+		})
+	}
+}
+
 // --- coverage depth tests ---
 
 func TestCoverageDepth_UncoveredExports(t *testing.T) {

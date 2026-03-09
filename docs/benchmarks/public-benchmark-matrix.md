@@ -4,10 +4,11 @@
 
 This benchmark matrix runs Hamlet against real-world public repositories to verify:
 
-1. **Functional correctness** — Hamlet produces meaningful output on diverse codebases
-2. **Determinism** — Identical inputs produce identical structured outputs
+1. **Functional correctness** — All Hamlet commands produce meaningful output on diverse codebases
+2. **Determinism** — Identical inputs produce identical structured outputs across all JSON commands
 3. **Performance** — Analysis completes in reasonable time at scale
 4. **Degradation** — Hamlet degrades gracefully on unsupported or edge-case repos
+5. **Feature coverage** — Portfolio, migration, posture, and metrics all work on real codebases
 
 ## Repo selection criteria
 
@@ -26,24 +27,24 @@ Each repo was chosen to exercise specific Hamlet capabilities:
 
 ## Tiers
 
-### Smoke (< 2 minutes total)
+### Smoke (< 5 minutes total)
 - **express**, **fastify**
 - Quick feedback loop for CI or local development
 - Should always pass without issues
 
-### Full (5-15 minutes total)
+### Full (10-30 minutes total)
 - All smoke repos + **jest**, **playwright**, **vue**, **flask**, **next.js**
 - The main representative matrix
 - Covers language diversity, scale range, and framework variety
 
-### Stress (15-30+ minutes total)
+### Stress (30-60+ minutes total)
 - All full repos + **storybook**
 - For pre-release validation and scale regression testing
 - Failures here are informational, not blocking
 
 ## What gets tested per repo
 
-For each repo, the runner executes:
+### Core commands (14 total)
 
 | Command | Purpose | Output captured |
 |---------|---------|----------------|
@@ -51,18 +52,39 @@ For each repo, the runner executes:
 | `hamlet analyze` | Human-readable output | Text output, exit code |
 | `hamlet summary` | Executive summary | Text output, exit code |
 | `hamlet posture` | Posture breakdown | Text output, exit code |
-| `hamlet metrics --json` | Metrics snapshot | JSON metrics, exit code |
+| `hamlet posture --json` | Machine-readable posture | JSON posture, exit code |
+| `hamlet portfolio` | Portfolio intelligence | Text output, exit code |
+| `hamlet portfolio --json` | Machine-readable portfolio | JSON portfolio, exit code |
+| `hamlet metrics` | Metrics scorecard | Text output, exit code |
+| `hamlet metrics --json` | Machine-readable metrics | JSON metrics, exit code |
+| `hamlet migration readiness` | Migration assessment | Text output, exit code |
+| `hamlet migration readiness --json` | Machine-readable migration | JSON migration, exit code |
+| `hamlet migration blockers` | Migration blocker list | Text output, exit code |
+| `hamlet policy check` | Policy evaluation | Text output, exit code |
 | `hamlet export benchmark` | Privacy-safe export | JSON export, exit code |
 
-### Determinism check
-- `hamlet analyze --json` is run twice per repo
-- Outputs are compared with timestamps stripped
-- Any semantic difference is flagged
+### Determinism checks (6 per repo)
+
+Each of these commands is run twice and the JSON outputs are compared with timestamps stripped:
+- `analyze --json`
+- `metrics --json`
+- `portfolio --json`
+- `posture --json`
+- `migration readiness --json`
+- `export benchmark`
+
+Any semantic difference is flagged as a determinism failure.
 
 ### Expectation checks
-- Each repo has optional expectations in `benchmarks/expectations/<id>.yaml`
-- Checks include: minimum test files, minimum code units, required frameworks
-- These catch obvious regressions without hardcoding exact outputs
+
+Each repo has expectations in `benchmarks/expectations/<id>.yaml`:
+- Minimum test files detected
+- Minimum code units detected
+- Posture dimensions must exist
+- Portfolio command must succeed
+- Migration command must succeed
+
+These catch obvious regressions without hardcoding exact outputs.
 
 ## Adding a new repo
 
@@ -81,3 +103,14 @@ For each repo, the runner executes:
 | Determinism mismatch | Non-deterministic output | Investigate — timestamps, map ordering, etc. |
 | Timeout | Analysis too slow | Check for performance regression or mark as stress |
 | Clone failure | Network or repo issue | Retry; if persistent, mark repo as flaky |
+| Policy "no file" | Repo has no `.hamlet/policy.yaml` | Expected for public repos — not a failure |
+
+## Total invocations per run
+
+Per repo: 14 commands + 12 determinism runs (6 commands x 2) = 26 Hamlet invocations
+
+| Tier | Repos | Invocations | Estimated time |
+|------|-------|-------------|----------------|
+| Smoke | 2 | 52 | 2-5 min |
+| Full | 7 | 182 | 10-30 min |
+| Stress | 8 | 208 | 30-60 min |

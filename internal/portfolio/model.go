@@ -99,6 +99,10 @@ type TestAsset struct {
 	// BreadthClass is the inferred breadth classification.
 	BreadthClass BreadthClass `json:"breadthClass"`
 
+	// ImportedSources lists source files this test imports (from import graph).
+	// Used for precise redundancy detection based on actual code linkage.
+	ImportedSources []string `json:"importedSources,omitempty"`
+
 	// --- Evidence ---
 
 	// HasRuntimeData is true if runtime data was available for cost estimation.

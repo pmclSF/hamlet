@@ -21,7 +21,7 @@ const (
 // Framework represents a testing framework detected in the repository.
 type Framework struct {
 	// Name is the canonical framework name.
-	// Examples: jest, vitest, playwright, cypress, pytest, junit.
+	// Examples: jest, vitest, playwright, cypress, pytest, junit, node-test.
 	Name string `json:"name"`
 
 	// Version is optional and may be unavailable during early analysis.
@@ -35,4 +35,12 @@ type Framework struct {
 
 	// TestCount is the estimated number of test cases associated with this framework.
 	TestCount int `json:"testCount"`
+
+	// Confidence is the detection confidence for this framework (0.0–1.0).
+	// Higher values indicate stronger evidence (config file > import pattern > fallback).
+	Confidence float64 `json:"confidence,omitempty"`
+
+	// DetectionSource describes how the framework was detected.
+	// Values: "config-file", "import", "dependency", "convention", "project-fallback".
+	DetectionSource string `json:"detectionSource,omitempty"`
 }

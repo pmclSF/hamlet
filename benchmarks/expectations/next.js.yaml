@@ -1,6 +1,9 @@
 # Expectations for vercel/next.js benchmark.
-# Expectations should be tightened after initial calibration run.
-min_test_files: 0
-min_code_units: 0
-require_posture: false
+# Massive monorepo with 14000+ test files. Stress-level scale.
+# Baselines from 2026-03-06 run.
+min_test_files: 5000
+min_code_units: 1000
+require_posture: true
 analyze_must_succeed: true
+portfolio_must_succeed: true
+migration_must_succeed: true

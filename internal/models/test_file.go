@@ -18,6 +18,13 @@ type TestFile struct {
 	// Framework is the primary framework Hamlet believes this file uses.
 	Framework string `json:"framework,omitempty"`
 
+	// FrameworkConfidence is the detection confidence (0.0–1.0).
+	FrameworkConfidence float64 `json:"frameworkConfidence,omitempty"`
+
+	// FrameworkSource describes how the framework was detected.
+	// Values: "import", "config-file", "project-fallback", "convention".
+	FrameworkSource string `json:"frameworkSource,omitempty"`
+
 	// Owner is the resolved owner for this file if known.
 	// This may come from CODEOWNERS, config, or future ownership inference.
 	Owner string `json:"owner,omitempty"`

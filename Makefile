@@ -5,7 +5,8 @@ COMMIT  ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
 DATE    ?= $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 LDFLAGS := -s -w -X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.date=$(DATE)
 
-.PHONY: build test lint clean demo benchmark-fetch benchmark-smoke benchmark-full benchmark-stress benchmark-summary install
+.PHONY: build test lint clean demo benchmark-fetch benchmark-smoke benchmark-full benchmark-stress benchmark-summary install \
+       test-golden test-determinism test-schema test-adversarial test-e2e test-cli test-bench golden-update pr-gate release-gate
 
 # Build the CLI binary
 build:
@@ -48,6 +49,50 @@ demo:
 	@echo ""
 	@echo "--- hamlet metrics ---"
 	go run ./cmd/hamlet metrics
+
+# ── Verification Layer Targets ──────────────────────────────
+
+# Run golden tests only (fast)
+test-golden:
+	go test ./internal/testdata/ -run 'Golden' -count=1
+
+# Run determinism tests only
+test-determinism:
+	go test ./internal/testdata/ -run 'Determinism' -count=1
+
+# Run schema tests only
+test-schema:
+	go test ./internal/testdata/ -run 'Schema' -count=1
+
+# Run adversarial tests only
+test-adversarial:
+	go test ./internal/testdata/ -run 'Adversarial' -count=1
+
+# Run E2E scenario tests only
+test-e2e:
+	go test ./internal/testdata/ -run 'E2E' -count=1
+
+# Run CLI regression tests only
+test-cli:
+	go test ./internal/testdata/ -run 'CLI' -count=1 -timeout 120s
+
+# Run benchmarks
+test-bench:
+	go test -bench . -benchmem ./internal/testdata/ -run '^$$'
+
+# Update golden files (review changes in git diff before committing)
+golden-update:
+	go test ./internal/testdata/ -run 'Golden' -update
+
+# ── Release Gates ──────────────────────────────────────────
+
+# PR gate: fast checks required on every PR
+pr-gate: check
+	go vet ./cmd/... ./internal/...
+	go test ./internal/... ./cmd/...
+
+# Release gate: full verification required before release
+release-gate: pr-gate test-determinism test-golden test-schema test-e2e test-cli
 
 # Legacy JavaScript tests (requires Node.js 22+)
 test-legacy:

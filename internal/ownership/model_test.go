@@ -69,6 +69,7 @@ func TestSourceConfidence(t *testing.T) {
 		{SourceCodeowners, ConfidenceHigh},
 		{SourcePackageMetadata, ConfidenceMedium},
 		{SourcePathMapping, ConfidenceMedium},
+		{SourceGitHistory, ConfidenceLow},
 		{SourceDirectoryFallback, ConfidenceLow},
 		{SourceUnknown, ConfidenceNone},
 	}

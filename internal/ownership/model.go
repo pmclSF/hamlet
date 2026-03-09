@@ -28,6 +28,10 @@ const (
 	// SourcePathMapping is ownership from path-prefix mapping rules.
 	SourcePathMapping SourceType = "path_mapping"
 
+	// SourceGitHistory is ownership inferred from recent git commit author history.
+	// This source is opt-in and only used when configured.
+	SourceGitHistory SourceType = "git_history"
+
 	// SourceDirectoryFallback is ownership inferred from the top-level directory name.
 	SourceDirectoryFallback SourceType = "directory_fallback"
 
@@ -263,6 +267,8 @@ func SourceConfidence(source SourceType) Confidence {
 		return ConfidenceMedium
 	case SourcePathMapping:
 		return ConfidenceMedium
+	case SourceGitHistory:
+		return ConfidenceLow
 	case SourceDirectoryFallback:
 		return ConfidenceLow
 	default:

@@ -35,7 +35,14 @@ var skipDirs = map[string]bool{
 // The function isTestFile uses these plus directory-based heuristics.
 
 // discoverTestFiles walks the repository tree and returns test files found.
-func discoverTestFiles(root string) ([]models.TestFile, error) {
+// When projectCtx is provided, it is used as a fallback for files whose
+// framework cannot be determined from content alone.
+func discoverTestFiles(root string, projectCtx ...*ProjectContext) ([]models.TestFile, error) {
+	var ctx *ProjectContext
+	if len(projectCtx) > 0 {
+		ctx = projectCtx[0]
+	}
+
 	var testFiles []models.TestFile
 
 	err := filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
@@ -57,10 +64,12 @@ func discoverTestFiles(root string) ([]models.TestFile, error) {
 		}
 
 		if isTestFile(relPath) {
-			framework := detectFramework(relPath, path)
+			result := detectFrameworkWithContext(relPath, path, ctx)
 			testFiles = append(testFiles, models.TestFile{
-				Path:      relPath,
-				Framework: framework,
+				Path:                relPath,
+				Framework:           result.Framework,
+				FrameworkConfidence: result.Confidence,
+				FrameworkSource:     result.Source,
 			})
 		}
 

@@ -24,14 +24,14 @@ func TestDiscoverTestFiles(t *testing.T) {
 	}
 
 	// We expect: auth.test.js, mocked.test.js, utils.spec.ts, weak.test.js,
-	// helpers_test.go, test_login.py
+	// server.test.js, helpers_test.go, test_login.py
 	// We do NOT expect: node_modules/pkg/index.test.js
-	if len(files) != 6 {
+	if len(files) != 7 {
 		paths := make([]string, len(files))
 		for i, f := range files {
 			paths[i] = f.Path
 		}
-		t.Fatalf("expected 6 test files, got %d: %v", len(files), paths)
+		t.Fatalf("expected 7 test files, got %d: %v", len(files), paths)
 	}
 
 	// Verify node_modules was skipped

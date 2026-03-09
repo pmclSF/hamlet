@@ -4,6 +4,7 @@ package governance
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/pmclSF/hamlet/internal/models"
@@ -89,16 +90,14 @@ func checkSkippedTests(snap *models.TestSuiteSnapshot, cfg *policy.Config) []mod
 		return nil
 	}
 
-	// Count existing skippedTest signals from the analysis phase
-	var skippedCount int
-	for _, s := range snap.Signals {
-		if s.Type == "skippedTest" {
-			skippedCount++
-		}
+	topFiles := topFilesForType(snap.Signals, "skippedTest", 5)
+	if len(topFiles) == 0 {
+		return nil
 	}
 
-	if skippedCount == 0 {
-		return nil
+	skippedCount := 0
+	for _, tf := range topFiles {
+		skippedCount += tf.count
 	}
 
 	return []models.Signal{{
@@ -110,13 +109,14 @@ func checkSkippedTests(snap *models.TestSuiteSnapshot, cfg *policy.Config) []mod
 			Repository: snap.Repository.Name,
 		},
 		Explanation: fmt.Sprintf(
-			"Policy disallows skipped tests, but %d skipped test signal(s) were detected.",
-			skippedCount,
+			"Policy disallows skipped tests, but %d skipped test signal(s) were detected. Top files: %s.",
+			skippedCount, formatTopFiles(topFiles),
 		),
 		SuggestedAction: "Restore or remove skipped tests.",
 		Metadata: map[string]any{
 			"skippedCount": skippedCount,
 			"rule":         "disallow_skipped_tests",
+			"topFiles":     topFileNames(topFiles),
 		},
 	}}
 }
@@ -202,11 +202,10 @@ func checkWeakAssertionThreshold(snap *models.TestSuiteSnapshot, cfg *policy.Con
 		return nil
 	}
 
-	var count int
-	for _, s := range snap.Signals {
-		if s.Type == "weakAssertion" {
-			count++
-		}
+	topFiles := topFilesForType(snap.Signals, "weakAssertion", 5)
+	count := 0
+	for _, tf := range topFiles {
+		count += tf.count
 	}
 
 	max := *cfg.Rules.MaxWeakAssertions
@@ -223,14 +222,15 @@ func checkWeakAssertionThreshold(snap *models.TestSuiteSnapshot, cfg *policy.Con
 			Repository: snap.Repository.Name,
 		},
 		Explanation: fmt.Sprintf(
-			"Found %d weakAssertion signal(s), exceeding policy maximum of %d.",
-			count, max,
+			"Found %d weakAssertion signal(s), exceeding policy maximum of %d. Top files: %s.",
+			count, max, formatTopFiles(topFiles),
 		),
 		SuggestedAction: "Add meaningful assertions to test files with weak or missing assertions.",
 		Metadata: map[string]any{
-			"count": count,
-			"max":   max,
-			"rule":  "max_weak_assertions",
+			"count":    count,
+			"max":      max,
+			"rule":     "max_weak_assertions",
+			"topFiles": topFileNames(topFiles),
 		},
 	}}
 }
@@ -242,11 +242,10 @@ func checkMockHeavyThreshold(snap *models.TestSuiteSnapshot, cfg *policy.Config)
 		return nil
 	}
 
-	var count int
-	for _, s := range snap.Signals {
-		if s.Type == "mockHeavyTest" {
-			count++
-		}
+	topFiles := topFilesForType(snap.Signals, "mockHeavyTest", 5)
+	count := 0
+	for _, tf := range topFiles {
+		count += tf.count
 	}
 
 	max := *cfg.Rules.MaxMockHeavyTests
@@ -263,14 +262,88 @@ func checkMockHeavyThreshold(snap *models.TestSuiteSnapshot, cfg *policy.Config)
 			Repository: snap.Repository.Name,
 		},
 		Explanation: fmt.Sprintf(
-			"Found %d mockHeavyTest signal(s), exceeding policy maximum of %d.",
-			count, max,
+			"Found %d mockHeavyTest signal(s), exceeding policy maximum of %d. Top files: %s.",
+			count, max, formatTopFiles(topFiles),
 		),
 		SuggestedAction: "Reduce mock usage in favor of real implementations in tests.",
 		Metadata: map[string]any{
-			"count": count,
-			"max":   max,
-			"rule":  "max_mock_heavy_tests",
+			"count":    count,
+			"max":      max,
+			"rule":     "max_mock_heavy_tests",
+			"topFiles": topFileNames(topFiles),
 		},
 	}}
+}
+
+// fileCount tracks signal count per file for governance reporting.
+type fileCount struct {
+	file  string
+	count int
+}
+
+// topFilesForType returns the top N files with the most signals of the given type.
+func topFilesForType(signals []models.Signal, signalType models.SignalType, limit int) []fileCount {
+	counts := map[string]int{}
+	for _, s := range signals {
+		if s.Type == signalType && s.Location.File != "" {
+			counts[s.Location.File]++
+		}
+	}
+	// Also count signals without file location.
+	total := 0
+	for _, s := range signals {
+		if s.Type == signalType {
+			total++
+		}
+	}
+
+	if total == 0 {
+		return nil
+	}
+
+	// If no file-level signals, return a single entry with empty file.
+	if len(counts) == 0 {
+		return []fileCount{{file: "", count: total}}
+	}
+
+	result := make([]fileCount, 0, len(counts))
+	for f, c := range counts {
+		result = append(result, fileCount{file: f, count: c})
+	}
+	sort.Slice(result, func(i, j int) bool {
+		if result[i].count != result[j].count {
+			return result[i].count > result[j].count
+		}
+		return result[i].file < result[j].file
+	})
+	if len(result) > limit {
+		result = result[:limit]
+	}
+	return result
+}
+
+// formatTopFiles formats file counts for human-readable explanations.
+func formatTopFiles(files []fileCount) string {
+	parts := make([]string, 0, len(files))
+	for _, f := range files {
+		if f.file == "" {
+			continue
+		}
+		parts = append(parts, fmt.Sprintf("%s (%d)", f.file, f.count))
+	}
+	if len(parts) == 0 {
+		return "(no file-level detail)"
+	}
+	return strings.Join(parts, ", ")
+}
+
+// topFileNames extracts just the file paths for metadata.
+func topFileNames(files []fileCount) []string {
+	names := make([]string, 0, len(files))
+	for _, f := range files {
+		if f.file != "" {
+			names = append(names, f.file)
+		}
+	}
+	return names
 }

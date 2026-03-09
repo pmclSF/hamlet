@@ -134,3 +134,67 @@ func TestCLI_SummaryTestdata(t *testing.T) {
 		t.Error("summary output missing header")
 	}
 }
+
+// TestCLI_HelpContainsNewCommands verifies help lists impact and select-tests.
+func TestCLI_HelpContainsNewCommands(t *testing.T) {
+	cmd := exec.Command("go", "run", "./cmd/hamlet/", "--help")
+	cmd.Dir = "../.."
+	out, _ := cmd.CombinedOutput()
+	output := string(out)
+
+	newCommands := []string{"impact", "select-tests"}
+	for _, c := range newCommands {
+		if !strings.Contains(output, c) {
+			t.Errorf("help text missing command %q", c)
+		}
+	}
+}
+
+// TestCLI_ExportBenchmarkTestdata verifies export benchmark command works.
+func TestCLI_ExportBenchmarkTestdata(t *testing.T) {
+	cmd := exec.Command("go", "run", "./cmd/hamlet/", "export", "benchmark", "--root", "internal/analysis/testdata/sample-repo")
+	cmd.Dir = "../.."
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("export benchmark failed: %v\n%s", err, out)
+	}
+
+	output := strings.TrimSpace(string(out))
+	if !strings.HasPrefix(output, "{") {
+		t.Error("export benchmark output should be JSON")
+	}
+}
+
+// TestCLI_AnalyzeOutputConsistency verifies analyze output structure.
+func TestCLI_AnalyzeOutputConsistency(t *testing.T) {
+	cmd := exec.Command("go", "run", "./cmd/hamlet/", "analyze", "--root", "internal/analysis/testdata/sample-repo")
+	cmd.Dir = "../.."
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("analyze failed: %v\n%s", err, out)
+	}
+
+	output := string(out)
+	// Should have standard sections.
+	sections := []string{"Test Files", "Frameworks", "Signals"}
+	for _, s := range sections {
+		if !strings.Contains(output, s) {
+			t.Errorf("analyze output missing section %q", s)
+		}
+	}
+}
+
+// TestCLI_MetricsJSON verifies metrics --json produces valid JSON.
+func TestCLI_MetricsJSON(t *testing.T) {
+	cmd := exec.Command("go", "run", "./cmd/hamlet/", "metrics", "--json", "--root", "internal/analysis/testdata/sample-repo")
+	cmd.Dir = "../.."
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("metrics --json failed: %v\n%s", err, out)
+	}
+
+	output := strings.TrimSpace(string(out))
+	if !strings.HasPrefix(output, "{") {
+		t.Error("metrics --json output should be JSON")
+	}
+}

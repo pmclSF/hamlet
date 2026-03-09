@@ -15,17 +15,30 @@ type ReadinessSummary struct {
 	// Frameworks lists detected frameworks with file counts.
 	Frameworks []models.Framework `json:"frameworks"`
 
-	// TotalBlockers is the count of migration-related signals.
+	// TotalBlockers is the count of hard + soft blockers (excludes advisories).
 	TotalBlockers int `json:"totalBlockers"`
+
+	// HardBlockers is the count of signals that genuinely prevent migration.
+	HardBlockers int `json:"hardBlockers"`
+
+	// SoftBlockers is the count of signals that require effort but have clear paths.
+	SoftBlockers int `json:"softBlockers"`
+
+	// Advisories is the count of signals worth noting but not affecting readiness.
+	Advisories int `json:"advisories"`
 
 	// BlockersByType groups blocker counts by blocker taxonomy category.
 	BlockersByType map[string]int `json:"blockersByType"`
 
+	// BlockersByTier groups counts by severity tier (hard-blocker, soft-blocker, advisory).
+	BlockersByTier map[string]int `json:"blockersByTier"`
+
 	// RepresentativeBlockers shows a few example blockers.
 	RepresentativeBlockers []BlockerExample `json:"representativeBlockers,omitempty"`
 
-	// ReadinessLevel is a qualitative assessment: low, medium, high.
+	// ReadinessLevel is a qualitative assessment: low, medium, high, unknown.
 	// Derived from visible blocker patterns and risk — not a magic score.
+	// "unknown" is used when framework detection confidence is too low.
 	ReadinessLevel string `json:"readinessLevel"`
 
 	// Explanation describes why the readiness level was assigned.
@@ -115,14 +128,17 @@ var (
 // The summary also cross-references quality signals with migration targets
 // to surface areas where poor test quality amplifies migration risk.
 func ComputeReadiness(snap *models.TestSuiteSnapshot) *ReadinessSummary {
-	var blockers []models.Signal
+	var allMigrationSignals []models.Signal
 	blockersByType := map[string]int{}
+	blockersByTier := map[string]int{}
+	hardCount, softCount, advisoryCount := 0, 0, 0
 
 	for _, s := range snap.Signals {
 		if !migrationTypes[s.Type] {
 			continue
 		}
-		blockers = append(blockers, s)
+		allMigrationSignals = append(allMigrationSignals, s)
+
 		bt := "other"
 		if m, ok := s.Metadata["blockerType"]; ok {
 			if str, ok := m.(string); ok {
@@ -130,35 +146,63 @@ func ComputeReadiness(snap *models.TestSuiteSnapshot) *ReadinessSummary {
 			}
 		}
 		blockersByType[bt]++
+
+		tier := TierForSignal(s)
+		blockersByTier[tier]++
+		switch tier {
+		case TierHardBlocker:
+			hardCount++
+		case TierSoftBlocker:
+			softCount++
+		case TierAdvisory:
+			advisoryCount++
+		}
 	}
 
-	// Build representative examples (up to 5)
+	// Only hard + soft blockers count toward readiness.
+	effectiveBlockerCount := hardCount + softCount
+
+	// Build representative examples (up to 5, prioritize hard blockers).
 	var examples []BlockerExample
-	limit := 5
-	if len(blockers) < limit {
-		limit = len(blockers)
-	}
-	for _, b := range blockers[:limit] {
-		examples = append(examples, BlockerExample{
-			Type:        string(b.Type),
-			File:        b.Location.File,
-			Explanation: b.Explanation,
-		})
+	addedCount := 0
+	// Add hard blockers first, then soft, then advisory.
+	for _, tier := range []string{TierHardBlocker, TierSoftBlocker, TierAdvisory} {
+		for _, b := range allMigrationSignals {
+			if addedCount >= 5 {
+				break
+			}
+			if TierForSignal(b) == tier {
+				examples = append(examples, BlockerExample{
+					Type:        string(b.Type),
+					File:        b.Location.File,
+					Explanation: b.Explanation,
+				})
+				addedCount++
+			}
+		}
 	}
 
-	// Derive readiness level from blocker count relative to test files
+	// Check framework detection confidence before deriving readiness.
+	// If we can't confidently identify frameworks, readiness is unknown.
 	totalFiles := len(snap.TestFiles)
-	readiness, explanation := deriveReadiness(len(blockers), totalFiles, blockersByType)
+	readiness, explanation := deriveReadinessWithTiers(
+		hardCount, softCount, advisoryCount, totalFiles, blockersByType,
+		frameworkConfidence(snap),
+	)
 
 	// Cross-reference quality signals with migration targets
-	qualityFactors := computeQualityFactors(snap, blockers)
+	qualityFactors := computeQualityFactors(snap, allMigrationSignals)
 	areas := computeAreaAssessments(snap)
 	guidance := computeCoverageGuidance(areas, snap)
 
 	return &ReadinessSummary{
 		Frameworks:             snap.Frameworks,
-		TotalBlockers:          len(blockers),
+		TotalBlockers:          effectiveBlockerCount,
+		HardBlockers:           hardCount,
+		SoftBlockers:           softCount,
+		Advisories:             advisoryCount,
 		BlockersByType:         blockersByType,
+		BlockersByTier:         blockersByTier,
 		RepresentativeBlockers: examples,
 		ReadinessLevel:         readiness,
 		Explanation:            explanation,
@@ -166,6 +210,27 @@ func ComputeReadiness(snap *models.TestSuiteSnapshot) *ReadinessSummary {
 		AreaAssessments:        areas,
 		CoverageGuidance:       guidance,
 	}
+}
+
+// frameworkConfidence returns the average confidence across detected frameworks.
+// Returns 1.0 if no confidence data is available (backwards compatibility).
+func frameworkConfidence(snap *models.TestSuiteSnapshot) float64 {
+	if len(snap.Frameworks) == 0 {
+		return 1.0 // No framework data available — assume confident (legacy behavior).
+	}
+	// If no framework has confidence set, assume full confidence (legacy behavior).
+	hasConfidence := false
+	total := 0.0
+	for _, fw := range snap.Frameworks {
+		if fw.Confidence > 0 {
+			hasConfidence = true
+			total += fw.Confidence
+		}
+	}
+	if !hasConfidence {
+		return 1.0
+	}
+	return total / float64(len(snap.Frameworks))
 }
 
 // computeQualityFactors identifies quality signals that co-occur with
@@ -442,37 +507,82 @@ func computeCoverageGuidance(areas []AreaAssessment, snap *models.TestSuiteSnaps
 	return guidance
 }
 
+// deriveReadiness is the legacy readiness function. Kept for backward compatibility
+// with tests that don't use tiers.
 func deriveReadiness(blockerCount, totalFiles int, byType map[string]int) (string, string) {
+	return deriveReadinessWithTiers(blockerCount, 0, 0, totalFiles, byType, 1.0)
+}
+
+// deriveReadinessWithTiers computes readiness level using the blocker tier taxonomy.
+//
+// Only hard and soft blockers affect readiness. Advisories are informational.
+// When framework detection confidence is below 0.5, readiness is "unknown"
+// because we can't reliably assess migration complexity.
+func deriveReadinessWithTiers(hardCount, softCount, advisoryCount, totalFiles int, byType map[string]int, fwConfidence float64) (string, string) {
 	if totalFiles == 0 {
 		return "unknown", "No test files detected."
 	}
 
-	ratio := float64(blockerCount) / float64(totalFiles)
+	// If framework detection confidence is too low, we can't assess readiness.
+	if fwConfidence < 0.5 {
+		return "unknown", fmt.Sprintf(
+			"Framework detection confidence is low (%.0f%%); migration readiness cannot be reliably assessed. "+
+				"Ensure test files have identifiable framework imports or add framework configuration.",
+			fwConfidence*100,
+		)
+	}
 
-	if blockerCount == 0 {
+	// Effective blockers: hard blockers count fully, soft blockers at half weight.
+	effectiveCount := hardCount + softCount
+	if effectiveCount == 0 {
+		if advisoryCount > 0 {
+			return "high", fmt.Sprintf(
+				"No migration blockers detected. %d advisory note(s) for awareness.",
+				advisoryCount,
+			)
+		}
 		return "high", "No migration blockers detected."
+	}
+
+	ratio := float64(effectiveCount) / float64(totalFiles)
+
+	tierSummary := ""
+	if hardCount > 0 {
+		tierSummary = fmt.Sprintf("%d hard blocker(s)", hardCount)
+	}
+	if softCount > 0 {
+		if tierSummary != "" {
+			tierSummary += ", "
+		}
+		tierSummary += fmt.Sprintf("%d soft blocker(s)", softCount)
+	}
+	if advisoryCount > 0 {
+		if tierSummary != "" {
+			tierSummary += ", "
+		}
+		tierSummary += fmt.Sprintf("%d advisory", advisoryCount)
 	}
 
 	if ratio < 0.1 {
 		topType := dominantType(byType)
 		return "high", fmt.Sprintf(
-			"Few migration blockers (%d across %d test files). Primary: %s.",
-			blockerCount, totalFiles, topType,
+			"Few migration blockers (%s across %d test files). Primary: %s.",
+			tierSummary, totalFiles, topType,
 		)
 	}
 
 	if ratio < 0.3 {
 		topType := dominantType(byType)
 		return "medium", fmt.Sprintf(
-			"Some migration blockers (%d across %d test files). Focus on: %s.",
-			blockerCount, totalFiles, topType,
+			"Some migration blockers (%s across %d test files). Focus on: %s.",
+			tierSummary, totalFiles, topType,
 		)
 	}
 
 	topType := dominantType(byType)
 	return "low", fmt.Sprintf(
-		"Many migration blockers (%d across %d test files). Major blocker: %s.",
-		blockerCount, totalFiles, topType,
+		"Many migration blockers (%s across %d test files). Major blocker: %s.",
+		tierSummary, totalFiles, topType,
 	)
 }
 
@@ -486,7 +596,10 @@ func dominantType(byType map[string]int) string {
 		pairs = append(pairs, kv{k, v})
 	}
 	sort.Slice(pairs, func(i, j int) bool {
-		return pairs[i].count > pairs[j].count
+		if pairs[i].count != pairs[j].count {
+			return pairs[i].count > pairs[j].count
+		}
+		return pairs[i].key < pairs[j].key
 	})
 	if len(pairs) == 0 {
 		return "unknown"

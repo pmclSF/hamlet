@@ -176,6 +176,17 @@ func main() {
 			os.Exit(1)
 		}
 
+	case "select-tests":
+		stCmd := flag.NewFlagSet("select-tests", flag.ExitOnError)
+		rootFlag := stCmd.String("root", ".", "repository root to analyze")
+		baseRef := stCmd.String("base", "", "git base ref for diff (default: HEAD~1)")
+		jsonFlag := stCmd.Bool("json", false, "output JSON protective test set")
+		stCmd.Parse(os.Args[2:])
+		if err := runSelectTests(*rootFlag, *baseRef, *jsonFlag); err != nil {
+			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			os.Exit(1)
+		}
+
 	case "pr":
 		prCmd := flag.NewFlagSet("pr", flag.ExitOnError)
 		rootFlag := prCmd.String("root", ".", "repository root to analyze")
@@ -247,6 +258,7 @@ func printUsage() {
 	fmt.Fprintln(os.Stderr, "  posture [flags]          detailed posture breakdown with measurement evidence")
 	fmt.Fprintln(os.Stderr, "  portfolio [flags]        portfolio intelligence: cost, breadth, leverage, redundancy")
 	fmt.Fprintln(os.Stderr, "  impact [flags]           impact analysis for changed code")
+	fmt.Fprintln(os.Stderr, "  select-tests [flags]     recommend protective test set for a change")
 	fmt.Fprintln(os.Stderr, "  pr [flags]               PR/change-scoped analysis")
 	fmt.Fprintln(os.Stderr, "  show <entity> <id>       drill into test, unit, owner, or finding")
 	fmt.Fprintln(os.Stderr, "  metrics [flags]          aggregate metrics scorecard")
@@ -263,7 +275,7 @@ func printUsage() {
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Impact-specific flags:")
 	fmt.Fprintln(os.Stderr, "  --base REF               git base ref for diff (default: HEAD~1)")
-	fmt.Fprintln(os.Stderr, "  --show VIEW              drill-down: units, gaps, tests, owners")
+	fmt.Fprintln(os.Stderr, "  --show VIEW              drill-down: units, gaps, tests, owners, graph, selected")
 	fmt.Fprintln(os.Stderr, "  --owner NAME             filter by owner")
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "PR-specific flags:")
@@ -433,11 +445,44 @@ func runImpact(root, baseRef string, jsonOutput bool, show, ownerFilter string) 
 		reporting.RenderImpactTests(os.Stdout, impactResult)
 	case "owners":
 		reporting.RenderImpactOwners(os.Stdout, impactResult)
+	case "graph":
+		reporting.RenderImpactGraph(os.Stdout, impactResult)
+	case "selected":
+		reporting.RenderProtectiveSet(os.Stdout, impactResult)
 	case "":
 		reporting.RenderImpactReport(os.Stdout, impactResult)
 	default:
-		return fmt.Errorf("unknown --show value: %q (valid: units, gaps, tests, owners)", show)
+		return fmt.Errorf("unknown --show value: %q (valid: units, gaps, tests, owners, graph, selected)", show)
 	}
+	return nil
+}
+
+// runSelectTests performs impact analysis and outputs the protective test set.
+func runSelectTests(root, baseRef string, jsonOutput bool) error {
+	result, err := engine.RunPipeline(root)
+	if err != nil {
+		return fmt.Errorf("analysis failed: %w", err)
+	}
+
+	absRoot, err := filepath.Abs(root)
+	if err != nil {
+		return err
+	}
+
+	scope, err := impact.ChangeScopeFromGitDiff(absRoot, baseRef)
+	if err != nil {
+		return fmt.Errorf("failed to determine changed files: %w", err)
+	}
+
+	impactResult := impact.Analyze(scope, result.Snapshot)
+
+	if jsonOutput {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(impactResult.ProtectiveSet)
+	}
+
+	reporting.RenderProtectiveSet(os.Stdout, impactResult)
 	return nil
 }
 

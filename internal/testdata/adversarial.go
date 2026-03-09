@@ -139,6 +139,92 @@ func DeepNestingSnapshot() *models.TestSuiteSnapshot {
 	return snap
 }
 
+// OwnershipFragmentedSnapshot returns a repo with many distinct owners
+// and gaps in ownership coverage — tests ownership resolution, propagation,
+// and coordination risk.
+func OwnershipFragmentedSnapshot() *models.TestSuiteSnapshot {
+	snap := &models.TestSuiteSnapshot{
+		SnapshotMeta: models.SnapshotMeta{SchemaVersion: models.SnapshotSchemaVersion},
+		Repository: models.RepositoryMetadata{
+			Name:      "ownership-fragmented",
+			Languages: []string{"javascript"},
+		},
+		Frameworks: []models.Framework{
+			{Name: "jest", Type: models.FrameworkTypeUnit, FileCount: 10, TestCount: 50},
+		},
+		GeneratedAt: FixedTime,
+	}
+
+	teams := []string{"team-alpha", "team-beta", "team-gamma", "team-delta", "team-epsilon", "team-zeta", "team-eta", "team-theta"}
+	snap.Ownership = map[string][]string{}
+	for i := 0; i < 10; i++ {
+		path := fmt.Sprintf("src/pkg%d/service.js", i)
+		testPath := fmt.Sprintf("src/pkg%d/__tests__/service.test.js", i)
+		snap.TestFiles = append(snap.TestFiles, models.TestFile{
+			Path: testPath, Framework: "jest", TestCount: 5, AssertionCount: 4,
+			LinkedCodeUnits: []string{fmt.Sprintf("Service%d", i)},
+		})
+		snap.CodeUnits = append(snap.CodeUnits, models.CodeUnit{
+			UnitID: fmt.Sprintf("%s:Service%d", path, i), Name: fmt.Sprintf("Service%d", i),
+			Path: path, Kind: models.CodeUnitKindClass, Exported: true,
+		})
+		if i < 8 {
+			snap.Ownership[path] = []string{teams[i%len(teams)]}
+		}
+		// Last 2 files have no ownership — gap.
+	}
+	return snap
+}
+
+// SuppressionHeavySnapshot returns a repo that relies heavily on test
+// suppression (skipped, disabled, or quarantined tests). Tests suppression
+// detection and governance enforcement.
+func SuppressionHeavySnapshot() *models.TestSuiteSnapshot {
+	snap := &models.TestSuiteSnapshot{
+		SnapshotMeta: models.SnapshotMeta{SchemaVersion: models.SnapshotSchemaVersion},
+		Repository: models.RepositoryMetadata{
+			Name:      "suppression-heavy",
+			Languages: []string{"javascript"},
+		},
+		Frameworks: []models.Framework{
+			{Name: "jest", Type: models.FrameworkTypeUnit, FileCount: 6, TestCount: 30},
+		},
+		GeneratedAt: FixedTime,
+	}
+
+	for i := 0; i < 6; i++ {
+		snap.TestFiles = append(snap.TestFiles, models.TestFile{
+			Path:           fmt.Sprintf("src/__tests__/mod%d.test.js", i),
+			Framework:      "jest",
+			TestCount:      5,
+			AssertionCount: 3,
+		})
+	}
+
+	// Add suppression signals.
+	for i := 0; i < 3; i++ {
+		snap.Signals = append(snap.Signals, models.Signal{
+			Type:     "suppressedTest",
+			Category: models.CategoryHealth,
+			Severity: models.SeverityMedium,
+			Location: models.SignalLocation{File: fmt.Sprintf("src/__tests__/mod%d.test.js", i)},
+		})
+	}
+	return snap
+}
+
+// ChangeScopedPRSnapshot returns a snapshot paired with a typical PR change
+// scope — useful for impact analysis and test selection E2E tests.
+func ChangeScopedPRSnapshot() (*models.TestSuiteSnapshot, []string) {
+	snap := HealthyBalancedSnapshot()
+	changedFiles := []string{
+		"src/auth.js",
+		"src/payment.js",
+		"src/__tests__/auth.test.js",
+	}
+	return snap, changedFiles
+}
+
 // VeryLargeSnapshot returns a snapshot with 2000+ test files for
 // performance and memory pressure testing.
 func VeryLargeSnapshot() *models.TestSuiteSnapshot {

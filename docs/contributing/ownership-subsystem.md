@@ -6,7 +6,7 @@ This guide covers how to extend, modify, and maintain the ownership subsystem.
 
 1. Add a new `SourceType` constant in `internal/ownership/model.go`:
    ```go
-   SourceGitBlame SourceType = "git_blame"
+   SourceGitHistory SourceType = "git_history"
    ```
 
 2. Add its default confidence in `SourceConfidence()`.
@@ -30,7 +30,7 @@ Sources are evaluated top-to-bottom. The first match wins.
 **Do not change precedence order** without careful consideration — existing users rely on explicit config overriding CODEOWNERS. If you need to add a source:
 
 - Higher than CODEOWNERS: place it between explicit config and CODEOWNERS
-- Lower than CODEOWNERS: place it between CODEOWNERS and directory fallback
+- Lower than CODEOWNERS: place it below path mappings and above directory fallback
 
 Document any precedence changes in the architecture doc.
 
