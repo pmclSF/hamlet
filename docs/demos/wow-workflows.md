@@ -97,3 +97,28 @@ Highest-Risk Directories
 **Follow-up:** The auth directory has 70% of all signals despite containing only 20% of test files. `hamlet analyze` shows the specific signals.
 
 **Action:** Prioritize auth test remediation — it is the highest-leverage improvement.
+
+## 6. Portfolio intelligence reveals CI waste
+
+**Trigger:** `hamlet portfolio` on a repo with overlapping E2E tests
+
+**What the user sees:**
+```
+Portfolio Summary
+  Total tests:              48
+  Runtime concentration:    60% in 3 tests
+
+Redundancy Candidates
+  e2e/checkout-full.spec.ts     overlaps 90% with e2e/checkout-quick.spec.ts
+  e2e/onboarding-full.spec.ts   overlaps 87% with e2e/onboarding-smoke.spec.ts
+
+High-Leverage Tests
+  unit/payment-service.test.ts   covers 12 modules in 0.4s
+  unit/auth-validator.test.ts    covers 8 modules in 0.2s
+```
+
+**Follow-up:** `hamlet analyze` shows the same redundancy findings surfaced as signals. `hamlet posture` reflects the runtime concentration in the operational risk dimension.
+
+**Demo fixture:** `bloated-overlapping-tests.json`
+
+**Action:** Consolidate overlapping E2E tests or replace them with targeted integration tests. The high-leverage tests show where fast, focused tests already provide strong coverage.

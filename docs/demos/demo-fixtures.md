@@ -49,6 +49,18 @@ Hamlet ships with canonical demo fixtures in `fixtures/demos/` that showcase its
 
 **Key wow moment:** "src/legacy/ has 2 migration blockers compounded by 2 quality issues. Address quality before migrating."
 
+### 5. bloated-overlapping-tests.json — Overlapping broad E2E tests
+
+**Scenario:** A DevTools Platform repo with broad E2E tests that overlap heavily, consuming disproportionate CI runtime while duplicating coverage across modules.
+
+**What it demonstrates:**
+- Redundancy detection (multiple E2E tests covering 90% the same modules)
+- Overbreadth (individual tests covering far more than necessary)
+- Runtime concentration (60% of CI time in 3 tests)
+- High-leverage test identification (fast unit tests with broad coverage)
+
+**Key wow moment:** "3 E2E tests cover 90% the same modules and consume 60% of CI runtime. Here are the redundancy candidates."
+
 ## Using fixtures
 
 Run Hamlet against a fixture to see the demo output:

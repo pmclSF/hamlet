@@ -44,6 +44,14 @@ These are the specific insights Hamlet should reliably produce that make users s
 
 **Evidence chain:** framework detection → framework_fragmentation measurement → coverage_diversity posture.
 
+### 6. Runtime dominated by overlapping broad tests
+
+**Insight:** "3 E2E tests cover 90% the same modules, consuming 60% of CI runtime."
+
+**Why it matters:** Teams add broad E2E tests without realizing they duplicate coverage. The portfolio view reveals redundancy candidates, high-leverage tests, and runtime concentration — turning CI cost into an optimization target.
+
+**Evidence chain:** `hamlet portfolio` → test cost signals + protection breadth overlap → redundancy candidates + runtime concentration ratio.
+
 ## What makes these moments work
 
 1. **Structural, not obvious.** These are insights that require cross-referencing multiple signals — not something a developer would notice by reading test files.

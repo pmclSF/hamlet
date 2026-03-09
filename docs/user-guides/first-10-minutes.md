@@ -35,7 +35,15 @@ hamlet posture
 
 This breaks down each posture dimension with individual measurements, evidence strength, and limitations. If a dimension is rated "weak," you can see exactly which measurements drove that assessment.
 
-## Minute 6-8: Save and track
+## Minute 6-7: See test cost and leverage
+
+```bash
+hamlet portfolio
+```
+
+Run `hamlet portfolio` to see test cost, leverage, and redundancy insights. The portfolio view treats your test suite as a set of investments — showing which tests deliver the most protection per CI minute and which overlap so heavily they are candidates for consolidation.
+
+## Minute 7-9: Save and track
 
 ```bash
 hamlet analyze --write-snapshot
@@ -49,7 +57,7 @@ hamlet compare
 
 You'll see what improved, what worsened, and what stayed the same.
 
-## Minute 8-10: Export and share
+## Minute 9-10: Export and share
 
 ```bash
 hamlet metrics          # aggregate scorecard

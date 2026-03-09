@@ -38,6 +38,8 @@ hamlet focus          # where to look first
 
 Each command output includes a "next useful command" hint.
 
+After posture, users can run `hamlet portfolio` to see the test suite as a portfolio of investments. The portfolio view reveals which tests provide the most protection per CI minute, which overlap so heavily they are redundancy candidates, and where runtime concentrates in a small number of broad tests. This reframes test quality from "pass/fail" to "cost vs. value."
+
 ## The second session
 
 After the initial exploration, the user runs:
@@ -65,6 +67,7 @@ hamlet analyze              → full analysis, the "what"
 hamlet summary              → leadership view, the "so what"
 hamlet posture              → evidence detail, the "show me"
 hamlet focus                → prioritized action, the "now what"
+hamlet portfolio            → test investment view, the "is it worth it"
 hamlet metrics              → aggregate scorecard
 hamlet compare              → trend tracking
 hamlet export benchmark     → privacy-safe export for future comparison

@@ -33,6 +33,7 @@ After `analyze`, try:
 ```bash
 hamlet summary     # leadership-ready overview
 hamlet posture     # detailed posture with evidence per measurement
+hamlet portfolio   # see which tests provide the most value and which waste resources
 hamlet metrics     # aggregate scorecard
 ```
 

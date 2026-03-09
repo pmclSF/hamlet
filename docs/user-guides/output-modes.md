@@ -14,6 +14,7 @@ All commands produce formatted terminal output by default. This output is:
 hamlet analyze
 hamlet summary
 hamlet posture
+hamlet portfolio
 ```
 
 ## JSON (--json)
@@ -25,6 +26,7 @@ hamlet analyze --json     # Full TestSuiteSnapshot
 hamlet summary --json     # ExecutiveSummary object
 hamlet posture --json     # MeasurementSnapshot object
 hamlet metrics --json     # Metrics Snapshot
+hamlet portfolio --json   # PortfolioSnapshot object
 hamlet compare --json     # SnapshotComparison object
 ```
 
@@ -45,5 +47,6 @@ Produces a benchmark-safe JSON artifact with only:
 - Qualitative bands (strong/moderate/weak)
 - Segmentation tags (language, framework, suite size)
 - Posture bands per dimension
+- Portfolio intelligence bands (redundancy, overbreadth, leverage)
 
 No raw file paths, symbol names, or source code.

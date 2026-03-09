@@ -41,10 +41,15 @@ Migration readiness is the wedge. The real product is structural test intelligen
 - Measurements are honest about evidence gaps
 - No hosted service yet — that is future work
 
+## Portfolio intelligence
+
+Hamlet doesn't just find problems — it identifies which tests provide the most value and which waste resources. The `hamlet portfolio` command treats the test suite as a portfolio of investments, analyzing cost (runtime), protection breadth (modules covered), redundancy (overlapping coverage), and leverage (value per CI minute). This turns "we have too many slow tests" into "these 3 tests overlap 90% and consume 60% of CI runtime — here are the redundancy candidates."
+
 ## What's distinctive
 
 - Signal-first architecture: findings are structured, typed, and traceable
 - Measurement framework with explicit evidence strength
 - Migration readiness with quality-aware area assessment
+- Portfolio intelligence with cost, leverage, and redundancy analysis
 - Five posture dimensions, not one score
 - Privacy-safe benchmark exports

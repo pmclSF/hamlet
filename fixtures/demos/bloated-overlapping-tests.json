@@ -1,0 +1,184 @@
+{
+  "description": "Bloated overlapping tests: DevTools Platform with redundant e2e coverage, overbroad suites, and wasted CI time",
+  "snapshotMeta": {
+    "schemaVersion": "1.0.0",
+    "engineVersion": "dev"
+  },
+  "repository": {
+    "name": "devtools-platform",
+    "rootPath": "/repo",
+    "languages": ["typescript"],
+    "packageManagers": ["npm"],
+    "ciSystems": ["github-actions"],
+    "branch": "main",
+    "commitSHA": "d4e5f6a7b8"
+  },
+  "frameworks": [
+    { "name": "jest", "type": "unit", "fileCount": 6, "testCount": 58 },
+    { "name": "playwright", "type": "e2e", "fileCount": 5, "testCount": 31 }
+  ],
+  "testFiles": [
+    {
+      "path": "src/api/__tests__/endpoints.test.ts",
+      "framework": "jest",
+      "testCount": 14,
+      "assertionCount": 28,
+      "linkedCodeUnits": ["createEndpoint", "listEndpoints", "deleteEndpoint"],
+      "runtimeStats": { "avgRuntimeMs": 320, "passRate": 1.0, "retryRate": 0.0 }
+    },
+    {
+      "path": "src/auth/__tests__/session.test.ts",
+      "framework": "jest",
+      "testCount": 10,
+      "assertionCount": 22,
+      "linkedCodeUnits": ["createSession", "validateToken", "refreshSession"],
+      "runtimeStats": { "avgRuntimeMs": 280, "passRate": 0.99, "retryRate": 0.01 }
+    },
+    {
+      "path": "src/auth/__tests__/permissions.test.ts",
+      "framework": "jest",
+      "testCount": 8,
+      "assertionCount": 16,
+      "linkedCodeUnits": ["checkPermission", "assignRole"],
+      "runtimeStats": { "avgRuntimeMs": 210, "passRate": 1.0, "retryRate": 0.0 }
+    },
+    {
+      "path": "src/checkout/__tests__/cart.test.ts",
+      "framework": "jest",
+      "testCount": 12,
+      "assertionCount": 26,
+      "linkedCodeUnits": ["addToCart", "removeFromCart", "calculateTotal"],
+      "runtimeStats": { "avgRuntimeMs": 450, "passRate": 0.98, "retryRate": 0.02 }
+    },
+    {
+      "path": "src/checkout/__tests__/payment.test.ts",
+      "framework": "jest",
+      "testCount": 7,
+      "assertionCount": 14,
+      "linkedCodeUnits": ["processPayment", "refundPayment"],
+      "runtimeStats": { "avgRuntimeMs": 780, "passRate": 0.97, "retryRate": 0.03 }
+    },
+    {
+      "path": "src/dashboard/__tests__/widgets.test.ts",
+      "framework": "jest",
+      "testCount": 7,
+      "assertionCount": 12,
+      "linkedCodeUnits": ["renderWidget", "updateWidget"],
+      "runtimeStats": { "avgRuntimeMs": 540, "passRate": 1.0, "retryRate": 0.0 }
+    },
+    {
+      "path": "e2e/auth-checkout-flow.spec.ts",
+      "framework": "playwright",
+      "testCount": 8,
+      "assertionCount": 14,
+      "linkedCodeUnits": ["createSession", "validateToken", "addToCart", "calculateTotal", "processPayment"],
+      "runtimeStats": { "avgRuntimeMs": 18200, "passRate": 0.88, "retryRate": 0.12 }
+    },
+    {
+      "path": "e2e/checkout-regression.spec.ts",
+      "framework": "playwright",
+      "testCount": 6,
+      "assertionCount": 10,
+      "linkedCodeUnits": ["addToCart", "removeFromCart", "calculateTotal", "processPayment", "refundPayment"],
+      "runtimeStats": { "avgRuntimeMs": 22400, "passRate": 0.82, "retryRate": 0.18 }
+    },
+    {
+      "path": "e2e/login-and-purchase.spec.ts",
+      "framework": "playwright",
+      "testCount": 5,
+      "assertionCount": 8,
+      "linkedCodeUnits": ["createSession", "validateToken", "addToCart", "processPayment"],
+      "runtimeStats": { "avgRuntimeMs": 15600, "passRate": 0.90, "retryRate": 0.10 }
+    },
+    {
+      "path": "e2e/full-dashboard.spec.ts",
+      "framework": "playwright",
+      "testCount": 7,
+      "assertionCount": 9,
+      "linkedCodeUnits": ["renderWidget", "updateWidget", "createEndpoint", "listEndpoints", "checkPermission", "assignRole"],
+      "runtimeStats": { "avgRuntimeMs": 25100, "passRate": 0.85, "retryRate": 0.15 }
+    },
+    {
+      "path": "e2e/admin-settings.spec.ts",
+      "framework": "playwright",
+      "testCount": 5,
+      "assertionCount": 7,
+      "linkedCodeUnits": ["assignRole", "checkPermission", "listEndpoints", "renderWidget", "updateWidget"],
+      "runtimeStats": { "avgRuntimeMs": 19800, "passRate": 0.91, "retryRate": 0.09 }
+    }
+  ],
+  "codeUnits": [
+    { "name": "createEndpoint", "path": "src/api/endpoints.ts", "kind": "function", "exported": true, "owner": "team-platform" },
+    { "name": "listEndpoints", "path": "src/api/endpoints.ts", "kind": "function", "exported": true, "owner": "team-platform" },
+    { "name": "deleteEndpoint", "path": "src/api/endpoints.ts", "kind": "function", "exported": true, "owner": "team-platform" },
+    { "name": "createSession", "path": "src/auth/session.ts", "kind": "function", "exported": true, "owner": "team-identity" },
+    { "name": "validateToken", "path": "src/auth/token.ts", "kind": "function", "exported": true, "owner": "team-identity" },
+    { "name": "refreshSession", "path": "src/auth/session.ts", "kind": "function", "exported": true, "owner": "team-identity" },
+    { "name": "checkPermission", "path": "src/auth/permissions.ts", "kind": "function", "exported": true, "owner": "team-identity" },
+    { "name": "assignRole", "path": "src/auth/permissions.ts", "kind": "function", "exported": true, "owner": "team-identity" },
+    { "name": "addToCart", "path": "src/checkout/cart.ts", "kind": "function", "exported": true, "owner": "team-commerce" },
+    { "name": "removeFromCart", "path": "src/checkout/cart.ts", "kind": "function", "exported": true, "owner": "team-commerce" },
+    { "name": "calculateTotal", "path": "src/checkout/cart.ts", "kind": "function", "exported": true, "owner": "team-commerce" },
+    { "name": "processPayment", "path": "src/checkout/payment.ts", "kind": "function", "exported": true, "owner": "team-commerce" },
+    { "name": "refundPayment", "path": "src/checkout/payment.ts", "kind": "function", "exported": true, "owner": "team-commerce" },
+    { "name": "renderWidget", "path": "src/dashboard/widgets.ts", "kind": "function", "exported": true, "owner": "team-frontend" },
+    { "name": "updateWidget", "path": "src/dashboard/widgets.ts", "kind": "function", "exported": true, "owner": "team-frontend" }
+  ],
+  "signals": [
+    {
+      "type": "slowTest",
+      "category": "health",
+      "severity": "high",
+      "location": { "file": "e2e/full-dashboard.spec.ts", "line": 1 },
+      "explanation": "Average runtime 25.1s — spans 6 code units across 3 modules. Dashboard + API + auth coverage already exists in fast unit tests.",
+      "evidenceStrength": "strong"
+    },
+    {
+      "type": "slowTest",
+      "category": "health",
+      "severity": "high",
+      "location": { "file": "e2e/checkout-regression.spec.ts", "line": 1 },
+      "explanation": "Average runtime 22.4s with 18% retry rate. Covers cart and payment units that are already tested by checkout/cart.test.ts and checkout/payment.test.ts in under 1.2s combined.",
+      "evidenceStrength": "strong"
+    },
+    {
+      "type": "slowTest",
+      "category": "health",
+      "severity": "medium",
+      "location": { "file": "e2e/admin-settings.spec.ts", "line": 1 },
+      "explanation": "Average runtime 19.8s. Overlaps 80% of code units with full-dashboard.spec.ts — one of these suites is likely redundant.",
+      "evidenceStrength": "strong"
+    },
+    {
+      "type": "flakyTest",
+      "category": "health",
+      "severity": "high",
+      "location": { "file": "e2e/checkout-regression.spec.ts", "line": 14 },
+      "explanation": "18% retry rate over last 30 runs. Failures concentrate in payment teardown — likely a shared-state or timeout issue rather than a product bug.",
+      "evidenceStrength": "strong"
+    },
+    {
+      "type": "weakAssertion",
+      "category": "quality",
+      "severity": "medium",
+      "location": { "file": "e2e/full-dashboard.spec.ts", "line": 1 },
+      "explanation": "9 assertions across 7 tests (1.3 per test). Low assertion density suggests the suite checks page loads rather than verifying business logic.",
+      "evidenceStrength": "moderate"
+    }
+  ],
+  "ownership": {
+    "src/api/endpoints.ts": ["team-platform"],
+    "src/auth/session.ts": ["team-identity"],
+    "src/auth/token.ts": ["team-identity"],
+    "src/auth/permissions.ts": ["team-identity"],
+    "src/checkout/cart.ts": ["team-commerce"],
+    "src/checkout/payment.ts": ["team-commerce"],
+    "src/dashboard/widgets.ts": ["team-frontend"],
+    "e2e/auth-checkout-flow.spec.ts": ["team-commerce", "team-identity"],
+    "e2e/checkout-regression.spec.ts": ["team-commerce"],
+    "e2e/login-and-purchase.spec.ts": ["team-identity", "team-commerce"],
+    "e2e/full-dashboard.spec.ts": ["team-frontend"],
+    "e2e/admin-settings.spec.ts": ["team-platform", "team-frontend"]
+  },
+  "generatedAt": "2025-01-15T12:00:00Z"
+}

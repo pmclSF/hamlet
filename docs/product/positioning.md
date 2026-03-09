@@ -34,6 +34,10 @@ Hamlet is a signal-first test intelligence tool that analyzes your test suite an
 | No migration awareness | Migration readiness with area assessments |
 | No quality analysis | Assertion density, mock concentration, dead tests |
 
+## What Hamlet does that no one else does
+
+Hamlet treats the test suite as a portfolio of investments with measurable cost, protection value, and efficiency. The `hamlet portfolio` command surfaces which tests provide the most leverage, which waste CI resources through redundant coverage, and where runtime concentrates — turning test maintenance from guesswork into portfolio management.
+
 ## One sentence
 
 Hamlet looks at your test suite the way a senior engineer would — finding the structural issues that line counts miss.

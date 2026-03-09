@@ -19,6 +19,11 @@
 - [ ] `fixtures/demos/e2e-heavy-shallow.json` validates
 - [ ] `fixtures/demos/fragmented-migration-risk.json` validates
 
+## Portfolio
+- [ ] `hamlet portfolio` produces correct output on a real repo
+- [ ] Portfolio findings (redundancy, leverage, runtime concentration) surface in `hamlet analyze`
+- [ ] Demo fixture `bloated-overlapping-tests.json` validates
+
 ## Snapshot and comparison
 - [ ] `hamlet analyze --write-snapshot` persists correctly
 - [ ] `hamlet compare` works with two snapshots
