@@ -176,7 +176,7 @@ func computeDirectoryRisk(snap *models.TestSuiteSnapshot) []models.RiskSurface {
 			Score:               normalizedScore,
 			ContributingSignals: sigs,
 			Explanation: fmt.Sprintf("%s risk in %s: %d signals across %d test file(s).",
-				strings.Title(riskType), dir, len(sigs), fileCount),
+				titleRiskType(riskType), dir, len(sigs), fileCount),
 			SuggestedAction: fmt.Sprintf("Review %s for concentrated test quality issues.", dir),
 		})
 	}
@@ -234,7 +234,7 @@ func buildExplanation(riskType string, band models.RiskBand, signals []models.Si
 	}
 
 	return fmt.Sprintf("%s risk is %s based on %d signals%s: %s.",
-		strings.Title(riskType), band, len(signals), density, strings.Join(parts, ", "))
+		titleRiskType(riskType), band, len(signals), density, strings.Join(parts, ", "))
 }
 
 func buildSuggestedAction(riskType string, band models.RiskBand) string {
@@ -251,4 +251,11 @@ func buildSuggestedAction(riskType string, band models.RiskBand) string {
 	default:
 		return "Review contributing signals and address highest-severity items first."
 	}
+}
+
+func titleRiskType(riskType string) string {
+	if riskType == "" {
+		return riskType
+	}
+	return strings.ToUpper(riskType[:1]) + riskType[1:]
 }

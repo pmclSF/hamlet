@@ -13,13 +13,21 @@ func TestBuildImportGraph_JSImports(t *testing.T) {
 
 	// Create source file.
 	srcDir := filepath.Join(dir, "src")
-	os.MkdirAll(srcDir, 0755)
-	os.WriteFile(filepath.Join(srcDir, "auth.js"), []byte("export function login() {}"), 0644)
-	os.WriteFile(filepath.Join(srcDir, "utils.js"), []byte("export function format() {}"), 0644)
+	if err := os.MkdirAll(srcDir, 0755); err != nil {
+		t.Fatalf("mkdir src: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(srcDir, "auth.js"), []byte("export function login() {}"), 0644); err != nil {
+		t.Fatalf("write auth.js: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(srcDir, "utils.js"), []byte("export function format() {}"), 0644); err != nil {
+		t.Fatalf("write utils.js: %v", err)
+	}
 
 	// Create test file that imports the source.
 	testDir := filepath.Join(dir, "src", "__tests__")
-	os.MkdirAll(testDir, 0755)
+	if err := os.MkdirAll(testDir, 0755); err != nil {
+		t.Fatalf("mkdir __tests__: %v", err)
+	}
 	testContent := `import { login } from '../auth.js';
 import { format } from '../utils';
 const helper = require('../helper');
@@ -30,10 +38,14 @@ describe('auth', () => {
   });
 });
 `
-	os.WriteFile(filepath.Join(testDir, "auth.test.js"), []byte(testContent), 0644)
+	if err := os.WriteFile(filepath.Join(testDir, "auth.test.js"), []byte(testContent), 0644); err != nil {
+		t.Fatalf("write auth.test.js: %v", err)
+	}
 
 	// Create the helper file for require resolution.
-	os.WriteFile(filepath.Join(srcDir, "helper.js"), []byte("module.exports = {}"), 0644)
+	if err := os.WriteFile(filepath.Join(srcDir, "helper.js"), []byte("module.exports = {}"), 0644); err != nil {
+		t.Fatalf("write helper.js: %v", err)
+	}
 
 	testFiles := []models.TestFile{
 		{Path: "src/__tests__/auth.test.js", Framework: "jest"},
@@ -67,10 +79,18 @@ func TestBuildImportGraph_GoPackage(t *testing.T) {
 
 	// Create Go source and test files in the same package.
 	pkgDir := filepath.Join(dir, "pkg", "auth")
-	os.MkdirAll(pkgDir, 0755)
-	os.WriteFile(filepath.Join(pkgDir, "auth.go"), []byte("package auth\nfunc Login() {}"), 0644)
-	os.WriteFile(filepath.Join(pkgDir, "session.go"), []byte("package auth\nfunc Session() {}"), 0644)
-	os.WriteFile(filepath.Join(pkgDir, "auth_test.go"), []byte("package auth\nimport \"testing\"\nfunc TestLogin(t *testing.T) {}"), 0644)
+	if err := os.MkdirAll(pkgDir, 0755); err != nil {
+		t.Fatalf("mkdir pkg/auth: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(pkgDir, "auth.go"), []byte("package auth\nfunc Login() {}"), 0644); err != nil {
+		t.Fatalf("write auth.go: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(pkgDir, "session.go"), []byte("package auth\nfunc Session() {}"), 0644); err != nil {
+		t.Fatalf("write session.go: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(pkgDir, "auth_test.go"), []byte("package auth\nimport \"testing\"\nfunc TestLogin(t *testing.T) {}"), 0644); err != nil {
+		t.Fatalf("write auth_test.go: %v", err)
+	}
 
 	testFiles := []models.TestFile{
 		{Path: "pkg/auth/auth_test.go", Framework: "go-testing"},
@@ -91,15 +111,23 @@ func TestBuildImportGraph_IndexResolution(t *testing.T) {
 	dir := t.TempDir()
 
 	// Create a module with index.js.
-	os.MkdirAll(filepath.Join(dir, "src", "core"), 0755)
-	os.WriteFile(filepath.Join(dir, "src", "core", "index.js"), []byte("export * from './engine'"), 0644)
+	if err := os.MkdirAll(filepath.Join(dir, "src", "core"), 0755); err != nil {
+		t.Fatalf("mkdir src/core: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "src", "core", "index.js"), []byte("export * from './engine'"), 0644); err != nil {
+		t.Fatalf("write src/core/index.js: %v", err)
+	}
 
 	// Test that imports the directory.
-	os.MkdirAll(filepath.Join(dir, "tests"), 0755)
+	if err := os.MkdirAll(filepath.Join(dir, "tests"), 0755); err != nil {
+		t.Fatalf("mkdir tests: %v", err)
+	}
 	testContent := `import { Engine } from '../src/core';
 describe('core', () => { it('works', () => {}); });
 `
-	os.WriteFile(filepath.Join(dir, "tests", "core.test.js"), []byte(testContent), 0644)
+	if err := os.WriteFile(filepath.Join(dir, "tests", "core.test.js"), []byte(testContent), 0644); err != nil {
+		t.Fatalf("write tests/core.test.js: %v", err)
+	}
 
 	testFiles := []models.TestFile{
 		{Path: "tests/core.test.js", Framework: "jest"},

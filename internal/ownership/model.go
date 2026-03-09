@@ -31,7 +31,8 @@ const (
 	SourcePathMapping SourceType = "path_mapping"
 
 	// SourceGitHistory is ownership inferred from recent git commit author history.
-	// This source is opt-in and only used when configured.
+	// It is used when explicitly enabled, or as an automatic fallback when
+	// CODEOWNERS is absent.
 	SourceGitHistory SourceType = "git_history"
 
 	// SourceDirectoryFallback is ownership inferred from the top-level directory name.

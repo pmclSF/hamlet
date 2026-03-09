@@ -11,11 +11,15 @@ import (
 func TestPropagate_BasicInheritance(t *testing.T) {
 	dir := t.TempDir()
 	githubDir := filepath.Join(dir, ".github")
-	os.MkdirAll(githubDir, 0755)
-	os.WriteFile(filepath.Join(githubDir, "CODEOWNERS"), []byte(`
+	if err := os.MkdirAll(githubDir, 0755); err != nil {
+		t.Fatalf("mkdir .github: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(githubDir, "CODEOWNERS"), []byte(`
 /src/auth/ @team-auth
 /src/payments/ @team-pay @team-billing
-`), 0644)
+`), 0644); err != nil {
+		t.Fatalf("write CODEOWNERS: %v", err)
+	}
 
 	resolver := NewResolver(dir)
 
@@ -142,10 +146,14 @@ func TestPropagate_UnownedTracking(t *testing.T) {
 func TestPropagate_OwnerAggregates(t *testing.T) {
 	dir := t.TempDir()
 	githubDir := filepath.Join(dir, ".github")
-	os.MkdirAll(githubDir, 0755)
-	os.WriteFile(filepath.Join(githubDir, "CODEOWNERS"), []byte(`
+	if err := os.MkdirAll(githubDir, 0755); err != nil {
+		t.Fatalf("mkdir .github: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(githubDir, "CODEOWNERS"), []byte(`
 /src/auth/ @team-auth
-`), 0644)
+`), 0644); err != nil {
+		t.Fatalf("write CODEOWNERS: %v", err)
+	}
 
 	resolver := NewResolver(dir)
 

@@ -507,12 +507,6 @@ func computeCoverageGuidance(areas []AreaAssessment, snap *models.TestSuiteSnaps
 	return guidance
 }
 
-// deriveReadiness is the legacy readiness function. Kept for backward compatibility
-// with tests that don't use tiers.
-func deriveReadiness(blockerCount, totalFiles int, byType map[string]int) (string, string) {
-	return deriveReadinessWithTiers(blockerCount, 0, 0, totalFiles, byType, 1.0)
-}
-
 // deriveReadinessWithTiers computes readiness level using the blocker tier taxonomy.
 //
 // Only hard and soft blockers affect readiness. Advisories are informational.

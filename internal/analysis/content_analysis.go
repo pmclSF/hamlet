@@ -121,14 +121,6 @@ func extractExportedCodeUnits(root string, testFiles []models.TestFile) []models
 	return units
 }
 
-func isJSSourceExt(ext string) bool {
-	switch ext {
-	case ".js", ".jsx", ".ts", ".tsx", ".mjs", ".mts":
-		return true
-	}
-	return false
-}
-
 func relPathExt(p string) string {
 	i := strings.LastIndex(p, ".")
 	if i < 0 {
@@ -310,7 +302,7 @@ func walkDirRec(root, rel string, fn func(relPath string, isDir bool) bool) erro
 			if fn(childRel, true) {
 				continue // skip
 			}
-			walkDirRec(root, childRel, fn)
+			_ = walkDirRec(root, childRel, fn)
 		} else {
 			fn(childRel, false)
 		}

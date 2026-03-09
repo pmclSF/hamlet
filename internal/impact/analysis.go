@@ -534,7 +534,7 @@ func identifyLimitations(scope *ChangeScope, snap *models.TestSuiteSnapshot, res
 		lims = append(lims, "No per-test coverage lineage available; test selection uses structural heuristics.")
 	}
 
-	if snap.Ownership == nil || len(snap.Ownership) == 0 {
+	if len(snap.Ownership) == 0 {
 		lims = append(lims, "No ownership data available; coordination risk may be underestimated.")
 	}
 

@@ -16,19 +16,6 @@ type FrameworkResult struct {
 	Source     string // "import", "config", "fallback"
 }
 
-// detectFramework infers the test framework for a single file.
-//
-// Detection uses a layered approach:
-//  1. Per-file content patterns (import/require statements) — highest per-file confidence
-//  2. Project-level context fallback (config files, package.json) — when per-file is inconclusive
-//
-// Limitations:
-//   - Does not perform full AST analysis.
-//   - May misidentify framework if multiple frameworks are used in one file.
-func detectFramework(relPath string, absPath string) string {
-	return detectFrameworkWithContext(relPath, absPath, nil).Framework
-}
-
 // detectFrameworkWithContext detects framework with optional project-level context.
 // When projectCtx is provided and per-file detection yields "unknown", the project
 // default is used as a fallback.
@@ -86,14 +73,6 @@ func isJSExt(ext string) bool {
 		return true
 	}
 	return false
-}
-
-// detectJSFramework reads the first portion of a JS/TS file and looks for
-// import/require patterns that indicate a framework.
-//
-// Priority order: more specific frameworks first.
-func detectJSFramework(absPath string) string {
-	return detectJSFrameworkResult(absPath).Framework
 }
 
 // detectJSFrameworkResult returns a full FrameworkResult with confidence and source.
@@ -179,11 +158,6 @@ func hasMochaIndicators(content string) bool {
 	return false
 }
 
-// detectPythonFramework looks for framework-specific imports.
-func detectPythonFramework(absPath string) string {
-	return detectPythonFrameworkResult(absPath).Framework
-}
-
 // detectPythonFrameworkResult returns a full FrameworkResult.
 func detectPythonFrameworkResult(absPath string) FrameworkResult {
 	content := readHead(absPath, 4096)
@@ -201,11 +175,6 @@ func detectPythonFrameworkResult(absPath string) FrameworkResult {
 	}
 	// pytest is conventional default for Python test files.
 	return FrameworkResult{Framework: "pytest", Confidence: 0.5, Source: "convention"}
-}
-
-// detectJavaFramework looks for framework-specific imports.
-func detectJavaFramework(absPath string) string {
-	return detectJavaFrameworkResult(absPath).Framework
 }
 
 // detectJavaFrameworkResult returns a full FrameworkResult.
@@ -236,7 +205,7 @@ func readHead(path string, n int) string {
 	defer f.Close()
 
 	buf := make([]byte, n)
-	nr, err := f.Read(buf)
+	nr, _ := f.Read(buf)
 	if nr == 0 {
 		return ""
 	}

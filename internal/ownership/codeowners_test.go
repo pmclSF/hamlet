@@ -220,8 +220,12 @@ func TestFindCodeownersFile(t *testing.T) {
 	// Test with .github/CODEOWNERS
 	dir := t.TempDir()
 	ghDir := filepath.Join(dir, ".github")
-	os.MkdirAll(ghDir, 0755)
-	os.WriteFile(filepath.Join(ghDir, "CODEOWNERS"), []byte("* @owner"), 0644)
+	if err := os.MkdirAll(ghDir, 0755); err != nil {
+		t.Fatalf("mkdir .github: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(ghDir, "CODEOWNERS"), []byte("* @owner"), 0644); err != nil {
+		t.Fatalf("write CODEOWNERS: %v", err)
+	}
 
 	_, relPath, found := FindCodeownersFile(dir)
 	if !found {

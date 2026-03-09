@@ -9,7 +9,9 @@ import (
 func TestLoad_ValidFile(t *testing.T) {
 	dir := t.TempDir()
 	hamletDir := filepath.Join(dir, ".hamlet")
-	os.MkdirAll(hamletDir, 0o755)
+	if err := os.MkdirAll(hamletDir, 0o755); err != nil {
+		t.Fatalf("mkdir .hamlet: %v", err)
+	}
 
 	content := `rules:
   disallow_skipped_tests: true
@@ -21,7 +23,9 @@ func TestLoad_ValidFile(t *testing.T) {
   max_weak_assertions: 5
   max_mock_heavy_tests: 3
 `
-	os.WriteFile(filepath.Join(hamletDir, "policy.yaml"), []byte(content), 0o644)
+	if err := os.WriteFile(filepath.Join(hamletDir, "policy.yaml"), []byte(content), 0o644); err != nil {
+		t.Fatalf("write policy.yaml: %v", err)
+	}
 
 	result, err := Load(dir)
 	if err != nil {
@@ -56,13 +60,17 @@ func TestLoad_ValidFile(t *testing.T) {
 func TestLoad_PartialFile(t *testing.T) {
 	dir := t.TempDir()
 	hamletDir := filepath.Join(dir, ".hamlet")
-	os.MkdirAll(hamletDir, 0o755)
+	if err := os.MkdirAll(hamletDir, 0o755); err != nil {
+		t.Fatalf("mkdir .hamlet: %v", err)
+	}
 
 	content := `rules:
   disallow_frameworks:
     - jest
 `
-	os.WriteFile(filepath.Join(hamletDir, "policy.yaml"), []byte(content), 0o644)
+	if err := os.WriteFile(filepath.Join(hamletDir, "policy.yaml"), []byte(content), 0o644); err != nil {
+		t.Fatalf("write policy.yaml: %v", err)
+	}
 
 	result, err := Load(dir)
 	if err != nil {
@@ -100,12 +108,16 @@ func TestLoad_MissingFile(t *testing.T) {
 func TestLoad_MalformedFile(t *testing.T) {
 	dir := t.TempDir()
 	hamletDir := filepath.Join(dir, ".hamlet")
-	os.MkdirAll(hamletDir, 0o755)
+	if err := os.MkdirAll(hamletDir, 0o755); err != nil {
+		t.Fatalf("mkdir .hamlet: %v", err)
+	}
 
 	content := `rules:
   disallow_frameworks: [[[invalid yaml
 `
-	os.WriteFile(filepath.Join(hamletDir, "policy.yaml"), []byte(content), 0o644)
+	if err := os.WriteFile(filepath.Join(hamletDir, "policy.yaml"), []byte(content), 0o644); err != nil {
+		t.Fatalf("write policy.yaml: %v", err)
+	}
 
 	_, err := Load(dir)
 	if err == nil {

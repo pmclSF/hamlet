@@ -27,7 +27,7 @@ describe('AuthService', () => {
 `
 	dir := t.TempDir()
 	path := filepath.Join(dir, "auth.test.js")
-	os.WriteFile(path, []byte(src), 0644)
+	mustWriteFile(t, path, []byte(src))
 
 	cases := Extract(dir, "auth.test.js", "jest")
 	if len(cases) != 3 {
@@ -73,7 +73,7 @@ describe('Math', () => {
 `
 	dir := t.TempDir()
 	path := filepath.Join(dir, "math.test.js")
-	os.WriteFile(path, []byte(src), 0644)
+	mustWriteFile(t, path, []byte(src))
 
 	cases1 := Extract(dir, "math.test.js", "jest")
 	cases2 := Extract(dir, "math.test.js", "jest")
@@ -103,7 +103,7 @@ describe('Suite', () => {
 });
 `
 	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, "order.test.js"), []byte(src), 0644)
+	mustWriteFile(t, filepath.Join(dir, "order.test.js"), []byte(src))
 
 	cases := Extract(dir, "order.test.js", "vitest")
 	if len(cases) != 2 {
@@ -138,10 +138,10 @@ describe('X', () => {
 	dir := t.TempDir()
 	f := filepath.Join(dir, "x.test.js")
 
-	os.WriteFile(f, []byte(src1), 0644)
+	mustWriteFile(t, f, []byte(src1))
 	cases1 := Extract(dir, "x.test.js", "jest")
 
-	os.WriteFile(f, []byte(src2), 0644)
+	mustWriteFile(t, f, []byte(src2))
 	cases2 := Extract(dir, "x.test.js", "jest")
 
 	if len(cases1) != 1 || len(cases2) != 1 {
@@ -165,10 +165,10 @@ func TestExtractJS_Rename_NewID(t *testing.T) {
 	dir := t.TempDir()
 	f := filepath.Join(dir, "x.test.js")
 
-	os.WriteFile(f, []byte(src1), 0644)
+	mustWriteFile(t, f, []byte(src1))
 	cases1 := Extract(dir, "x.test.js", "jest")
 
-	os.WriteFile(f, []byte(src2), 0644)
+	mustWriteFile(t, f, []byte(src2))
 	cases2 := Extract(dir, "x.test.js", "jest")
 
 	if len(cases1) != 1 || len(cases2) != 1 {
@@ -203,7 +203,7 @@ func TestSubtract(t *testing.T) {
 }
 `
 	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, "math_test.go"), []byte(src), 0644)
+	mustWriteFile(t, filepath.Join(dir, "math_test.go"), []byte(src))
 
 	cases := Extract(dir, "math_test.go", "go-testing")
 	if len(cases) != 4 {
@@ -241,7 +241,7 @@ def test_standalone():
     assert True
 `
 	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, "test_calc.py"), []byte(src), 0644)
+	mustWriteFile(t, filepath.Join(dir, "test_calc.py"), []byte(src))
 
 	cases := Extract(dir, "test_calc.py", "pytest")
 	if len(cases) != 3 {
@@ -288,7 +288,7 @@ class UserServiceTest {
 }
 `
 	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, "UserServiceTest.java"), []byte(src), 0644)
+	mustWriteFile(t, filepath.Join(dir, "UserServiceTest.java"), []byte(src))
 
 	cases := Extract(dir, "UserServiceTest.java", "junit5")
 	if len(cases) != 2 {
@@ -302,5 +302,12 @@ class UserServiceTest {
 	}
 	if cases[1].ExtractionKind != ExtractionParameterizedTemplate {
 		t.Errorf("case 1 kind = %q, want parameterized_template", cases[1].ExtractionKind)
+	}
+}
+
+func mustWriteFile(t *testing.T, path string, content []byte) {
+	t.Helper()
+	if err := os.WriteFile(path, content, 0o644); err != nil {
+		t.Fatalf("write %q: %v", path, err)
 	}
 }

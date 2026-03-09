@@ -73,7 +73,7 @@ func main() {
 		coverageFlag := analyzeCmd.String("coverage", "", "path to coverage file or directory (LCOV, Istanbul JSON)")
 		runtimeFlag := analyzeCmd.String("runtime", "", "path to runtime artifact (JUnit XML, Jest JSON); comma-separated for multiple")
 		slowThreshold := analyzeCmd.Float64("slow-threshold", 0, "slow test threshold in ms (default: 5000)")
-		analyzeCmd.Parse(os.Args[2:])
+		_ = analyzeCmd.Parse(os.Args[2:])
 		if err := runAnalyze(*rootFlag, *jsonFlag, *writeSnapshot, *coverageFlag, *runtimeFlag, *slowThreshold); err != nil {
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)
 			os.Exit(1)
@@ -86,7 +86,7 @@ func main() {
 		jsonFlag := impactCmd.Bool("json", false, "output JSON impact result")
 		showFlag := impactCmd.String("show", "", "drill-down view: units, gaps, tests, owners, graph, selected")
 		ownerFlag := impactCmd.String("owner", "", "filter results by owner")
-		impactCmd.Parse(os.Args[2:])
+		_ = impactCmd.Parse(os.Args[2:])
 		if err := runImpact(*rootFlag, *baseRef, *jsonFlag, *showFlag, *ownerFlag); err != nil {
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)
 			os.Exit(1)
@@ -103,7 +103,7 @@ func main() {
 		coverageFlag := policyCmd.String("coverage", "", "path to coverage file or directory (LCOV, Istanbul JSON)")
 		runtimeFlag := policyCmd.String("runtime", "", "path to runtime artifact (JUnit XML, Jest JSON); comma-separated for multiple")
 		slowThreshold := policyCmd.Float64("slow-threshold", 0, "slow test threshold in ms (default: 5000)")
-		policyCmd.Parse(os.Args[3:])
+		_ = policyCmd.Parse(os.Args[3:])
 		exitCode := runPolicyCheck(*rootFlag, *jsonFlag, *coverageFlag, *runtimeFlag, *slowThreshold)
 		os.Exit(exitCode)
 
@@ -111,7 +111,7 @@ func main() {
 		metricsCmd := flag.NewFlagSet("metrics", flag.ExitOnError)
 		rootFlag := metricsCmd.String("root", ".", "repository root to analyze")
 		jsonFlag := metricsCmd.Bool("json", false, "output JSON metrics snapshot")
-		metricsCmd.Parse(os.Args[2:])
+		_ = metricsCmd.Parse(os.Args[2:])
 		if err := runMetrics(*rootFlag, *jsonFlag); err != nil {
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)
 			os.Exit(1)
@@ -121,7 +121,7 @@ func main() {
 		postureCmd := flag.NewFlagSet("posture", flag.ExitOnError)
 		rootFlag := postureCmd.String("root", ".", "repository root to analyze")
 		jsonFlag := postureCmd.Bool("json", false, "output JSON posture snapshot")
-		postureCmd.Parse(os.Args[2:])
+		_ = postureCmd.Parse(os.Args[2:])
 		if err := runPosture(*rootFlag, *jsonFlag); err != nil {
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)
 			os.Exit(1)
@@ -131,7 +131,7 @@ func main() {
 		portfolioCmd := flag.NewFlagSet("portfolio", flag.ExitOnError)
 		rootFlag := portfolioCmd.String("root", ".", "repository root to analyze")
 		jsonFlag := portfolioCmd.Bool("json", false, "output JSON portfolio snapshot")
-		portfolioCmd.Parse(os.Args[2:])
+		_ = portfolioCmd.Parse(os.Args[2:])
 		if err := runPortfolio(*rootFlag, *jsonFlag); err != nil {
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)
 			os.Exit(1)
@@ -141,7 +141,7 @@ func main() {
 		summaryCmd := flag.NewFlagSet("summary", flag.ExitOnError)
 		rootFlag := summaryCmd.String("root", ".", "repository root to analyze")
 		jsonFlag := summaryCmd.Bool("json", false, "output JSON summary with heatmap")
-		summaryCmd.Parse(os.Args[2:])
+		_ = summaryCmd.Parse(os.Args[2:])
 		if err := runSummary(*rootFlag, *jsonFlag); err != nil {
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)
 			os.Exit(1)
@@ -151,7 +151,7 @@ func main() {
 		focusCmd := flag.NewFlagSet("focus", flag.ExitOnError)
 		rootFlag := focusCmd.String("root", ".", "repository root to analyze")
 		jsonFlag := focusCmd.Bool("json", false, "output JSON focus summary")
-		focusCmd.Parse(os.Args[2:])
+		_ = focusCmd.Parse(os.Args[2:])
 		if err := runFocus(*rootFlag, *jsonFlag); err != nil {
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)
 			os.Exit(1)
@@ -163,7 +163,7 @@ func main() {
 		toFlag := compareCmd.String("to", "", "path to current snapshot JSON")
 		rootFlag := compareCmd.String("root", ".", "repository root (used to find .hamlet/snapshots/)")
 		jsonFlag := compareCmd.Bool("json", false, "output JSON comparison")
-		compareCmd.Parse(os.Args[2:])
+		_ = compareCmd.Parse(os.Args[2:])
 		if err := runCompare(*fromFlag, *toFlag, *rootFlag, *jsonFlag); err != nil {
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)
 			os.Exit(1)
@@ -180,7 +180,7 @@ func main() {
 		jsonFlag := migCmd.Bool("json", false, "output JSON")
 		fileFlag := migCmd.String("file", "", "file path for preview (relative to root)")
 		scopeFlag := migCmd.String("scope", "", "directory scope for preview")
-		migCmd.Parse(os.Args[3:])
+		_ = migCmd.Parse(os.Args[3:])
 		if err := runMigration(subCmd, *rootFlag, *jsonFlag, *fileFlag, *scopeFlag); err != nil {
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)
 			os.Exit(1)
@@ -191,7 +191,7 @@ func main() {
 		rootFlag := stCmd.String("root", ".", "repository root to analyze")
 		baseRef := stCmd.String("base", "", "git base ref for diff (default: HEAD~1)")
 		jsonFlag := stCmd.Bool("json", false, "output JSON protective test set")
-		stCmd.Parse(os.Args[2:])
+		_ = stCmd.Parse(os.Args[2:])
 		if err := runSelectTests(*rootFlag, *baseRef, *jsonFlag); err != nil {
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)
 			os.Exit(1)
@@ -203,7 +203,7 @@ func main() {
 		baseRef := prCmd.String("base", "", "git base ref for diff (default: HEAD~1)")
 		jsonFlag := prCmd.Bool("json", false, "output JSON PR analysis")
 		formatFlag := prCmd.String("format", "", "output format: markdown, comment, annotation")
-		prCmd.Parse(os.Args[2:])
+		_ = prCmd.Parse(os.Args[2:])
 		if err := runPR(*rootFlag, *baseRef, *jsonFlag, *formatFlag); err != nil {
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)
 			os.Exit(1)
@@ -218,7 +218,7 @@ func main() {
 		showCmd := flag.NewFlagSet("show", flag.ExitOnError)
 		rootFlag := showCmd.String("root", ".", "repository root to analyze")
 		jsonFlag := showCmd.Bool("json", false, "output JSON")
-		showCmd.Parse(os.Args[3:])
+		_ = showCmd.Parse(os.Args[3:])
 		showArgs := showCmd.Args()
 		showID := ""
 		if len(showArgs) > 0 {
@@ -236,7 +236,7 @@ func main() {
 		}
 		exportCmd := flag.NewFlagSet("export benchmark", flag.ExitOnError)
 		rootFlag := exportCmd.String("root", ".", "repository root to analyze")
-		exportCmd.Parse(os.Args[3:])
+		_ = exportCmd.Parse(os.Args[3:])
 		if err := runExportBenchmark(*rootFlag); err != nil {
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)
 			os.Exit(1)
@@ -357,12 +357,15 @@ func runPolicyCheck(root string, jsonOutput bool, coveragePath string, runtimePa
 		if jsonOutput {
 			enc := json.NewEncoder(os.Stdout)
 			enc.SetIndent("", "  ")
-			enc.Encode(map[string]any{
+			if err := enc.Encode(map[string]any{
 				"policyFile": nil,
 				"pass":       true,
 				"violations": []any{},
 				"message":    "No policy file found. Create .hamlet/policy.yaml to define policy.",
-			})
+			}); err != nil {
+				fmt.Fprintf(os.Stderr, "error: failed to render policy output: %v\n", err)
+				return 1
+			}
 		} else {
 			fmt.Println("Hamlet Policy Check")
 			fmt.Println()
@@ -396,11 +399,14 @@ func runPolicyCheck(root string, jsonOutput bool, coveragePath string, runtimePa
 	if jsonOutput {
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
-		enc.Encode(map[string]any{
+		if err := enc.Encode(map[string]any{
 			"policyFile": policyResult.Path,
 			"pass":       govResult.Pass,
 			"violations": govResult.Violations,
-		})
+		}); err != nil {
+			fmt.Fprintf(os.Stderr, "error: failed to render policy output: %v\n", err)
+			return 1
+		}
 	} else {
 		reporting.RenderPolicyReport(os.Stdout, policyResult.Path, govResult)
 	}

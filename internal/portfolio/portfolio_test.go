@@ -33,12 +33,6 @@ func withCodeUnits(units ...models.CodeUnit) func(*models.TestSuiteSnapshot) {
 	}
 }
 
-func withOwnership(m map[string][]string) func(*models.TestSuiteSnapshot) {
-	return func(snap *models.TestSuiteSnapshot) {
-		snap.Ownership = m
-	}
-}
-
 // --- BuildAssets tests ---
 
 func TestBuildAssets_Empty(t *testing.T) {

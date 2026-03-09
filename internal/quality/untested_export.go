@@ -121,9 +121,7 @@ func stripTestSuffix(filename string) string {
 	name = strings.TrimSuffix(name, ".test")
 	name = strings.TrimSuffix(name, ".spec")
 	name = strings.TrimSuffix(name, "_test")
-	if strings.HasPrefix(name, "test_") {
-		name = strings.TrimPrefix(name, "test_")
-	}
+	name = strings.TrimPrefix(name, "test_")
 	return name
 }
 

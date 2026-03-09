@@ -228,8 +228,6 @@ func (d *CustomMatcherDetector) Detect(snap *models.TestSuiteSnapshot) []models.
 var (
 	// done() callback pattern (use async/await instead)
 	doneCallbackPattern = regexp.MustCompile(`\b(it|test)\s*\([^,]+,\s*function\s*\(\s*done\s*\)`)
-	// .toBeTruthy()/.toBeFalsy() without specific value check
-	weakTruthyPattern = regexp.MustCompile(`\.(toBeTruthy|toBeFalsy)\s*\(\s*\)`)
 	// setTimeout in tests (fragile timing)
 	setTimeoutInTest = regexp.MustCompile(`setTimeout\s*\(`)
 	// Enzyme-specific patterns (deprecated React testing)

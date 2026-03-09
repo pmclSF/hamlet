@@ -77,12 +77,14 @@ func TestDuplicateNamesInDifferentSuites(t *testing.T) {
 describe('Suite A', () => {
   it('works', () => {});
 });
-describe('Suite B', () => {
+	describe('Suite B', () => {
   it('works', () => {});
 });
 `
 	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, "test.js"), []byte(src), 0644)
+	if err := os.WriteFile(filepath.Join(dir, "test.js"), []byte(src), 0644); err != nil {
+		t.Fatalf("write test.js: %v", err)
+	}
 
 	cases := Extract(dir, "test.js", "jest")
 	if len(cases) != 2 {
@@ -104,7 +106,9 @@ describe('Suite', () => {
 });
 `
 	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, "dup.test.js"), []byte(src), 0644)
+	if err := os.WriteFile(filepath.Join(dir, "dup.test.js"), []byte(src), 0644); err != nil {
+		t.Fatalf("write dup.test.js: %v", err)
+	}
 
 	cases := Extract(dir, "dup.test.js", "jest")
 	if len(cases) != 2 {
@@ -134,7 +138,9 @@ cases.forEach(n => {
 });
 `
 	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, "dynamic.test.js"), []byte(src), 0644)
+	if err := os.WriteFile(filepath.Join(dir, "dynamic.test.js"), []byte(src), 0644); err != nil {
+		t.Fatalf("write dynamic.test.js: %v", err)
+	}
 
 	cases := Extract(dir, "dynamic.test.js", "jest")
 	// Dynamic tests may or may not be extractable.

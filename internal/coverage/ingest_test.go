@@ -123,7 +123,9 @@ func TestParseIstanbul(t *testing.T) {
 func TestIngestFile_LCOV(t *testing.T) {
 	dir := t.TempDir()
 	lcovPath := filepath.Join(dir, "lcov.info")
-	os.WriteFile(lcovPath, []byte(sampleLCOV), 0644)
+	if err := os.WriteFile(lcovPath, []byte(sampleLCOV), 0644); err != nil {
+		t.Fatalf("write lcov.info: %v", err)
+	}
 
 	art, err := IngestFile(lcovPath, "unit")
 	if err != nil {
@@ -143,7 +145,9 @@ func TestIngestFile_LCOV(t *testing.T) {
 func TestIngestFile_Istanbul(t *testing.T) {
 	dir := t.TempDir()
 	p := filepath.Join(dir, "coverage-final.json")
-	os.WriteFile(p, []byte(sampleIstanbul), 0644)
+	if err := os.WriteFile(p, []byte(sampleIstanbul), 0644); err != nil {
+		t.Fatalf("write coverage-final.json: %v", err)
+	}
 
 	art, err := IngestFile(p, "e2e")
 	if err != nil {

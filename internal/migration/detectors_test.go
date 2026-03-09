@@ -10,8 +10,12 @@ import (
 
 func writeTestFile(t *testing.T, dir, name, content string) {
 	t.Helper()
-	os.MkdirAll(filepath.Dir(filepath.Join(dir, name)), 0o755)
-	os.WriteFile(filepath.Join(dir, name), []byte(content), 0o644)
+	if err := os.MkdirAll(filepath.Dir(filepath.Join(dir, name)), 0o755); err != nil {
+		t.Fatalf("mkdir for %s: %v", name, err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0o644); err != nil {
+		t.Fatalf("write %s: %v", name, err)
+	}
 }
 
 func TestDeprecatedPatternDetector_DoneCallback(t *testing.T) {

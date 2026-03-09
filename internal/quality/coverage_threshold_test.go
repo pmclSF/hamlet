@@ -13,7 +13,9 @@ func TestCoverageThresholdDetector_BelowThreshold(t *testing.T) {
 	// Create temp dir with coverage summary
 	dir := t.TempDir()
 	covDir := filepath.Join(dir, "coverage")
-	os.MkdirAll(covDir, 0o755)
+	if err := os.MkdirAll(covDir, 0o755); err != nil {
+		t.Fatalf("mkdir coverage: %v", err)
+	}
 
 	summary := map[string]any{
 		"total": map[string]any{
@@ -24,7 +26,9 @@ func TestCoverageThresholdDetector_BelowThreshold(t *testing.T) {
 		},
 	}
 	data, _ := json.Marshal(summary)
-	os.WriteFile(filepath.Join(covDir, "coverage-summary.json"), data, 0o644)
+	if err := os.WriteFile(filepath.Join(covDir, "coverage-summary.json"), data, 0o644); err != nil {
+		t.Fatalf("write coverage summary: %v", err)
+	}
 
 	snap := &models.TestSuiteSnapshot{
 		Repository: models.RepositoryMetadata{RootPath: dir},
@@ -47,7 +51,9 @@ func TestCoverageThresholdDetector_BelowThreshold(t *testing.T) {
 func TestCoverageThresholdDetector_AboveThreshold(t *testing.T) {
 	dir := t.TempDir()
 	covDir := filepath.Join(dir, "coverage")
-	os.MkdirAll(covDir, 0o755)
+	if err := os.MkdirAll(covDir, 0o755); err != nil {
+		t.Fatalf("mkdir coverage: %v", err)
+	}
 
 	summary := map[string]any{
 		"total": map[string]any{
@@ -58,7 +64,9 @@ func TestCoverageThresholdDetector_AboveThreshold(t *testing.T) {
 		},
 	}
 	data, _ := json.Marshal(summary)
-	os.WriteFile(filepath.Join(covDir, "coverage-summary.json"), data, 0o644)
+	if err := os.WriteFile(filepath.Join(covDir, "coverage-summary.json"), data, 0o644); err != nil {
+		t.Fatalf("write coverage summary: %v", err)
+	}
 
 	snap := &models.TestSuiteSnapshot{
 		Repository: models.RepositoryMetadata{RootPath: dir},
