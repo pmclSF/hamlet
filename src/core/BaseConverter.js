@@ -65,8 +65,9 @@ export class BaseConverter {
   validate(content) {
     const errors = [];
 
-    // Basic syntax check
+    // Basic syntax check (validation only, not execution)
     try {
+      // eslint-disable-next-line no-new-func
       new Function(content);
     } catch (e) {
       errors.push(`Syntax error: ${e.message}`);

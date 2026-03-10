@@ -95,7 +95,7 @@ Each layer adds depth without requiring the previous one. Users can enter at any
 
 ## Demo Readiness
 
-- **Fixtures available.** Four demo fixtures in `fixtures/demos/` cover healthy, flaky-concentrated, E2E-heavy, and fragmented-migration-risk profiles.
+- **Fixtures available.** Four demo fixtures in `internal/testdata/fixtures.go` cover healthy-balanced, flaky-concentrated, E2E-heavy, and fragmented-migration-risk profiles.
 - **Golden tests pass.** The test suite validates output format and content against expected fixtures.
 - **Output is scannable.** Reports use consistent formatting with section headers, aligned columns, and indented detail. No ANSI color codes -- works in any terminal and copies cleanly.
 - **Progressive flow works.** Running `analyze` then `summary` then `posture` then `portfolio` on any fixture demonstrates the information architecture clearly.
