@@ -1,0 +1,54 @@
+name: Hamlet PR Analysis
+
+on:
+  pull_request:
+    branches: [main, develop]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Build Hamlet
+        run: go build -o hamlet ./cmd/hamlet
+
+      - name: Run Hamlet PR analysis
+        id: hamlet
+        run: |
+          {
+            echo 'body<<HAMLET_EOF'
+            ./hamlet pr --base "${{ github.event.pull_request.base.sha }}" --format markdown
+            echo 'HAMLET_EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Find existing Hamlet comment
+        uses: peter-evans/find-comment@v3
+        id: find-comment
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          comment-author: 'github-actions[bot]'
+          body-includes: '<!-- hamlet-pr-analysis -->'
+
+      - name: Post or update PR comment
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          comment-id: ${{ steps.find-comment.outputs.comment-id }}
+          edit-mode: replace
+          body: |
+            <!-- hamlet-pr-analysis -->
+            ${{ steps.hamlet.outputs.body }}
