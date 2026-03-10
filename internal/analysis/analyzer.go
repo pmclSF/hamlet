@@ -53,9 +53,15 @@ func (a *Analyzer) Analyze() (*models.TestSuiteSnapshot, error) {
 		return nil, err
 	}
 
-	// Analyze content of each test file (counts for tests, assertions, mocks).
+	// Analyze content and extract test cases in one pass per file.
+	// Merging these eliminates a redundant os.ReadFile per test file.
+	rawByFile := make([][]models.TestCase, len(testFiles))
 	parallelForEachIndex(len(testFiles), func(i int) {
-		analyzeTestFileContent(&testFiles[i], absRoot)
+		src := analyzeTestFileContentCached(&testFiles[i], absRoot)
+		if src != "" {
+			cases := testcase.ExtractFromContent(src, testFiles[i].Path, testFiles[i].Framework)
+			rawByFile[i] = testcase.ToModels(cases)
+		}
 	})
 
 	frameworks := buildFrameworkInventory(testFiles)
@@ -64,28 +70,36 @@ func (a *Analyzer) Analyze() (*models.TestSuiteSnapshot, error) {
 	ciSystems := detectCISystems(absRoot)
 	commitSHA, branch := gitInfo(absRoot)
 
-	// Extract exported code units for untested-export detection.
-	codeUnits := extractExportedCodeUnits(absRoot, testFiles)
+	// Run two independent I/O stages concurrently:
+	//   1. Extract exported code units (reads source files)
+	//   2. Build import graph (reads test file imports)
+	var (
+		codeUnits   []models.CodeUnit
+		importGraph *ImportGraph
+		testCases   []models.TestCase
+		stageWG     sync.WaitGroup
+	)
 
-	// Build import graph for precise test-to-code linkage.
-	importGraph := BuildImportGraph(absRoot, testFiles)
+	stageWG.Add(2)
+	go func() {
+		defer stageWG.Done()
+		codeUnits = extractExportedCodeUnits(absRoot, testFiles)
+	}()
+	go func() {
+		defer stageWG.Done()
+		importGraph = BuildImportGraph(absRoot, testFiles)
+	}()
+	stageWG.Wait()
 
 	// Populate per-test linked code units from the import graph.
 	populateLinkedCodeUnits(testFiles, codeUnits, importGraph)
 
-	// Extract individual test cases with stable IDs.
-	rawByFile := make([][]models.TestCase, len(testFiles))
-	parallelForEachIndex(len(testFiles), func(i int) {
-		tf := testFiles[i]
-		cases := testcase.Extract(absRoot, tf.Path, tf.Framework)
-		rawByFile[i] = testcase.ToModels(cases)
-	})
+	// Flatten test cases and resolve collisions.
 	rawTestCases := make([]models.TestCase, 0, len(testFiles))
 	for i := range rawByFile {
 		rawTestCases = append(rawTestCases, rawByFile[i]...)
 	}
-	// Detect and resolve any identity collisions.
-	testCases, _ := testcase.DetectAndResolveCollisions(rawTestCases)
+	testCases, _ = testcase.DetectAndResolveCollisions(rawTestCases)
 
 	// Infer test types (unit, integration, e2e, etc.) with evidence.
 	testCases = testtype.InferAll(testCases)

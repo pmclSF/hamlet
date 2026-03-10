@@ -35,6 +35,7 @@ import (
 	"strings"
 
 	"github.com/pmclSF/hamlet/internal/benchmark"
+	"github.com/pmclSF/hamlet/internal/depgraph"
 	"github.com/pmclSF/hamlet/internal/changescope"
 	"github.com/pmclSF/hamlet/internal/comparison"
 	"github.com/pmclSF/hamlet/internal/engine"
@@ -157,6 +158,34 @@ func main() {
 			os.Exit(1)
 		}
 
+	case "insights":
+		insightsCmd := flag.NewFlagSet("insights", flag.ExitOnError)
+		rootFlag := insightsCmd.String("root", ".", "repository root to analyze")
+		jsonFlag := insightsCmd.Bool("json", false, "output JSON insights")
+		_ = insightsCmd.Parse(os.Args[2:])
+		if err := runInsights(*rootFlag, *jsonFlag); err != nil {
+			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			os.Exit(1)
+		}
+
+	case "explain":
+		explainCmd := flag.NewFlagSet("explain", flag.ExitOnError)
+		rootFlag := explainCmd.String("root", ".", "repository root to analyze")
+		jsonFlag := explainCmd.Bool("json", false, "output JSON")
+		_ = explainCmd.Parse(os.Args[2:])
+		explainArgs := explainCmd.Args()
+		if len(explainArgs) == 0 {
+			fmt.Fprintln(os.Stderr, "Usage: hamlet explain <test-path|test-id|code-unit|owner|finding>")
+			fmt.Fprintln(os.Stderr)
+			fmt.Fprintln(os.Stderr, "Explain why Hamlet made a decision about any entity.")
+			fmt.Fprintln(os.Stderr, "See: docs/examples/explain-report.md")
+			os.Exit(2)
+		}
+		if err := runExplain(explainArgs[0], *rootFlag, *jsonFlag); err != nil {
+			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			os.Exit(1)
+		}
+
 	case "summary":
 		summaryCmd := flag.NewFlagSet("summary", flag.ExitOnError)
 		rootFlag := summaryCmd.String("root", ".", "repository root to analyze")
@@ -262,6 +291,48 @@ func main() {
 			os.Exit(1)
 		}
 
+	case "debug":
+		if len(os.Args) < 3 {
+			fmt.Fprintln(os.Stderr, "Usage: hamlet debug <graph|coverage|fanout|duplicates> [flags]")
+			os.Exit(2)
+		}
+		debugSub := os.Args[2]
+		debugCmd := flag.NewFlagSet("debug "+debugSub, flag.ExitOnError)
+		rootFlag := debugCmd.String("root", ".", "repository root to analyze")
+		jsonFlag := debugCmd.Bool("json", false, "output JSON")
+		changedFlag := debugCmd.String("changed", "", "comma-separated changed files for impact analysis")
+		_ = debugCmd.Parse(os.Args[3:])
+		showView := ""
+		switch debugSub {
+		case "graph":
+			showView = "stats"
+		case "coverage":
+			showView = "coverage"
+		case "fanout":
+			showView = "fanout"
+		case "duplicates":
+			showView = "duplicates"
+		default:
+			fmt.Fprintf(os.Stderr, "unknown debug command: %s\n", debugSub)
+			os.Exit(2)
+		}
+		if err := runDepgraph(*rootFlag, *jsonFlag, showView, *changedFlag); err != nil {
+			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			os.Exit(1)
+		}
+
+	case "depgraph":
+		dgCmd := flag.NewFlagSet("depgraph", flag.ExitOnError)
+		rootFlag := dgCmd.String("root", ".", "repository root to analyze")
+		jsonFlag := dgCmd.Bool("json", false, "output JSON")
+		showFlag := dgCmd.String("show", "", "sub-view: stats, coverage, duplicates, fanout, impact, profile")
+		changedFlag := dgCmd.String("changed", "", "comma-separated changed files for impact analysis")
+		_ = dgCmd.Parse(os.Args[2:])
+		if err := runDepgraph(*rootFlag, *jsonFlag, *showFlag, *changedFlag); err != nil {
+			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			os.Exit(1)
+		}
+
 	case "version", "--version", "-v":
 		fmt.Printf("hamlet %s (commit %s, built %s)\n", version, commit, date)
 
@@ -277,68 +348,50 @@ func main() {
 func printUsage() {
 	fmt.Fprintln(os.Stderr, "Hamlet — signal-first test intelligence for engineering teams")
 	fmt.Fprintln(os.Stderr)
-	fmt.Fprintln(os.Stderr, "Quick start:")
-	fmt.Fprintln(os.Stderr, "  hamlet analyze           see what Hamlet finds in your test suite")
-	fmt.Fprintln(os.Stderr, "  hamlet summary           leadership-ready overview")
-	fmt.Fprintln(os.Stderr, "  hamlet posture           evidence-backed posture by dimension")
+	fmt.Fprintln(os.Stderr, "User Journeys:")
+	fmt.Fprintln(os.Stderr, "  analyze  [flags]         What does my test suite look like?")
+	fmt.Fprintln(os.Stderr, "                           Example: hamlet analyze --root ./myproject")
+	fmt.Fprintln(os.Stderr, "  impact   [flags]         What tests matter for this change?")
+	fmt.Fprintln(os.Stderr, "                           Example: hamlet impact --base main")
+	fmt.Fprintln(os.Stderr, "  insights [flags]         What should I fix in my test system?")
+	fmt.Fprintln(os.Stderr, "                           Example: hamlet insights --json")
+	fmt.Fprintln(os.Stderr, "  explain  <target>        Why did Hamlet make this decision?")
+	fmt.Fprintln(os.Stderr, "                           Example: hamlet explain src/auth/login.test.ts")
 	fmt.Fprintln(os.Stderr)
-	fmt.Fprintln(os.Stderr, "Commands:")
+	fmt.Fprintln(os.Stderr, "Supporting commands:")
 	fmt.Fprintln(os.Stderr, "  init [flags]             detect data paths and print recommended analyze command")
-	fmt.Fprintln(os.Stderr, "  analyze [flags]          full test suite analysis")
 	fmt.Fprintln(os.Stderr, "  summary [flags]          executive summary with risk, trends, benchmark readiness")
 	fmt.Fprintln(os.Stderr, "  focus [flags]            prioritized next actions")
 	fmt.Fprintln(os.Stderr, "  posture [flags]          detailed posture breakdown with measurement evidence")
 	fmt.Fprintln(os.Stderr, "  portfolio [flags]        portfolio intelligence: cost, breadth, leverage, redundancy")
-	fmt.Fprintln(os.Stderr, "  impact [flags]           impact analysis for changed code")
 	fmt.Fprintln(os.Stderr, "  select-tests [flags]     recommend protective test set for a change")
 	fmt.Fprintln(os.Stderr, "  pr [flags]               PR/change-scoped analysis")
 	fmt.Fprintln(os.Stderr, "  show <entity> <id>       drill into test, unit/codeunit, owner, or finding")
 	fmt.Fprintln(os.Stderr, "  metrics [flags]          aggregate metrics scorecard")
-	fmt.Fprintln(os.Stderr, "  migration readiness      migration readiness assessment")
-	fmt.Fprintln(os.Stderr, "  migration blockers       list migration blockers by type and area")
-	fmt.Fprintln(os.Stderr, "  migration preview        preview migration for a file or scope")
 	fmt.Fprintln(os.Stderr, "  compare [flags]          compare two snapshots for trend tracking")
+	fmt.Fprintln(os.Stderr, "  migration <sub> [flags]  readiness, blockers, or preview")
 	fmt.Fprintln(os.Stderr, "  policy check [flags]     evaluate local policy rules")
 	fmt.Fprintln(os.Stderr, "  export benchmark [flags] privacy-safe JSON export for benchmarking")
 	fmt.Fprintln(os.Stderr)
-	fmt.Fprintln(os.Stderr, "Common flags (all commands):")
+	fmt.Fprintln(os.Stderr, "Advanced / debug:")
+	fmt.Fprintln(os.Stderr, "  debug graph [flags]      dependency graph statistics")
+	fmt.Fprintln(os.Stderr, "  debug coverage [flags]   structural coverage analysis")
+	fmt.Fprintln(os.Stderr, "  debug fanout [flags]     high-fanout node analysis")
+	fmt.Fprintln(os.Stderr, "  debug duplicates [flags] duplicate test cluster analysis")
+	fmt.Fprintln(os.Stderr, "  depgraph [flags]         full dependency graph analysis (all engines)")
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, "Common flags:")
 	fmt.Fprintln(os.Stderr, "  --root PATH              repository root (default: current directory)")
 	fmt.Fprintln(os.Stderr, "  --json                   machine-readable JSON output")
-	fmt.Fprintln(os.Stderr)
-	fmt.Fprintln(os.Stderr, "Impact-specific flags:")
-	fmt.Fprintln(os.Stderr, "  --base REF               git base ref for diff (default: HEAD~1)")
-	fmt.Fprintln(os.Stderr, "  --show VIEW              drill-down: units, gaps, tests, owners, graph, selected")
-	fmt.Fprintln(os.Stderr, "  --owner NAME             filter by owner")
-	fmt.Fprintln(os.Stderr)
-	fmt.Fprintln(os.Stderr, "PR-specific flags:")
-	fmt.Fprintln(os.Stderr, "  --base REF               git base ref for diff (default: HEAD~1)")
-	fmt.Fprintln(os.Stderr, "  --format FORMAT          output: markdown, comment, annotation")
-	fmt.Fprintln(os.Stderr)
-	fmt.Fprintln(os.Stderr, "Migration preview flags:")
-	fmt.Fprintln(os.Stderr, "  --file PATH              preview migration risk for one file")
-	fmt.Fprintln(os.Stderr, "  --scope DIR              preview migration risk for a directory scope")
-	fmt.Fprintln(os.Stderr)
-	fmt.Fprintln(os.Stderr, "Analyze/Policy flags:")
-	fmt.Fprintln(os.Stderr, "  --write-snapshot         persist snapshot for trend tracking")
-	fmt.Fprintln(os.Stderr, "  --coverage PATH          ingest coverage data (LCOV, Istanbul JSON)")
-	fmt.Fprintln(os.Stderr, "  --coverage-run-label L   label coverage as unit|integration|e2e")
-	fmt.Fprintln(os.Stderr, "  --runtime PATH           ingest runtime artifacts (JUnit XML, Jest JSON; comma-separated)")
-	fmt.Fprintln(os.Stderr, "  --slow-threshold MS      slow test threshold in ms (default: 5000)")
-	fmt.Fprintln(os.Stderr, "  --verbose                show all findings in analyze output")
-	fmt.Fprintln(os.Stderr, "  --format json|text       output format (analyze command)")
-	fmt.Fprintln(os.Stderr)
-	fmt.Fprintln(os.Stderr, "Compare-specific flags:")
-	fmt.Fprintln(os.Stderr, "  --from PATH              baseline snapshot (default: auto-detected)")
-	fmt.Fprintln(os.Stderr, "  --to PATH                current snapshot (default: auto-detected)")
+	fmt.Fprintln(os.Stderr, "  --base REF               git base ref for diff (impact, pr, select-tests)")
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Typical flow:")
-	fmt.Fprintln(os.Stderr, "  1. hamlet analyze                    see findings")
-	fmt.Fprintln(os.Stderr, "  2. hamlet summary                    get the leadership view")
-	fmt.Fprintln(os.Stderr, "  3. hamlet focus                      identify the highest-impact next action")
-	fmt.Fprintln(os.Stderr, "  4. hamlet posture                    understand the evidence")
-	fmt.Fprintln(os.Stderr, "  5. hamlet portfolio                  see cost, leverage, and redundancy")
-	fmt.Fprintln(os.Stderr, "  6. hamlet analyze --write-snapshot   save for trend tracking")
-	fmt.Fprintln(os.Stderr, "  7. hamlet compare                    see what changed")
+	fmt.Fprintln(os.Stderr, "  1. hamlet analyze                    understand your test system")
+	fmt.Fprintln(os.Stderr, "  2. hamlet insights                   find what to improve")
+	fmt.Fprintln(os.Stderr, "  3. hamlet impact                     see what a change affects")
+	fmt.Fprintln(os.Stderr, "  4. hamlet explain <target>           understand why")
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, "Docs: docs/examples/analyze-report.md, impact-report.md, insights-report.md, explain-report.md")
 }
 
 func defaultPipelineOptions() engine.PipelineOptions {
@@ -849,6 +902,231 @@ func runFocus(root string, jsonOutput bool) error {
 	fmt.Println()
 	fmt.Println("Next: hamlet posture    see detailed evidence by dimension")
 	return nil
+}
+
+// runInsights aggregates all insight engines into a single actionable report.
+// It combines executive summary, depgraph profile, and portfolio findings.
+func runInsights(root string, jsonOutput bool) error {
+	result, err := engine.RunPipeline(root, defaultPipelineOptions())
+	if err != nil {
+		return fmt.Errorf("analysis failed: %w", err)
+	}
+	snapshot := result.Snapshot
+
+	// Build graph, heatmap, metrics (same as summary).
+	g := graph.Build(snapshot)
+	h := heatmap.BuildWithGraph(snapshot, g)
+	ms := metrics.Derive(snapshot)
+	seg := &benchmark.BuildExport(snapshot, ms, result.HasPolicy).Segment
+
+	es := summary.Build(&summary.BuildInput{
+		Snapshot:  snapshot,
+		Heatmap:   h,
+		Metrics:   ms,
+		Segment:   seg,
+		HasPolicy: result.HasPolicy,
+	})
+
+	// Build depgraph insights.
+	dg := depgraph.Build(snapshot)
+	dgCov := depgraph.AnalyzeCoverage(dg)
+	dgDupes := depgraph.DetectDuplicates(dg)
+	dgFanout := depgraph.AnalyzeFanout(dg, depgraph.DefaultFanoutThreshold)
+	dgInsights := depgraph.ProfileInsights{
+		Coverage:   &dgCov,
+		Duplicates: &dgDupes,
+		Fanout:     &dgFanout,
+	}
+	dgProfile := depgraph.AnalyzeProfile(dg, dgInsights)
+	dgEdgeCases := depgraph.DetectEdgeCases(dgProfile, dg, dgInsights)
+	dgPolicy := depgraph.ApplyEdgeCasePolicy(dgEdgeCases, dgProfile)
+
+	if jsonOutput {
+		out := map[string]any{
+			"posture":         es.Posture,
+			"topRiskAreas":    es.TopRiskAreas,
+			"recommendations": es.Recommendations,
+			"blindSpots":      es.BlindSpots,
+			"keyNumbers":      es.KeyNumbers,
+			"duplicateClusters": len(dgDupes.Clusters),
+			"duplicateCount":    dgDupes.DuplicateCount,
+			"highFanoutNodes":   dgFanout.FlaggedCount,
+			"weakCoverageCount": dgCov.BandCounts[depgraph.CoverageBandLow],
+			"repoProfile":      dgProfile,
+			"edgeCases":        dgEdgeCases,
+			"policy":           dgPolicy,
+		}
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(out)
+	}
+
+	// Human-readable output.
+	fmt.Println("Hamlet Insights")
+	fmt.Println(strings.Repeat("─", 50))
+	fmt.Println()
+
+	// Duplicate clusters.
+	fmt.Printf("Duplicate clusters:      %d (%d redundant tests)\n", len(dgDupes.Clusters), dgDupes.DuplicateCount)
+	if len(dgDupes.Clusters) > 0 {
+		top := dgDupes.Clusters[0]
+		fmt.Printf("  Top cluster: %d tests, similarity %.2f\n", len(top.Tests), top.Similarity)
+	}
+	fmt.Println()
+
+	// High-fanout fixtures.
+	fmt.Printf("High-fanout nodes:       %d (threshold: %d)\n", dgFanout.FlaggedCount, dgFanout.Threshold)
+	if len(dgFanout.Entries) > 0 && dgFanout.Entries[0].Flagged {
+		top := dgFanout.Entries[0]
+		fmt.Printf("  Highest: %s (transitive: %d)\n", top.Path, top.TransitiveFanout)
+	}
+	fmt.Println()
+
+	// Weak coverage areas.
+	lowCov := dgCov.BandCounts[depgraph.CoverageBandLow]
+	totalSrc := dgCov.SourceCount
+	fmt.Printf("Weak coverage areas:     %d / %d source files\n", lowCov, totalSrc)
+	// Show top weak areas.
+	shown := 0
+	for _, src := range dgCov.Sources {
+		if src.Band == depgraph.CoverageBandLow && shown < 5 {
+			fmt.Printf("  %s (0 tests)\n", src.Path)
+			shown++
+		}
+	}
+	fmt.Println()
+
+	// Skipped test burden.
+	skippedCount := 0
+	for _, sig := range snapshot.Signals {
+		if sig.Type == "skippedTest" || sig.Type == "conditionallySkippedTest" {
+			skippedCount++
+		}
+	}
+	if skippedCount > 0 {
+		fmt.Printf("Skipped tests:           %d\n\n", skippedCount)
+	}
+
+	// Top recommendations.
+	if len(es.Recommendations) > 0 {
+		fmt.Println("Top improvement opportunities:")
+		limit := 5
+		if len(es.Recommendations) < limit {
+			limit = len(es.Recommendations)
+		}
+		for i, r := range es.Recommendations[:limit] {
+			fmt.Printf("  %d. %s\n", i+1, r.What)
+			if r.Why != "" {
+				fmt.Printf("     why: %s\n", r.Why)
+			}
+			if r.Where != "" {
+				fmt.Printf("     where: %s\n", r.Where)
+			}
+		}
+		fmt.Println()
+	}
+
+	// Edge case warnings.
+	if len(dgEdgeCases) > 0 {
+		fmt.Println("Edge cases:")
+		for _, ec := range dgEdgeCases {
+			fmt.Printf("  [%s] %s\n", ec.Severity, ec.Description)
+		}
+		fmt.Println()
+	}
+
+	// Policy recommendation.
+	if len(dgPolicy.Recommendations) > 0 {
+		fmt.Println("Policy recommendations:")
+		for _, r := range dgPolicy.Recommendations {
+			fmt.Printf("  • %s\n", r)
+		}
+		fmt.Println()
+	}
+
+	fmt.Println("Next: hamlet explain <target>   understand why Hamlet flagged something")
+	return nil
+}
+
+// runExplain auto-detects the entity type and shows detail with reasoning.
+func runExplain(target, root string, jsonOutput bool) error {
+	result, err := engine.RunPipeline(root, defaultPipelineOptions())
+	if err != nil {
+		return fmt.Errorf("analysis failed: %w", err)
+	}
+	snap := result.Snapshot
+
+	// Try test file first.
+	for _, tf := range snap.TestFiles {
+		if tf.Path == target {
+			if jsonOutput {
+				enc := json.NewEncoder(os.Stdout)
+				enc.SetIndent("", "  ")
+				return enc.Encode(tf)
+			}
+			renderTestDetail(tf, snap)
+			return nil
+		}
+	}
+
+	// Try test case by ID or canonical identity.
+	for _, tc := range snap.TestCases {
+		if tc.TestID == target || tc.CanonicalIdentity == target {
+			if jsonOutput {
+				enc := json.NewEncoder(os.Stdout)
+				enc.SetIndent("", "  ")
+				return enc.Encode(tc)
+			}
+			renderTestCaseDetail(tc, snap)
+			return nil
+		}
+	}
+
+	// Try code unit.
+	for _, cu := range snap.CodeUnits {
+		unitID := cu.Path + ":" + cu.Name
+		if unitID == target || cu.Name == target || cu.Path == target {
+			if jsonOutput {
+				enc := json.NewEncoder(os.Stdout)
+				enc.SetIndent("", "  ")
+				return enc.Encode(cu)
+			}
+			renderCodeUnitDetail(cu, snap)
+			return nil
+		}
+	}
+
+	// Try owner.
+	ownerID := strings.ToLower(target)
+	ownerFound := false
+	if snap.Ownership != nil {
+		for _, owners := range snap.Ownership {
+			for _, o := range owners {
+				if strings.ToLower(o) == ownerID {
+					ownerFound = true
+					break
+				}
+			}
+			if ownerFound {
+				break
+			}
+		}
+	}
+	if ownerFound {
+		return showOwner(target, snap, jsonOutput)
+	}
+
+	// Try finding.
+	if snap.Portfolio != nil {
+		for i, f := range snap.Portfolio.Findings {
+			findingID := fmt.Sprintf("%d", i)
+			if findingID == target || f.Type == target {
+				return showFinding(target, snap, jsonOutput)
+			}
+		}
+	}
+
+	return fmt.Errorf("entity not found: %s\n\nTry: a test file path, test ID, code unit name, owner, or finding type", target)
 }
 
 // runMigration handles `hamlet migration readiness`, `hamlet migration blockers`,
@@ -1376,4 +1654,163 @@ func isUniqueCodeUnitName(snap *models.TestSuiteSnapshot, name string) bool {
 		}
 	}
 	return count == 1
+}
+
+// runDepgraph builds the dependency graph and runs the requested analysis.
+func runDepgraph(root string, jsonOutput bool, show string, changed string) error {
+	opt := defaultPipelineOptions()
+	result, err := engine.RunPipeline(root, opt)
+	if err != nil {
+		return fmt.Errorf("analysis failed: %w", err)
+	}
+
+	// Build the dependency graph from the snapshot.
+	dg := depgraph.Build(result.Snapshot)
+
+	// Run all engines.
+	coverage := depgraph.AnalyzeCoverage(dg)
+	duplicates := depgraph.DetectDuplicates(dg)
+	fanout := depgraph.AnalyzeFanout(dg, depgraph.DefaultFanoutThreshold)
+	insights := depgraph.ProfileInsights{
+		Coverage:   &coverage,
+		Duplicates: &duplicates,
+		Fanout:     &fanout,
+	}
+	profile := depgraph.AnalyzeProfile(dg, insights)
+	edgeCases := depgraph.DetectEdgeCases(profile, dg, insights)
+	pol := depgraph.ApplyEdgeCasePolicy(edgeCases, profile)
+
+	// Run impact if changed files specified.
+	var impactResult *depgraph.ImpactResult
+	if changed != "" {
+		files := strings.Split(changed, ",")
+		ir := depgraph.AnalyzeImpact(dg, files)
+		impactResult = &ir
+	}
+
+	// JSON output.
+	if jsonOutput {
+		out := map[string]any{
+			"stats":      dg.Stats(),
+			"coverage":   coverage,
+			"duplicates": duplicates,
+			"fanout":     fanout,
+			"profile":    profile,
+			"edgeCases":  edgeCases,
+			"policy":     pol,
+		}
+		if impactResult != nil {
+			out["impact"] = impactResult
+		}
+
+		// If a specific view was requested, output only that.
+		if show != "" {
+			if v, ok := out[show]; ok {
+				enc := json.NewEncoder(os.Stdout)
+				enc.SetIndent("", "  ")
+				return enc.Encode(v)
+			}
+			return fmt.Errorf("unknown view: %s (available: stats, coverage, duplicates, fanout, profile, impact)", show)
+		}
+
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(out)
+	}
+
+	// Text output.
+	stats := dg.Stats()
+	fmt.Println("Hamlet Dependency Graph")
+	fmt.Println(strings.Repeat("─", 50))
+	fmt.Printf("  Nodes: %d    Edges: %d    Density: %.4f\n", stats.NodeCount, stats.EdgeCount, stats.Density)
+	fmt.Println()
+
+	// Node breakdown.
+	fmt.Println("Node Types:")
+	for _, nt := range sortedMapKeys(stats.NodesByType) {
+		fmt.Printf("  %-20s %d\n", nt, stats.NodesByType[nt])
+	}
+	fmt.Println()
+
+	// Coverage summary.
+	fmt.Println("Coverage (structural):")
+	fmt.Printf("  Sources: %d   High: %d   Medium: %d   Low: %d\n",
+		coverage.SourceCount,
+		coverage.BandCounts[depgraph.CoverageBandHigh],
+		coverage.BandCounts[depgraph.CoverageBandMedium],
+		coverage.BandCounts[depgraph.CoverageBandLow])
+	fmt.Println()
+
+	// Duplicates summary.
+	fmt.Println("Duplicates:")
+	fmt.Printf("  Tests analyzed: %d   Duplicates: %d   Clusters: %d\n",
+		duplicates.TestsAnalyzed, duplicates.DuplicateCount, len(duplicates.Clusters))
+	if len(duplicates.Clusters) > 0 {
+		top := duplicates.Clusters[0]
+		fmt.Printf("  Top cluster: %d tests, similarity %.2f\n", len(top.Tests), top.Similarity)
+	}
+	fmt.Println()
+
+	// Fanout summary.
+	fmt.Println("Fanout:")
+	fmt.Printf("  Nodes: %d   Flagged: %d   Threshold: %d\n",
+		fanout.NodeCount, fanout.FlaggedCount, fanout.Threshold)
+	if len(fanout.Entries) > 0 {
+		top := fanout.Entries[0]
+		fmt.Printf("  Highest: %s (transitive: %d)\n", top.NodeID, top.TransitiveFanout)
+	}
+	fmt.Println()
+
+	// Impact (if requested).
+	if impactResult != nil {
+		fmt.Println("Impact:")
+		fmt.Printf("  Changed files: %d   Impacted tests: %d\n",
+			len(impactResult.ChangedFiles), len(impactResult.Tests))
+		fmt.Printf("  High: %d   Medium: %d   Low: %d\n",
+			impactResult.LevelCounts["high"],
+			impactResult.LevelCounts["medium"],
+			impactResult.LevelCounts["low"])
+		fmt.Println()
+	}
+
+	// Profile.
+	fmt.Println("Repository Profile:")
+	fmt.Printf("  Test Volume:          %s\n", profile.TestVolume)
+	fmt.Printf("  CI Pressure:          %s\n", profile.CIPressure)
+	fmt.Printf("  Coverage Confidence:  %s\n", profile.CoverageConfidence)
+	fmt.Printf("  Redundancy Level:     %s\n", profile.RedundancyLevel)
+	fmt.Printf("  Fanout Burden:        %s\n", profile.FanoutBurden)
+	fmt.Println()
+
+	// Edge cases and policy.
+	if len(edgeCases) > 0 {
+		fmt.Println("Edge Cases:")
+		for _, ec := range edgeCases {
+			fmt.Printf("  [%s] %s: %s\n", ec.Severity, ec.Type, ec.Description)
+		}
+		fmt.Println()
+	}
+
+	if len(pol.Recommendations) > 0 {
+		fmt.Println("Recommendations:")
+		for _, r := range pol.Recommendations {
+			fmt.Printf("  • %s\n", r)
+		}
+		fmt.Println()
+	}
+
+	fmt.Printf("Policy: fallback=%s  confidence=%.2f  optimization=%s\n",
+		pol.FallbackLevel, pol.ConfidenceAdjustment,
+		map[bool]string{true: "disabled", false: "enabled"}[pol.OptimizationDisabled])
+
+	return nil
+}
+
+func sortedMapKeys(m map[string]int) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
 }
