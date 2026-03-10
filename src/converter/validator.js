@@ -1,5 +1,6 @@
 import fs from 'fs/promises';
 import path from 'path';
+import vm from 'vm';
 import chalk from 'chalk';
 
 /**
@@ -175,8 +176,7 @@ export class TestValidator {
             )
         : content;
 
-      // eslint-disable-next-line no-new-func
-      new Function(syntaxTarget);
+      vm.compileFunction(syntaxTarget);
 
       return { status: 'passed' };
     } catch (error) {

@@ -391,7 +391,7 @@ func printUsage() {
 	fmt.Fprintln(os.Stderr, "  3. hamlet impact                     see what a change affects")
 	fmt.Fprintln(os.Stderr, "  4. hamlet explain <target>           understand why")
 	fmt.Fprintln(os.Stderr)
-	fmt.Fprintln(os.Stderr, "Docs: docs/examples/analyze-report.md, impact-report.md, insights-report.md, explain-report.md")
+	fmt.Fprintln(os.Stderr, "Docs: docs/examples/{analyze,summary,insights,explain,focus,impact}-report.md")
 }
 
 func defaultPipelineOptions() engine.PipelineOptions {

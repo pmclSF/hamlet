@@ -15,6 +15,9 @@ git clone https://github.com/pmclSF/hamlet.git
 cd hamlet
 go build -o hamlet ./cmd/hamlet
 
+# Detect coverage/runtime paths (recommended first step)
+hamlet init
+
 # Analyze the current repository
 hamlet analyze
 
@@ -213,7 +216,7 @@ internal/
 
 ## Legacy Converter Engine
 
-Hamlet originated as a multi-framework test converter (legacy, JavaScript ES modules). That engine is preserved in `src/`, `bin/`, and `test/` and remains functional. The current engine reframes migration as one dimension of broader test intelligence. See [docs/legacy/](docs/legacy/) for historical architecture docs and [CLAUDE.md](CLAUDE.md) for legacy code conventions.
+Hamlet originated as a multi-framework test converter (legacy, JavaScript ES modules), published to npm as `hamlet-testframework`. That engine is preserved in `src/`, `bin/`, and `test/` and remains functional. The current engine reframes migration as one dimension of broader test intelligence. See [docs/legacy/](docs/legacy/) for historical architecture docs and [CLAUDE.md](CLAUDE.md) for legacy code conventions.
 
 ## Development
 

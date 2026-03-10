@@ -1,3 +1,5 @@
+import vm from 'vm';
+
 /**
  * Abstract base class for all framework converters
  * All converter implementations must extend this class
@@ -67,8 +69,7 @@ export class BaseConverter {
 
     // Basic syntax check (validation only, not execution)
     try {
-      // eslint-disable-next-line no-new-func
-      new Function(content);
+      vm.compileFunction(content);
     } catch (e) {
       errors.push(`Syntax error: ${e.message}`);
     }
