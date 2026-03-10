@@ -64,22 +64,140 @@ hamlet metrics --json
 
 Run `hamlet --help` for full flag documentation.
 
-## Canonical User Journeys (Walkthrough)
+## Walkthrough: Using Hamlet on pandas
 
-Use this sequence for a complete first-run pass:
+Imagine you maintain [pandas](https://github.com/pandas-dev/pandas) — 1,000+ test files, ~52,000 test cases across pytest, and CI runs that take significant time. Here's what Hamlet tells you.
+
+### Step 1: Analyze
 
 ```bash
+cd pandas
 hamlet analyze
-hamlet insights
-hamlet impact
-hamlet explain src/auth/login.test.ts
 ```
 
-What each step gives you:
-- `analyze`: baseline framework inventory, signal profile, and risk surfaces.
-- `insights`: prioritized improvement actions with rationale.
-- `impact`: changed-file test selection with confidence and fallback context.
-- `explain`: evidence chain for a specific finding or recommendation.
+```
+Hamlet Test Suite Analysis
+══════════════════════════════════════════════════
+
+Repository Profile
+  Test volume:          very large
+  CI pressure:          high
+  Coverage confidence:  medium
+  Redundancy level:     medium
+  Fanout burden:        high
+
+Tests detected:         52,341 across 1,047 test files
+Frameworks:             pytest (100%)
+
+Weak coverage areas:
+  pandas/io/sas/          2 test files, no parametrize coverage for edge encodings
+  pandas/core/internals/  block manager has 4 tests, low relative to complexity
+  pandas/plotting/        matplotlib integration tests skip without display backend
+
+CI optimization potential:
+  Estimated 40% runtime reduction with confidence-based test selection
+  187 tests marked @pytest.mark.slow — clustered in io/ and groupby/
+
+Risk Posture
+  Quality:     medium risk   (weak assertions in 23 test files)
+  Reliability: high risk     (network-dependent tests, xfail clusters)
+  Speed:       high risk     (slow markers, single_cpu constraints)
+  Governance:  low risk
+
+Signals: 1,204 total (38 critical, 187 high, 412 medium, 567 low)
+
+Next: hamlet insights    see what to improve
+      hamlet impact      analyze a specific change
+```
+
+### Step 2: Insights — what to fix first
+
+```bash
+hamlet insights
+```
+
+```
+Top improvement opportunities:
+  1. Reduce conftest.py fixture fanout in tests/frame/
+     why: dataframe_with_arrays fixture fans out to 3,100 tests —
+          any change retriggers the entire frame/ suite
+     where: pandas/tests/frame/conftest.py
+
+  2. Add structural tests for pandas/core/internals/
+     why: Block manager is critical infrastructure with minimal test density
+     where: pandas/core/internals/
+
+  3. Review 34 xfail(strict=False) markers older than 6 months
+     why: Loose xfail masks real regressions — either fix or remove
+     where: pandas/tests/io/, pandas/tests/indexing/
+
+  4. Consolidate duplicate GroupBy aggregation tests
+     why: 8 tests across 3 files with 0.91 similarity — redundant CI cost
+     where: pandas/tests/groupby/
+
+  5. Split network-dependent I/O tests into isolated suite
+     why: @pytest.mark.network tests fail intermittently, blocking unrelated PRs
+     where: pandas/tests/io/json/, pandas/tests/io/html/
+```
+
+### Step 3: Impact — what does your PR actually touch?
+
+You're working on a fix in `pandas/core/groupby/groupby.py`. Before pushing:
+
+```bash
+hamlet impact --base main
+```
+
+```
+Hamlet Impact Analysis
+══════════════════════════════════════════════════
+
+Changed areas:
+  core/groupby           pandas/core/groupby/groupby.py (+8 -2)
+
+Impacted tests:          127 / 52,341
+
+Selected tests (top 10):
+  [high]   tests/groupby/test_groupby.py                confidence: 0.96
+  [high]   tests/groupby/test_apply.py                   confidence: 0.93
+  [high]   tests/groupby/test_grouper.py                 confidence: 0.88
+  [medium] tests/resample/test_base.py                   confidence: 0.61
+  [medium] tests/frame/methods/test_describe.py          confidence: 0.54
+  ...and 117 more
+
+Insights:
+  conftest.py fixture path amplifies impact — 74 of 127 tests reached via
+  shared fixtures, not direct imports. Consider targeted test run:
+    pytest tests/groupby/ -x -q
+```
+
+### Step 4: Explain — why did Hamlet flag something?
+
+```bash
+hamlet explain pandas/tests/io/json/test_pandas.py
+```
+
+```
+Test File: pandas/tests/io/json/test_pandas.py
+Framework: pytest
+Tests: 84    Assertions: 312
+Runtime: 4.2s    Pass rate: 96%    Retry rate: 4%
+
+Signals (4):
+  [high]   networkDependency: 12 tests use @pytest.mark.network — flaky in CI
+  [medium] slowTest: 4.2s runtime exceeds 2s threshold
+  [medium] weakAssertion: 8 bare assert statements without descriptive messages
+  [low]    xfailAccumulation: 3 xfail markers older than 180 days
+```
+
+### The pattern
+
+```
+hamlet analyze     →  "What is the state of our test system?"
+hamlet insights    →  "What should we fix first?"
+hamlet impact      →  "What tests matter for this PR?"
+hamlet explain     →  "Why was this flagged?"
+```
 
 See [Canonical User Journeys](docs/product/canonical-user-journeys.md) for the full workflow and [example outputs](docs/examples/).
 
