@@ -377,14 +377,7 @@ func buildBenchmarkReadiness(ms *metrics.Snapshot, seg *benchmark.Segment) Bench
 		"migration blocker counts",
 	}
 
-	// Check for runtime data availability
-	hasRuntime := false
-	for _, note := range ms.Notes {
-		if strings.Contains(note, "No runtime") {
-			break
-		}
-	}
-	// If no "No runtime" note, runtime is available
+	// Check for runtime data availability.
 	runtimeLimited := false
 	for _, note := range ms.Notes {
 		if strings.Contains(note, "runtime") {
@@ -393,7 +386,6 @@ func buildBenchmarkReadiness(ms *metrics.Snapshot, seg *benchmark.Segment) Bench
 	}
 
 	if !runtimeLimited {
-		hasRuntime = true
 		br.ReadyDimensions = append(br.ReadyDimensions, "health metrics (runtime-backed)")
 	} else {
 		br.LimitedDimensions = append(br.LimitedDimensions, BenchmarkLimitation{
@@ -402,12 +394,10 @@ func buildBenchmarkReadiness(ms *metrics.Snapshot, seg *benchmark.Segment) Bench
 		})
 	}
 
-	// Governance readiness depends on policy presence
+	// Governance readiness depends on policy presence.
 	if ms.Governance.PolicyViolationCount > 0 || (seg != nil && seg.HasPolicy) {
 		br.ReadyDimensions = append(br.ReadyDimensions, "governance metrics")
 	}
-
-	_ = hasRuntime
 
 	return br
 }

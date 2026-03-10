@@ -23,15 +23,59 @@ type EdgeCase struct {
 }
 
 // FallbackLevel indicates how conservative the system should be.
-type FallbackLevel string
+// Levels are ordered by increasing conservatism via their numeric values.
+type FallbackLevel int
 
 const (
-	FallbackDirectDeps      FallbackLevel = "DirectDeps"
-	FallbackFixtureExpand   FallbackLevel = "FixtureExpansion"
-	FallbackPackageTests    FallbackLevel = "PackageTests"
-	FallbackSmokeRegression FallbackLevel = "SmokeRegression"
-	FallbackFullSuite       FallbackLevel = "FullSuite"
+	FallbackDirectDeps      FallbackLevel = iota // least conservative
+	FallbackFixtureExpand                        // expand fixture dependents
+	FallbackPackageTests                         // run all package tests
+	FallbackSmokeRegression                      // smoke + regression suite
+	FallbackFullSuite                            // most conservative — run everything
 )
+
+// fallbackLevelNames maps FallbackLevel values to their JSON string representations.
+var fallbackLevelNames = map[FallbackLevel]string{
+	FallbackDirectDeps:      "DirectDeps",
+	FallbackFixtureExpand:   "FixtureExpansion",
+	FallbackPackageTests:    "PackageTests",
+	FallbackSmokeRegression: "SmokeRegression",
+	FallbackFullSuite:       "FullSuite",
+}
+
+// fallbackLevelValues maps JSON string representations to FallbackLevel values.
+var fallbackLevelValues = map[string]FallbackLevel{
+	"DirectDeps":      FallbackDirectDeps,
+	"FixtureExpansion": FallbackFixtureExpand,
+	"PackageTests":    FallbackPackageTests,
+	"SmokeRegression": FallbackSmokeRegression,
+	"FullSuite":       FallbackFullSuite,
+}
+
+// String returns the string representation of a FallbackLevel.
+func (f FallbackLevel) String() string {
+	if s, ok := fallbackLevelNames[f]; ok {
+		return s
+	}
+	return fmt.Sprintf("FallbackLevel(%d)", int(f))
+}
+
+// MarshalText implements encoding.TextMarshaler for JSON serialization.
+func (f FallbackLevel) MarshalText() ([]byte, error) {
+	if s, ok := fallbackLevelNames[f]; ok {
+		return []byte(s), nil
+	}
+	return nil, fmt.Errorf("unknown FallbackLevel: %d", int(f))
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler for JSON deserialization.
+func (f *FallbackLevel) UnmarshalText(text []byte) error {
+	if v, ok := fallbackLevelValues[string(text)]; ok {
+		*f = v
+		return nil
+	}
+	return fmt.Errorf("unknown FallbackLevel: %q", string(text))
+}
 
 // Policy captures the recommendations derived from edge case analysis.
 type Policy struct {
@@ -94,6 +138,22 @@ func DetectEdgeCases(profile RepoProfile, g *Graph, insights ProfileInsights) []
 		}
 	}
 
+	if profile.SkipBurden == "high" {
+		cases = append(cases, EdgeCase{
+			Type:        EdgeCaseHighSkipBurden,
+			Severity:    "caution",
+			Description: "High proportion of skipped tests — optimization may select already-skipped tests.",
+		})
+	}
+
+	if profile.FlakeBurden == "high" {
+		cases = append(cases, EdgeCase{
+			Type:        EdgeCaseHighFlakeBurden,
+			Severity:    "caution",
+			Description: "High proportion of flaky tests — selected tests may produce unreliable results.",
+		})
+	}
+
 	if profile.CoverageConfidence == "low" {
 		cases = append(cases, EdgeCase{
 			Type:        EdgeCaseLowGraphVisibility,
@@ -141,6 +201,23 @@ func ApplyEdgeCasePolicy(cases []EdgeCase, profile RepoProfile) Policy {
 			policy.ConfidenceAdjustment *= 0.7
 			policy.Recommendations = append(policy.Recommendations,
 				"High-fanout fixtures create fragile dependencies. Consider breaking down shared fixtures.")
+
+		case EdgeCaseHighSkipBurden:
+			if policy.FallbackLevel < FallbackPackageTests {
+				policy.FallbackLevel = FallbackPackageTests
+			}
+			policy.ConfidenceAdjustment *= 0.85
+			policy.Recommendations = append(policy.Recommendations,
+				"High skip burden detected. Review skipped tests before relying on test selection.")
+
+		case EdgeCaseHighFlakeBurden:
+			if policy.FallbackLevel < FallbackPackageTests {
+				policy.FallbackLevel = FallbackPackageTests
+			}
+			policy.ConfidenceAdjustment *= 0.75
+			policy.RiskElevated = true
+			policy.Recommendations = append(policy.Recommendations,
+				"High flake burden undermines test reliability. Stabilize flaky tests to improve selection confidence.")
 
 		case EdgeCaseLowGraphVisibility:
 			if policy.FallbackLevel < FallbackSmokeRegression {

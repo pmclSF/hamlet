@@ -35,9 +35,9 @@ import (
 	"strings"
 
 	"github.com/pmclSF/hamlet/internal/benchmark"
-	"github.com/pmclSF/hamlet/internal/depgraph"
 	"github.com/pmclSF/hamlet/internal/changescope"
 	"github.com/pmclSF/hamlet/internal/comparison"
+	"github.com/pmclSF/hamlet/internal/depgraph"
 	"github.com/pmclSF/hamlet/internal/engine"
 	"github.com/pmclSF/hamlet/internal/governance"
 	"github.com/pmclSF/hamlet/internal/graph"
@@ -938,6 +938,7 @@ func runInsights(root string, jsonOutput bool) error {
 		Fanout:     &dgFanout,
 	}
 	dgProfile := depgraph.AnalyzeProfile(dg, dgInsights)
+	depgraph.EnrichProfileWithHealthRatios(&dgProfile, ms.Health.SkippedTestRatio, ms.Health.FlakyTestRatio)
 	dgEdgeCases := depgraph.DetectEdgeCases(dgProfile, dg, dgInsights)
 	dgPolicy := depgraph.ApplyEdgeCasePolicy(dgEdgeCases, dgProfile)
 
@@ -1677,6 +1678,8 @@ func runDepgraph(root string, jsonOutput bool, show string, changed string) erro
 		Fanout:     &fanout,
 	}
 	profile := depgraph.AnalyzeProfile(dg, insights)
+	dgMetrics := metrics.Derive(result.Snapshot)
+	depgraph.EnrichProfileWithHealthRatios(&profile, dgMetrics.Health.SkippedTestRatio, dgMetrics.Health.FlakyTestRatio)
 	edgeCases := depgraph.DetectEdgeCases(profile, dg, insights)
 	pol := depgraph.ApplyEdgeCasePolicy(edgeCases, profile)
 

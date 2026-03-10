@@ -178,15 +178,9 @@ func AnalyzeCoverage(g *Graph) CoverageResult {
 // collectTestsInFile returns the IDs of all Test nodes defined in a given
 // file (identified by file node ID).
 func collectTestsInFile(g *Graph, fileID string) []string {
-	var tests []string
-	for _, e := range g.Outgoing(fileID) {
-		if e.Type == EdgeTestDefinedInFile {
-			// This edge goes from test → file, but we stored it as test→file.
-			// Actually, we need to check incoming edges to the file.
-		}
-	}
 	// Tests have edges test→file via TestDefinedInFile.
-	// So we look for incoming TestDefinedInFile edges to this file.
+	// Look for incoming TestDefinedInFile edges to this file.
+	var tests []string
 	for _, e := range g.Incoming(fileID) {
 		if e.Type == EdgeTestDefinedInFile {
 			tests = append(tests, e.From)

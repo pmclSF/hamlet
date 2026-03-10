@@ -18,6 +18,12 @@ type RepoProfile struct {
 	// FanoutBurden measures the proportion of high-fanout nodes.
 	FanoutBurden string `json:"fanoutBurden"` // low, medium, high
 
+	// SkipBurden measures the proportion of skipped tests.
+	SkipBurden string `json:"skipBurden"` // low, medium, high
+
+	// FlakeBurden measures the proportion of flaky tests.
+	FlakeBurden string `json:"flakeBurden"` // low, medium, high
+
 	// GraphDensity is the raw edge-to-node ratio.
 	GraphDensity float64 `json:"graphDensity"`
 }
@@ -99,6 +105,24 @@ func classifyRedundancy(dupes *DuplicateResult) string {
 	case ratio > 0.30:
 		return "high"
 	case ratio > 0.10:
+		return "medium"
+	default:
+		return "low"
+	}
+}
+
+// EnrichProfileWithHealthRatios sets skip and flake burden on a profile
+// using ratios computed from runtime health metrics.
+func EnrichProfileWithHealthRatios(profile *RepoProfile, skipRatio, flakeRatio float64) {
+	profile.SkipBurden = classifyRatioBurden(skipRatio)
+	profile.FlakeBurden = classifyRatioBurden(flakeRatio)
+}
+
+func classifyRatioBurden(ratio float64) string {
+	switch {
+	case ratio > 0.20:
+		return "high"
+	case ratio > 0.05:
 		return "medium"
 	default:
 		return "low"

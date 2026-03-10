@@ -184,12 +184,20 @@ func buildSourceToSourceEdges(g *Graph, snap *models.TestSuiteSnapshot) {
 	// For each pair of sources imported by the same test file, create an
 	// inferred edge if they share enough test importers.
 	// This is kept lightweight — only considers co-imports from same test.
-	for testPath, imports := range snap.ImportGraph {
+	// Track existing edges to avoid O(n²) linear scans per pair.
+	type edgeKey struct{ from, to string }
+	seen := map[edgeKey]bool{}
+	for _, e := range g.Edges() {
+		if e.Type == EdgeSourceImportsSource {
+			seen[edgeKey{e.From, e.To}] = true
+		}
+	}
+
+	for _, imports := range snap.ImportGraph {
 		srcList := make([]string, 0, len(imports))
 		for s := range imports {
 			srcList = append(srcList, s)
 		}
-		_ = testPath // used to scope the loop
 
 		// Only create source→source edges within the same package to
 		// avoid noisy cross-package connections.
@@ -199,15 +207,9 @@ func buildSourceToSourceEdges(g *Graph, snap *models.TestSuiteSnapshot) {
 					srcAID := "file:" + srcList[i]
 					srcBID := "file:" + srcList[j]
 
-					// Check if this edge already exists.
-					exists := false
-					for _, e := range g.Outgoing(srcAID) {
-						if e.To == srcBID && e.Type == EdgeSourceImportsSource {
-							exists = true
-							break
-						}
-					}
-					if !exists {
+					key := edgeKey{srcAID, srcBID}
+					if !seen[key] {
+						seen[key] = true
 						g.AddEdge(&Edge{
 							From:         srcAID,
 							To:           srcBID,
@@ -232,13 +234,9 @@ func inferPackage(filePath string) string {
 	}
 
 	// Handle monorepo patterns: packages/X, libs/X, apps/X.
-	if len(parts) >= 2 {
-		switch parts[0] {
-		case "packages", "libs", "apps", "modules":
-			if len(parts) >= 2 {
-				return parts[0] + "/" + parts[1]
-			}
-		}
+	switch parts[0] {
+	case "packages", "libs", "apps", "modules":
+		return parts[0] + "/" + parts[1]
 	}
 
 	// Default: use the first directory.

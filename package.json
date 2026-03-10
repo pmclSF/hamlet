@@ -53,14 +53,18 @@
     "url": "https://github.com/pmclSF/hamlet/issues"
   },
   "scripts": {
-    "test": "NODE_OPTIONS='--experimental-vm-modules' jest",
+    "dev": "tsc -p tsconfig.v3.json --watch",
+    "build": "tsc -p tsconfig.v3.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:v2": "NODE_OPTIONS='--experimental-vm-modules' jest",
     "lint": "eslint src/**/*.js",
     "format": "prettier --write \"src/**/*.js\" \"bin/**/*.js\"",
     "format:check": "prettier --check \"src/**/*.js\" \"bin/**/*.js\"",
     "start": "node bin/hamlet.js",
     "lint-staged": "lint-staged",
     "test:staged": "jest --findRelatedTests",
-    "typecheck": "tsc --noEmit -p test/types/tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.v3.json",
     "release:verify": "npm run format:check && npm run lint && npm test && npm run typecheck && node scripts/verify-pack.js",
     "prepublishOnly": "npm run format:check && npm run lint && npm test && npm run typecheck"
   },
@@ -94,13 +98,15 @@
     "commander": "^14.0.3",
     "fast-glob": "^3.3.3",
     "pixelmatch": "^7.1.0",
-    "pngjs": "^7.0.0"
+    "pngjs": "^7.0.0",
+    "zod": "^3.24.0"
   },
   "devDependencies": {
     "@commitlint/cli": "^19.6.1",
     "@commitlint/config-conventional": "^19.6.0",
     "@playwright/test": "^1.40.0",
     "@types/jest": "^29.5.3",
+    "@types/node": "^22.0.0",
     "eslint": "^8.57.1",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-jest": "^29.15.0",
@@ -108,10 +114,12 @@
     "lint-staged": "^16.2.7",
     "prettier": "^3.0.0",
     "ts-jest": "^29.1.1",
-    "typescript": "^5.3.0"
+    "ts-node": "^10.9.0",
+    "typescript": "^5.3.0",
+    "vitest": "^3.0.0"
   },
   "lint-staged": {
-    "*.js": [
+    "*.{js,ts}": [
       "prettier --write",
       "eslint --fix --max-warnings=0"
     ]

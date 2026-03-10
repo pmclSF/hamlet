@@ -9,6 +9,8 @@
     "coverageConfidence": "low",
     "redundancyLevel": "low",
     "fanoutBurden": "low",
+    "skipBurden": "",
+    "flakeBurden": "",
     "graphDensity": 0.007906558849955076
   },
   "weakCoverageCount": 0

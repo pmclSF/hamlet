@@ -169,7 +169,7 @@ var (
 )
 
 func extractJSExports(root, relPath string) []models.CodeUnit {
-	content, err := os.ReadFile(root + "/" + relPath)
+	content, err := os.ReadFile(filepath.Join(root, relPath))
 	if err != nil {
 		return nil
 	}
@@ -254,7 +254,7 @@ func buildUnitID(path, name, parent string) string {
 }
 
 func extractGoExports(root, relPath string) []models.CodeUnit {
-	content, err := os.ReadFile(root + "/" + relPath)
+	content, err := os.ReadFile(filepath.Join(root, relPath))
 	if err != nil {
 		return nil
 	}
@@ -297,7 +297,7 @@ func extractGoExports(root, relPath string) []models.CodeUnit {
 }
 
 func extractPythonExports(root, relPath string) []models.CodeUnit {
-	content, err := os.ReadFile(root + "/" + relPath)
+	content, err := os.ReadFile(filepath.Join(root, relPath))
 	if err != nil {
 		return nil
 	}
@@ -346,7 +346,7 @@ func pythonAllExports(src string) map[string]bool {
 }
 
 func extractJavaExports(root, relPath string) []models.CodeUnit {
-	content, err := os.ReadFile(root + "/" + relPath)
+	content, err := os.ReadFile(filepath.Join(root, relPath))
 	if err != nil {
 		return nil
 	}
@@ -543,7 +543,7 @@ func walkDirRec(root, rel string, fn func(relPath string, isDir bool) bool) erro
 	for _, e := range entries {
 		childRel := e.Name()
 		if rel != "" {
-			childRel = rel + "/" + e.Name()
+			childRel = filepath.Join(rel, e.Name())
 		}
 		if e.Type()&os.ModeSymlink != 0 {
 			// Skip symlinks to avoid filesystem cycles.

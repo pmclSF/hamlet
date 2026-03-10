@@ -47,6 +47,9 @@ const DefaultFanoutThreshold = 10
 // reachable nodes. Uses reverse-topological traversal to compute transitive
 // reachability for all nodes in a single O(n+e) pass instead of per-node BFS.
 func AnalyzeFanout(g *Graph, threshold int) FanoutResult {
+	if g == nil {
+		return FanoutResult{}
+	}
 	if threshold <= 0 {
 		threshold = DefaultFanoutThreshold
 	}
