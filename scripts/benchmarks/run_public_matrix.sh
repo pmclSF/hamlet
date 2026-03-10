@@ -258,6 +258,16 @@ if expect.get('require_posture', False):
     if not meas or not meas.get('posture'):
         failures.append('posture dimensions missing')
 
+# Check that analyze command succeeded if required.
+if expect.get('analyze_must_succeed', False):
+    meta_path = os.path.join('$out_dir', 'analyze_json.meta')
+    if os.path.exists(meta_path):
+        for line in open(meta_path):
+            if 'exit_code' in line and line.strip().split(': ')[-1] != '0':
+                failures.append('analyze --json command failed')
+    else:
+        failures.append('analyze_json command not run')
+
 # Check that portfolio succeeded if required.
 if expect.get('portfolio_must_succeed', False):
     meta_path = os.path.join('$out_dir', 'portfolio.meta')

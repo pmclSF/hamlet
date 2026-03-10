@@ -8,7 +8,7 @@
 //  1. Explicit Hamlet ownership config (.hamlet/ownership.yaml)
 //  2. CODEOWNERS file matching
 //  3. Path-prefix mapping (.hamlet/ownership.yaml path_mappings)
-//  4. Optional git-history fallback (.hamlet/ownership.yaml git_history)
+//  4. Git-history fallback (.hamlet/ownership.yaml git_history or auto when CODEOWNERS is absent)
 //  5. Directory-based fallback (top-level directory name)
 //  6. "unknown" when nothing matches
 //
@@ -40,8 +40,9 @@ type PathMapping struct {
 
 // GitHistoryConfig controls optional git-history ownership fallback.
 type GitHistoryConfig struct {
-	Enabled    bool `yaml:"enabled"`
-	MaxCommits int  `yaml:"max_commits"`
+	Enabled              bool  `yaml:"enabled"`
+	MaxCommits           int   `yaml:"max_commits"`
+	AutoWhenNoCodeowners *bool `yaml:"auto_when_no_codeowners"`
 }
 
 // Config is the explicit ownership configuration from .hamlet/ownership.yaml.
@@ -61,17 +62,23 @@ type Resolver struct {
 	pathMappings      []PathMapping
 	codeowners        *CodeownersFile
 	gitHistoryEnabled bool
+	// gitHistoryAutoNoCodeowners enables automatic git-history fallback when
+	// no CODEOWNERS file is present. This is enabled by default and can be
+	// disabled via ownership.git_history.auto_when_no_codeowners: false.
+	gitHistoryAutoNoCodeowners bool
 	gitHistoryMaxLogs int
 	gitHistoryOwners  map[string]string
 	gitHistoryLoaded  bool
 	diagnostics       []Diagnostic
-	sourcesUsed       []SourceType
 }
 
 // NewResolver creates a Resolver by loading ownership config and CODEOWNERS
 // from the given repository root. Missing files are handled gracefully.
 func NewResolver(repoRoot string) *Resolver {
-	r := &Resolver{repoRoot: repoRoot}
+	r := &Resolver{
+		repoRoot:                    repoRoot,
+		gitHistoryAutoNoCodeowners:  true,
+	}
 	r.loadExplicitConfig(repoRoot)
 	r.loadCodeownersFile(repoRoot)
 	return r
@@ -104,7 +111,7 @@ func (r *Resolver) ResolveAssignment(relPath string) OwnershipAssignment {
 		return a
 	}
 
-	// 4. Optional git-history fallback.
+	// 4. Git-history fallback.
 	if a, ok := r.matchGitHistoryAssignment(relPath); ok {
 		return a
 	}
@@ -174,7 +181,7 @@ func (r *Resolver) SourcesUsed() []SourceType {
 	if len(r.pathMappings) > 0 {
 		sources = append(sources, SourcePathMapping)
 	}
-	if r.gitHistoryEnabled {
+	if r.gitHistoryEnabled || (r.gitHistoryAutoNoCodeowners && !r.HasCodeowners()) {
 		sources = append(sources, SourceGitHistory)
 	}
 	return sources
@@ -207,6 +214,9 @@ func (r *Resolver) loadExplicitConfig(root string) {
 	r.pathMappings = ownershipFile.Ownership.PathMappings
 	r.gitHistoryEnabled = ownershipFile.Ownership.GitHistory.Enabled
 	r.gitHistoryMaxLogs = ownershipFile.Ownership.GitHistory.MaxCommits
+	if ownershipFile.Ownership.GitHistory.AutoWhenNoCodeowners != nil {
+		r.gitHistoryAutoNoCodeowners = *ownershipFile.Ownership.GitHistory.AutoWhenNoCodeowners
+	}
 	if r.gitHistoryEnabled && r.gitHistoryMaxLogs <= 0 {
 		r.gitHistoryMaxLogs = 1000
 	}
@@ -229,7 +239,7 @@ func (r *Resolver) matchExplicitAssignment(relPath string) (OwnershipAssignment,
 		rule := &r.explicitRules[i]
 		prefix := filepath.ToSlash(rule.Path)
 		prefix = strings.TrimSuffix(prefix, "/")
-		if strings.HasPrefix(normalized, prefix) && len(prefix) > bestLen {
+		if pathHasPrefix(normalized, prefix) && len(prefix) > bestLen {
 			bestRule = rule
 			bestLen = len(prefix)
 		}
@@ -271,7 +281,7 @@ func (r *Resolver) matchPathMapping(relPath string) (OwnershipAssignment, bool) 
 		pm := &r.pathMappings[i]
 		prefix := filepath.ToSlash(pm.Prefix)
 		prefix = strings.TrimSuffix(prefix, "/")
-		if strings.HasPrefix(normalized, prefix) && len(prefix) > bestLen {
+		if pathHasPrefix(normalized, prefix) && len(prefix) > bestLen {
 			bestMapping = pm
 			bestLen = len(prefix)
 		}
@@ -294,4 +304,32 @@ func (r *Resolver) matchPathMapping(relPath string) (OwnershipAssignment, bool) 
 		MatchedRule: bestMapping.Prefix,
 		SourceFile:  ".hamlet/ownership.yaml",
 	}, true
+}
+
+func pathHasPrefix(path, prefix string) bool {
+	if prefix == "" || prefix == "." {
+		return false
+	}
+
+	normPath := filepath.ToSlash(filepath.Clean(path))
+	normPrefix := filepath.ToSlash(filepath.Clean(prefix))
+	if normPrefix == "." {
+		return false
+	}
+
+	if normPath == normPrefix {
+		return true
+	}
+
+	return strings.HasPrefix(normPath, normPrefix+"/")
+}
+
+func (r *Resolver) shouldTryGitHistory() bool {
+	if r.gitHistoryEnabled {
+		return true
+	}
+	if !r.gitHistoryAutoNoCodeowners {
+		return false
+	}
+	return !r.HasCodeowners()
 }

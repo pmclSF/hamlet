@@ -7,90 +7,90 @@ import (
 	"github.com/pmclSF/hamlet/internal/models"
 )
 
-func TestComputeReadiness_NoBlockers(t *testing.T) {
-	snap := &models.TestSuiteSnapshot{
-		TestFiles: []models.TestFile{
-			{Path: "test/a.test.js"},
-			{Path: "test/b.test.js"},
+func TestComputeReadiness_BlockerRatios(t *testing.T) {
+	t.Parallel()
+	buildSignals := func(count int, signalType models.SignalType, blockerType string) []models.Signal {
+		out := make([]models.Signal, 0, count)
+		for i := 0; i < count; i++ {
+			out = append(out, models.Signal{
+				Type:     signalType,
+				Metadata: map[string]any{"blockerType": blockerType},
+			})
+		}
+		return out
+	}
+
+	tests := []struct {
+		name             string
+		testFileCount    int
+		signals          []models.Signal
+		wantReadiness    string
+		wantTotalBlocker int
+	}{
+		{
+			name:          "no blockers",
+			testFileCount: 2,
+			signals: []models.Signal{
+				{Type: "weakAssertion"},
+			},
+			wantReadiness:    "high",
+			wantTotalBlocker: 0,
 		},
-		Signals: []models.Signal{
-			{Type: "weakAssertion"},
+		{
+			name:             "few blockers",
+			testFileCount:    20,
+			signals:          buildSignals(1, "deprecatedTestPattern", "deprecated-pattern"),
+			wantReadiness:    "high", // 5%
+			wantTotalBlocker: 1,
+		},
+		{
+			name:             "medium blockers",
+			testFileCount:    20,
+			signals:          buildSignals(4, "deprecatedTestPattern", "deprecated-pattern"),
+			wantReadiness:    "medium", // 20%
+			wantTotalBlocker: 4,
+		},
+		{
+			name:             "many blockers",
+			testFileCount:    10,
+			signals:          buildSignals(8, "migrationBlocker", "custom-matcher"),
+			wantReadiness:    "low", // 80%
+			wantTotalBlocker: 8,
+		},
+		{
+			name:             "no test files",
+			testFileCount:    0,
+			signals:          nil,
+			wantReadiness:    "unknown",
+			wantTotalBlocker: 0,
 		},
 	}
 
-	r := ComputeReadiness(snap)
-	if r.ReadinessLevel != "high" {
-		t.Errorf("readiness = %q, want high", r.ReadinessLevel)
-	}
-	if r.TotalBlockers != 0 {
-		t.Errorf("totalBlockers = %d, want 0", r.TotalBlockers)
-	}
-}
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			snap := &models.TestSuiteSnapshot{
+				TestFiles: make([]models.TestFile, tt.testFileCount),
+				Signals:   tt.signals,
+			}
+			for i := range snap.TestFiles {
+				snap.TestFiles[i].Path = fmt.Sprintf("test/%d.test.js", i)
+			}
 
-func TestComputeReadiness_FewBlockers(t *testing.T) {
-	snap := &models.TestSuiteSnapshot{
-		TestFiles: make([]models.TestFile, 20),
-		Signals: []models.Signal{
-			{Type: "deprecatedTestPattern", Metadata: map[string]any{"blockerType": "deprecated-pattern"}},
-		},
-	}
-
-	r := ComputeReadiness(snap)
-	if r.ReadinessLevel != "high" {
-		t.Errorf("readiness = %q, want high (1/20 = 5%%)", r.ReadinessLevel)
-	}
-}
-
-func TestComputeReadiness_MediumBlockers(t *testing.T) {
-	signals := make([]models.Signal, 0)
-	for i := 0; i < 4; i++ {
-		signals = append(signals, models.Signal{
-			Type:     "deprecatedTestPattern",
-			Metadata: map[string]any{"blockerType": "deprecated-pattern"},
+			r := ComputeReadiness(snap)
+			if r.ReadinessLevel != tt.wantReadiness {
+				t.Errorf("readiness = %q, want %q", r.ReadinessLevel, tt.wantReadiness)
+			}
+			if r.TotalBlockers != tt.wantTotalBlocker {
+				t.Errorf("totalBlockers = %d, want %d", r.TotalBlockers, tt.wantTotalBlocker)
+			}
 		})
-	}
-
-	snap := &models.TestSuiteSnapshot{
-		TestFiles: make([]models.TestFile, 20),
-		Signals:   signals,
-	}
-
-	r := ComputeReadiness(snap)
-	if r.ReadinessLevel != "medium" {
-		t.Errorf("readiness = %q, want medium (4/20 = 20%%)", r.ReadinessLevel)
-	}
-}
-
-func TestComputeReadiness_ManyBlockers(t *testing.T) {
-	signals := make([]models.Signal, 0)
-	for i := 0; i < 8; i++ {
-		signals = append(signals, models.Signal{
-			Type:     "migrationBlocker",
-			Metadata: map[string]any{"blockerType": "custom-matcher"},
-		})
-	}
-
-	snap := &models.TestSuiteSnapshot{
-		TestFiles: make([]models.TestFile, 10),
-		Signals:   signals,
-	}
-
-	r := ComputeReadiness(snap)
-	if r.ReadinessLevel != "low" {
-		t.Errorf("readiness = %q, want low (8/10 = 80%%)", r.ReadinessLevel)
-	}
-}
-
-func TestComputeReadiness_NoTestFiles(t *testing.T) {
-	snap := &models.TestSuiteSnapshot{}
-
-	r := ComputeReadiness(snap)
-	if r.ReadinessLevel != "unknown" {
-		t.Errorf("readiness = %q, want unknown for empty repo", r.ReadinessLevel)
 	}
 }
 
 func TestComputeReadiness_BlockersByType(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: make([]models.TestFile, 10),
 		Signals: []models.Signal{
@@ -112,6 +112,7 @@ func TestComputeReadiness_BlockersByType(t *testing.T) {
 // --- Quality factor tests ---
 
 func TestComputeReadiness_QualityFactors_WeakAssertionsInBlockerFiles(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: []models.TestFile{
 			{Path: "src/legacy.test.js"},
@@ -145,6 +146,7 @@ func TestComputeReadiness_QualityFactors_WeakAssertionsInBlockerFiles(t *testing
 }
 
 func TestComputeReadiness_QualityFactors_NoOverlapNoFactors(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: []models.TestFile{
 			{Path: "src/legacy.test.js"},
@@ -172,6 +174,7 @@ func TestComputeReadiness_QualityFactors_NoOverlapNoFactors(t *testing.T) {
 }
 
 func TestComputeReadiness_QualityFactors_MultipleTypes(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: []models.TestFile{
 			{Path: "src/old.test.js"},
@@ -213,6 +216,7 @@ func TestComputeReadiness_QualityFactors_MultipleTypes(t *testing.T) {
 // --- Area assessment tests ---
 
 func TestComputeReadiness_AreaAssessments_RiskyArea(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: []models.TestFile{
 			{Path: "legacy/old.test.js"},
@@ -249,6 +253,7 @@ func TestComputeReadiness_AreaAssessments_RiskyArea(t *testing.T) {
 }
 
 func TestComputeReadiness_AreaAssessments_SafeArea(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: []models.TestFile{
 			{Path: "modern/clean.test.js"},
@@ -266,6 +271,7 @@ func TestComputeReadiness_AreaAssessments_SafeArea(t *testing.T) {
 }
 
 func TestComputeReadiness_AreaAssessments_CautionBlockersOnly(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: []models.TestFile{
 			{Path: "mid/file.test.js"},
@@ -290,6 +296,7 @@ func TestComputeReadiness_AreaAssessments_CautionBlockersOnly(t *testing.T) {
 }
 
 func TestComputeReadiness_AreaAssessments_CautionQualityOnly(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: []models.TestFile{
 			{Path: "src/file.test.js"},
@@ -313,6 +320,7 @@ func TestComputeReadiness_AreaAssessments_CautionQualityOnly(t *testing.T) {
 }
 
 func TestComputeReadiness_AreaAssessments_MixedRepo(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: []models.TestFile{
 			{Path: "legacy/old.test.js"},
@@ -364,6 +372,7 @@ func TestComputeReadiness_AreaAssessments_MixedRepo(t *testing.T) {
 // --- Coverage guidance tests ---
 
 func TestComputeReadiness_CoverageGuidance_HighPriorityForRiskyArea(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: []models.TestFile{
 			{Path: "legacy/old.test.js"},
@@ -396,6 +405,7 @@ func TestComputeReadiness_CoverageGuidance_HighPriorityForRiskyArea(t *testing.T
 }
 
 func TestComputeReadiness_CoverageGuidance_NoneForSafeArea(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: []models.TestFile{
 			{Path: "modern/clean.test.js"},
@@ -410,6 +420,7 @@ func TestComputeReadiness_CoverageGuidance_NoneForSafeArea(t *testing.T) {
 }
 
 func TestComputeReadiness_CoverageGuidance_UntestedExportsHighPriority(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: []models.TestFile{
 			{Path: "src/api.test.js"},
@@ -444,54 +455,60 @@ func TestComputeReadiness_CoverageGuidance_UntestedExportsHighPriority(t *testin
 
 // --- Tier taxonomy tests ---
 
-func TestTierForSignal_PatternOverride(t *testing.T) {
-	// enzyme-usage should be hard-blocker via pattern map.
-	s := models.Signal{
-		Type:     "deprecatedTestPattern",
-		Metadata: map[string]any{"pattern": "enzyme-usage", "blockerType": BlockerDeprecatedPattern},
+func TestTierForSignal(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name   string
+		signal models.Signal
+		want   string
+	}{
+		{
+			name: "enzyme usage is hard blocker by pattern override",
+			signal: models.Signal{
+				Type:     "deprecatedTestPattern",
+				Metadata: map[string]any{"pattern": "enzyme-usage", "blockerType": BlockerDeprecatedPattern},
+			},
+			want: TierHardBlocker,
+		},
+		{
+			name: "dynamic generation defaults to advisory by blocker type",
+			signal: models.Signal{
+				Type:     "dynamicTestGeneration",
+				Metadata: map[string]any{"blockerType": BlockerDynamicGeneration},
+			},
+			want: TierAdvisory,
+		},
+		{
+			name: "missing metadata falls back to soft blocker",
+			signal: models.Signal{
+				Type:     "migrationBlocker",
+				Metadata: map[string]any{},
+			},
+			want: TierSoftBlocker,
+		},
+		{
+			name: "setTimeout deprecation is advisory",
+			signal: models.Signal{
+				Type:     "deprecatedTestPattern",
+				Metadata: map[string]any{"pattern": "setTimeout-in-test", "blockerType": BlockerDeprecatedPattern},
+			},
+			want: TierAdvisory,
+		},
 	}
-	tier := TierForSignal(s)
-	if tier != TierHardBlocker {
-		t.Errorf("TierForSignal(enzyme-usage) = %q, want %q", tier, TierHardBlocker)
-	}
-}
 
-func TestTierForSignal_BlockerTypeDefault(t *testing.T) {
-	// dynamic-generation without pattern should be advisory via blockerType map.
-	s := models.Signal{
-		Type:     "dynamicTestGeneration",
-		Metadata: map[string]any{"blockerType": BlockerDynamicGeneration},
-	}
-	tier := TierForSignal(s)
-	if tier != TierAdvisory {
-		t.Errorf("TierForSignal(dynamic-generation) = %q, want %q", tier, TierAdvisory)
-	}
-}
-
-func TestTierForSignal_FallbackToSoftBlocker(t *testing.T) {
-	// No pattern or blockerType metadata → conservative soft-blocker default.
-	s := models.Signal{
-		Type:     "migrationBlocker",
-		Metadata: map[string]any{},
-	}
-	tier := TierForSignal(s)
-	if tier != TierSoftBlocker {
-		t.Errorf("TierForSignal(no metadata) = %q, want %q", tier, TierSoftBlocker)
-	}
-}
-
-func TestTierForSignal_SetTimeoutIsAdvisory(t *testing.T) {
-	s := models.Signal{
-		Type:     "deprecatedTestPattern",
-		Metadata: map[string]any{"pattern": "setTimeout-in-test", "blockerType": BlockerDeprecatedPattern},
-	}
-	tier := TierForSignal(s)
-	if tier != TierAdvisory {
-		t.Errorf("TierForSignal(setTimeout-in-test) = %q, want %q", tier, TierAdvisory)
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			if tier := TierForSignal(tt.signal); tier != tt.want {
+				t.Errorf("TierForSignal(%v) = %q, want %q", tt.signal.Metadata, tier, tt.want)
+			}
+		})
 	}
 }
 
 func TestComputeReadiness_TierCounting(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: make([]models.TestFile, 20),
 		Signals: []models.Signal{
@@ -529,6 +546,7 @@ func TestComputeReadiness_TierCounting(t *testing.T) {
 }
 
 func TestComputeReadiness_AdvisoryOnlyIsHigh(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: make([]models.TestFile, 10),
 		Signals: []models.Signal{
@@ -547,9 +565,10 @@ func TestComputeReadiness_AdvisoryOnlyIsHigh(t *testing.T) {
 }
 
 func TestComputeReadiness_LowFrameworkConfidence(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		Frameworks: []models.Framework{
-			{Name: "unknown", Confidence: 0.3},
+			{Name: "unknown", Confidence: 0.3, FileCount: 10},
 		},
 		TestFiles: make([]models.TestFile, 10),
 		Signals: []models.Signal{
@@ -563,7 +582,26 @@ func TestComputeReadiness_LowFrameworkConfidence(t *testing.T) {
 	}
 }
 
+func TestComputeReadiness_UsesWeightedAverageFrameworkConfidence(t *testing.T) {
+	t.Parallel()
+	// With weighted average: (1.0*50 + 0.3*1) / 51 ≈ 0.99 — high confidence
+	// because the low-confidence framework has very few files.
+	snap := &models.TestSuiteSnapshot{
+		Frameworks: []models.Framework{
+			{Name: "jest", Confidence: 1.0, FileCount: 50},
+			{Name: "vitest", Confidence: 0.3, FileCount: 1},
+		},
+		TestFiles: make([]models.TestFile, 8),
+	}
+
+	r := ComputeReadiness(snap)
+	if r.ReadinessLevel == "unknown" {
+		t.Errorf("readiness = %q, want non-unknown when weighted confidence is high", r.ReadinessLevel)
+	}
+}
+
 func TestComputeReadiness_RepresentativeBlockersPrioritizeHard(t *testing.T) {
+	t.Parallel()
 	signals := []models.Signal{}
 	// Add 3 soft blockers first, then 2 hard blockers.
 	for i := 0; i < 3; i++ {
@@ -601,6 +639,7 @@ func TestComputeReadiness_RepresentativeBlockersPrioritizeHard(t *testing.T) {
 // --- Well-covered migration candidate (golden scenario) ---
 
 func TestComputeReadiness_WellCoveredMigrationCandidate(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		Frameworks: []models.Framework{
 			{Name: "jest", Type: models.FrameworkTypeUnit, FileCount: 40},
@@ -623,10 +662,9 @@ func TestComputeReadiness_WellCoveredMigrationCandidate(t *testing.T) {
 
 	r := ComputeReadiness(snap)
 
-	// With 1 blocker across 4 files (25%), readiness is medium.
-	// This is correct: frameworkMigration is a real blocker even in a well-covered repo.
-	if r.ReadinessLevel != "medium" {
-		t.Errorf("readiness = %q, want medium for well-covered repo with framework fragmentation", r.ReadinessLevel)
+	// frameworkMigration is advisory, so a well-covered repo remains high readiness.
+	if r.ReadinessLevel != "high" {
+		t.Errorf("readiness = %q, want high for well-covered repo with framework fragmentation", r.ReadinessLevel)
 	}
 	// No quality factors since frameworkMigration has no file location.
 	if len(r.QualityFactors) != 0 {
@@ -643,6 +681,7 @@ func TestComputeReadiness_WellCoveredMigrationCandidate(t *testing.T) {
 // --- Shallowly tested migration risk (golden scenario) ---
 
 func TestComputeReadiness_ShallowlyTestedMigrationRisk(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		Frameworks: []models.Framework{
 			{Name: "jest", Type: models.FrameworkTypeUnit, FileCount: 5},
@@ -746,6 +785,7 @@ func TestComputeReadiness_ShallowlyTestedMigrationRisk(t *testing.T) {
 // --- Mixed framework with uneven coverage (golden scenario) ---
 
 func TestComputeReadiness_MixedFrameworkUnevenCoverage(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		Frameworks: []models.Framework{
 			{Name: "jest", Type: models.FrameworkTypeUnit, FileCount: 20},

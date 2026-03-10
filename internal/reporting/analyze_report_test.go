@@ -10,6 +10,8 @@ import (
 )
 
 func TestRenderAnalyzeReport_SmokeSections(t *testing.T) {
+	t.Parallel()
+
 	snap := &models.TestSuiteSnapshot{
 		Repository: models.RepositoryMetadata{
 			Name:              "test-repo",
@@ -29,6 +31,14 @@ func TestRenderAnalyzeReport_SmokeSections(t *testing.T) {
 			{Path: "src/__tests__/auth.test.js", Framework: "jest"},
 			{Path: "src/__tests__/login.test.js", Framework: "jest"},
 		},
+		CodeUnits: []models.CodeUnit{
+			{UnitID: "src/auth.js:Login", Path: "src/auth.js", Name: "Login", Kind: models.CodeUnitKindFunction},
+		},
+		DataSources: []models.DataSource{
+			{Name: "coverage", Status: models.DataSourceUnavailable},
+			{Name: "runtime", Status: models.DataSourceUnavailable},
+			{Name: "policy", Status: models.DataSourceAvailable},
+		},
 		GeneratedAt: time.Now(),
 	}
 
@@ -46,6 +56,7 @@ func TestRenderAnalyzeReport_SmokeSections(t *testing.T) {
 		"Test Files",
 		"Discovered:  2",
 		"Signals",
+		"What This Means",
 		"Risk",
 		"Next steps:",
 	}
@@ -58,6 +69,8 @@ func TestRenderAnalyzeReport_SmokeSections(t *testing.T) {
 }
 
 func TestRenderAnalyzeReport_EmptySnapshot(t *testing.T) {
+	t.Parallel()
+
 	snap := &models.TestSuiteSnapshot{
 		Repository: models.RepositoryMetadata{
 			Name:     "empty-repo",
@@ -76,9 +89,17 @@ func TestRenderAnalyzeReport_EmptySnapshot(t *testing.T) {
 	if !strings.Contains(output, "Discovered:  0") {
 		t.Error("expected zero test file count")
 	}
+	if !strings.Contains(output, "No test files detected.") {
+		t.Error("expected no test files guidance")
+	}
+	if !strings.Contains(output, "No source code functions/classes detected.") {
+		t.Error("expected no code units guidance")
+	}
 }
 
 func TestRenderAnalyzeReport_WithSignals(t *testing.T) {
+	t.Parallel()
+
 	snap := &models.TestSuiteSnapshot{
 		Repository: models.RepositoryMetadata{
 			Name:     "sig-repo",
@@ -101,5 +122,8 @@ func TestRenderAnalyzeReport_WithSignals(t *testing.T) {
 	}
 	if !strings.Contains(output, "health") {
 		t.Error("expected health category in signals section")
+	}
+	if !strings.Contains(output, "Consider:") {
+		t.Error("expected remediation hints for findings")
 	}
 }

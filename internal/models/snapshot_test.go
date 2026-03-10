@@ -7,6 +7,7 @@ import (
 )
 
 func TestSnapshotJSONRoundTrip(t *testing.T) {
+	t.Parallel()
 	now := time.Date(2026, 3, 6, 12, 0, 0, 0, time.UTC)
 
 	snapshot := TestSuiteSnapshot{
@@ -104,6 +105,7 @@ func TestSnapshotJSONRoundTrip(t *testing.T) {
 }
 
 func TestSnapshotJSONFieldNames(t *testing.T) {
+	t.Parallel()
 	snapshot := TestSuiteSnapshot{
 		Repository: RepositoryMetadata{
 			Name:              "test",

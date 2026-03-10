@@ -2,8 +2,24 @@ package portfolio
 
 import (
 	"fmt"
+	"math"
 	"sort"
 )
+
+const (
+	// RedundancyOverlapThreshold is the minimum overlap ratio required to
+	// classify two tests as redundancy candidates.
+	RedundancyOverlapThreshold = 0.70
+
+	// redundancyPairComparisonLimit caps pairwise comparisons to keep runtime
+	// predictable on very large suites.
+	redundancyPairComparisonLimit = 200000
+)
+
+type redundancyAssetUnits struct {
+	idx   int
+	units map[string]bool
+}
 
 // detectRedundancy finds pairs of test assets that cover substantially
 // overlapping code surfaces. Two tests are redundancy candidates when:
@@ -17,11 +33,7 @@ import (
 // The team may choose to keep both for different reasons (speed, isolation).
 func detectRedundancy(assets []TestAsset) []Finding {
 	// Build index of assets with coverage or import data.
-	type assetUnits struct {
-		idx   int
-		units map[string]bool
-	}
-	var covered []assetUnits
+	var covered []redundancyAssetUnits
 	for i, a := range assets {
 		// Prefer import graph data (source-level precision).
 		if len(a.ImportedSources) > 0 {
@@ -29,7 +41,7 @@ func detectRedundancy(assets []TestAsset) []Finding {
 			for _, src := range a.ImportedSources {
 				units[src] = true
 			}
-			covered = append(covered, assetUnits{idx: i, units: units})
+			covered = append(covered, redundancyAssetUnits{idx: i, units: units})
 			continue
 		}
 		// Fall back to coverage-based modules.
@@ -44,12 +56,13 @@ func detectRedundancy(assets []TestAsset) []Finding {
 		if len(units) == 0 {
 			units[a.Path] = true
 		}
-		covered = append(covered, assetUnits{idx: i, units: units})
+		covered = append(covered, redundancyAssetUnits{idx: i, units: units})
 	}
 
 	if len(covered) < 2 {
 		return nil
 	}
+	covered = trimRedundancyCandidates(covered, assets)
 
 	// Compare all pairs. O(n²) is acceptable for typical suite sizes.
 	seen := map[string]bool{}
@@ -74,7 +87,7 @@ func detectRedundancy(assets []TestAsset) []Finding {
 			}
 
 			ratio := float64(overlap) / float64(smaller)
-			if ratio < 0.70 {
+			if ratio < RedundancyOverlapThreshold {
 				continue
 			}
 
@@ -135,6 +148,38 @@ func detectRedundancy(assets []TestAsset) []Finding {
 	})
 
 	return findings
+}
+
+func trimRedundancyCandidates(covered []redundancyAssetUnits, assets []TestAsset) []redundancyAssetUnits {
+	n := len(covered)
+	if n < 2 || (n*(n-1))/2 <= redundancyPairComparisonLimit {
+		return covered
+	}
+
+	sort.Slice(covered, func(i, j int) bool {
+		ai := assets[covered[i].idx]
+		aj := assets[covered[j].idx]
+
+		aiImport := len(ai.ImportedSources) > 0
+		ajImport := len(aj.ImportedSources) > 0
+		if aiImport != ajImport {
+			return aiImport
+		}
+
+		if len(covered[i].units) != len(covered[j].units) {
+			return len(covered[i].units) > len(covered[j].units)
+		}
+		return ai.Path < aj.Path
+	})
+
+	maxN := int((1 + math.Sqrt(1+8*float64(redundancyPairComparisonLimit))) / 2)
+	if maxN < 2 {
+		maxN = 2
+	}
+	if maxN > len(covered) {
+		maxN = len(covered)
+	}
+	return covered[:maxN]
 }
 
 func intersectionCount(a, b map[string]bool) int {

@@ -6,9 +6,9 @@ HEALTH
   health posture is strong across 4 measurement(s).
 
   Measurements:
-    health.flaky_share                       0.0% [strong]
+    health.flaky_share                       0.0% [unknown]
       Evidence: weak
-      0 of 1 test file(s) flagged as flaky or unstable (0%).
+      No runtime data available; flakiness cannot be assessed from static analysis alone.
       * No runtime data available; result is based on static analysis only.
     health.skip_density                      0.0% [strong]
       Evidence: strong
@@ -16,9 +16,9 @@ HEALTH
     health.dead_test_share                   0.0% [strong]
       Evidence: strong
       0 of 1 test file(s) contain dead tests (0%).
-    health.slow_test_share                   0.0% [strong]
+    health.slow_test_share                   0.0% [unknown]
       Evidence: weak
-      0 of 1 test file(s) flagged as slow (0%).
+      No runtime data available; test speed cannot be assessed from static analysis alone.
       * No runtime data available; result is based on static analysis only.
 
 ------------------------------------------------------------

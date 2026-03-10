@@ -1,8 +1,12 @@
 package failure
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestClassify_AssertionFailure(t *testing.T) {
+	t.Parallel()
 	inputs := []FailureInput{
 		{
 			TestFilePath: "src/__tests__/math.test.js",
@@ -29,6 +33,7 @@ func TestClassify_AssertionFailure(t *testing.T) {
 }
 
 func TestClassify_AssertionWithAssertKeyword(t *testing.T) {
+	t.Parallel()
 	inputs := []FailureInput{
 		{
 			TestFilePath: "test/utils.test.js",
@@ -45,6 +50,7 @@ func TestClassify_AssertionWithAssertKeyword(t *testing.T) {
 }
 
 func TestClassify_Timeout(t *testing.T) {
+	t.Parallel()
 	inputs := []FailureInput{
 		{
 			TestFilePath: "e2e/login.spec.ts",
@@ -68,6 +74,7 @@ func TestClassify_Timeout(t *testing.T) {
 }
 
 func TestClassify_TimeoutTimedOut(t *testing.T) {
+	t.Parallel()
 	inputs := []FailureInput{
 		{
 			TestFilePath: "tests/api.test.js",
@@ -84,6 +91,7 @@ func TestClassify_TimeoutTimedOut(t *testing.T) {
 }
 
 func TestClassify_SetupFailure(t *testing.T) {
+	t.Parallel()
 	inputs := []FailureInput{
 		{
 			TestFilePath: "test/db.test.js",
@@ -107,6 +115,7 @@ func TestClassify_SetupFailure(t *testing.T) {
 }
 
 func TestClassify_SetupBeforeAll(t *testing.T) {
+	t.Parallel()
 	inputs := []FailureInput{
 		{
 			TestFilePath: "test/integration.test.js",
@@ -123,6 +132,7 @@ func TestClassify_SetupBeforeAll(t *testing.T) {
 }
 
 func TestClassify_DependencyService(t *testing.T) {
+	t.Parallel()
 	inputs := []FailureInput{
 		{
 			TestFilePath: "test/api.test.js",
@@ -146,6 +156,7 @@ func TestClassify_DependencyService(t *testing.T) {
 }
 
 func TestClassify_ServiceUnavailable(t *testing.T) {
+	t.Parallel()
 	inputs := []FailureInput{
 		{
 			TestFilePath: "test/integration.test.js",
@@ -162,6 +173,7 @@ func TestClassify_ServiceUnavailable(t *testing.T) {
 }
 
 func TestClassify_SnapshotMismatch(t *testing.T) {
+	t.Parallel()
 	inputs := []FailureInput{
 		{
 			TestFilePath: "test/components/Button.test.jsx",
@@ -188,6 +200,7 @@ func TestClassify_SnapshotMismatch(t *testing.T) {
 }
 
 func TestClassify_InlineSnapshotMismatch(t *testing.T) {
+	t.Parallel()
 	inputs := []FailureInput{
 		{
 			TestFilePath: "test/render.test.js",
@@ -204,6 +217,7 @@ func TestClassify_InlineSnapshotMismatch(t *testing.T) {
 }
 
 func TestClassify_SelectorUI(t *testing.T) {
+	t.Parallel()
 	inputs := []FailureInput{
 		{
 			TestFilePath: "e2e/checkout.spec.ts",
@@ -224,6 +238,7 @@ func TestClassify_SelectorUI(t *testing.T) {
 }
 
 func TestClassify_StaleElement(t *testing.T) {
+	t.Parallel()
 	inputs := []FailureInput{
 		{
 			TestFilePath: "e2e/dashboard.spec.ts",
@@ -240,6 +255,7 @@ func TestClassify_StaleElement(t *testing.T) {
 }
 
 func TestClassify_InfrastructureOOM(t *testing.T) {
+	t.Parallel()
 	inputs := []FailureInput{
 		{
 			TestFilePath: "test/heavy.test.js",
@@ -263,6 +279,7 @@ func TestClassify_InfrastructureOOM(t *testing.T) {
 }
 
 func TestClassify_PermissionDenied(t *testing.T) {
+	t.Parallel()
 	inputs := []FailureInput{
 		{
 			TestFilePath: "test/fs.test.js",
@@ -279,6 +296,7 @@ func TestClassify_PermissionDenied(t *testing.T) {
 }
 
 func TestClassify_UnknownFailure(t *testing.T) {
+	t.Parallel()
 	inputs := []FailureInput{
 		{
 			TestFilePath: "test/misc.test.js",
@@ -302,6 +320,7 @@ func TestClassify_UnknownFailure(t *testing.T) {
 }
 
 func TestClassify_EmptyInput(t *testing.T) {
+	t.Parallel()
 	result := Classify(nil)
 
 	if result.TotalFailures != 0 {
@@ -316,6 +335,7 @@ func TestClassify_EmptyInput(t *testing.T) {
 }
 
 func TestClassify_EmptyErrorMessage(t *testing.T) {
+	t.Parallel()
 	inputs := []FailureInput{
 		{
 			TestFilePath: "test/empty.test.js",
@@ -337,6 +357,7 @@ func TestClassify_EmptyErrorMessage(t *testing.T) {
 }
 
 func TestClassify_StackTraceOnly(t *testing.T) {
+	t.Parallel()
 	inputs := []FailureInput{
 		{
 			TestFilePath: "test/stack.test.js",
@@ -355,6 +376,7 @@ func TestClassify_StackTraceOnly(t *testing.T) {
 }
 
 func TestClassify_DominantCategory(t *testing.T) {
+	t.Parallel()
 	inputs := []FailureInput{
 		{TestFilePath: "a.test.js", TestName: "t1", ErrorMessage: "expect(1).toBe(2)"},
 		{TestFilePath: "b.test.js", TestName: "t2", ErrorMessage: "expect(3).toEqual(4)"},
@@ -376,6 +398,7 @@ func TestClassify_DominantCategory(t *testing.T) {
 }
 
 func TestClassify_DeterministicSort(t *testing.T) {
+	t.Parallel()
 	inputs := []FailureInput{
 		{TestFilePath: "z.test.js", TestName: "z", ErrorMessage: "expect(1).toBe(2)"},
 		{TestFilePath: "a.test.js", TestName: "a", ErrorMessage: "expect(1).toBe(2)"},
@@ -396,6 +419,7 @@ func TestClassify_DeterministicSort(t *testing.T) {
 }
 
 func TestClassify_SnapshotTakesPriorityOverAssertion(t *testing.T) {
+	t.Parallel()
 	// "toMatchSnapshot" contains both snapshot and assertion-like keywords.
 	// Snapshot should win because it's more specific.
 	inputs := []FailureInput{
@@ -414,6 +438,7 @@ func TestClassify_SnapshotTakesPriorityOverAssertion(t *testing.T) {
 }
 
 func TestClassify_SelectorTakesPriorityOverTimeout(t *testing.T) {
+	t.Parallel()
 	// "waiting for selector" contains both selector and timeout-like context.
 	inputs := []FailureInput{
 		{
@@ -432,6 +457,7 @@ func TestClassify_SelectorTakesPriorityOverTimeout(t *testing.T) {
 }
 
 func TestClassify_PreservesOriginalErrorAndStack(t *testing.T) {
+	t.Parallel()
 	errMsg := "expect(received).toBe(expected)"
 	stack := "at Object.<anonymous> (test.js:10:5)"
 
@@ -456,6 +482,7 @@ func TestClassify_PreservesOriginalErrorAndStack(t *testing.T) {
 }
 
 func TestClassify_MultipleCategories(t *testing.T) {
+	t.Parallel()
 	inputs := []FailureInput{
 		{TestFilePath: "a.test.js", TestName: "t1", ErrorMessage: "expect(1).toBe(2)"},
 		{TestFilePath: "b.test.js", TestName: "t2", ErrorMessage: "Timeout after 5000ms"},
@@ -490,6 +517,7 @@ func TestClassify_MultipleCategories(t *testing.T) {
 }
 
 func TestClassify_ExplanationNotEmpty(t *testing.T) {
+	t.Parallel()
 	inputs := []FailureInput{
 		{TestFilePath: "test.js", TestName: "t", ErrorMessage: "expect(1).toBe(2)"},
 	}
@@ -501,7 +529,8 @@ func TestClassify_ExplanationNotEmpty(t *testing.T) {
 	}
 }
 
-func TestClassify_LongErrorMessageTruncatedInExplanation(t *testing.T) {
+func TestClassify_LongErrorMessagePreservedInExplanation(t *testing.T) {
+	t.Parallel()
 	longMsg := ""
 	for i := 0; i < 200; i++ {
 		longMsg += "x"
@@ -519,8 +548,27 @@ func TestClassify_LongErrorMessageTruncatedInExplanation(t *testing.T) {
 	if c.ErrorMessage != longMsg {
 		t.Error("expected full error message preserved")
 	}
-	// Explanation should be truncated.
-	if len(c.Explanation) > 300 {
-		t.Errorf("expected explanation to be truncated, got length %d", len(c.Explanation))
+	// Explanation should retain the same message content for consistency.
+	if !strings.Contains(c.Explanation, longMsg) {
+		t.Errorf("expected explanation to include full error message")
+	}
+}
+
+func TestClassify_DoesNotMatchAssertionBySubstringOnly(t *testing.T) {
+	t.Parallel()
+	inputs := []FailureInput{
+		{
+			TestFilePath: "test/non-assert.test.js",
+			TestName:     "startup",
+			ErrorMessage: "service reasserted leadership after reconnect",
+		},
+	}
+
+	result := Classify(inputs)
+	if result.TotalFailures != 1 {
+		t.Fatalf("expected 1 failure, got %d", result.TotalFailures)
+	}
+	if result.Classifications[0].Category == CategoryAssertionFailure {
+		t.Fatalf("unexpected assertion_failure classification for substring-only match")
 	}
 }

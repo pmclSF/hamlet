@@ -343,10 +343,6 @@ func buildTrendHighlights(comp *comparison.SnapshotComparison) []TrendCallout {
 			dir = "improved"
 			verb = "decreased"
 		}
-		delta := sd.Delta
-		if delta < 0 {
-			delta = -delta
-		}
 		callouts = append(callouts, TrendCallout{
 			Description: fmt.Sprintf("%s findings %s (%+d)", sd.Type, verb, sd.Delta),
 			Direction:   dir,

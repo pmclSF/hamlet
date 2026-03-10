@@ -10,6 +10,7 @@ import (
 )
 
 func TestRenderMigrationPreview_WithBlockers(t *testing.T) {
+	t.Parallel()
 	preview := &migration.PreviewResult{
 		File:             "test/auth/login.test.js",
 		SourceFramework:  "jest",
@@ -63,6 +64,7 @@ func TestRenderMigrationPreview_WithBlockers(t *testing.T) {
 }
 
 func TestRenderMigrationPreview_NotAvailable(t *testing.T) {
+	t.Parallel()
 	preview := &migration.PreviewResult{
 		File:             "test_main.go",
 		SourceFramework:  "go-testing",
@@ -87,6 +89,7 @@ func TestRenderMigrationPreview_NotAvailable(t *testing.T) {
 }
 
 func TestRenderMigrationPreviewScope(t *testing.T) {
+	t.Parallel()
 	previews := []*migration.PreviewResult{
 		{File: "test/hard.test.js", SourceFramework: "jest", Difficulty: "high", Blockers: make([]migration.PreviewBlocker, 3)},
 		{File: "test/med.test.js", SourceFramework: "jest", Difficulty: "medium", Blockers: make([]migration.PreviewBlocker, 1)},
@@ -113,6 +116,7 @@ func TestRenderMigrationPreviewScope(t *testing.T) {
 }
 
 func TestRenderMigrationReport_WithAllSections(t *testing.T) {
+	t.Parallel()
 	readiness := &migration.ReadinessSummary{
 		Frameworks: []models.Framework{
 			{Name: "jest", Type: models.FrameworkTypeUnit, FileCount: 42},
@@ -157,6 +161,7 @@ func TestRenderMigrationReport_WithAllSections(t *testing.T) {
 }
 
 func TestRenderMigrationBlockers_ZeroBlockers(t *testing.T) {
+	t.Parallel()
 	readiness := &migration.ReadinessSummary{
 		TotalBlockers:  0,
 		BlockersByType: map[string]int{},

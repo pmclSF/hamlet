@@ -3,6 +3,7 @@ package coverage
 import (
 	"bufio"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -59,6 +60,7 @@ func IngestDirectory(dir string, runLabel string) ([]CoverageArtifact, error) {
 	if err != nil {
 		return nil, err
 	}
+	var warnings []string
 
 	for _, e := range entries {
 		if e.IsDir() {
@@ -68,12 +70,40 @@ func IngestDirectory(dir string, runLabel string) ([]CoverageArtifact, error) {
 		if isCoverageFile(name) {
 			art, err := IngestFile(filepath.Join(dir, e.Name()), runLabel)
 			if err != nil {
-				continue // Skip unreadable artifacts.
+				warnings = append(warnings, fmt.Sprintf("%s: %v", e.Name(), err))
+				continue
 			}
 			artifacts = append(artifacts, *art)
 		}
 	}
+	if len(warnings) > 0 {
+		if len(artifacts) == 0 {
+			return nil, errors.New("failed to ingest any coverage artifacts: " + strings.Join(warnings, "; "))
+		}
+		return artifacts, &IngestWarning{Warnings: warnings}
+	}
 	return artifacts, nil
+}
+
+// IngestWarning indicates partial coverage ingestion success.
+// Artifacts were ingested successfully, but one or more files were skipped.
+type IngestWarning struct {
+	Warnings []string
+}
+
+func (w *IngestWarning) Error() string {
+	if w == nil || len(w.Warnings) == 0 {
+		return ""
+	}
+	limit := 3
+	if len(w.Warnings) < limit {
+		limit = len(w.Warnings)
+	}
+	msg := strings.Join(w.Warnings[:limit], "; ")
+	if len(w.Warnings) > limit {
+		msg += fmt.Sprintf("; +%d more", len(w.Warnings)-limit)
+	}
+	return "coverage ingest partially succeeded: " + msg
 }
 
 func isCoverageFile(name string) bool {
@@ -178,13 +208,13 @@ func parseLCOV(content string) ([]CoverageRecord, error) {
 
 // istanbulEntry represents one file's coverage in Istanbul JSON format.
 type istanbulEntry struct {
-	Path          string                    `json:"path"`
-	StatementMap  map[string]istanbulRange  `json:"statementMap"`
-	S             map[string]int            `json:"s"`
-	FnMap         map[string]istanbulFn     `json:"fnMap"`
-	F             map[string]int            `json:"f"`
-	BranchMap     map[string]istanbulBranch `json:"branchMap"`
-	B             map[string][]int          `json:"b"`
+	Path         string                    `json:"path"`
+	StatementMap map[string]istanbulRange  `json:"statementMap"`
+	S            map[string]int            `json:"s"`
+	FnMap        map[string]istanbulFn     `json:"fnMap"`
+	F            map[string]int            `json:"f"`
+	BranchMap    map[string]istanbulBranch `json:"branchMap"`
+	B            map[string][]int          `json:"b"`
 }
 
 type istanbulRange struct {

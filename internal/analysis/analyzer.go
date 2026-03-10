@@ -14,8 +14,10 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	goruntime "runtime"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/pmclSF/hamlet/internal/models"
@@ -41,6 +43,7 @@ func (a *Analyzer) Analyze() (*models.TestSuiteSnapshot, error) {
 	if err != nil {
 		return nil, err
 	}
+	analyzedAt := time.Now().UTC()
 
 	// Layer 1: Detect project-level frameworks from config files and dependencies.
 	projectCtx := DetectProjectFrameworks(absRoot)
@@ -51,9 +54,9 @@ func (a *Analyzer) Analyze() (*models.TestSuiteSnapshot, error) {
 	}
 
 	// Analyze content of each test file (counts for tests, assertions, mocks).
-	for i := range testFiles {
+	parallelForEachIndex(len(testFiles), func(i int) {
 		analyzeTestFileContent(&testFiles[i], absRoot)
-	}
+	})
 
 	frameworks := buildFrameworkInventory(testFiles)
 	languages := detectLanguages(testFiles)
@@ -67,11 +70,19 @@ func (a *Analyzer) Analyze() (*models.TestSuiteSnapshot, error) {
 	// Build import graph for precise test-to-code linkage.
 	importGraph := BuildImportGraph(absRoot, testFiles)
 
+	// Populate per-test linked code units from the import graph.
+	populateLinkedCodeUnits(testFiles, codeUnits, importGraph)
+
 	// Extract individual test cases with stable IDs.
-	var rawTestCases []models.TestCase
-	for _, tf := range testFiles {
+	rawByFile := make([][]models.TestCase, len(testFiles))
+	parallelForEachIndex(len(testFiles), func(i int) {
+		tf := testFiles[i]
 		cases := testcase.Extract(absRoot, tf.Path, tf.Framework)
-		rawTestCases = append(rawTestCases, testcase.ToModels(cases)...)
+		rawByFile[i] = testcase.ToModels(cases)
+	})
+	rawTestCases := make([]models.TestCase, 0, len(testFiles))
+	for i := range rawByFile {
+		rawTestCases = append(rawTestCases, rawByFile[i]...)
 	}
 	// Detect and resolve any identity collisions.
 	testCases, _ := testcase.DetectAndResolveCollisions(rawTestCases)
@@ -92,21 +103,94 @@ func (a *Analyzer) Analyze() (*models.TestSuiteSnapshot, error) {
 			Languages:         languages,
 			PackageManagers:   packageManagers,
 			CISystems:         ciSystems,
-			SnapshotTimestamp: time.Now().UTC(),
+			SnapshotTimestamp: analyzedAt,
 			CommitSHA:         commitSHA,
 			Branch:            branch,
 		},
-		Frameworks: frameworks,
-		TestFiles:  testFiles,
-		TestCases:  testCases,
+		Frameworks:  frameworks,
+		TestFiles:   testFiles,
+		TestCases:   testCases,
 		CodeUnits:   codeUnits,
 		ImportGraph: importGraph.TestImports,
 		// Signals: populated by detectors after snapshot creation.
 		// Risk: populated by risk engine after signal generation.
-		GeneratedAt: time.Now().UTC(),
+		GeneratedAt: analyzedAt,
 	}
 
 	return snapshot, nil
+}
+
+func parallelForEachIndex(n int, fn func(i int)) {
+	if n <= 1 {
+		for i := 0; i < n; i++ {
+			fn(i)
+		}
+		return
+	}
+
+	workers := goruntime.GOMAXPROCS(0)
+	if workers < 1 {
+		workers = 1
+	}
+	if workers > n {
+		workers = n
+	}
+
+	indexCh := make(chan int, n)
+	var wg sync.WaitGroup
+	for w := 0; w < workers; w++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for idx := range indexCh {
+				fn(idx)
+			}
+		}()
+	}
+	for i := 0; i < n; i++ {
+		indexCh <- i
+	}
+	close(indexCh)
+	wg.Wait()
+}
+
+func populateLinkedCodeUnits(testFiles []models.TestFile, codeUnits []models.CodeUnit, graph *ImportGraph) {
+	if graph == nil || len(graph.TestImports) == 0 || len(testFiles) == 0 || len(codeUnits) == 0 {
+		return
+	}
+
+	unitsByPath := make(map[string][]models.CodeUnit, len(codeUnits))
+	for _, cu := range codeUnits {
+		unitsByPath[cu.Path] = append(unitsByPath[cu.Path], cu)
+	}
+
+	for i := range testFiles {
+		imports := graph.TestImports[testFiles[i].Path]
+		if len(imports) == 0 {
+			continue
+		}
+
+		seen := map[string]bool{}
+		linked := make([]string, 0, 8)
+		for src := range imports {
+			for _, cu := range unitsByPath[src] {
+				id := cu.UnitID
+				if id == "" {
+					id = buildUnitID(cu.Path, cu.Name, cu.ParentName)
+				}
+				if id == "" || seen[id] {
+					continue
+				}
+				seen[id] = true
+				linked = append(linked, id)
+			}
+		}
+		if len(linked) == 0 {
+			continue
+		}
+		sort.Strings(linked)
+		testFiles[i].LinkedCodeUnits = linked
+	}
 }
 
 // detectLanguages infers languages from the discovered test files.
@@ -142,15 +226,15 @@ func detectPackageManagers(root string) []string {
 	indicators := map[string]string{
 		"package-lock.json": "npm",
 		"yarn.lock":         "yarn",
-		"pnpm-lock.yaml":   "pnpm",
-		"bun.lockb":        "bun",
-		"go.mod":           "go-modules",
-		"requirements.txt": "pip",
-		"Pipfile.lock":     "pipenv",
-		"poetry.lock":      "poetry",
-		"pom.xml":          "maven",
-		"build.gradle":     "gradle",
-		"Gemfile.lock":     "bundler",
+		"pnpm-lock.yaml":    "pnpm",
+		"bun.lockb":         "bun",
+		"go.mod":            "go-modules",
+		"requirements.txt":  "pip",
+		"Pipfile.lock":      "pipenv",
+		"poetry.lock":       "poetry",
+		"pom.xml":           "maven",
+		"build.gradle":      "gradle",
+		"Gemfile.lock":      "bundler",
 	}
 	var result []string
 	for file, name := range indicators {
@@ -165,13 +249,13 @@ func detectPackageManagers(root string) []string {
 // detectCISystems checks for known CI configuration files/directories.
 func detectCISystems(root string) []string {
 	indicators := map[string]string{
-		".github/workflows": "github-actions",
-		".circleci":         "circleci",
-		".travis.yml":       "travis",
-		"Jenkinsfile":       "jenkins",
-		".gitlab-ci.yml":    "gitlab-ci",
+		".github/workflows":       "github-actions",
+		".circleci":               "circleci",
+		".travis.yml":             "travis",
+		"Jenkinsfile":             "jenkins",
+		".gitlab-ci.yml":          "gitlab-ci",
 		"bitbucket-pipelines.yml": "bitbucket",
-		".buildkite":        "buildkite",
+		".buildkite":              "buildkite",
 	}
 	var result []string
 	for path, name := range indicators {

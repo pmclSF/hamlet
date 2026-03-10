@@ -7,6 +7,7 @@ import (
 )
 
 func TestComputeRisk_NoSignals(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{}
 	surfaces := ComputeRisk(snap)
 	if len(surfaces) != 0 {
@@ -15,6 +16,7 @@ func TestComputeRisk_NoSignals(t *testing.T) {
 }
 
 func TestComputeRisk_ReliabilitySignals(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		Signals: []models.Signal{
 			{Type: "flakyTest", Severity: models.SeverityHigh},
@@ -42,6 +44,7 @@ func TestComputeRisk_ReliabilitySignals(t *testing.T) {
 }
 
 func TestComputeRisk_ChangeRiskSignals(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		Signals: []models.Signal{
 			{Type: "weakAssertion", Severity: models.SeverityMedium},
@@ -65,7 +68,59 @@ func TestComputeRisk_ChangeRiskSignals(t *testing.T) {
 	}
 }
 
+func TestComputeRisk_GovernanceSignals(t *testing.T) {
+	t.Parallel()
+	snap := &models.TestSuiteSnapshot{
+		Signals: []models.Signal{
+			{Type: "policyViolation", Severity: models.SeverityHigh},
+		},
+	}
+	surfaces := ComputeRisk(snap)
+
+	var found bool
+	for _, s := range surfaces {
+		if s.Type == "governance" && s.Scope == "repository" {
+			found = true
+			if s.Band == models.RiskBandLow {
+				t.Errorf("expected governance risk to be at least medium for a high-severity policy violation, got %q", s.Band)
+			}
+		}
+	}
+	if !found {
+		t.Error("expected a governance risk surface")
+	}
+}
+
+func TestComputeRisk_LargeRepoAbsoluteBurden(t *testing.T) {
+	t.Parallel()
+	testFiles := make([]models.TestFile, 5000)
+	signals := make([]models.Signal, 10)
+	for i := range signals {
+		signals[i] = models.Signal{Type: "weakAssertion", Severity: models.SeverityCritical}
+	}
+
+	snap := &models.TestSuiteSnapshot{
+		TestFiles: testFiles,
+		Signals:   signals,
+	}
+	surfaces := ComputeRisk(snap)
+
+	var found bool
+	for _, s := range surfaces {
+		if s.Type == "change" && s.Scope == "repository" {
+			found = true
+			if s.Band == models.RiskBandLow {
+				t.Fatalf("expected non-low change risk with 10 critical findings, got low (score=%.2f)", s.Score)
+			}
+		}
+	}
+	if !found {
+		t.Fatal("expected repository change risk surface")
+	}
+}
+
 func TestComputeRisk_DirectoryRollup(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		Signals: []models.Signal{
 			{Type: "weakAssertion", Severity: models.SeverityMedium, Location: models.SignalLocation{File: "src/auth/login.test.js"}},
@@ -85,7 +140,59 @@ func TestComputeRisk_DirectoryRollup(t *testing.T) {
 	}
 }
 
+func TestComputeRisk_HysteresisHoldsLowUntilThreshold(t *testing.T) {
+	t.Parallel()
+	testFiles := make([]models.TestFile, 7)
+	snap := &models.TestSuiteSnapshot{
+		TestFiles: testFiles,
+		Signals: []models.Signal{
+			{Type: "weakAssertion", Severity: models.SeverityHigh}, // score ~4.29 without previous band
+		},
+		Risk: []models.RiskSurface{
+			{Type: "change", Scope: "repository", Band: models.RiskBandLow},
+		},
+	}
+
+	surfaces := ComputeRisk(snap)
+	for _, s := range surfaces {
+		if s.Type == "change" && s.Scope == "repository" {
+			if s.Band != models.RiskBandLow {
+				t.Fatalf("expected hysteresis to keep low band near threshold, got %q (score=%.2f)", s.Band, s.Score)
+			}
+			return
+		}
+	}
+	t.Fatal("expected repository change surface")
+}
+
+func TestComputeRisk_HysteresisAvoidsMediumDrop(t *testing.T) {
+	t.Parallel()
+	testFiles := make([]models.TestFile, 8)
+	snap := &models.TestSuiteSnapshot{
+		TestFiles: testFiles,
+		Signals: []models.Signal{
+			{Type: "weakAssertion", Severity: models.SeverityMedium},
+			{Type: "mockHeavyTest", Severity: models.SeverityLow}, // score ~3.75
+		},
+		Risk: []models.RiskSurface{
+			{Type: "change", Scope: "repository", Band: models.RiskBandMedium},
+		},
+	}
+
+	surfaces := ComputeRisk(snap)
+	for _, s := range surfaces {
+		if s.Type == "change" && s.Scope == "repository" {
+			if s.Band != models.RiskBandMedium {
+				t.Fatalf("expected hysteresis to keep medium band near threshold, got %q (score=%.2f)", s.Band, s.Score)
+			}
+			return
+		}
+	}
+	t.Fatal("expected repository change surface")
+}
+
 func TestScoreToBand(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		score float64
 		want  models.RiskBand

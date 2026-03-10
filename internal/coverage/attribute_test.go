@@ -7,6 +7,7 @@ import (
 )
 
 func TestAttributeToCodeUnits_FullyCovered(t *testing.T) {
+	t.Parallel()
 	merged := &MergedCoverage{
 		ByFile: map[string]*CoverageRecord{
 			"src/utils.js": {
@@ -42,6 +43,7 @@ func TestAttributeToCodeUnits_FullyCovered(t *testing.T) {
 }
 
 func TestAttributeToCodeUnits_Uncovered(t *testing.T) {
+	t.Parallel()
 	merged := &MergedCoverage{
 		ByFile: map[string]*CoverageRecord{
 			"src/utils.js": {
@@ -66,6 +68,7 @@ func TestAttributeToCodeUnits_Uncovered(t *testing.T) {
 }
 
 func TestAttributeToCodeUnits_NoData(t *testing.T) {
+	t.Parallel()
 	merged := &MergedCoverage{
 		ByFile: map[string]*CoverageRecord{},
 	}
@@ -80,7 +83,74 @@ func TestAttributeToCodeUnits_NoData(t *testing.T) {
 	}
 }
 
+func TestAttributeToCodeUnits_InferEndLineFromNextUnit(t *testing.T) {
+	t.Parallel()
+	merged := &MergedCoverage{
+		ByFile: map[string]*CoverageRecord{
+			"src/service.ts": {
+				FilePath: "src/service.ts",
+				LineHits: map[int]int{
+					1: 1,
+					2: 1,
+					3: 0,
+					4: 1,
+					5: 1,
+					6: 0,
+				},
+			},
+		},
+	}
+
+	units := []models.CodeUnit{
+		{UnitID: "src/service.ts:first", Name: "first", Path: "src/service.ts", StartLine: 1, EndLine: 0},
+		{UnitID: "src/service.ts:second", Name: "second", Path: "src/service.ts", StartLine: 4, EndLine: 0},
+	}
+
+	result := AttributeToCodeUnits(merged, units)
+	if len(result) != 2 {
+		t.Fatalf("expected 2 results, got %d", len(result))
+	}
+
+	// First unit should infer end line from next start line (4 -> 3), not max line.
+	if result[0].LineCoveragePct < 66.6 || result[0].LineCoveragePct > 66.7 {
+		t.Errorf("first LineCoveragePct = %f, want approx 66.67", result[0].LineCoveragePct)
+	}
+
+	// Last unit should fall back to max instrumented line (line 6).
+	if result[1].LineCoveragePct < 66.6 || result[1].LineCoveragePct > 66.7 {
+		t.Errorf("second LineCoveragePct = %f, want approx 66.67", result[1].LineCoveragePct)
+	}
+}
+
+func TestAttributeToCodeUnits_InferEndLineWithSparseCoverage(t *testing.T) {
+	t.Parallel()
+	merged := &MergedCoverage{
+		ByFile: map[string]*CoverageRecord{
+			"pkg/core.go": {
+				FilePath: "pkg/core.go",
+				LineHits: map[int]int{
+					10: 0,
+					11: 3,
+				},
+			},
+		},
+	}
+
+	units := []models.CodeUnit{
+		{UnitID: "pkg/core.go:Compute", Name: "Compute", Path: "pkg/core.go", StartLine: 10, EndLine: 0},
+	}
+
+	result := AttributeToCodeUnits(merged, units)
+	if len(result) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(result))
+	}
+	if result[0].LineCoveragePct < 49.9 || result[0].LineCoveragePct > 50.1 {
+		t.Errorf("LineCoveragePct = %f, want approx 50.0", result[0].LineCoveragePct)
+	}
+}
+
 func TestComputeByType(t *testing.T) {
+	t.Parallel()
 	unitArt := CoverageArtifact{
 		RunLabel: "unit",
 		Records: []CoverageRecord{
@@ -138,6 +208,7 @@ func TestComputeByType(t *testing.T) {
 }
 
 func TestBuildRepoSummary(t *testing.T) {
+	t.Parallel()
 	typeCov := []TypeCoverage{
 		{UnitID: "a:fn1", Name: "fn1", Path: "a.js", CoveredByTypes: map[string]bool{"unit": true}},
 		{UnitID: "a:fn2", Name: "fn2", Path: "a.js", CoveredByTypes: map[string]bool{"e2e": true}},

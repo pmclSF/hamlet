@@ -15,6 +15,7 @@ import (
 // TestSchema_SnapshotRoundTrip verifies that TestSuiteSnapshot serializes
 // and deserializes without data loss.
 func TestSchema_SnapshotRoundTrip(t *testing.T) {
+	t.Parallel()
 	snap := HealthyBalancedSnapshot()
 
 	data, err := json.Marshal(snap)
@@ -46,6 +47,7 @@ func TestSchema_SnapshotRoundTrip(t *testing.T) {
 
 // TestSchema_SnapshotWithMeasurements verifies measurement snapshot round-trips.
 func TestSchema_SnapshotWithMeasurements(t *testing.T) {
+	t.Parallel()
 	snap := MinimalSnapshot()
 	snap.Measurements = &models.MeasurementSnapshot{
 		Posture: []models.DimensionPostureResult{
@@ -79,6 +81,7 @@ func TestSchema_SnapshotWithMeasurements(t *testing.T) {
 
 // TestSchema_ForwardCompatibility verifies that extra JSON fields don't cause errors.
 func TestSchema_ForwardCompatibility(t *testing.T) {
+	t.Parallel()
 	rawJSON := `{
 		"repository": {"name": "test-repo"},
 		"frameworks": [],
@@ -99,6 +102,7 @@ func TestSchema_ForwardCompatibility(t *testing.T) {
 
 // TestSchema_EmptySnapshot verifies empty snapshot serializes correctly.
 func TestSchema_EmptySnapshot(t *testing.T) {
+	t.Parallel()
 	snap := EmptySnapshot()
 
 	data, err := json.Marshal(snap)
@@ -121,6 +125,7 @@ func TestSchema_EmptySnapshot(t *testing.T) {
 
 // TestSchema_ImpactAggregateRoundTrip verifies impact aggregate JSON round-trip.
 func TestSchema_ImpactAggregateRoundTrip(t *testing.T) {
+	t.Parallel()
 	snap := HealthyBalancedSnapshot()
 	scope := impact.ChangeScopeFromPaths(
 		[]string{"src/auth.js", "src/payment.js", "src/__tests__/auth.test.js"},
@@ -149,6 +154,7 @@ func TestSchema_ImpactAggregateRoundTrip(t *testing.T) {
 
 // TestSchema_ImpactAggregateForwardCompat verifies extra fields are ignored.
 func TestSchema_ImpactAggregateForwardCompat(t *testing.T) {
+	t.Parallel()
 	rawJSON := `{
 		"changedFileCount": 5,
 		"impactedUnitCount": 3,
@@ -168,6 +174,7 @@ func TestSchema_ImpactAggregateForwardCompat(t *testing.T) {
 
 // TestSchema_BenchmarkExportRoundTrip verifies export JSON round-trip.
 func TestSchema_BenchmarkExportRoundTrip(t *testing.T) {
+	t.Parallel()
 	snap := MinimalSnapshot()
 	ms := metrics.Derive(snap)
 	ms.GeneratedAt = FixedTime
@@ -199,6 +206,7 @@ func TestSchema_BenchmarkExportRoundTrip(t *testing.T) {
 
 // TestSchema_PortfolioRoundTrip verifies portfolio model round-trip.
 func TestSchema_PortfolioRoundTrip(t *testing.T) {
+	t.Parallel()
 	snap := FlakyConcentratedSnapshot()
 	ps := portfolio.Analyze(snap)
 	model := ps.ToModel()
@@ -220,6 +228,7 @@ func TestSchema_PortfolioRoundTrip(t *testing.T) {
 
 // TestSchema_CoverageInsightRoundTrip verifies coverage insight JSON round-trip.
 func TestSchema_CoverageInsightRoundTrip(t *testing.T) {
+	t.Parallel()
 	insight := models.CoverageInsight{
 		Type:        "e2e_only_coverage",
 		Severity:    "medium",

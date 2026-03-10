@@ -5,6 +5,19 @@ Repository:  minimal-repo
 Root:        
 Languages:   javascript
 
+Data Completeness
+----------------------------------------
+  [available] Source code
+  [missing  ] Coverage data
+  [missing  ] Runtime data
+  [missing  ] Policy config
+  Coverage analysis skipped or partial. Provide coverage with:
+    hamlet analyze --root . --coverage path/to/lcov.info
+  Runtime-dependent signals unavailable without runtime artifacts:
+    slowTest, flakyTest, skippedTest, deadTest, unstableSuite
+  Provide runtime data with:
+    hamlet analyze --root . --runtime path/to/results.xml
+
 Frameworks
 ----------------------------------------
   jest                    1 files [unit]
@@ -14,9 +27,19 @@ Test Files
   Discovered:  1
     src/__tests__/utils.test.js  (jest)
 
+Code Units
+----------------------------------------
+  Extracted:   1
+
 Signals
 ----------------------------------------
   No signals detected.
+  This often means Hamlet needs more runtime/coverage data to surface issues.
+
+What This Means
+----------------------------------------
+  Hamlet found 1 test files with 0 signals.
+  Test suite status: good (limited evidence)
 
 Posture
 ----------------------------------------
@@ -38,8 +61,12 @@ Portfolio Intelligence
 Generated:   2025-01-15 12:00:00 UTC
 
 Next steps:
-  hamlet summary       leadership-ready overview
-  hamlet posture       detailed posture with evidence
-  hamlet portfolio     cost, leverage, and redundancy insights
-  hamlet analyze --write-snapshot   save for trend tracking
+  1) Add coverage data:
+     hamlet analyze --root . --coverage path/to/lcov.info
+  2) Add runtime data:
+     hamlet analyze --root . --runtime path/to/test-results.xml
+  3) Show full findings:
+     hamlet analyze --root . --verbose
+  4) Save trend baseline:
+     hamlet analyze --write-snapshot
 

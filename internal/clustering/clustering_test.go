@@ -8,6 +8,7 @@ import (
 )
 
 func TestDetect_NilSnapshot(t *testing.T) {
+	t.Parallel()
 	result := Detect(nil)
 	if result == nil {
 		t.Fatal("expected non-nil result for nil snapshot")
@@ -21,6 +22,7 @@ func TestDetect_NilSnapshot(t *testing.T) {
 }
 
 func TestDetect_EmptySnapshot(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{}
 	result := Detect(snap)
 	if len(result.Clusters) != 0 {
@@ -29,6 +31,7 @@ func TestDetect_EmptySnapshot(t *testing.T) {
 }
 
 func TestDetect_HealthyCodebase_NoClusters(t *testing.T) {
+	t.Parallel()
 	// Each test links to a different code unit, no shared dependencies.
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: []models.TestFile{
@@ -44,6 +47,7 @@ func TestDetect_HealthyCodebase_NoClusters(t *testing.T) {
 }
 
 func TestDetect_SharedAuthHelper_BroadFlaky(t *testing.T) {
+	t.Parallel()
 	// Multiple tests link to a shared auth helper, all have flaky signals.
 	authUnit := "pkg/auth/helper.go:Authenticate"
 	snap := &models.TestSuiteSnapshot{
@@ -105,6 +109,7 @@ func TestDetect_SharedAuthHelper_BroadFlaky(t *testing.T) {
 }
 
 func TestDetect_SharedSlowPath(t *testing.T) {
+	t.Parallel()
 	dbUnit := "pkg/db/connection.go:Connect"
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: []models.TestFile{
@@ -153,6 +158,7 @@ func TestDetect_SharedSlowPath(t *testing.T) {
 }
 
 func TestDetect_DirectoryLevelConcentration(t *testing.T) {
+	t.Parallel()
 	// Multiple tests in same directory all have the same signal type.
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: []models.TestFile{
@@ -188,6 +194,7 @@ func TestDetect_DirectoryLevelConcentration(t *testing.T) {
 }
 
 func TestDetect_RepeatedFailPattern(t *testing.T) {
+	t.Parallel()
 	// Multiple snapshot-level signals from the same directory.
 	snap := &models.TestSuiteSnapshot{
 		Signals: []models.Signal{
@@ -214,6 +221,7 @@ func TestDetect_RepeatedFailPattern(t *testing.T) {
 }
 
 func TestDetect_MultipleClusters(t *testing.T) {
+	t.Parallel()
 	authUnit := "pkg/auth/helper.go:Auth"
 	dbUnit := "pkg/db/pool.go:GetConn"
 	snap := &models.TestSuiteSnapshot{
@@ -263,6 +271,7 @@ func TestDetect_MultipleClusters(t *testing.T) {
 }
 
 func TestDetect_BelowMinClusterSize(t *testing.T) {
+	t.Parallel()
 	// Only 2 tests share a code unit — below the threshold of 3.
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: []models.TestFile{

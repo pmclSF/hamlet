@@ -212,9 +212,7 @@ func inferHeuristicContinuity(unmatchedFrom, unmatchedTo []models.TestCase) []Co
 		}
 
 		confidence := c.score
-		if confidence > 1.0 {
-			confidence = 1.0
-		}
+		confidence = calibrateContinuityConfidence(confidence, c.evidence, c.class)
 
 		explanation := buildExplanation(c.class, c.from, c.to)
 
@@ -235,12 +233,157 @@ func inferHeuristicContinuity(unmatchedFrom, unmatchedTo []models.TestCase) []Co
 		usedTo[c.to.TestID] = true
 	}
 
+	// Second pass: infer transitive rename/move continuity for lexical drift
+	// cases that miss the primary similarity threshold.
+	transitive := inferTransitiveRenames(unmatchedFrom, unmatchedTo, usedFrom, usedTo)
+	mappings = append(mappings, transitive...)
+
 	// Check for split patterns: one old test -> multiple new tests with same name prefix.
 	// Check for merge patterns: multiple old tests -> one new test.
 	splitMerge := detectSplitMerge(unmatchedFrom, unmatchedTo, usedFrom, usedTo)
 	mappings = append(mappings, splitMerge...)
 
 	return mappings
+}
+
+func inferTransitiveRenames(
+	unmatchedFrom, unmatchedTo []models.TestCase,
+	usedFrom, usedTo map[string]bool,
+) []ContinuityMapping {
+	type candidate struct {
+		from     models.TestCase
+		to       models.TestCase
+		score    float64
+		evidence []EvidenceBasis
+		class    ContinuityClass
+	}
+
+	var candidates []candidate
+	for _, f := range unmatchedFrom {
+		if usedFrom[f.TestID] {
+			continue
+		}
+		for _, t := range unmatchedTo {
+			if usedTo[t.TestID] {
+				continue
+			}
+
+			nameTokenSim := tokenSimilarity(f.TestName, t.TestName)
+			suiteTokenSim := tokenSimilarity(strings.Join(f.SuiteHierarchy, " "), strings.Join(t.SuiteHierarchy, " "))
+			pathSim := pathSimilarity(f.FilePath, t.FilePath)
+			canonTokenSim := tokenSimilarity(f.CanonicalIdentity, t.CanonicalIdentity)
+
+			// Require at least moderate lexical continuity in name/canonical identity.
+			if nameTokenSim < 0.30 && canonTokenSim < 0.30 {
+				continue
+			}
+
+			score := (0.35 * nameTokenSim) + (0.25 * suiteTokenSim) + (0.25 * pathSim) + (0.15 * canonTokenSim)
+			if score < 0.45 {
+				continue
+			}
+
+			class := ContinuityRename
+			if f.TestName == t.TestName && f.FilePath != t.FilePath {
+				class = ContinuityMove
+			}
+
+			evidence := []EvidenceBasis{EvidenceNameSimilar}
+			if suiteTokenSim > 0 {
+				evidence = append(evidence, EvidenceSuiteHierarchy)
+			}
+			if pathSim > 0 {
+				evidence = append(evidence, EvidencePathSimilar)
+			}
+			if canonTokenSim > 0 {
+				evidence = append(evidence, EvidenceCanonicalSimilar)
+			}
+
+			candidates = append(candidates, candidate{
+				from:     f,
+				to:       t,
+				score:    score,
+				evidence: evidence,
+				class:    class,
+			})
+		}
+	}
+
+	sort.Slice(candidates, func(i, j int) bool {
+		return candidates[i].score > candidates[j].score
+	})
+
+	var mappings []ContinuityMapping
+	for _, c := range candidates {
+		if usedFrom[c.from.TestID] || usedTo[c.to.TestID] {
+			continue
+		}
+
+		mappings = append(mappings, ContinuityMapping{
+			FromTestID:    c.from.TestID,
+			ToTestID:      c.to.TestID,
+			FromCanonical: c.from.CanonicalIdentity,
+			ToCanonical:   c.to.CanonicalIdentity,
+			FromPath:      c.from.FilePath,
+			ToPath:        c.to.FilePath,
+			Class:         c.class,
+			Confidence:    calibrateContinuityConfidence(c.score, c.evidence, c.class),
+			Evidence:      c.evidence,
+			Explanation:   "transitive lexical continuity suggests rename/move",
+		})
+		usedFrom[c.from.TestID] = true
+		usedTo[c.to.TestID] = true
+	}
+
+	return mappings
+}
+
+func calibrateContinuityConfidence(raw float64, evidence []EvidenceBasis, class ContinuityClass) float64 {
+	if raw < 0 {
+		raw = 0
+	}
+	if raw > 1 {
+		raw = 1
+	}
+
+	seenEvidence := map[EvidenceBasis]bool{}
+	for _, e := range evidence {
+		seenEvidence[e] = true
+	}
+	boost := 0.03 * float64(len(seenEvidence))
+	if seenEvidence[EvidenceCanonicalSimilar] {
+		boost += 0.04
+	}
+
+	adjusted := raw + boost
+	switch class {
+	case ContinuityAmbiguous:
+		adjusted -= 0.18
+	case ContinuitySplit, ContinuityMerge:
+		adjusted -= 0.10
+	case ContinuityRename, ContinuityMove:
+		adjusted += 0.04
+	}
+
+	// Clamp by class-specific ceilings.
+	ceiling := 0.90
+	switch class {
+	case ContinuityRename, ContinuityMove:
+		ceiling = 0.95
+	case ContinuitySplit, ContinuityMerge:
+		ceiling = 0.85
+	case ContinuityAmbiguous:
+		ceiling = 0.75
+	case ContinuityExact:
+		ceiling = 1.0
+	}
+	if adjusted > ceiling {
+		adjusted = ceiling
+	}
+	if adjusted < 0 {
+		adjusted = 0
+	}
+	return adjusted
 }
 
 // scorePair computes a similarity score between two test cases and
@@ -343,7 +486,7 @@ func detectSplitMerge(unmatchedFrom, unmatchedTo []models.TestCase, usedFrom, us
 			}
 			// Split detection: new test name contains old test name as prefix,
 			// and they share the same file or directory.
-			if strings.HasPrefix(identity.NormalizeName(t.TestName), identity.NormalizeName(f.TestName)) &&
+			if hasLifecycleNamePrefix(identity.NormalizeName(t.TestName), identity.NormalizeName(f.TestName)) &&
 				(t.FilePath == f.FilePath || filepath.Dir(t.FilePath) == filepath.Dir(f.FilePath)) {
 				splitTargets = append(splitTargets, t)
 			}
@@ -379,7 +522,7 @@ func detectSplitMerge(unmatchedFrom, unmatchedTo []models.TestCase, usedFrom, us
 			if usedFrom[f.TestID] {
 				continue
 			}
-			if strings.HasPrefix(identity.NormalizeName(f.TestName), identity.NormalizeName(t.TestName)) &&
+			if hasLifecycleNamePrefix(identity.NormalizeName(f.TestName), identity.NormalizeName(t.TestName)) &&
 				(f.FilePath == t.FilePath || filepath.Dir(f.FilePath) == filepath.Dir(t.FilePath)) {
 				mergeSourcesForThis = append(mergeSourcesForThis, f)
 			}
@@ -430,4 +573,45 @@ func buildExplanation(class ContinuityClass, from, to models.TestCase) string {
 	default:
 		return string(class) + " relationship inferred"
 	}
+}
+
+var genericLifecyclePrefixes = map[string]bool{
+	"should": true,
+	"test":   true,
+	"it":     true,
+	"can":    true,
+	"when":   true,
+	"then":   true,
+}
+
+func hasLifecycleNamePrefix(candidate, base string) bool {
+	candidate = strings.TrimSpace(candidate)
+	base = strings.TrimSpace(base)
+	if candidate == "" || base == "" || candidate == base {
+		return false
+	}
+	if !strings.HasPrefix(candidate, base) {
+		return false
+	}
+
+	// Require a word boundary after the base prefix.
+	if len(candidate) > len(base) {
+		next := candidate[len(base)]
+		if next != ' ' && next != ':' && next != '-' && next != '_' {
+			return false
+		}
+	}
+
+	baseTokens := strings.Fields(base)
+	if len(baseTokens) == 0 {
+		return false
+	}
+	// Avoid broad one-token stems (e.g., "should") that create false split/merge edges.
+	if len(baseTokens) == 1 {
+		token := strings.ToLower(baseTokens[0])
+		if len(token) < 5 || genericLifecyclePrefixes[token] {
+			return false
+		}
+	}
+	return true
 }

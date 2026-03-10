@@ -1,7 +1,9 @@
 package coverage
 
 import (
+	"path/filepath"
 	"sort"
+	"strings"
 
 	"github.com/pmclSF/hamlet/internal/models"
 )
@@ -30,27 +32,27 @@ type TypeCoverage struct {
 
 // FileSummary summarizes coverage by type for a single file.
 type FileSummary struct {
-	Path                    string  `json:"path"`
-	TotalUnits              int     `json:"totalUnits"`
-	CoveredByUnit           int     `json:"coveredByUnit"`
-	CoveredByIntegration    int     `json:"coveredByIntegration"`
-	CoveredByE2E            int     `json:"coveredByE2E"`
-	CoveredOnlyByE2E        int     `json:"coveredOnlyByE2E"`
-	Uncovered               int     `json:"uncovered"`
-	UnitCoveragePct         float64 `json:"unitCoveragePct"`
+	Path                 string  `json:"path"`
+	TotalUnits           int     `json:"totalUnits"`
+	CoveredByUnit        int     `json:"coveredByUnit"`
+	CoveredByIntegration int     `json:"coveredByIntegration"`
+	CoveredByE2E         int     `json:"coveredByE2E"`
+	CoveredOnlyByE2E     int     `json:"coveredOnlyByE2E"`
+	Uncovered            int     `json:"uncovered"`
+	UnitCoveragePct      float64 `json:"unitCoveragePct"`
 }
 
 // RepoSummary summarizes coverage by type across the entire repository.
 type RepoSummary struct {
-	TotalCodeUnits          int     `json:"totalCodeUnits"`
-	ExportedCodeUnits       int     `json:"exportedCodeUnits"`
-	CoveredByUnitTests      int     `json:"coveredByUnitTests"`
-	CoveredByIntegration    int     `json:"coveredByIntegration"`
-	CoveredByE2E            int     `json:"coveredByE2E"`
-	CoveredOnlyByE2E        int     `json:"coveredOnlyByE2E"`
-	UncoveredExported       int     `json:"uncoveredExported"`
-	UnitCoveragePct         float64 `json:"unitCoveragePct"`
-	TopRiskyAreas           []FileSummary `json:"topRiskyAreas,omitempty"`
+	TotalCodeUnits       int           `json:"totalCodeUnits"`
+	ExportedCodeUnits    int           `json:"exportedCodeUnits"`
+	CoveredByUnitTests   int           `json:"coveredByUnitTests"`
+	CoveredByIntegration int           `json:"coveredByIntegration"`
+	CoveredByE2E         int           `json:"coveredByE2E"`
+	CoveredOnlyByE2E     int           `json:"coveredOnlyByE2E"`
+	UncoveredExported    int           `json:"uncoveredExported"`
+	UnitCoveragePct      float64       `json:"unitCoveragePct"`
+	TopRiskyAreas        []FileSummary `json:"topRiskyAreas,omitempty"`
 }
 
 // ComputeByType computes per-unit coverage by test type from labeled coverage runs.
@@ -58,10 +60,7 @@ func ComputeByType(artifacts []CoverageArtifact, units []models.CodeUnit) []Type
 	// Group artifacts by run label.
 	byLabel := map[string][]CoverageArtifact{}
 	for _, art := range artifacts {
-		label := art.RunLabel
-		if label == "" {
-			label = "unknown"
-		}
+		label := normalizeCoverageLabel(art.RunLabel, art.Provenance.SourceFile)
 		byLabel[label] = append(byLabel[label], art)
 	}
 
@@ -101,6 +100,35 @@ func ComputeByType(artifacts []CoverageArtifact, units []models.CodeUnit) []Type
 	}
 
 	return result
+}
+
+func normalizeCoverageLabel(label, sourceFile string) string {
+	l := strings.ToLower(strings.TrimSpace(label))
+	switch l {
+	case "unit", "units", "jest", "vitest", "go-test", "go-testing", "pytest", "unittest":
+		return "unit"
+	case "integration", "integrations", "integ", "int":
+		return "integration"
+	case "e2e", "end-to-end", "end2end", "cypress", "playwright":
+		return "e2e"
+	}
+	if l != "" {
+		return l
+	}
+
+	file := strings.ToLower(filepath.Base(sourceFile))
+	switch {
+	case strings.Contains(file, "e2e"), strings.Contains(file, "playwright"), strings.Contains(file, "cypress"):
+		return "e2e"
+	case strings.Contains(file, "integration"), strings.Contains(file, "integ"), strings.Contains(file, "int"):
+		return "integration"
+	case strings.Contains(file, "unit"), strings.Contains(file, "jest"), strings.Contains(file, "vitest"):
+		return "unit"
+	default:
+		// Unlabeled single-run coverage should still be useful for unit-coverage
+		// measurements instead of being dropped as "unknown".
+		return "unit"
+	}
 }
 
 // BuildRepoSummary summarizes coverage by type at the repository level.

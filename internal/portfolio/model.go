@@ -16,8 +16,6 @@
 // Portfolio intelligence is grounded in observed evidence, not speculation.
 package portfolio
 
-import "github.com/pmclSF/hamlet/internal/models"
-
 // BreadthClass describes the relative scope of a test.
 type BreadthClass string
 
@@ -222,14 +220,4 @@ type BenchmarkAggregate struct {
 
 	// PortfolioPostureBand is the overall portfolio balance posture.
 	PortfolioPostureBand string `json:"portfolioPostureBand"`
-}
-
-// frameworkType resolves the framework type from a snapshot for a given framework name.
-func frameworkType(snap *models.TestSuiteSnapshot, name string) models.FrameworkType {
-	for _, fw := range snap.Frameworks {
-		if fw.Name == name {
-			return fw.Type
-		}
-	}
-	return ""
 }

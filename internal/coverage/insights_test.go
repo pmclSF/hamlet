@@ -7,6 +7,7 @@ import (
 )
 
 func TestDeriveInsights_OnlyE2E(t *testing.T) {
+	t.Parallel()
 	typeCov := []TypeCoverage{
 		{
 			UnitID: "src/a.go:Foo",
@@ -57,6 +58,7 @@ func TestDeriveInsights_OnlyE2E(t *testing.T) {
 }
 
 func TestDeriveInsights_UncoveredExported(t *testing.T) {
+	t.Parallel()
 	typeCov := []TypeCoverage{
 		{
 			UnitID:    "src/b.go:Exported",
@@ -87,6 +89,7 @@ func TestDeriveInsights_UncoveredExported(t *testing.T) {
 }
 
 func TestDeriveInsights_WeakDiversity(t *testing.T) {
+	t.Parallel()
 	// Need >= 3 total units in a file with some e2e-only.
 	typeCov := []TypeCoverage{
 		{UnitID: "f.go:A", Name: "A", Path: "f.go", CoveredByTypes: map[string]bool{"e2e": true}},
@@ -111,6 +114,7 @@ func TestDeriveInsights_WeakDiversity(t *testing.T) {
 }
 
 func TestDeriveInsights_NoInsights(t *testing.T) {
+	t.Parallel()
 	// All units covered by unit tests, nothing uncovered.
 	typeCov := []TypeCoverage{
 		{UnitID: "x.go:A", Name: "A", Path: "x.go", CoveredByTypes: map[string]bool{"unit": true}},
@@ -123,6 +127,7 @@ func TestDeriveInsights_NoInsights(t *testing.T) {
 }
 
 func TestDeriveUnitInsights_NoBranch(t *testing.T) {
+	t.Parallel()
 	unitCov := []UnitCoverage{
 		{CoveredAny: true, LineCoveragePct: 80, BranchCoveragePct: 0},
 		{CoveredAny: true, LineCoveragePct: 60, BranchCoveragePct: 50},
@@ -145,6 +150,7 @@ func TestDeriveUnitInsights_NoBranch(t *testing.T) {
 }
 
 func TestDeriveUnitInsights_PartiallyCovered(t *testing.T) {
+	t.Parallel()
 	unitCov := []UnitCoverage{
 		{LineCoveragePct: 30},
 		{LineCoveragePct: 45},
@@ -165,6 +171,7 @@ func TestDeriveUnitInsights_PartiallyCovered(t *testing.T) {
 }
 
 func TestDeriveUnitInsights_Empty(t *testing.T) {
+	t.Parallel()
 	insights := DeriveUnitInsights(nil)
 	if len(insights) != 0 {
 		t.Errorf("expected no insights for empty input, got %d", len(insights))

@@ -33,6 +33,7 @@ end_of_record
 `
 
 func TestParseLCOV(t *testing.T) {
+	t.Parallel()
 	records, err := parseLCOV(sampleLCOV)
 	if err != nil {
 		t.Fatalf("parseLCOV error: %v", err)
@@ -94,6 +95,7 @@ const sampleIstanbul = `{
 }`
 
 func TestParseIstanbul(t *testing.T) {
+	t.Parallel()
 	records, err := parseIstanbul([]byte(sampleIstanbul))
 	if err != nil {
 		t.Fatalf("parseIstanbul error: %v", err)
@@ -121,9 +123,12 @@ func TestParseIstanbul(t *testing.T) {
 }
 
 func TestIngestFile_LCOV(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	lcovPath := filepath.Join(dir, "lcov.info")
-	os.WriteFile(lcovPath, []byte(sampleLCOV), 0644)
+	if err := os.WriteFile(lcovPath, []byte(sampleLCOV), 0644); err != nil {
+		t.Fatalf("write lcov.info: %v", err)
+	}
 
 	art, err := IngestFile(lcovPath, "unit")
 	if err != nil {
@@ -141,9 +146,12 @@ func TestIngestFile_LCOV(t *testing.T) {
 }
 
 func TestIngestFile_Istanbul(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	p := filepath.Join(dir, "coverage-final.json")
-	os.WriteFile(p, []byte(sampleIstanbul), 0644)
+	if err := os.WriteFile(p, []byte(sampleIstanbul), 0644); err != nil {
+		t.Fatalf("write coverage-final.json: %v", err)
+	}
 
 	art, err := IngestFile(p, "e2e")
 	if err != nil {
@@ -158,6 +166,7 @@ func TestIngestFile_Istanbul(t *testing.T) {
 }
 
 func TestMerge(t *testing.T) {
+	t.Parallel()
 	a1 := CoverageArtifact{
 		Records: []CoverageRecord{
 			{FilePath: "src/a.js", LineHits: map[int]int{1: 3, 2: 0}, LineTotalCount: 2, LineCoveredCount: 1},
@@ -188,6 +197,7 @@ func TestMerge(t *testing.T) {
 }
 
 func TestNormalizeCoveragePath(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		input string
 		want  string
@@ -202,5 +212,43 @@ func TestNormalizeCoveragePath(t *testing.T) {
 		if got != tt.want {
 			t.Errorf("normalizeCoveragePath(%q) = %q, want %q", tt.input, got, tt.want)
 		}
+	}
+}
+
+func TestIngestDirectory_PartialWarning(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "lcov.info"), []byte(sampleLCOV), 0o644); err != nil {
+		t.Fatalf("write lcov.info: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "coverage-summary.json"), []byte("{not-json"), 0o644); err != nil {
+		t.Fatalf("write invalid json: %v", err)
+	}
+
+	arts, err := IngestDirectory(dir, "unit")
+	if len(arts) == 0 {
+		t.Fatal("expected at least one ingested artifact")
+	}
+	if err == nil {
+		t.Fatal("expected partial ingest warning, got nil")
+	}
+	if _, ok := err.(*IngestWarning); !ok {
+		t.Fatalf("expected *IngestWarning, got %T (%v)", err, err)
+	}
+}
+
+func TestIngestDirectory_AllInvalidReturnsError(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "coverage-final.json"), []byte("{bad-json"), 0o644); err != nil {
+		t.Fatalf("write invalid coverage json: %v", err)
+	}
+
+	arts, err := IngestDirectory(dir, "unit")
+	if err == nil {
+		t.Fatal("expected error when no artifacts could be ingested")
+	}
+	if len(arts) != 0 {
+		t.Fatalf("expected 0 artifacts when all inputs invalid, got %d", len(arts))
 	}
 }

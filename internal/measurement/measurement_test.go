@@ -38,6 +38,7 @@ func sigInFile(t models.SignalType, file string) models.Signal {
 // --- helpers tests ---
 
 func TestCountSignals(t *testing.T) {
+	t.Parallel()
 	snap := makeSnap(3,
 		sig(signals.SignalFlakyTest),
 		sig(signals.SignalFlakyTest),
@@ -56,6 +57,7 @@ func TestCountSignals(t *testing.T) {
 }
 
 func TestRatioToBand(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		ratio float64
 		want  string
@@ -77,6 +79,7 @@ func TestRatioToBand(t *testing.T) {
 }
 
 func TestRuntimeEvidence(t *testing.T) {
+	t.Parallel()
 	// No runtime data.
 	snap := makeSnap(2)
 	if got := runtimeEvidence(snap); got != EvidenceWeak {
@@ -91,6 +94,7 @@ func TestRuntimeEvidence(t *testing.T) {
 }
 
 func TestEvidenceLimitations(t *testing.T) {
+	t.Parallel()
 	if lim := evidenceLimitations(EvidenceStrong); lim != nil {
 		t.Errorf("evidenceLimitations(strong) = %v, want nil", lim)
 	}
@@ -105,6 +109,7 @@ func TestEvidenceLimitations(t *testing.T) {
 // --- registry tests ---
 
 func TestRegistry_RegisterAndLen(t *testing.T) {
+	t.Parallel()
 	r := NewRegistry()
 	r.Register(Definition{ID: "test.one", Dimension: DimensionHealth})
 	r.Register(Definition{ID: "test.two", Dimension: DimensionHealth})
@@ -115,6 +120,7 @@ func TestRegistry_RegisterAndLen(t *testing.T) {
 }
 
 func TestRegistry_DuplicatePanics(t *testing.T) {
+	t.Parallel()
 	defer func() {
 		if r := recover(); r == nil {
 			t.Error("expected panic on duplicate ID")
@@ -126,6 +132,7 @@ func TestRegistry_DuplicatePanics(t *testing.T) {
 }
 
 func TestRegistry_ByDimension(t *testing.T) {
+	t.Parallel()
 	r := NewRegistry()
 	r.Register(Definition{ID: "h.one", Dimension: DimensionHealth})
 	r.Register(Definition{ID: "s.one", Dimension: DimensionStructuralRisk})
@@ -142,6 +149,7 @@ func TestRegistry_ByDimension(t *testing.T) {
 }
 
 func TestRegistry_Run(t *testing.T) {
+	t.Parallel()
 	r := NewRegistry()
 	r.Register(Definition{
 		ID:        "test.constant",
@@ -163,6 +171,7 @@ func TestRegistry_Run(t *testing.T) {
 // --- default registry tests ---
 
 func TestDefaultRegistry_AllDimensionsCovered(t *testing.T) {
+	t.Parallel()
 	r := DefaultRegistry()
 
 	dims := []Dimension{
@@ -182,6 +191,7 @@ func TestDefaultRegistry_AllDimensionsCovered(t *testing.T) {
 }
 
 func TestDefaultRegistry_NoDuplicateIDs(t *testing.T) {
+	t.Parallel()
 	// DefaultRegistry panics on duplicate IDs; if this runs, no duplicates.
 	r := DefaultRegistry()
 	if r.Len() == 0 {
@@ -192,6 +202,7 @@ func TestDefaultRegistry_NoDuplicateIDs(t *testing.T) {
 // --- health measurement tests ---
 
 func TestHealth_FlakyShare_NoFiles(t *testing.T) {
+	t.Parallel()
 	snap := makeSnap(0)
 	r := computeFlakyShare(snap)
 	if r.Value != 0 || r.Band != "strong" || r.Evidence != EvidenceNone {
@@ -200,6 +211,7 @@ func TestHealth_FlakyShare_NoFiles(t *testing.T) {
 }
 
 func TestHealth_FlakyShare_WithSignals(t *testing.T) {
+	t.Parallel()
 	snap := makeSnap(10,
 		sig(signals.SignalFlakyTest),
 		sig(signals.SignalFlakyTest),
@@ -215,6 +227,7 @@ func TestHealth_FlakyShare_WithSignals(t *testing.T) {
 }
 
 func TestHealth_SkipDensity(t *testing.T) {
+	t.Parallel()
 	snap := makeSnap(20,
 		sig(signals.SignalSkippedTest),
 	)
@@ -231,6 +244,7 @@ func TestHealth_SkipDensity(t *testing.T) {
 }
 
 func TestHealth_DeadTestShare(t *testing.T) {
+	t.Parallel()
 	snap := makeSnap(10,
 		sig(signals.SignalDeadTest),
 		sig(signals.SignalDeadTest),
@@ -245,6 +259,7 @@ func TestHealth_DeadTestShare(t *testing.T) {
 }
 
 func TestHealth_SlowTestShare_RuntimeEvidence(t *testing.T) {
+	t.Parallel()
 	snap := makeSnap(4,
 		sig(signals.SignalSlowTest),
 	)
@@ -261,6 +276,7 @@ func TestHealth_SlowTestShare_RuntimeEvidence(t *testing.T) {
 }
 
 func TestHealth_FlakyShare_UnknownWithoutRuntime(t *testing.T) {
+	t.Parallel()
 	// No runtime data and no flaky signals → band should be "unknown", not "strong".
 	snap := makeSnap(10)
 	r := computeFlakyShare(snap)
@@ -273,6 +289,7 @@ func TestHealth_FlakyShare_UnknownWithoutRuntime(t *testing.T) {
 }
 
 func TestHealth_FlakyShare_StrongWithRuntime(t *testing.T) {
+	t.Parallel()
 	// With runtime data and no flaky signals → band should be "strong".
 	snap := makeSnap(10)
 	snap.TestFiles[0].RuntimeStats = &models.RuntimeStats{AvgRuntimeMs: 100}
@@ -286,6 +303,7 @@ func TestHealth_FlakyShare_StrongWithRuntime(t *testing.T) {
 }
 
 func TestHealth_SlowTestShare_UnknownWithoutRuntime(t *testing.T) {
+	t.Parallel()
 	// No runtime data and no slow signals → band should be "unknown".
 	snap := makeSnap(10)
 	r := computeSlowTestShare(snap)
@@ -295,6 +313,7 @@ func TestHealth_SlowTestShare_UnknownWithoutRuntime(t *testing.T) {
 }
 
 func TestHealth_SlowTestShare_StrongWithRuntime(t *testing.T) {
+	t.Parallel()
 	// With runtime data and no slow signals → band should be "strong".
 	snap := makeSnap(10)
 	snap.TestFiles[0].RuntimeStats = &models.RuntimeStats{AvgRuntimeMs: 100}
@@ -305,6 +324,7 @@ func TestHealth_SlowTestShare_StrongWithRuntime(t *testing.T) {
 }
 
 func TestResolvePostureBand_SkipsUnknown(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name  string
 		bands []string
@@ -317,6 +337,7 @@ func TestResolvePostureBand_SkipsUnknown(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := resolvePostureBand(tt.bands)
 			if got != tt.want {
 				t.Errorf("resolvePostureBand(%v) = %q, want %q", tt.bands, got, tt.want)
@@ -328,6 +349,7 @@ func TestResolvePostureBand_SkipsUnknown(t *testing.T) {
 // --- coverage depth tests ---
 
 func TestCoverageDepth_UncoveredExports(t *testing.T) {
+	t.Parallel()
 	snap := makeSnap(5)
 	snap.CodeUnits = []models.CodeUnit{
 		{Name: "Foo", Exported: true},
@@ -346,6 +368,7 @@ func TestCoverageDepth_UncoveredExports(t *testing.T) {
 }
 
 func TestCoverageDepth_UncoveredExports_NoExports(t *testing.T) {
+	t.Parallel()
 	snap := makeSnap(5)
 	r := computeUncoveredExports(snap)
 	if r.Value != 0 || r.Band != "strong" {
@@ -354,6 +377,7 @@ func TestCoverageDepth_UncoveredExports_NoExports(t *testing.T) {
 }
 
 func TestCoverageDepth_WeakAssertionShare(t *testing.T) {
+	t.Parallel()
 	snap := makeSnap(4,
 		sig(signals.SignalWeakAssertion),
 		sig(signals.SignalWeakAssertion),
@@ -365,6 +389,7 @@ func TestCoverageDepth_WeakAssertionShare(t *testing.T) {
 }
 
 func TestCoverageDepth_CoverageBreachShare_NoCovData(t *testing.T) {
+	t.Parallel()
 	snap := makeSnap(5)
 	r := computeCoverageBreachShare(snap)
 	if r.Evidence != EvidenceWeak {
@@ -373,6 +398,7 @@ func TestCoverageDepth_CoverageBreachShare_NoCovData(t *testing.T) {
 }
 
 func TestCoverageDepth_CoverageBreachShare_WithBreaches(t *testing.T) {
+	t.Parallel()
 	snap := makeSnap(10,
 		sig(signals.SignalCoverageThresholdBreak),
 		sig(signals.SignalCoverageThresholdBreak),
@@ -389,6 +415,7 @@ func TestCoverageDepth_CoverageBreachShare_WithBreaches(t *testing.T) {
 // --- coverage diversity tests ---
 
 func TestCoverageDiversity_MockHeavyShare(t *testing.T) {
+	t.Parallel()
 	snap := makeSnap(5,
 		sig(signals.SignalMockHeavyTest),
 		sig(signals.SignalMockHeavyTest),
@@ -400,6 +427,7 @@ func TestCoverageDiversity_MockHeavyShare(t *testing.T) {
 }
 
 func TestCoverageDiversity_FrameworkFragmentation(t *testing.T) {
+	t.Parallel()
 	snap := makeSnap(10)
 	snap.Frameworks = []models.Framework{
 		{Name: "jest", FileCount: 6},
@@ -417,6 +445,7 @@ func TestCoverageDiversity_FrameworkFragmentation(t *testing.T) {
 }
 
 func TestCoverageDiversity_FrameworkFragmentation_NoFrameworks(t *testing.T) {
+	t.Parallel()
 	snap := makeSnap(5)
 	r := computeFrameworkFragmentation(snap)
 	if r.Value != 0 || r.Evidence != EvidenceNone {
@@ -425,6 +454,7 @@ func TestCoverageDiversity_FrameworkFragmentation_NoFrameworks(t *testing.T) {
 }
 
 func TestCoverageDiversity_E2EConcentration(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: []models.TestFile{
 			{Path: "a.test.js", Framework: "cypress"},
@@ -448,6 +478,7 @@ func TestCoverageDiversity_E2EConcentration(t *testing.T) {
 }
 
 func TestCoverageDiversity_E2EConcentration_HighRatio(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: []models.TestFile{
 			{Path: "a.test.js", Framework: "playwright"},
@@ -474,6 +505,7 @@ func TestCoverageDiversity_E2EConcentration_HighRatio(t *testing.T) {
 // --- structural risk tests ---
 
 func TestStructuralRisk_MigrationBlockerDensity(t *testing.T) {
+	t.Parallel()
 	snap := makeSnap(10,
 		sig(signals.SignalMigrationBlocker),
 		sig(signals.SignalDeprecatedTestPattern),
@@ -485,6 +517,7 @@ func TestStructuralRisk_MigrationBlockerDensity(t *testing.T) {
 }
 
 func TestStructuralRisk_DeprecatedPatternShare(t *testing.T) {
+	t.Parallel()
 	snap := makeSnap(20,
 		sig(signals.SignalDeprecatedTestPattern),
 		sig(signals.SignalDeprecatedTestPattern),
@@ -500,6 +533,7 @@ func TestStructuralRisk_DeprecatedPatternShare(t *testing.T) {
 }
 
 func TestStructuralRisk_DynamicGenerationShare(t *testing.T) {
+	t.Parallel()
 	snap := makeSnap(10,
 		sig(signals.SignalDynamicTestGeneration),
 	)
@@ -515,6 +549,7 @@ func TestStructuralRisk_DynamicGenerationShare(t *testing.T) {
 // --- operational risk tests ---
 
 func TestOperationalRisk_PolicyViolationDensity(t *testing.T) {
+	t.Parallel()
 	snap := makeSnap(10,
 		sig(signals.SignalPolicyViolation),
 		sig(signals.SignalPolicyViolation),
@@ -525,32 +560,54 @@ func TestOperationalRisk_PolicyViolationDensity(t *testing.T) {
 	}
 }
 
-func TestOperationalRisk_LegacyFrameworkShare(t *testing.T) {
-	snap := makeSnap(10,
-		sig(signals.SignalLegacyFrameworkUsage),
-	)
-	r := computeLegacyFrameworkShare(snap)
-	if r.Value != 0.1 {
-		t.Errorf("legacy_framework_share value = %v, want 0.1", r.Value)
+func TestOperationalRiskShareFunctions(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name         string
+		compute      func(*models.TestSuiteSnapshot) Result
+		snapshot     *models.TestSuiteSnapshot
+		wantValue    float64
+		wantEvidence EvidenceStrength
+	}{
+		{
+			name: "legacy framework share",
+			compute: func(snap *models.TestSuiteSnapshot) Result {
+				return computeLegacyFrameworkShare(snap)
+			},
+			snapshot:     makeSnap(10, sig(signals.SignalLegacyFrameworkUsage)),
+			wantValue:    0.1,
+			wantEvidence: EvidenceStrong,
+		},
+		{
+			name: "runtime budget breach share without runtime evidence",
+			compute: func(snap *models.TestSuiteSnapshot) Result {
+				return computeRuntimeBudgetBreachShare(snap)
+			},
+			snapshot:     makeSnap(5, sig(signals.SignalRuntimeBudgetExceeded)),
+			wantValue:    0.2,
+			wantEvidence: EvidenceWeak,
+		},
 	}
-}
 
-func TestOperationalRisk_RuntimeBudgetBreachShare(t *testing.T) {
-	snap := makeSnap(5,
-		sig(signals.SignalRuntimeBudgetExceeded),
-	)
-	r := computeRuntimeBudgetBreachShare(snap)
-	if r.Value != 0.2 {
-		t.Errorf("runtime_budget_breach_share value = %v, want 0.2", r.Value)
-	}
-	if r.Evidence != EvidenceWeak {
-		t.Errorf("runtime_budget_breach_share evidence without runtime = %q, want 'weak'", r.Evidence)
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			r := tt.compute(tt.snapshot)
+			if r.Value != tt.wantValue {
+				t.Errorf("value = %v, want %v", r.Value, tt.wantValue)
+			}
+			if r.Evidence != tt.wantEvidence {
+				t.Errorf("evidence = %q, want %q", r.Evidence, tt.wantEvidence)
+			}
+		})
 	}
 }
 
 // --- posture computation tests ---
 
 func TestComputeSnapshot_AllDimensionsPresent(t *testing.T) {
+	t.Parallel()
 	r := DefaultRegistry()
 	snap := makeSnap(10,
 		sig(signals.SignalFlakyTest),
@@ -569,6 +626,7 @@ func TestComputeSnapshot_AllDimensionsPresent(t *testing.T) {
 }
 
 func TestPosture_StrongWhenClean(t *testing.T) {
+	t.Parallel()
 	r := DefaultRegistry()
 	snap := makeSnap(10)
 
@@ -585,6 +643,7 @@ func TestPosture_StrongWhenClean(t *testing.T) {
 }
 
 func TestPosture_WeakWhenManyIssues(t *testing.T) {
+	t.Parallel()
 	sigs := make([]models.Signal, 0)
 	for i := 0; i < 8; i++ {
 		sigs = append(sigs, sig(signals.SignalFlakyTest))
@@ -604,6 +663,7 @@ func TestPosture_WeakWhenManyIssues(t *testing.T) {
 }
 
 func TestResolvePostureBand(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name  string
 		bands []string
@@ -617,6 +677,7 @@ func TestResolvePostureBand(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := resolvePostureBand(tt.bands)
 			if got != tt.want {
 				t.Errorf("resolvePostureBand(%v) = %q, want %q", tt.bands, got, tt.want)
@@ -628,6 +689,7 @@ func TestResolvePostureBand(t *testing.T) {
 // --- integration test ---
 
 func TestFullPipeline_EndToEnd(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: []models.TestFile{
 			{Path: "src/auth/auth.test.js", Framework: "jest", RuntimeStats: &models.RuntimeStats{AvgRuntimeMs: 150}},

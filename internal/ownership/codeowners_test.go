@@ -3,10 +3,12 @@ package ownership
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
 func TestParseCodeownersFile(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	coPath := filepath.Join(dir, "CODEOWNERS")
 	content := `# Global owners
@@ -78,6 +80,7 @@ docs/* @team-docs
 }
 
 func TestMatchCodeowners_Precedence(t *testing.T) {
+	t.Parallel()
 	rules := []CodeownersRule{
 		{Pattern: "*", Owners: []string{"global"}, LineNumber: 1},
 		{Pattern: "/src/", Owners: []string{"team-src"}, LineNumber: 2},
@@ -108,6 +111,7 @@ func TestMatchCodeowners_Precedence(t *testing.T) {
 }
 
 func TestMatchCodeowners_WildcardExtension(t *testing.T) {
+	t.Parallel()
 	rules := []CodeownersRule{
 		{Pattern: "*.js", Owners: []string{"team-js"}, LineNumber: 1},
 		{Pattern: "*.go", Owners: []string{"team-go"}, LineNumber: 2},
@@ -137,6 +141,7 @@ func TestMatchCodeowners_WildcardExtension(t *testing.T) {
 }
 
 func TestMatchCodeowners_DoubleStarPattern(t *testing.T) {
+	t.Parallel()
 	rules := []CodeownersRule{
 		{Pattern: "**/test/", Owners: []string{"team-testing"}, LineNumber: 1},
 	}
@@ -160,6 +165,7 @@ func TestMatchCodeowners_DoubleStarPattern(t *testing.T) {
 }
 
 func TestMatchCodeowners_SingleLevelWildcard(t *testing.T) {
+	t.Parallel()
 	rules := []CodeownersRule{
 		{Pattern: "docs/*", Owners: []string{"team-docs"}, LineNumber: 1},
 	}
@@ -181,7 +187,102 @@ func TestMatchCodeowners_SingleLevelWildcard(t *testing.T) {
 	}
 }
 
+func TestMatchCodeowners_AdvancedGlobPatterns(t *testing.T) {
+	t.Parallel()
+	rules := []CodeownersRule{
+		{Pattern: "src/{api,ui}/**/*.ts", Owners: []string{"team-typescript"}, LineNumber: 1},
+		{Pattern: "pkg/[ab]pp/*.go", Owners: []string{"team-go"}, LineNumber: 2},
+		{Pattern: "apps/feature-?/", Owners: []string{"team-feature"}, LineNumber: 3},
+	}
+
+	tests := []struct {
+		path      string
+		wantOwner string
+		wantMatch bool
+	}{
+		{"src/api/v1/routes.ts", "team-typescript", true},
+		{"src/ui/components/button.ts", "team-typescript", true},
+		{"src/ux/components/button.ts", "", false},
+		{"pkg/app/main.go", "team-go", true},
+		{"pkg/bpp/main.go", "team-go", true},
+		{"pkg/cpp/main.go", "", false},
+		{"apps/feature-a/page.spec.ts", "team-feature", true},
+		{"apps/feature-long/page.spec.ts", "", false},
+	}
+
+	for _, tt := range tests {
+		rule, matched := MatchCodeowners(rules, tt.path)
+		if matched != tt.wantMatch {
+			t.Errorf("path=%q matched=%v, want %v", tt.path, matched, tt.wantMatch)
+			continue
+		}
+		if matched && rule.Owners[0] != tt.wantOwner {
+			t.Errorf("path=%q owner=%q, want %q", tt.path, rule.Owners[0], tt.wantOwner)
+		}
+	}
+}
+
+func TestUnsupportedGlobReason(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		pattern    string
+		wantReason string
+	}{
+		{pattern: "src/**/*.go", wantReason: ""},
+		{pattern: "apps/@(api|ui)/**", wantReason: "extglob"},
+		{pattern: "src/{api,ui/**", wantReason: "unbalanced brace"},
+		{pattern: "src/[abc/**", wantReason: "invalid glob segment"},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.pattern, func(t *testing.T) {
+			t.Parallel()
+			got := unsupportedGlobReason(tt.pattern)
+			if tt.wantReason == "" {
+				if got != "" {
+					t.Fatalf("unsupportedGlobReason(%q) = %q, want empty", tt.pattern, got)
+				}
+				return
+			}
+			if got == "" || !strings.Contains(got, tt.wantReason) {
+				t.Fatalf("unsupportedGlobReason(%q) = %q, want substring %q", tt.pattern, got, tt.wantReason)
+			}
+		})
+	}
+}
+
+func TestParseCodeownersFile_UnsupportedGlobDiagnostics(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	coPath := filepath.Join(dir, "CODEOWNERS")
+	content := `apps/@(api|ui)/* @team-apps
+src/[abc/** @team-core
+src/{api,ui/** @team-ui
+src/**/*.go @team-go
+`
+	if err := os.WriteFile(coPath, []byte(content), 0o644); err != nil {
+		t.Fatalf("write CODEOWNERS: %v", err)
+	}
+
+	cf := ParseCodeownersFile(coPath, "CODEOWNERS")
+	if len(cf.Rules) != 4 {
+		t.Fatalf("rules = %d, want 4", len(cf.Rules))
+	}
+
+	var unsupportedWarnings int
+	for _, d := range cf.Diagnostics {
+		if strings.Contains(d.Message, "unsupported or malformed glob syntax") {
+			unsupportedWarnings++
+		}
+	}
+	if unsupportedWarnings != 3 {
+		t.Fatalf("unsupported warning count = %d, want 3", unsupportedWarnings)
+	}
+}
+
 func TestMatchCodeowners_NoRules(t *testing.T) {
+	t.Parallel()
 	_, matched := MatchCodeowners(nil, "any/file.js")
 	if matched {
 		t.Error("empty rules should not match")
@@ -189,6 +290,7 @@ func TestMatchCodeowners_NoRules(t *testing.T) {
 }
 
 func TestCodeownersRule_ToAssignment(t *testing.T) {
+	t.Parallel()
 	rule := CodeownersRule{
 		Pattern:    "/src/auth/",
 		Owners:     []string{"team-auth", "team-security"},
@@ -217,11 +319,16 @@ func TestCodeownersRule_ToAssignment(t *testing.T) {
 }
 
 func TestFindCodeownersFile(t *testing.T) {
+	t.Parallel()
 	// Test with .github/CODEOWNERS
 	dir := t.TempDir()
 	ghDir := filepath.Join(dir, ".github")
-	os.MkdirAll(ghDir, 0755)
-	os.WriteFile(filepath.Join(ghDir, "CODEOWNERS"), []byte("* @owner"), 0644)
+	if err := os.MkdirAll(ghDir, 0755); err != nil {
+		t.Fatalf("mkdir .github: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(ghDir, "CODEOWNERS"), []byte("* @owner"), 0644); err != nil {
+		t.Fatalf("write CODEOWNERS: %v", err)
+	}
 
 	_, relPath, found := FindCodeownersFile(dir)
 	if !found {

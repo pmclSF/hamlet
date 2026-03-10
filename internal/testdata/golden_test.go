@@ -6,6 +6,7 @@ import (
 	"flag"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 
 	"github.com/pmclSF/hamlet/internal/benchmark"
@@ -20,6 +21,7 @@ import (
 )
 
 var update = flag.Bool("update", false, "update golden files")
+var goldenWriteMu sync.Mutex
 
 func goldenPath(name string) string {
 	return filepath.Join("golden", name)
@@ -30,10 +32,26 @@ func assertGolden(t *testing.T, name string, got []byte) {
 	path := goldenPath(name)
 
 	if *update {
+		tmpPath := filepath.Join(t.TempDir(), filepath.Base(path))
+		if err := os.WriteFile(tmpPath, got, 0o644); err != nil {
+			t.Fatalf("write temp golden: %v", err)
+		}
+		goldenWriteMu.Lock()
+		defer goldenWriteMu.Unlock()
 		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 			t.Fatalf("mkdir: %v", err)
 		}
-		if err := os.WriteFile(path, got, 0o644); err != nil {
+		if err := os.Rename(tmpPath, path); err != nil {
+			// Fallback for cross-device rename edge cases.
+			data, readErr := os.ReadFile(tmpPath)
+			if readErr != nil {
+				t.Fatalf("read temp golden: %v", readErr)
+			}
+			if err := os.WriteFile(path, data, 0o644); err != nil {
+				t.Fatalf("write golden: %v", err)
+			}
+		}
+		if err := os.Chmod(path, 0o644); err != nil {
 			t.Fatalf("write golden: %v", err)
 		}
 		return
@@ -58,6 +76,7 @@ func truncate(b []byte, n int) string {
 }
 
 func TestGolden_MetricsJSON(t *testing.T) {
+	t.Parallel()
 	snap := MinimalSnapshot()
 	ms := metrics.Derive(snap)
 	// Zero out time-dependent field for determinism.
@@ -71,6 +90,7 @@ func TestGolden_MetricsJSON(t *testing.T) {
 }
 
 func TestGolden_ExportJSON(t *testing.T) {
+	t.Parallel()
 	snap := MinimalSnapshot()
 	ms := metrics.Derive(snap)
 	// Zero out time-dependent fields for determinism.
@@ -92,6 +112,7 @@ func TestGolden_ExportJSON(t *testing.T) {
 }
 
 func TestGolden_AnalyzeText(t *testing.T) {
+	t.Parallel()
 	snap := MinimalSnapshot()
 	snap.Risk = scoring.ComputeRisk(snap)
 	measReg := measurement.DefaultRegistry()
@@ -104,6 +125,7 @@ func TestGolden_AnalyzeText(t *testing.T) {
 }
 
 func TestGolden_PortfolioText(t *testing.T) {
+	t.Parallel()
 	snap := FlakyConcentratedSnapshot()
 	snap.Risk = scoring.ComputeRisk(snap)
 	measReg := measurement.DefaultRegistry()
@@ -116,6 +138,7 @@ func TestGolden_PortfolioText(t *testing.T) {
 }
 
 func TestGolden_SummaryText(t *testing.T) {
+	t.Parallel()
 	snap := MinimalSnapshot()
 	snap.Risk = scoring.ComputeRisk(snap)
 	measReg := measurement.DefaultRegistry()
@@ -129,6 +152,7 @@ func TestGolden_SummaryText(t *testing.T) {
 }
 
 func TestGolden_PostureText(t *testing.T) {
+	t.Parallel()
 	snap := MinimalSnapshot()
 	measReg := measurement.DefaultRegistry()
 	snap.Measurements = measReg.ComputeSnapshot(snap).ToModel()
@@ -139,6 +163,7 @@ func TestGolden_PostureText(t *testing.T) {
 }
 
 func TestGolden_ImpactText(t *testing.T) {
+	t.Parallel()
 	snap := HealthyBalancedSnapshot()
 	measReg := measurement.DefaultRegistry()
 	snap.Measurements = measReg.ComputeSnapshot(snap).ToModel()
@@ -155,6 +180,7 @@ func TestGolden_ImpactText(t *testing.T) {
 }
 
 func TestGolden_CompareText(t *testing.T) {
+	t.Parallel()
 	from := FlakyConcentratedSnapshot()
 	to := HealthyBalancedSnapshot()
 
@@ -166,6 +192,7 @@ func TestGolden_CompareText(t *testing.T) {
 }
 
 func TestGolden_ImpactAggregateJSON(t *testing.T) {
+	t.Parallel()
 	snap := HealthyBalancedSnapshot()
 	measReg := measurement.DefaultRegistry()
 	snap.Measurements = measReg.ComputeSnapshot(snap).ToModel()

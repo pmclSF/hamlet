@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 )
 
 // Jest/Vitest JSON result schema.
@@ -18,24 +19,24 @@ type jestResults struct {
 }
 
 type jestTestResult struct {
-	TestFilePath   string             `json:"testFilePath"`
-	NumPassing     int                `json:"numPassingTests"`
-	NumFailing     int                `json:"numFailingTests"`
-	NumPending     int                `json:"numPendingTests"`
-	AssertionResults []jestAssertion  `json:"assertionResults"`
+	TestFilePath     string          `json:"testFilePath"`
+	NumPassing       int             `json:"numPassingTests"`
+	NumFailing       int             `json:"numFailingTests"`
+	NumPending       int             `json:"numPendingTests"`
+	AssertionResults []jestAssertion `json:"assertionResults"`
 	// Some Jest versions use "testResults" inside each file result.
-	TestResults    []jestAssertion    `json:"testResults,omitempty"`
+	TestResults []jestAssertion `json:"testResults,omitempty"`
 }
 
 type jestAssertion struct {
-	FullName     string   `json:"fullName"`
-	Title        string   `json:"title"`
-	AncestorTitles []string `json:"ancestorTitles"`
-	Status       string   `json:"status"`   // "passed", "failed", "pending", "skipped"
-	Duration     *float64 `json:"duration"` // milliseconds, nullable
+	FullName        string   `json:"fullName"`
+	Title           string   `json:"title"`
+	AncestorTitles  []string `json:"ancestorTitles"`
+	Status          string   `json:"status"`   // "passed", "failed", "pending", "skipped"
+	Duration        *float64 `json:"duration"` // milliseconds, nullable
 	FailureMessages []string `json:"failureMessages"`
 	// Vitest uses "retryCount" for retry information.
-	RetryCount   int      `json:"retryCount,omitempty"`
+	RetryCount int `json:"retryCount,omitempty"`
 }
 
 // ParseJestJSON parses a Jest/Vitest JSON results file.
@@ -76,7 +77,7 @@ func ParseJestJSON(path string) (*IngestionResult, error) {
 
 			suite := ""
 			if len(a.AncestorTitles) > 0 {
-				suite = a.AncestorTitles[len(a.AncestorTitles)-1]
+				suite = joinNonEmpty(a.AncestorTitles, " > ")
 			}
 
 			var durationMs float64
@@ -111,6 +112,19 @@ func ParseJestJSON(path string) (*IngestionResult, error) {
 		Format:     "jest-json",
 		SourcePath: path,
 	}, nil
+}
+
+func joinNonEmpty(parts []string, sep string) string {
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		if p != "" {
+			out = append(out, p)
+		}
+	}
+	if len(out) == 0 {
+		return ""
+	}
+	return strings.Join(out, sep)
 }
 
 func jestStatus(s string) TestStatus {

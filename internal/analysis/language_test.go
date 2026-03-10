@@ -3,6 +3,7 @@ package analysis
 import "testing"
 
 func TestLanguageRegistry_AllRegistered(t *testing.T) {
+	t.Parallel()
 	expected := []string{"js", "go", "python", "java"}
 	for _, lang := range expected {
 		a := getLanguageAnalyzer(lang)
@@ -17,6 +18,7 @@ func TestLanguageRegistry_AllRegistered(t *testing.T) {
 }
 
 func TestLanguageRegistry_DefaultFallback(t *testing.T) {
+	t.Parallel()
 	a := getLanguageAnalyzer("unknown")
 	if a == nil {
 		t.Fatal("expected fallback analyzer")
@@ -27,6 +29,7 @@ func TestLanguageRegistry_DefaultFallback(t *testing.T) {
 }
 
 func TestJSAnalyzer_CountTests(t *testing.T) {
+	t.Parallel()
 	src := `
 it('should work', () => {});
 test('another test', () => {});
@@ -40,6 +43,7 @@ describe('suite', () => {});
 }
 
 func TestGoAnalyzer_CountTests(t *testing.T) {
+	t.Parallel()
 	src := `
 func TestFoo(t *testing.T) {}
 func TestBar(t *testing.T) {}
@@ -53,6 +57,7 @@ func helperFunc() {}
 }
 
 func TestPythonAnalyzer_CountTests(t *testing.T) {
+	t.Parallel()
 	src := `
 def test_foo():
     pass
@@ -69,6 +74,7 @@ def helper():
 }
 
 func TestJavaAnalyzer_CountTests(t *testing.T) {
+	t.Parallel()
 	src := `
 @Test
 public void testFoo() {}
@@ -84,6 +90,7 @@ public void helper() {}
 }
 
 func TestFrameworkLanguage_Mapping(t *testing.T) {
+	t.Parallel()
 	cases := map[string]string{
 		"jest":       "js",
 		"vitest":     "js",

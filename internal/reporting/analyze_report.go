@@ -4,17 +4,28 @@ package reporting
 import (
 	"fmt"
 	"io"
+	"sort"
 	"strings"
 
 	"github.com/pmclSF/hamlet/internal/models"
+	"github.com/pmclSF/hamlet/internal/signals"
 )
 
+// AnalyzeReportOptions configures analyze report rendering.
+type AnalyzeReportOptions struct {
+	Verbose bool
+}
+
 // RenderAnalyzeReport writes a human-readable analysis report to w.
-func RenderAnalyzeReport(w io.Writer, snap *models.TestSuiteSnapshot) {
+func RenderAnalyzeReport(w io.Writer, snap *models.TestSuiteSnapshot, opts ...AnalyzeReportOptions) {
 	line := func(format string, args ...any) {
 		fmt.Fprintf(w, format+"\n", args...)
 	}
 	blank := func() { fmt.Fprintln(w) }
+	opt := AnalyzeReportOptions{}
+	if len(opts) > 0 {
+		opt = opts[0]
+	}
 
 	// Header
 	line("Hamlet — Test Suite Analysis")
@@ -42,6 +53,29 @@ func RenderAnalyzeReport(w io.Writer, snap *models.TestSuiteSnapshot) {
 	}
 	if len(snap.Repository.CISystems) > 0 {
 		line("CI:          %s", strings.Join(snap.Repository.CISystems, ", "))
+	}
+	blank()
+
+	// Data completeness
+	line("Data Completeness")
+	line(strings.Repeat("-", 40))
+	sourceAvailable := len(snap.TestFiles) > 0 || len(snap.CodeUnits) > 0
+	coverageStatus := dataSourceStatus(snap, "coverage")
+	runtimeStatus := dataSourceStatus(snap, "runtime")
+	policyStatus := dataSourceStatus(snap, "policy")
+	line("  [%-9s] Source code", completenessBadge(sourceAvailable))
+	line("  [%-9s] Coverage data", completenessBadge(coverageStatus == models.DataSourceAvailable))
+	line("  [%-9s] Runtime data", completenessBadge(runtimeStatus == models.DataSourceAvailable))
+	line("  [%-9s] Policy config", completenessBadge(policyStatus == models.DataSourceAvailable))
+	if coverageStatus != models.DataSourceAvailable {
+		line("  Coverage analysis skipped or partial. Provide coverage with:")
+		line("    hamlet analyze --root . --coverage path/to/lcov.info")
+	}
+	if runtimeStatus != models.DataSourceAvailable {
+		line("  Runtime-dependent signals unavailable without runtime artifacts:")
+		line("    slowTest, flakyTest, skippedTest, deadTest, unstableSuite")
+		line("  Provide runtime data with:")
+		line("    hamlet analyze --root . --runtime path/to/results.xml")
 	}
 	blank()
 
@@ -81,6 +115,19 @@ func RenderAnalyzeReport(w io.Writer, snap *models.TestSuiteSnapshot) {
 		if len(snap.TestFiles) > 5 {
 			line("    ... and %d more", len(snap.TestFiles)-5)
 		}
+	} else {
+		line("  No test files detected.")
+		line("  Hamlet looks for patterns like *_test.go, *.test.js, *.spec.ts, test_*.py.")
+	}
+	blank()
+
+	// Code unit summary
+	line("Code Units")
+	line(strings.Repeat("-", 40))
+	line("  Extracted:   %d", len(snap.CodeUnits))
+	if len(snap.CodeUnits) == 0 {
+		line("  No source code functions/classes detected.")
+		line("  Check that --root points to your source tree.")
 	}
 	blank()
 
@@ -89,6 +136,7 @@ func RenderAnalyzeReport(w io.Writer, snap *models.TestSuiteSnapshot) {
 	line(strings.Repeat("-", 40))
 	if len(snap.Signals) == 0 {
 		line("  No signals detected.")
+		line("  This often means Hamlet needs more runtime/coverage data to surface issues.")
 	} else {
 		counts := map[models.SignalCategory]int{}
 		byType := map[models.SignalType]int{}
@@ -106,26 +154,33 @@ func RenderAnalyzeReport(w io.Writer, snap *models.TestSuiteSnapshot) {
 				line("  %-14s %d", cat, c)
 			}
 		}
-		blank()
+			blank()
 
-		// Show breakdown by signal type
-		line("  Breakdown:")
-		for _, st := range []models.SignalType{
-			"weakAssertion", "mockHeavyTest", "untestedExport",
-			"coverageThresholdBreak", "flakyTest", "slowTest",
-			"skippedTest", "deadTest",
-		} {
-			if c := byType[st]; c > 0 {
-				line("    %-26s %d", st, c)
+			// Show breakdown by signal type
+			line("  Breakdown:")
+			types := make([]models.SignalType, 0, len(byType))
+			for st := range byType {
+				types = append(types, st)
 			}
-		}
+			sort.Slice(types, func(i, j int) bool {
+				ci, cj := byType[types[i]], byType[types[j]]
+				if ci != cj {
+					return ci > cj
+				}
+				return types[i] < types[j]
+			})
+			for _, st := range types {
+				line("    %-26s %d", st, byType[st])
+			}
 
-		// Show a few representative findings
 		blank()
 		line("  Top findings:")
-		limit := 5
-		if len(snap.Signals) < limit {
-			limit = len(snap.Signals)
+		limit := len(snap.Signals)
+		if !opt.Verbose {
+			limit = 5
+			if len(snap.Signals) < limit {
+				limit = len(snap.Signals)
+			}
 		}
 		for _, s := range snap.Signals[:limit] {
 			loc := s.Location.File
@@ -136,11 +191,24 @@ func RenderAnalyzeReport(w io.Writer, snap *models.TestSuiteSnapshot) {
 			if loc != "" {
 				line("           %s", loc)
 			}
+			if info, ok := signals.Info(s.Type); ok {
+				line("           %s: %s", s.Type, info.Description)
+				if info.Remediation != "" {
+					line("           Consider: %s", info.Remediation)
+				}
+			}
 		}
-		if len(snap.Signals) > 5 {
+		if !opt.Verbose && len(snap.Signals) > 5 {
 			line("    ... and %d more signals", len(snap.Signals)-5)
 		}
 	}
+	blank()
+
+	// What this means
+	line("What This Means")
+	line(strings.Repeat("-", 40))
+	line("  Hamlet found %d test files with %d signals.", len(snap.TestFiles), len(snap.Signals))
+	line("  Test suite status: %s", suiteStatusBand(snap))
 	blank()
 
 	// Posture (measurement layer)
@@ -177,9 +245,59 @@ func RenderAnalyzeReport(w io.Writer, snap *models.TestSuiteSnapshot) {
 
 	// Next command hints
 	line("Next steps:")
-	line("  hamlet summary       leadership-ready overview")
-	line("  hamlet posture       detailed posture with evidence")
-	line("  hamlet portfolio     cost, leverage, and redundancy insights")
-	line("  hamlet analyze --write-snapshot   save for trend tracking")
+	line("  1) Add coverage data:")
+	line("     hamlet analyze --root . --coverage path/to/lcov.info")
+	line("  2) Add runtime data:")
+	line("     hamlet analyze --root . --runtime path/to/test-results.xml")
+	line("  3) Show full findings:")
+	line("     hamlet analyze --root . --verbose")
+	line("  4) Save trend baseline:")
+	line("     hamlet analyze --write-snapshot")
 	blank()
+}
+
+func dataSourceStatus(snap *models.TestSuiteSnapshot, name string) string {
+	if snap == nil {
+		return models.DataSourceUnavailable
+	}
+	for _, ds := range snap.DataSources {
+		if ds.Name == name {
+			return ds.Status
+		}
+	}
+	return models.DataSourceUnavailable
+}
+
+func completenessBadge(ok bool) string {
+	if ok {
+		return "available"
+	}
+	return "missing"
+}
+
+func suiteStatusBand(snap *models.TestSuiteSnapshot) string {
+	if snap == nil {
+		return "unknown"
+	}
+	if len(snap.Signals) == 0 {
+		return "good (limited evidence)"
+	}
+	high := 0
+	critical := 0
+	for _, s := range snap.Signals {
+		if s.Severity == models.SeverityCritical {
+			critical++
+		}
+		if s.Severity == models.SeverityHigh || s.Severity == models.SeverityCritical {
+			high++
+		}
+	}
+	switch {
+	case critical > 0 || high >= 10:
+		return "at risk"
+	case high >= 1 || len(snap.Signals) >= 5:
+		return "needs attention"
+	default:
+		return "good"
+	}
 }

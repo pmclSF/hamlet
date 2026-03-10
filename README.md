@@ -114,7 +114,7 @@ hamlet policy check        # human-readable output
 hamlet policy check --json # JSON output for CI
 ```
 
-Exit code 0 = pass, 1 = violations found.
+Exit code 0 = pass, 2 = violations found, 1 = execution/error conditions.
 
 ## Migration Workflow
 
@@ -151,6 +151,7 @@ Repository scan → Signal detection → Risk modeling → Reporting
 - **Reports** synthesize signals, risk, trends, and benchmark readiness
 
 See [DESIGN.md](DESIGN.md) for architecture overview and [docs/](docs/) for detailed documentation.
+JSON output structure is documented in [docs/json-schema.md](docs/json-schema.md).
 
 ## Project Structure (V3 Go Engine)
 

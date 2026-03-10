@@ -3,6 +3,7 @@ package identity
 import "testing"
 
 func TestNormalizePath(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		input string
 		want  string
@@ -23,6 +24,7 @@ func TestNormalizePath(t *testing.T) {
 }
 
 func TestNormalizeName(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		input string
 		want  string
@@ -43,6 +45,7 @@ func TestNormalizeName(t *testing.T) {
 }
 
 func TestNormalizeSuiteHierarchy(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		parts []string
 		want  string
@@ -62,6 +65,7 @@ func TestNormalizeSuiteHierarchy(t *testing.T) {
 }
 
 func TestBuildCanonical(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		path      string
 		hierarchy []string
@@ -108,6 +112,7 @@ func TestBuildCanonical(t *testing.T) {
 }
 
 func TestParseCanonical(t *testing.T) {
+	t.Parallel()
 	path, suite, name, param := ParseCanonical("src/test.js::Suite > Sub::test name::param")
 	if path != "src/test.js" {
 		t.Errorf("path = %q, want %q", path, "src/test.js")
@@ -124,6 +129,7 @@ func TestParseCanonical(t *testing.T) {
 }
 
 func TestGenerateID_Deterministic(t *testing.T) {
+	t.Parallel()
 	canonical := "src/__tests__/auth.test.js::AuthService::should login"
 	id1 := GenerateID(canonical)
 	id2 := GenerateID(canonical)
@@ -136,6 +142,7 @@ func TestGenerateID_Deterministic(t *testing.T) {
 }
 
 func TestGenerateID_Different(t *testing.T) {
+	t.Parallel()
 	id1 := GenerateID("path::suite::test1")
 	id2 := GenerateID("path::suite::test2")
 	if id1 == id2 {
@@ -144,6 +151,7 @@ func TestGenerateID_Different(t *testing.T) {
 }
 
 func TestSameSource_SameID(t *testing.T) {
+	t.Parallel()
 	// Same content with different whitespace normalization should produce same ID.
 	c1 := BuildCanonical("src/test.js", []string{"  Suite "}, "  should  work  ", "")
 	c2 := BuildCanonical("./src/test.js", []string{"Suite"}, "should work", "")
@@ -156,6 +164,7 @@ func TestSameSource_SameID(t *testing.T) {
 }
 
 func TestPathNormalization_Stability(t *testing.T) {
+	t.Parallel()
 	// Different path representations should normalize the same.
 	paths := []string{
 		"src/test/auth.test.js",

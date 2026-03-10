@@ -16,6 +16,7 @@ import (
 // TestDeterminism_MetricsIdentical verifies that metrics.Derive produces
 // identical output across multiple runs with the same input.
 func TestDeterminism_MetricsIdentical(t *testing.T) {
+	t.Parallel()
 	snap := HealthyBalancedSnapshot()
 
 	results := make([]string, 10)
@@ -36,6 +37,7 @@ func TestDeterminism_MetricsIdentical(t *testing.T) {
 // TestDeterminism_MeasurementsIdentical verifies measurement computation
 // produces identical posture bands across multiple runs.
 func TestDeterminism_MeasurementsIdentical(t *testing.T) {
+	t.Parallel()
 	snap := HealthyBalancedSnapshot()
 
 	results := make([]string, 10)
@@ -56,6 +58,7 @@ func TestDeterminism_MeasurementsIdentical(t *testing.T) {
 
 // TestDeterminism_HeatmapIdentical verifies heatmap computation is deterministic.
 func TestDeterminism_HeatmapIdentical(t *testing.T) {
+	t.Parallel()
 	snap := HealthyBalancedSnapshot()
 	snap.Risk = scoring.ComputeRisk(snap)
 
@@ -75,6 +78,7 @@ func TestDeterminism_HeatmapIdentical(t *testing.T) {
 
 // TestDeterminism_RiskScoringIdentical verifies risk scoring is deterministic.
 func TestDeterminism_RiskScoringIdentical(t *testing.T) {
+	t.Parallel()
 	snap := HealthyBalancedSnapshot()
 
 	results := make([]string, 10)
@@ -93,6 +97,7 @@ func TestDeterminism_RiskScoringIdentical(t *testing.T) {
 
 // TestDeterminism_LargeScaleStable verifies determinism at scale.
 func TestDeterminism_LargeScaleStable(t *testing.T) {
+	t.Parallel()
 	snap := LargeScaleSnapshot()
 
 	results := make([]string, 5)
@@ -113,6 +118,7 @@ func TestDeterminism_LargeScaleStable(t *testing.T) {
 
 // TestDeterminism_ImpactIdentical verifies impact analysis is deterministic.
 func TestDeterminism_ImpactIdentical(t *testing.T) {
+	t.Parallel()
 	snap := HealthyBalancedSnapshot()
 	scope := impact.ChangeScopeFromPaths(
 		[]string{"src/auth.js", "src/payment.js", "src/__tests__/auth.test.js"},
@@ -135,6 +141,7 @@ func TestDeterminism_ImpactIdentical(t *testing.T) {
 
 // TestDeterminism_ComparisonIdentical verifies comparison is deterministic.
 func TestDeterminism_ComparisonIdentical(t *testing.T) {
+	t.Parallel()
 	from := FlakyConcentratedSnapshot()
 	to := HealthyBalancedSnapshot()
 
@@ -154,6 +161,7 @@ func TestDeterminism_ComparisonIdentical(t *testing.T) {
 
 // TestDeterminism_PortfolioIdentical verifies portfolio analysis is deterministic.
 func TestDeterminism_PortfolioIdentical(t *testing.T) {
+	t.Parallel()
 	snap := FlakyConcentratedSnapshot()
 	snap.Risk = scoring.ComputeRisk(snap)
 
@@ -173,6 +181,7 @@ func TestDeterminism_PortfolioIdentical(t *testing.T) {
 
 // TestDeterminism_ImpactAggregateIdentical verifies impact aggregate is deterministic.
 func TestDeterminism_ImpactAggregateIdentical(t *testing.T) {
+	t.Parallel()
 	snap := HealthyBalancedSnapshot()
 	scope := impact.ChangeScopeFromPaths(
 		[]string{"src/auth.js", "src/user.js"},

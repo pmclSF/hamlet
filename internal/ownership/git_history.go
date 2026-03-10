@@ -12,7 +12,7 @@ import (
 const gitHistoryAuthorPrefix = "__HAMLET_AUTHOR__:"
 
 func (r *Resolver) matchGitHistoryAssignment(relPath string) (OwnershipAssignment, bool) {
-	if !r.gitHistoryEnabled {
+	if !r.shouldTryGitHistory() {
 		return OwnershipAssignment{}, false
 	}
 
@@ -50,7 +50,7 @@ func (r *Resolver) loadGitHistoryOwners() {
 		"-C", r.repoRoot,
 		"log",
 		"--no-merges",
-		"--format="+gitHistoryAuthorPrefix+"%an",
+		"--format="+gitHistoryAuthorPrefix+"%ae",
 		"--name-only",
 		"-n", strconv.Itoa(maxLogs),
 	)
@@ -81,7 +81,7 @@ func (r *Resolver) loadGitHistoryOwners() {
 		}
 
 		if strings.HasPrefix(line, gitHistoryAuthorPrefix) {
-			currentAuthor = NormalizeOwnerID(strings.TrimSpace(strings.TrimPrefix(line, gitHistoryAuthorPrefix)))
+			currentAuthor = normalizeGitOwnerID(strings.TrimSpace(strings.TrimPrefix(line, gitHistoryAuthorPrefix)))
 			continue
 		}
 
@@ -103,4 +103,37 @@ func (r *Resolver) loadGitHistoryOwners() {
 			Source:  "git-history",
 		})
 	}
+}
+
+func normalizeGitOwnerID(raw string) string {
+	owner := strings.TrimSpace(raw)
+	if owner == "" {
+		return ""
+	}
+
+	// Prefer username-like IDs: normalize common email formats to a stable handle.
+	if at := strings.Index(owner, "@"); at > 0 {
+		local := owner[:at]
+		domain := strings.ToLower(owner[at+1:])
+
+		switch {
+		case domain == "users.noreply.github.com":
+			// GitHub noreply emails are either "username@..." or "12345+username@...".
+			// Prefer the visible username segment.
+			if plus := strings.Index(local, "+"); plus >= 0 && plus+1 < len(local) {
+				local = local[plus+1:]
+			}
+		default:
+			// For regular emails, drop plus aliases ("alice+ci@company.com" -> "alice").
+			if plus := strings.Index(local, "+"); plus > 0 {
+				local = local[:plus]
+			}
+		}
+
+		owner = local
+	}
+
+	owner = strings.TrimSpace(strings.ToLower(owner))
+	owner = strings.ReplaceAll(owner, " ", "-")
+	return NormalizeOwnerID(owner)
 }

@@ -7,6 +7,7 @@ import (
 )
 
 func TestInfer_E2EFramework(t *testing.T) {
+	t.Parallel()
 	tc := &models.TestCase{
 		Framework: "playwright",
 		FilePath:  "e2e/login.spec.ts",
@@ -21,6 +22,7 @@ func TestInfer_E2EFramework(t *testing.T) {
 }
 
 func TestInfer_UnitByPath(t *testing.T) {
+	t.Parallel()
 	tc := &models.TestCase{
 		Framework: "jest",
 		FilePath:  "src/__tests__/utils.test.js",
@@ -32,6 +34,7 @@ func TestInfer_UnitByPath(t *testing.T) {
 }
 
 func TestInfer_IntegrationByPath(t *testing.T) {
+	t.Parallel()
 	tc := &models.TestCase{
 		Framework: "jest",
 		FilePath:  "test/integration/db.test.js",
@@ -47,6 +50,7 @@ func TestInfer_IntegrationByPath(t *testing.T) {
 }
 
 func TestInfer_E2EByPath(t *testing.T) {
+	t.Parallel()
 	tc := &models.TestCase{
 		Framework: "jest",
 		FilePath:  "e2e/checkout.e2e.test.js",
@@ -58,6 +62,7 @@ func TestInfer_E2EByPath(t *testing.T) {
 }
 
 func TestInfer_SmokeByPath(t *testing.T) {
+	t.Parallel()
 	tc := &models.TestCase{
 		Framework: "jest",
 		FilePath:  "test/smoke/health.test.js",
@@ -69,6 +74,7 @@ func TestInfer_SmokeByPath(t *testing.T) {
 }
 
 func TestInfer_BySuiteName(t *testing.T) {
+	t.Parallel()
 	tc := &models.TestCase{
 		Framework:      "mocha",
 		FilePath:       "test/api.test.js",
@@ -81,6 +87,7 @@ func TestInfer_BySuiteName(t *testing.T) {
 }
 
 func TestInfer_CypressFileExtension(t *testing.T) {
+	t.Parallel()
 	tc := &models.TestCase{
 		Framework: "cypress",
 		FilePath:  "cypress/e2e/login.cy.js",
@@ -92,6 +99,7 @@ func TestInfer_CypressFileExtension(t *testing.T) {
 }
 
 func TestInfer_UnknownWhenAmbiguous(t *testing.T) {
+	t.Parallel()
 	tc := &models.TestCase{
 		Framework: "unknown",
 		FilePath:  "lib/something.js",
@@ -104,6 +112,7 @@ func TestInfer_UnknownWhenAmbiguous(t *testing.T) {
 }
 
 func TestInfer_ConflictReducesConfidence(t *testing.T) {
+	t.Parallel()
 	// Path says integration, framework says e2e.
 	tc := &models.TestCase{
 		Framework: "playwright",
@@ -123,6 +132,7 @@ func TestInfer_ConflictReducesConfidence(t *testing.T) {
 }
 
 func TestInferAll(t *testing.T) {
+	t.Parallel()
 	cases := []models.TestCase{
 		{Framework: "jest", FilePath: "src/__tests__/a.test.js", TestName: "works"},
 		{Framework: "playwright", FilePath: "e2e/b.spec.ts", TestName: "loads"},

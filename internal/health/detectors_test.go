@@ -7,6 +7,7 @@ import (
 )
 
 func TestSlowTestDetector_OverThreshold(t *testing.T) {
+	t.Parallel()
 	d := &SlowTestDetector{ThresholdMs: 1000}
 	results := []runtime.TestResult{
 		{Name: "fast test", File: "fast.test.js", DurationMs: 500, Status: runtime.StatusPassed},
@@ -35,6 +36,7 @@ func TestSlowTestDetector_OverThreshold(t *testing.T) {
 }
 
 func TestSlowTestDetector_UnderThreshold(t *testing.T) {
+	t.Parallel()
 	d := &SlowTestDetector{ThresholdMs: 5000}
 	results := []runtime.TestResult{
 		{Name: "fast", DurationMs: 100, Status: runtime.StatusPassed},
@@ -48,6 +50,7 @@ func TestSlowTestDetector_UnderThreshold(t *testing.T) {
 }
 
 func TestSlowTestDetector_SkipsSkipped(t *testing.T) {
+	t.Parallel()
 	d := &SlowTestDetector{ThresholdMs: 100}
 	results := []runtime.TestResult{
 		{Name: "skipped slow", DurationMs: 99999, Status: runtime.StatusSkipped},
@@ -60,6 +63,7 @@ func TestSlowTestDetector_SkipsSkipped(t *testing.T) {
 }
 
 func TestFlakyTestDetector_RetryEvidence(t *testing.T) {
+	t.Parallel()
 	d := &FlakyTestDetector{}
 	results := []runtime.TestResult{
 		{Name: "stable", File: "a.test.js", Status: runtime.StatusPassed},
@@ -80,6 +84,7 @@ func TestFlakyTestDetector_RetryEvidence(t *testing.T) {
 }
 
 func TestFlakyTestDetector_MixedOutcomes(t *testing.T) {
+	t.Parallel()
 	d := &FlakyTestDetector{}
 	results := []runtime.TestResult{
 		{Name: "intermittent", Suite: "suite", File: "c.test.js", Status: runtime.StatusFailed},
@@ -100,6 +105,7 @@ func TestFlakyTestDetector_MixedOutcomes(t *testing.T) {
 }
 
 func TestFlakyTestDetector_NoEvidence(t *testing.T) {
+	t.Parallel()
 	d := &FlakyTestDetector{}
 	results := []runtime.TestResult{
 		{Name: "stable1", Status: runtime.StatusPassed},
@@ -113,18 +119,19 @@ func TestFlakyTestDetector_NoEvidence(t *testing.T) {
 }
 
 func TestSkippedTestDetector_SomeSkipped(t *testing.T) {
+	t.Parallel()
 	d := &SkippedTestDetector{}
 	results := []runtime.TestResult{
-		{Name: "t1", Status: runtime.StatusPassed},
-		{Name: "t2", Status: runtime.StatusPassed},
-		{Name: "t3", Status: runtime.StatusSkipped},
-		{Name: "t4", Status: runtime.StatusPassed},
-		{Name: "t5", Status: runtime.StatusSkipped},
+		{Name: "t1", File: "a.test.js", Status: runtime.StatusPassed},
+		{Name: "t2", File: "a.test.js", Status: runtime.StatusPassed},
+		{Name: "t3", File: "a.test.js", Status: runtime.StatusSkipped},
+		{Name: "t4", File: "b.test.js", Status: runtime.StatusPassed},
+		{Name: "t5", File: "b.test.js", Status: runtime.StatusSkipped},
 	}
 
 	signals := d.Detect(results)
-	if len(signals) != 1 {
-		t.Fatalf("expected 1 skipped signal, got %d", len(signals))
+	if len(signals) != 3 {
+		t.Fatalf("expected 3 skipped signals (repo + 2 files), got %d", len(signals))
 	}
 	if signals[0].Type != "skippedTest" {
 		t.Errorf("type = %q", signals[0].Type)
@@ -133,9 +140,23 @@ func TestSkippedTestDetector_SomeSkipped(t *testing.T) {
 	if signals[0].Severity != "medium" {
 		t.Errorf("severity = %q, want medium for 40%% skip rate", signals[0].Severity)
 	}
+	if signals[0].Location.Repository == "" {
+		t.Error("expected repository-level skipped signal")
+	}
+
+	fileSignals := 0
+	for _, s := range signals {
+		if s.Location.File != "" {
+			fileSignals++
+		}
+	}
+	if fileSignals != 2 {
+		t.Errorf("expected 2 file-level skipped signals, got %d", fileSignals)
+	}
 }
 
 func TestSkippedTestDetector_NoneSkipped(t *testing.T) {
+	t.Parallel()
 	d := &SkippedTestDetector{}
 	results := []runtime.TestResult{
 		{Name: "t1", Status: runtime.StatusPassed},
@@ -145,5 +166,62 @@ func TestSkippedTestDetector_NoneSkipped(t *testing.T) {
 	signals := d.Detect(results)
 	if len(signals) != 0 {
 		t.Errorf("expected 0 signals when no skips, got %d", len(signals))
+	}
+}
+
+func TestDeadTestDetector_AlwaysSkipped(t *testing.T) {
+	t.Parallel()
+	d := &DeadTestDetector{}
+	results := []runtime.TestResult{
+		{Name: "dead one", File: "dead.test.js", Status: runtime.StatusSkipped},
+		{Name: "dead one", File: "dead.test.js", Status: runtime.StatusSkipped},
+		{Name: "live one", File: "live.test.js", Status: runtime.StatusSkipped},
+		{Name: "live one", File: "live.test.js", Status: runtime.StatusPassed},
+	}
+
+	signals := d.Detect(results)
+	if len(signals) != 1 {
+		t.Fatalf("expected 1 deadTest signal, got %d", len(signals))
+	}
+	if signals[0].Type != "deadTest" {
+		t.Fatalf("type = %q, want deadTest", signals[0].Type)
+	}
+	if signals[0].Location.File != "dead.test.js" {
+		t.Fatalf("file = %q, want dead.test.js", signals[0].Location.File)
+	}
+}
+
+func TestUnstableSuiteDetector_DetectsUnstableSuite(t *testing.T) {
+	t.Parallel()
+	d := &UnstableSuiteDetector{}
+	results := []runtime.TestResult{
+		{Name: "a", Suite: "auth", File: "auth.test.js", Status: runtime.StatusFailed, Retried: true},
+		{Name: "b", Suite: "auth", File: "auth.test.js", Status: runtime.StatusPassed},
+		{Name: "c", Suite: "auth", File: "auth.test.js", Status: runtime.StatusSkipped},
+		{Name: "d", Suite: "auth", File: "auth.test.js", Status: runtime.StatusError},
+		{Name: "e", Suite: "auth", File: "auth.test.js", Status: runtime.StatusPassed},
+	}
+
+	signals := d.Detect(results)
+	if len(signals) != 1 {
+		t.Fatalf("expected 1 unstableSuite signal, got %d", len(signals))
+	}
+	if signals[0].Type != "unstableSuite" {
+		t.Fatalf("type = %q, want unstableSuite", signals[0].Type)
+	}
+}
+
+func TestUnstableSuiteDetector_IgnoresStableSuite(t *testing.T) {
+	t.Parallel()
+	d := &UnstableSuiteDetector{}
+	results := []runtime.TestResult{
+		{Name: "a", Suite: "stable", File: "stable.test.js", Status: runtime.StatusPassed},
+		{Name: "b", Suite: "stable", File: "stable.test.js", Status: runtime.StatusPassed},
+		{Name: "c", Suite: "stable", File: "stable.test.js", Status: runtime.StatusPassed},
+	}
+
+	signals := d.Detect(results)
+	if len(signals) != 0 {
+		t.Fatalf("expected 0 unstableSuite signals, got %d", len(signals))
 	}
 }

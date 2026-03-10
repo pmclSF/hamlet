@@ -30,7 +30,9 @@ type RepositoryMetadata struct {
 	// or metadata. Examples: github-actions, circleci, buildkite.
 	CISystems []string `json:"ciSystems,omitempty"`
 
-	// SnapshotTimestamp is the time this repository snapshot was produced.
+	// SnapshotTimestamp is the repository-scoped timestamp for this snapshot.
+	// It is kept in sync with TestSuiteSnapshot.GeneratedAt for backward
+	// compatibility with earlier consumers.
 	SnapshotTimestamp time.Time `json:"snapshotTimestamp"`
 
 	// CommitSHA is the git commit associated with the snapshot if available.

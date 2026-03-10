@@ -40,9 +40,72 @@ jobs:
       - name: Run tests
         run: npm test
 
+  go-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Run Go tests (no cache masking)
+        run: go test ./... -count=1
+
+  go-bench-compare:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Install benchstat
+        run: go install golang.org/x/perf/cmd/benchstat@latest
+
+      - name: Benchmark current HEAD
+        run: |
+          go test ./internal/engine ./internal/analysis ./internal/scoring ./internal/testcase \
+            -run '^$' \
+            -bench 'BenchmarkRunPipeline|BenchmarkSignalDetection|BenchmarkBuildImportGraph|BenchmarkRiskScore|BenchmarkExtractTestCases' \
+            -count=5 > /tmp/bench_head.txt
+
+      - name: Benchmark PR base
+        run: |
+          git checkout "${{ github.event.pull_request.base.sha }}"
+          go test ./internal/engine ./internal/analysis ./internal/scoring ./internal/testcase \
+            -run '^$' \
+            -bench 'BenchmarkRunPipeline|BenchmarkSignalDetection|BenchmarkBuildImportGraph|BenchmarkRiskScore|BenchmarkExtractTestCases' \
+            -count=5 > /tmp/bench_base.txt
+
+      - name: Compare benchmark results (base vs head)
+        run: |
+          git checkout "${{ github.sha }}"
+          "$(go env GOPATH)/bin/benchstat" /tmp/bench_base.txt /tmp/bench_head.txt | tee /tmp/benchstat.txt
+
+      - name: Append benchstat summary
+        run: |
+          {
+            echo '### Go Benchmark Comparison (base vs head)'
+            echo ''
+            echo '```'
+            cat /tmp/benchstat.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
   build:
     runs-on: ubuntu-latest
-    needs: test
+    needs: [test, go-test]
 
     steps:
       - name: Checkout repository

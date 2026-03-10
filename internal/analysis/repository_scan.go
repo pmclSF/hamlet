@@ -3,6 +3,7 @@ package analysis
 import (
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/pmclSF/hamlet/internal/models"
@@ -10,25 +11,25 @@ import (
 
 // skipDirs lists directories that should never be traversed during scanning.
 var skipDirs = map[string]bool{
-	".git":         true,
-	"node_modules": true,
-	"dist":         true,
-	"build":        true,
-	"coverage":     true,
-	".next":        true,
-	".turbo":       true,
-	".nuxt":        true,
-	"vendor":       true,
-	"__pycache__":  true,
+	".git":          true,
+	"node_modules":  true,
+	"dist":          true,
+	"build":         true,
+	"coverage":      true,
+	".next":         true,
+	".turbo":        true,
+	".nuxt":         true,
+	"vendor":        true,
+	"__pycache__":   true,
 	".pytest_cache": true,
-	".mypy_cache":  true,
-	".tox":         true,
-	".venv":        true,
-	"venv":         true,
-	".idea":        true,
-	".vscode":      true,
-	".hamlet":      true,
-	"target":       true,
+	".mypy_cache":   true,
+	".tox":          true,
+	".venv":         true,
+	"venv":          true,
+	".idea":         true,
+	".vscode":       true,
+	".hamlet":       true,
+	"target":        true,
 }
 
 // testFilePatterns matches common test file naming conventions.
@@ -43,7 +44,11 @@ func discoverTestFiles(root string, projectCtx ...*ProjectContext) ([]models.Tes
 		ctx = projectCtx[0]
 	}
 
-	var testFiles []models.TestFile
+	type candidate struct {
+		relPath string
+		absPath string
+	}
+	var candidates []candidate
 
 	err := filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
@@ -64,19 +69,37 @@ func discoverTestFiles(root string, projectCtx ...*ProjectContext) ([]models.Tes
 		}
 
 		if isTestFile(relPath) {
-			result := detectFrameworkWithContext(relPath, path, ctx)
-			testFiles = append(testFiles, models.TestFile{
-				Path:                relPath,
-				Framework:           result.Framework,
-				FrameworkConfidence: result.Confidence,
-				FrameworkSource:     result.Source,
+			candidates = append(candidates, candidate{
+				relPath: relPath,
+				absPath: path,
 			})
 		}
 
 		return nil
 	})
+	if err != nil {
+		return nil, err
+	}
+	if len(candidates) == 0 {
+		return nil, nil
+	}
 
-	return testFiles, err
+	testFiles := make([]models.TestFile, len(candidates))
+	parallelForEachIndex(len(candidates), func(i int) {
+		c := candidates[i]
+		result := detectFrameworkWithContext(c.relPath, c.absPath, ctx)
+		testFiles[i] = models.TestFile{
+			Path:                c.relPath,
+			Framework:           result.Framework,
+			FrameworkConfidence: result.Confidence,
+			FrameworkSource:     result.Source,
+		}
+	})
+	sort.Slice(testFiles, func(i, j int) bool {
+		return testFiles[i].Path < testFiles[j].Path
+	})
+
+	return testFiles, nil
 }
 
 // isTestFile determines whether a file path looks like a test file

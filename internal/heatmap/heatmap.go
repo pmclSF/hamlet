@@ -32,6 +32,13 @@ type HotSpot struct {
 	// TopSignalTypes lists the most frequent signal types in this area.
 	TopSignalTypes []string `json:"topSignalTypes"`
 
+	// FileCount is the number of test files in this hotspot scope.
+	// For owner hotspots, this is owner-owned test files.
+	FileCount int `json:"fileCount,omitempty"`
+
+	// SignalDensity is the average signals per test file for this hotspot.
+	SignalDensity float64 `json:"signalDensity,omitempty"`
+
 	// UncoveredExported is the count of exported code units with no coverage.
 	// Populated when the graph is available.
 	UncoveredExported int `json:"uncoveredExported,omitempty"`
@@ -83,17 +90,26 @@ func BuildWithGraph(snap *models.TestSuiteSnapshot, g *graph.Graph) *Heatmap {
 
 func buildHeatmap(snap *models.TestSuiteSnapshot, g *graph.Graph) *Heatmap {
 	h := &Heatmap{}
+	dirFileCounts := countFilesByDirectory(snap.TestFiles)
+	ownerFileCounts := countFilesByOwner(snap.TestFiles)
 
 	// Extract directory hotspots from risk surfaces.
 	for _, rs := range snap.Risk {
 		if rs.Scope == "directory" {
+			fileCount := dirFileCounts[rs.ScopeName]
+			score := rs.Score
+			if fileCount > 0 && len(rs.ContributingSignals) > 0 {
+				score = normalizedRiskScore(weightSignals(rs.ContributingSignals), fileCount)
+			}
 			h.DirectoryHotSpots = append(h.DirectoryHotSpots, HotSpot{
 				Scope:          "directory",
 				Name:           rs.ScopeName,
 				Band:           rs.Band,
-				Score:          rs.Score,
+				Score:          score,
 				SignalCount:    len(rs.ContributingSignals),
 				TopSignalTypes: topTypes(rs.ContributingSignals, 3),
+				FileCount:      fileCount,
+				SignalDensity:  signalDensity(len(rs.ContributingSignals), fileCount),
 			})
 		}
 	}
@@ -114,7 +130,11 @@ func buildHeatmap(snap *models.TestSuiteSnapshot, g *graph.Graph) *Heatmap {
 		ownerSignals[owner] = append(ownerSignals[owner], s)
 	}
 	for owner, sigs := range ownerSignals {
-		score := weightSignals(sigs)
+		fileCount := ownerFileCounts[owner]
+		if fileCount == 0 {
+			fileCount = uniqueFileCountForSignals(sigs)
+		}
+		score := normalizedRiskScore(weightSignals(sigs), fileCount)
 		h.OwnerHotSpots = append(h.OwnerHotSpots, HotSpot{
 			Scope:          "owner",
 			Name:           owner,
@@ -122,6 +142,8 @@ func buildHeatmap(snap *models.TestSuiteSnapshot, g *graph.Graph) *Heatmap {
 			Score:          score,
 			SignalCount:    len(sigs),
 			TopSignalTypes: topTypes(sigs, 3),
+			FileCount:      fileCount,
+			SignalDensity:  signalDensity(len(sigs), fileCount),
 		})
 	}
 	// Enrich owner hotspots with graph data when available.
@@ -160,6 +182,69 @@ func buildHeatmap(snap *models.TestSuiteSnapshot, g *graph.Graph) *Heatmap {
 	h.PostureSummary = buildPostureSummary(h)
 
 	return h
+}
+
+func countFilesByDirectory(testFiles []models.TestFile) map[string]int {
+	counts := map[string]int{}
+	for _, tf := range testFiles {
+		dir := filepathDir(tf.Path)
+		if dir == "" || dir == "." {
+			continue
+		}
+		counts[dir]++
+	}
+	return counts
+}
+
+func countFilesByOwner(testFiles []models.TestFile) map[string]int {
+	counts := map[string]int{}
+	for _, tf := range testFiles {
+		owner := tf.Owner
+		if owner == "" {
+			owner = "unknown"
+		}
+		counts[owner]++
+	}
+	return counts
+}
+
+func uniqueFileCountForSignals(signals []models.Signal) int {
+	seen := map[string]bool{}
+	for _, s := range signals {
+		if s.Location.File == "" {
+			continue
+		}
+		seen[s.Location.File] = true
+	}
+	return len(seen)
+}
+
+func signalDensity(signalCount, fileCount int) float64 {
+	if signalCount <= 0 || fileCount <= 0 {
+		return 0
+	}
+	return float64(signalCount) / float64(fileCount)
+}
+
+func normalizedRiskScore(weight float64, fileCount int) float64 {
+	if fileCount <= 0 {
+		return weight
+	}
+	return (weight / float64(fileCount)) * 10.0
+}
+
+func filepathDir(path string) string {
+	// Lightweight directory extraction without importing filepath.
+	lastSlash := -1
+	for i := 0; i < len(path); i++ {
+		if path[i] == '/' {
+			lastSlash = i
+		}
+	}
+	if lastSlash <= 0 {
+		return "."
+	}
+	return path[:lastSlash]
 }
 
 var severityWeight = map[models.SignalSeverity]float64{

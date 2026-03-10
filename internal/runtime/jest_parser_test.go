@@ -1,10 +1,13 @@
 package runtime
 
 import (
+	"strconv"
+	"strings"
 	"testing"
 )
 
 func TestParseJestJSON_Basic(t *testing.T) {
+	t.Parallel()
 	json := `{
   "numTotalTests": 3,
   "numPassedTests": 2,
@@ -92,6 +95,7 @@ func TestParseJestJSON_Basic(t *testing.T) {
 }
 
 func TestParseJestJSON_PendingSkipped(t *testing.T) {
+	t.Parallel()
 	json := `{
   "numTotalTests": 1,
   "testResults": [
@@ -123,6 +127,7 @@ func TestParseJestJSON_PendingSkipped(t *testing.T) {
 }
 
 func TestParseJestJSON_VitestRetry(t *testing.T) {
+	t.Parallel()
 	json := `{
   "numTotalTests": 1,
   "testResults": [
@@ -155,5 +160,63 @@ func TestParseJestJSON_VitestRetry(t *testing.T) {
 	}
 	if result.Results[0].RetryAttempt != 2 {
 		t.Errorf("retryAttempt = %d, want 2", result.Results[0].RetryAttempt)
+	}
+}
+
+func TestParseJestJSON_SuiteIncludesAncestorPath(t *testing.T) {
+	t.Parallel()
+	json := `{
+  "numTotalTests": 1,
+  "testResults": [
+    {
+      "testFilePath": "nested.test.ts",
+      "assertionResults": [
+        {
+          "fullName": "Suite1 Suite2 works",
+          "title": "works",
+          "ancestorTitles": ["Suite1", "Suite2"],
+          "status": "passed"
+        }
+      ]
+    }
+  ]
+}`
+
+	path := writeTempFile(t, "ancestors.json", json)
+	result, err := ParseJestJSON(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Results) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(result.Results))
+	}
+	if result.Results[0].Suite != "Suite1 > Suite2" {
+		t.Fatalf("suite = %q, want %q", result.Results[0].Suite, "Suite1 > Suite2")
+	}
+}
+
+func BenchmarkParseJestJSON_LargeReport(b *testing.B) {
+	var report strings.Builder
+	report.WriteString(`{"numTotalTests":2000,"testResults":[{"testFilePath":"bench.test.ts","assertionResults":[`)
+	for i := 0; i < 2000; i++ {
+		if i > 0 {
+			report.WriteString(",")
+		}
+		report.WriteString(`{"fullName":"suite > case `)
+		report.WriteString(strconv.Itoa(i))
+		report.WriteString(`","title":"case `)
+		report.WriteString(strconv.Itoa(i))
+		report.WriteString(`","ancestorTitles":["suite"],"status":"passed","duration":1}`)
+	}
+	report.WriteString(`]}]}`)
+
+	path := writeTempFile(b, "jest-bench.json", report.String())
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if _, err := ParseJestJSON(path); err != nil {
+			b.Fatalf("ParseJestJSON failed: %v", err)
+		}
 	}
 }

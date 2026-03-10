@@ -10,6 +10,7 @@ import (
 )
 
 func TestDetectCollisions_NoCollisions(t *testing.T) {
+	t.Parallel()
 	cases := []models.TestCase{
 		{TestID: "a", CanonicalIdentity: "path::suite::test1"},
 		{TestID: "b", CanonicalIdentity: "path::suite::test2"},
@@ -24,6 +25,7 @@ func TestDetectCollisions_NoCollisions(t *testing.T) {
 }
 
 func TestDetectCollisions_WithCollision(t *testing.T) {
+	t.Parallel()
 	cases := []models.TestCase{
 		{TestID: "a", CanonicalIdentity: "path::suite::test", Line: 10},
 		{TestID: "a", CanonicalIdentity: "path::suite::test", Line: 20},
@@ -54,6 +56,7 @@ func TestDetectCollisions_WithCollision(t *testing.T) {
 }
 
 func TestDetectCollisions_Deterministic(t *testing.T) {
+	t.Parallel()
 	cases := []models.TestCase{
 		{TestID: "x", CanonicalIdentity: "path::suite::dup", Line: 30},
 		{TestID: "x", CanonicalIdentity: "path::suite::dup", Line: 10},
@@ -73,16 +76,19 @@ func TestDetectCollisions_Deterministic(t *testing.T) {
 }
 
 func TestDuplicateNamesInDifferentSuites(t *testing.T) {
+	t.Parallel()
 	src := `
 describe('Suite A', () => {
   it('works', () => {});
 });
-describe('Suite B', () => {
+	describe('Suite B', () => {
   it('works', () => {});
 });
 `
 	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, "test.js"), []byte(src), 0644)
+	if err := os.WriteFile(filepath.Join(dir, "test.js"), []byte(src), 0644); err != nil {
+		t.Fatalf("write test.js: %v", err)
+	}
 
 	cases := Extract(dir, "test.js", "jest")
 	if len(cases) != 2 {
@@ -96,6 +102,7 @@ describe('Suite B', () => {
 }
 
 func TestDuplicateNamesInSameFile_SameSuite(t *testing.T) {
+	t.Parallel()
 	// This is a real-world antipattern: two tests with identical name in same suite.
 	src := `
 describe('Suite', () => {
@@ -104,7 +111,9 @@ describe('Suite', () => {
 });
 `
 	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, "dup.test.js"), []byte(src), 0644)
+	if err := os.WriteFile(filepath.Join(dir, "dup.test.js"), []byte(src), 0644); err != nil {
+		t.Fatalf("write dup.test.js: %v", err)
+	}
 
 	cases := Extract(dir, "dup.test.js", "jest")
 	if len(cases) != 2 {
@@ -127,6 +136,7 @@ describe('Suite', () => {
 }
 
 func TestDynamicTestGeneration(t *testing.T) {
+	t.Parallel()
 	src := `
 const cases = [1, 2, 3];
 cases.forEach(n => {
@@ -134,7 +144,9 @@ cases.forEach(n => {
 });
 `
 	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, "dynamic.test.js"), []byte(src), 0644)
+	if err := os.WriteFile(filepath.Join(dir, "dynamic.test.js"), []byte(src), 0644); err != nil {
+		t.Fatalf("write dynamic.test.js: %v", err)
+	}
 
 	cases := Extract(dir, "dynamic.test.js", "jest")
 	// Dynamic tests may or may not be extractable.

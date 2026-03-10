@@ -8,6 +8,7 @@ package comparison
 
 import (
 	"sort"
+	"strings"
 
 	"github.com/pmclSF/hamlet/internal/lifecycle"
 	"github.com/pmclSF/hamlet/internal/models"
@@ -54,6 +55,13 @@ type SnapshotComparison struct {
 
 	// LifecycleContinuity holds test lifecycle analysis between the two snapshots.
 	LifecycleContinuity *lifecycle.ContinuityResult `json:"lifecycleContinuity,omitempty"`
+
+	// MethodologyCompatible indicates whether snapshots are directly comparable
+	// for methodology-sensitive deltas (risk/posture/measurements).
+	MethodologyCompatible bool `json:"methodologyCompatible"`
+
+	// MethodologyNotes explains methodology compatibility decisions.
+	MethodologyNotes []string `json:"methodologyNotes,omitempty"`
 }
 
 // OwnershipDelta summarizes changes to ownership metrics across snapshots.
@@ -185,9 +193,9 @@ type RiskDelta struct {
 
 // FrameworkChange notes a framework added or removed.
 type FrameworkChange struct {
-	Name    string `json:"name"`
-	Change  string `json:"change"` // "added" or "removed"
-	Files   int    `json:"files"`
+	Name   string `json:"name"`
+	Change string `json:"change"` // "added" or "removed"
+	Files  int    `json:"files"`
 }
 
 // SignalExample is a representative signal for display in comparison output.
@@ -201,20 +209,45 @@ type SignalExample struct {
 //
 // The "from" snapshot is the older/baseline, "to" is the current.
 func Compare(from, to *models.TestSuiteSnapshot) *SnapshotComparison {
+	if from == nil || to == nil {
+		return &SnapshotComparison{
+			MethodologyCompatible: false,
+			MethodologyNotes:      []string{"cannot compare nil snapshot input"},
+		}
+	}
+	models.MigrateSnapshotInPlace(from)
+	models.MigrateSnapshotInPlace(to)
+
+	fromTime := "unknown"
+	toTime := "unknown"
+	if !from.GeneratedAt.IsZero() {
+		fromTime = from.GeneratedAt.Format("2006-01-02 15:04:05 UTC")
+	}
+	if !to.GeneratedAt.IsZero() {
+		toTime = to.GeneratedAt.Format("2006-01-02 15:04:05 UTC")
+	}
+
+	methodologyCompatible, methodologyNotes := assessMethodologyCompatibility(from, to)
 	comp := &SnapshotComparison{
-		FromTime:           from.GeneratedAt.Format("2006-01-02 15:04:05 UTC"),
-		ToTime:             to.GeneratedAt.Format("2006-01-02 15:04:05 UTC"),
-		TestFileCountDelta: len(to.TestFiles) - len(from.TestFiles),
+		FromTime:              fromTime,
+		ToTime:                toTime,
+		TestFileCountDelta:    len(to.TestFiles) - len(from.TestFiles),
+		MethodologyCompatible: methodologyCompatible,
+		MethodologyNotes:      methodologyNotes,
 	}
 
 	comp.SignalDeltas = compareSignals(from.Signals, to.Signals)
-	comp.RiskDeltas = compareRisk(from.Risk, to.Risk)
+	if methodologyCompatible {
+		comp.RiskDeltas = compareRisk(from.Risk, to.Risk)
+	}
 	comp.FrameworkChanges = compareFrameworks(from.Frameworks, to.Frameworks)
 	comp.NewSignalExamples, comp.ResolvedSignalExamples = findRepresentativeChanges(from.Signals, to.Signals)
 	comp.TestCaseDeltas = compareTestCases(from.TestCases, to.TestCases)
 	comp.CoverageDelta = compareCoverage(from.CoverageSummary, to.CoverageSummary)
 	comp.OwnershipDelta = compareOwnership(from.Ownership, to.Ownership)
-	comp.PostureDeltas, comp.MeasurementDeltas = compareMeasurements(from.Measurements, to.Measurements)
+	if methodologyCompatible {
+		comp.PostureDeltas, comp.MeasurementDeltas = compareMeasurements(from.Measurements, to.Measurements)
+	}
 	comp.LifecycleContinuity = lifecycle.InferContinuity(from, to)
 
 	return comp
@@ -242,6 +275,30 @@ func (c *SnapshotComparison) HasMeaningfulChanges() bool {
 		return true
 	}
 	return len(c.FrameworkChanges) > 0 || c.TestFileCountDelta != 0
+}
+
+func assessMethodologyCompatibility(from, to *models.TestSuiteSnapshot) (bool, []string) {
+	var notes []string
+	if from == nil || to == nil {
+		return false, []string{"cannot assess methodology compatibility with nil snapshot input"}
+	}
+	if from.SnapshotMeta.SchemaVersion != "" && to.SnapshotMeta.SchemaVersion != "" &&
+		from.SnapshotMeta.SchemaVersion != to.SnapshotMeta.SchemaVersion {
+		notes = append(notes, "snapshot schema versions differ; methodology-sensitive deltas were suppressed")
+		return false, notes
+	}
+
+	fromFP := strings.TrimSpace(from.SnapshotMeta.MethodologyFingerprint)
+	toFP := strings.TrimSpace(to.SnapshotMeta.MethodologyFingerprint)
+	if fromFP == "" || toFP == "" {
+		notes = append(notes, "methodology fingerprint missing on one or both snapshots; compatibility assumed for backward compatibility")
+		return true, notes
+	}
+	if fromFP != toFP {
+		notes = append(notes, "methodology fingerprint differs; risk/posture/measurement deltas were suppressed")
+		return false, notes
+	}
+	return true, nil
 }
 
 func compareSignals(from, to []models.Signal) []SignalDelta {
@@ -393,20 +450,18 @@ func compareFrameworks(from, to []models.Framework) []FrameworkChange {
 }
 
 func findRepresentativeChanges(from, to []models.Signal) (newExamples, resolvedExamples []SignalExample) {
-	// Build sets of signal keys for rough matching
-	fromKeys := map[string]bool{}
+	// Build multi-sets of signal identities for precise matching.
+	fromCounts := map[string]int{}
 	for _, s := range from {
-		fromKeys[string(s.Type)+":"+s.Location.File] = true
+		fromCounts[signalIdentityKey(s)]++
 	}
-	toKeys := map[string]bool{}
 	for _, s := range to {
-		toKeys[string(s.Type)+":"+s.Location.File] = true
-	}
-
-	// Find new signals (in to but not from)
-	for _, s := range to {
-		key := string(s.Type) + ":" + s.Location.File
-		if !fromKeys[key] && len(newExamples) < 5 {
+		key := signalIdentityKey(s)
+		if fromCounts[key] > 0 {
+			fromCounts[key]--
+			continue
+		}
+		if len(newExamples) < 5 {
 			newExamples = append(newExamples, SignalExample{
 				Type:        s.Type,
 				File:        s.Location.File,
@@ -415,10 +470,17 @@ func findRepresentativeChanges(from, to []models.Signal) (newExamples, resolvedE
 		}
 	}
 
-	// Find resolved signals (in from but not to)
+	toCounts := map[string]int{}
+	for _, s := range to {
+		toCounts[signalIdentityKey(s)]++
+	}
 	for _, s := range from {
-		key := string(s.Type) + ":" + s.Location.File
-		if !toKeys[key] && len(resolvedExamples) < 5 {
+		key := signalIdentityKey(s)
+		if toCounts[key] > 0 {
+			toCounts[key]--
+			continue
+		}
+		if len(resolvedExamples) < 5 {
 			resolvedExamples = append(resolvedExamples, SignalExample{
 				Type:        s.Type,
 				File:        s.Location.File,
@@ -428,6 +490,21 @@ func findRepresentativeChanges(from, to []models.Signal) (newExamples, resolvedE
 	}
 
 	return
+}
+
+func signalIdentityKey(s models.Signal) string {
+	explanation := strings.TrimSpace(strings.Join(strings.Fields(s.Explanation), " "))
+	if len(explanation) > 120 {
+		explanation = explanation[:120]
+	}
+	return strings.Join([]string{
+		string(s.Type),
+		s.Location.Repository,
+		s.Location.Package,
+		s.Location.File,
+		s.Location.Symbol,
+		explanation,
+	}, "|")
 }
 
 func countByType(signals []models.Signal) map[models.SignalType]int {
@@ -653,10 +730,10 @@ func compareOwnership(from, to map[string][]string) *OwnershipDelta {
 	}
 
 	d := &OwnershipDelta{
-		OwnerCountBefore: len(fromOwners),
-		OwnerCountAfter:  len(toOwners),
-		OwnedFilesBefore: len(from),
-		OwnedFilesAfter:  len(to),
+		OwnerCountBefore:  len(fromOwners),
+		OwnerCountAfter:   len(toOwners),
+		OwnedFilesBefore:  len(from),
+		OwnedFilesAfter:   len(to),
 		OwnershipImproved: len(to) > len(from),
 	}
 

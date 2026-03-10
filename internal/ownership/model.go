@@ -12,6 +12,8 @@
 //   - consistent attachment to files, modules, test cases, code units, and insights
 package ownership
 
+import "strings"
+
 // SourceType identifies where an ownership assignment came from.
 type SourceType string
 
@@ -29,7 +31,8 @@ const (
 	SourcePathMapping SourceType = "path_mapping"
 
 	// SourceGitHistory is ownership inferred from recent git commit author history.
-	// This source is opt-in and only used when configured.
+	// It is used when explicitly enabled, or as an automatic fallback when
+	// CODEOWNERS is absent.
 	SourceGitHistory SourceType = "git_history"
 
 	// SourceDirectoryFallback is ownership inferred from the top-level directory name.
@@ -249,11 +252,9 @@ func (a *OwnershipAssignment) HasOwner(ownerID string) bool {
 
 // NormalizeOwnerID strips leading @ and whitespace from an owner identifier.
 func NormalizeOwnerID(raw string) string {
-	id := raw
-	if len(id) > 0 && id[0] == '@' {
-		id = id[1:]
-	}
-	return id
+	id := strings.TrimSpace(raw)
+	id = strings.TrimPrefix(id, "@")
+	return strings.TrimSpace(id)
 }
 
 // SourceConfidence returns the default confidence for a given source type.

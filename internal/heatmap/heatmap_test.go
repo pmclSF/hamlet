@@ -7,6 +7,7 @@ import (
 )
 
 func TestBuild_Empty(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{}
 	h := Build(snap)
 
@@ -22,6 +23,7 @@ func TestBuild_Empty(t *testing.T) {
 }
 
 func TestBuild_DirectoryHotSpots(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		Risk: []models.RiskSurface{
 			{
@@ -64,6 +66,7 @@ func TestBuild_DirectoryHotSpots(t *testing.T) {
 }
 
 func TestBuild_OwnerHotSpots(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		Signals: []models.Signal{
 			{Type: "weakAssertion", Owner: "auth-team", Severity: models.SeverityMedium},
@@ -85,6 +88,7 @@ func TestBuild_OwnerHotSpots(t *testing.T) {
 }
 
 func TestBuild_CriticalPosture(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		Risk: []models.RiskSurface{
 			{Type: "reliability", Scope: "repository", Band: models.RiskBandCritical, Score: 20},
@@ -105,6 +109,7 @@ func TestBuild_CriticalPosture(t *testing.T) {
 }
 
 func TestBuild_HighRiskAreaCount(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		Risk: []models.RiskSurface{
 			{Type: "change", Scope: "directory", ScopeName: "src/a", Band: models.RiskBandHigh, Score: 10,
@@ -127,7 +132,110 @@ func TestBuild_HighRiskAreaCount(t *testing.T) {
 	}
 }
 
+func TestBuild_DirectoryHotSpots_NormalizedByFileCount(t *testing.T) {
+	t.Parallel()
+	snap := &models.TestSuiteSnapshot{
+		TestFiles: []models.TestFile{
+			{Path: "src/zsmall/a.test.js"},
+			{Path: "src/zsmall/b.test.js"},
+			{Path: "src/alarge/a.test.js"},
+			{Path: "src/alarge/b.test.js"},
+			{Path: "src/alarge/c.test.js"},
+			{Path: "src/alarge/d.test.js"},
+			{Path: "src/alarge/e.test.js"},
+			{Path: "src/alarge/f.test.js"},
+			{Path: "src/alarge/g.test.js"},
+			{Path: "src/alarge/h.test.js"},
+		},
+		Risk: []models.RiskSurface{
+			{
+				Type:      "change",
+				Scope:     "directory",
+				ScopeName: "src/alarge",
+				Band:      models.RiskBandHigh,
+				Score:     10,
+				ContributingSignals: []models.Signal{
+					{Type: "weakAssertion", Severity: models.SeverityMedium},
+					{Type: "mockHeavyTest", Severity: models.SeverityMedium},
+				},
+			},
+			{
+				Type:      "change",
+				Scope:     "directory",
+				ScopeName: "src/zsmall",
+				Band:      models.RiskBandHigh,
+				Score:     10,
+				ContributingSignals: []models.Signal{
+					{Type: "weakAssertion", Severity: models.SeverityMedium},
+					{Type: "mockHeavyTest", Severity: models.SeverityMedium},
+				},
+			},
+		},
+	}
+
+	h := Build(snap)
+	if len(h.DirectoryHotSpots) != 2 {
+		t.Fatalf("directoryHotSpots = %d, want 2", len(h.DirectoryHotSpots))
+	}
+	// zsmall should rank first because same signal burden over fewer files.
+	if h.DirectoryHotSpots[0].Name != "src/zsmall" {
+		t.Fatalf("first hotspot = %q, want src/zsmall", h.DirectoryHotSpots[0].Name)
+	}
+	if h.DirectoryHotSpots[0].FileCount != 2 {
+		t.Fatalf("zsmall fileCount = %d, want 2", h.DirectoryHotSpots[0].FileCount)
+	}
+	if h.DirectoryHotSpots[1].FileCount != 8 {
+		t.Fatalf("alarge fileCount = %d, want 8", h.DirectoryHotSpots[1].FileCount)
+	}
+	if h.DirectoryHotSpots[0].Score <= h.DirectoryHotSpots[1].Score {
+		t.Fatalf("expected normalized score ordering, got %.2f <= %.2f", h.DirectoryHotSpots[0].Score, h.DirectoryHotSpots[1].Score)
+	}
+}
+
+func TestBuild_OwnerHotSpots_NormalizedByOwnedFileCount(t *testing.T) {
+	t.Parallel()
+	snap := &models.TestSuiteSnapshot{
+		TestFiles: []models.TestFile{
+			{Path: "src/a1.test.js", Owner: "team-a"},
+			{Path: "src/a2.test.js", Owner: "team-a"},
+			{Path: "src/a3.test.js", Owner: "team-a"},
+			{Path: "src/b1.test.js", Owner: "team-b"},
+		},
+		Signals: []models.Signal{
+			{Type: "weakAssertion", Owner: "team-a", Severity: models.SeverityMedium},
+			{Type: "weakAssertion", Owner: "team-a", Severity: models.SeverityMedium},
+			{Type: "weakAssertion", Owner: "team-a", Severity: models.SeverityMedium},
+			{Type: "weakAssertion", Owner: "team-b", Severity: models.SeverityHigh},
+		},
+	}
+
+	h := Build(snap)
+	if len(h.OwnerHotSpots) < 2 {
+		t.Fatalf("ownerHotSpots = %d, want at least 2", len(h.OwnerHotSpots))
+	}
+
+	var teamA, teamB *HotSpot
+	for i := range h.OwnerHotSpots {
+		switch h.OwnerHotSpots[i].Name {
+		case "team-a":
+			teamA = &h.OwnerHotSpots[i]
+		case "team-b":
+			teamB = &h.OwnerHotSpots[i]
+		}
+	}
+	if teamA == nil || teamB == nil {
+		t.Fatalf("missing expected owner hotspots: team-a=%v team-b=%v", teamA != nil, teamB != nil)
+	}
+	if teamA.FileCount != 3 || teamB.FileCount != 1 {
+		t.Fatalf("unexpected file counts team-a=%d team-b=%d", teamA.FileCount, teamB.FileCount)
+	}
+	if teamB.Score <= teamA.Score {
+		t.Fatalf("expected normalized owner score for team-b to exceed team-a, got %.2f <= %.2f", teamB.Score, teamA.Score)
+	}
+}
+
 func TestTopTypes(t *testing.T) {
+	t.Parallel()
 	signals := []models.Signal{
 		{Type: "weakAssertion"},
 		{Type: "weakAssertion"},
@@ -148,6 +256,7 @@ func TestTopTypes(t *testing.T) {
 }
 
 func TestScoreToBand(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		score float64
 		want  models.RiskBand

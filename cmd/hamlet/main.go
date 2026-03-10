@@ -6,6 +6,7 @@
 //	hamlet analyze --root PATH  analyze a specific directory
 //	hamlet analyze --json       JSON output (TestSuiteSnapshot)
 //	hamlet analyze --write-snapshot  persist snapshot to .hamlet/snapshots/latest.json
+//	hamlet init                 detect common data files and print a ready-to-run analyze command
 //	hamlet metrics              aggregate metrics scorecard (human-readable)
 //	hamlet metrics --json       JSON metrics snapshot
 //	hamlet posture              detailed posture breakdown with evidence
@@ -33,7 +34,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/pmclSF/hamlet/internal/analysis"
 	"github.com/pmclSF/hamlet/internal/benchmark"
 	"github.com/pmclSF/hamlet/internal/changescope"
 	"github.com/pmclSF/hamlet/internal/comparison"
@@ -46,9 +46,7 @@ import (
 	"github.com/pmclSF/hamlet/internal/migration"
 	"github.com/pmclSF/hamlet/internal/models"
 	"github.com/pmclSF/hamlet/internal/policy"
-	"github.com/pmclSF/hamlet/internal/quality"
 	"github.com/pmclSF/hamlet/internal/reporting"
-	"github.com/pmclSF/hamlet/internal/signals"
 	"github.com/pmclSF/hamlet/internal/summary"
 )
 
@@ -59,9 +57,15 @@ var (
 	date    = "unknown"
 )
 
-func main() {
-	engine.EngineVersion = version
+const defaultSlowThresholdMs = 5000.0
 
+const (
+	exitOK              = 0
+	exitError           = 1
+	exitPolicyViolation = 2
+)
+
+func main() {
 	if len(os.Args) < 2 {
 		printUsage()
 		os.Exit(2)
@@ -72,12 +76,24 @@ func main() {
 		analyzeCmd := flag.NewFlagSet("analyze", flag.ExitOnError)
 		rootFlag := analyzeCmd.String("root", ".", "repository root to analyze")
 		jsonFlag := analyzeCmd.Bool("json", false, "output JSON snapshot")
+		formatFlag := analyzeCmd.String("format", "", "output format: json or text")
+		verboseFlag := analyzeCmd.Bool("verbose", false, "show all findings in analyze output")
 		writeSnapshot := analyzeCmd.Bool("write-snapshot", false, "persist snapshot to .hamlet/snapshots/latest.json")
 		coverageFlag := analyzeCmd.String("coverage", "", "path to coverage file or directory (LCOV, Istanbul JSON)")
+		coverageRunLabelFlag := analyzeCmd.String("coverage-run-label", "", "coverage run label: unit, integration, or e2e")
 		runtimeFlag := analyzeCmd.String("runtime", "", "path to runtime artifact (JUnit XML, Jest JSON); comma-separated for multiple")
-		slowThreshold := analyzeCmd.Float64("slow-threshold", 0, "slow test threshold in ms (default: 5000)")
-		analyzeCmd.Parse(os.Args[2:])
-		if err := runAnalyze(*rootFlag, *jsonFlag, *writeSnapshot, *coverageFlag, *runtimeFlag, *slowThreshold); err != nil {
+		slowThreshold := analyzeCmd.Float64("slow-threshold", defaultSlowThresholdMs, "slow test threshold in ms (default: 5000)")
+		_ = analyzeCmd.Parse(os.Args[2:])
+		if err := runAnalyze(*rootFlag, *jsonFlag, *formatFlag, *verboseFlag, *writeSnapshot, *coverageFlag, *coverageRunLabelFlag, *runtimeFlag, *slowThreshold); err != nil {
+			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			os.Exit(1)
+		}
+
+	case "init":
+		initCmd := flag.NewFlagSet("init", flag.ExitOnError)
+		rootFlag := initCmd.String("root", ".", "repository root to inspect")
+		_ = initCmd.Parse(os.Args[2:])
+		if err := runInit(*rootFlag); err != nil {
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)
 			os.Exit(1)
 		}
@@ -87,9 +103,9 @@ func main() {
 		rootFlag := impactCmd.String("root", ".", "repository root to analyze")
 		baseRef := impactCmd.String("base", "", "git base ref for diff (default: HEAD~1)")
 		jsonFlag := impactCmd.Bool("json", false, "output JSON impact result")
-		showFlag := impactCmd.String("show", "", "drill-down view: units, gaps, tests, owners")
+		showFlag := impactCmd.String("show", "", "drill-down view: units, gaps, tests, owners, graph, selected")
 		ownerFlag := impactCmd.String("owner", "", "filter results by owner")
-		impactCmd.Parse(os.Args[2:])
+		_ = impactCmd.Parse(os.Args[2:])
 		if err := runImpact(*rootFlag, *baseRef, *jsonFlag, *showFlag, *ownerFlag); err != nil {
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)
 			os.Exit(1)
@@ -103,15 +119,19 @@ func main() {
 		policyCmd := flag.NewFlagSet("policy check", flag.ExitOnError)
 		rootFlag := policyCmd.String("root", ".", "repository root to analyze")
 		jsonFlag := policyCmd.Bool("json", false, "output JSON policy check result")
-		policyCmd.Parse(os.Args[3:])
-		exitCode := runPolicyCheck(*rootFlag, *jsonFlag)
+		coverageFlag := policyCmd.String("coverage", "", "path to coverage file or directory (LCOV, Istanbul JSON)")
+		coverageRunLabelFlag := policyCmd.String("coverage-run-label", "", "coverage run label: unit, integration, or e2e")
+		runtimeFlag := policyCmd.String("runtime", "", "path to runtime artifact (JUnit XML, Jest JSON); comma-separated for multiple")
+		slowThreshold := policyCmd.Float64("slow-threshold", defaultSlowThresholdMs, "slow test threshold in ms (default: 5000)")
+		_ = policyCmd.Parse(os.Args[3:])
+		exitCode := runPolicyCheck(*rootFlag, *jsonFlag, *coverageFlag, *coverageRunLabelFlag, *runtimeFlag, *slowThreshold)
 		os.Exit(exitCode)
 
 	case "metrics":
 		metricsCmd := flag.NewFlagSet("metrics", flag.ExitOnError)
 		rootFlag := metricsCmd.String("root", ".", "repository root to analyze")
 		jsonFlag := metricsCmd.Bool("json", false, "output JSON metrics snapshot")
-		metricsCmd.Parse(os.Args[2:])
+		_ = metricsCmd.Parse(os.Args[2:])
 		if err := runMetrics(*rootFlag, *jsonFlag); err != nil {
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)
 			os.Exit(1)
@@ -121,7 +141,7 @@ func main() {
 		postureCmd := flag.NewFlagSet("posture", flag.ExitOnError)
 		rootFlag := postureCmd.String("root", ".", "repository root to analyze")
 		jsonFlag := postureCmd.Bool("json", false, "output JSON posture snapshot")
-		postureCmd.Parse(os.Args[2:])
+		_ = postureCmd.Parse(os.Args[2:])
 		if err := runPosture(*rootFlag, *jsonFlag); err != nil {
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)
 			os.Exit(1)
@@ -131,7 +151,7 @@ func main() {
 		portfolioCmd := flag.NewFlagSet("portfolio", flag.ExitOnError)
 		rootFlag := portfolioCmd.String("root", ".", "repository root to analyze")
 		jsonFlag := portfolioCmd.Bool("json", false, "output JSON portfolio snapshot")
-		portfolioCmd.Parse(os.Args[2:])
+		_ = portfolioCmd.Parse(os.Args[2:])
 		if err := runPortfolio(*rootFlag, *jsonFlag); err != nil {
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)
 			os.Exit(1)
@@ -141,8 +161,18 @@ func main() {
 		summaryCmd := flag.NewFlagSet("summary", flag.ExitOnError)
 		rootFlag := summaryCmd.String("root", ".", "repository root to analyze")
 		jsonFlag := summaryCmd.Bool("json", false, "output JSON summary with heatmap")
-		summaryCmd.Parse(os.Args[2:])
+		_ = summaryCmd.Parse(os.Args[2:])
 		if err := runSummary(*rootFlag, *jsonFlag); err != nil {
+			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			os.Exit(1)
+		}
+
+	case "focus":
+		focusCmd := flag.NewFlagSet("focus", flag.ExitOnError)
+		rootFlag := focusCmd.String("root", ".", "repository root to analyze")
+		jsonFlag := focusCmd.Bool("json", false, "output JSON focus summary")
+		_ = focusCmd.Parse(os.Args[2:])
+		if err := runFocus(*rootFlag, *jsonFlag); err != nil {
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)
 			os.Exit(1)
 		}
@@ -153,7 +183,7 @@ func main() {
 		toFlag := compareCmd.String("to", "", "path to current snapshot JSON")
 		rootFlag := compareCmd.String("root", ".", "repository root (used to find .hamlet/snapshots/)")
 		jsonFlag := compareCmd.Bool("json", false, "output JSON comparison")
-		compareCmd.Parse(os.Args[2:])
+		_ = compareCmd.Parse(os.Args[2:])
 		if err := runCompare(*fromFlag, *toFlag, *rootFlag, *jsonFlag); err != nil {
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)
 			os.Exit(1)
@@ -170,7 +200,7 @@ func main() {
 		jsonFlag := migCmd.Bool("json", false, "output JSON")
 		fileFlag := migCmd.String("file", "", "file path for preview (relative to root)")
 		scopeFlag := migCmd.String("scope", "", "directory scope for preview")
-		migCmd.Parse(os.Args[3:])
+		_ = migCmd.Parse(os.Args[3:])
 		if err := runMigration(subCmd, *rootFlag, *jsonFlag, *fileFlag, *scopeFlag); err != nil {
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)
 			os.Exit(1)
@@ -181,7 +211,7 @@ func main() {
 		rootFlag := stCmd.String("root", ".", "repository root to analyze")
 		baseRef := stCmd.String("base", "", "git base ref for diff (default: HEAD~1)")
 		jsonFlag := stCmd.Bool("json", false, "output JSON protective test set")
-		stCmd.Parse(os.Args[2:])
+		_ = stCmd.Parse(os.Args[2:])
 		if err := runSelectTests(*rootFlag, *baseRef, *jsonFlag); err != nil {
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)
 			os.Exit(1)
@@ -193,7 +223,7 @@ func main() {
 		baseRef := prCmd.String("base", "", "git base ref for diff (default: HEAD~1)")
 		jsonFlag := prCmd.Bool("json", false, "output JSON PR analysis")
 		formatFlag := prCmd.String("format", "", "output format: markdown, comment, annotation")
-		prCmd.Parse(os.Args[2:])
+		_ = prCmd.Parse(os.Args[2:])
 		if err := runPR(*rootFlag, *baseRef, *jsonFlag, *formatFlag); err != nil {
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)
 			os.Exit(1)
@@ -201,14 +231,14 @@ func main() {
 
 	case "show":
 		if len(os.Args) < 3 {
-			fmt.Fprintln(os.Stderr, "Usage: hamlet show <test|unit|owner|finding> <id-or-path>")
+			fmt.Fprintln(os.Stderr, "Usage: hamlet show <test|unit|codeunit|owner|finding> <id-or-path>")
 			os.Exit(2)
 		}
 		showSubCmd := os.Args[2]
 		showCmd := flag.NewFlagSet("show", flag.ExitOnError)
 		rootFlag := showCmd.String("root", ".", "repository root to analyze")
 		jsonFlag := showCmd.Bool("json", false, "output JSON")
-		showCmd.Parse(os.Args[3:])
+		_ = showCmd.Parse(os.Args[3:])
 		showArgs := showCmd.Args()
 		showID := ""
 		if len(showArgs) > 0 {
@@ -226,7 +256,7 @@ func main() {
 		}
 		exportCmd := flag.NewFlagSet("export benchmark", flag.ExitOnError)
 		rootFlag := exportCmd.String("root", ".", "repository root to analyze")
-		exportCmd.Parse(os.Args[3:])
+		_ = exportCmd.Parse(os.Args[3:])
 		if err := runExportBenchmark(*rootFlag); err != nil {
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)
 			os.Exit(1)
@@ -253,14 +283,16 @@ func printUsage() {
 	fmt.Fprintln(os.Stderr, "  hamlet posture           evidence-backed posture by dimension")
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Commands:")
+	fmt.Fprintln(os.Stderr, "  init [flags]             detect data paths and print recommended analyze command")
 	fmt.Fprintln(os.Stderr, "  analyze [flags]          full test suite analysis")
 	fmt.Fprintln(os.Stderr, "  summary [flags]          executive summary with risk, trends, benchmark readiness")
+	fmt.Fprintln(os.Stderr, "  focus [flags]            prioritized next actions")
 	fmt.Fprintln(os.Stderr, "  posture [flags]          detailed posture breakdown with measurement evidence")
 	fmt.Fprintln(os.Stderr, "  portfolio [flags]        portfolio intelligence: cost, breadth, leverage, redundancy")
 	fmt.Fprintln(os.Stderr, "  impact [flags]           impact analysis for changed code")
 	fmt.Fprintln(os.Stderr, "  select-tests [flags]     recommend protective test set for a change")
 	fmt.Fprintln(os.Stderr, "  pr [flags]               PR/change-scoped analysis")
-	fmt.Fprintln(os.Stderr, "  show <entity> <id>       drill into test, unit, owner, or finding")
+	fmt.Fprintln(os.Stderr, "  show <entity> <id>       drill into test, unit/codeunit, owner, or finding")
 	fmt.Fprintln(os.Stderr, "  metrics [flags]          aggregate metrics scorecard")
 	fmt.Fprintln(os.Stderr, "  migration readiness      migration readiness assessment")
 	fmt.Fprintln(os.Stderr, "  migration blockers       list migration blockers by type and area")
@@ -282,11 +314,18 @@ func printUsage() {
 	fmt.Fprintln(os.Stderr, "  --base REF               git base ref for diff (default: HEAD~1)")
 	fmt.Fprintln(os.Stderr, "  --format FORMAT          output: markdown, comment, annotation")
 	fmt.Fprintln(os.Stderr)
-	fmt.Fprintln(os.Stderr, "Analyze-specific flags:")
+	fmt.Fprintln(os.Stderr, "Migration preview flags:")
+	fmt.Fprintln(os.Stderr, "  --file PATH              preview migration risk for one file")
+	fmt.Fprintln(os.Stderr, "  --scope DIR              preview migration risk for a directory scope")
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, "Analyze/Policy flags:")
 	fmt.Fprintln(os.Stderr, "  --write-snapshot         persist snapshot for trend tracking")
 	fmt.Fprintln(os.Stderr, "  --coverage PATH          ingest coverage data (LCOV, Istanbul JSON)")
+	fmt.Fprintln(os.Stderr, "  --coverage-run-label L   label coverage as unit|integration|e2e")
 	fmt.Fprintln(os.Stderr, "  --runtime PATH           ingest runtime artifacts (JUnit XML, Jest JSON; comma-separated)")
 	fmt.Fprintln(os.Stderr, "  --slow-threshold MS      slow test threshold in ms (default: 5000)")
+	fmt.Fprintln(os.Stderr, "  --verbose                show all findings in analyze output")
+	fmt.Fprintln(os.Stderr, "  --format json|text       output format (analyze command)")
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Compare-specific flags:")
 	fmt.Fprintln(os.Stderr, "  --from PATH              baseline snapshot (default: auto-detected)")
@@ -295,27 +334,128 @@ func printUsage() {
 	fmt.Fprintln(os.Stderr, "Typical flow:")
 	fmt.Fprintln(os.Stderr, "  1. hamlet analyze                    see findings")
 	fmt.Fprintln(os.Stderr, "  2. hamlet summary                    get the leadership view")
-	fmt.Fprintln(os.Stderr, "  3. hamlet posture                    understand the evidence")
-	fmt.Fprintln(os.Stderr, "  4. hamlet portfolio                  see cost, leverage, and redundancy")
-	fmt.Fprintln(os.Stderr, "  5. hamlet analyze --write-snapshot    save for trend tracking")
-	fmt.Fprintln(os.Stderr, "  6. hamlet compare                    see what changed")
+	fmt.Fprintln(os.Stderr, "  3. hamlet focus                      identify the highest-impact next action")
+	fmt.Fprintln(os.Stderr, "  4. hamlet posture                    understand the evidence")
+	fmt.Fprintln(os.Stderr, "  5. hamlet portfolio                  see cost, leverage, and redundancy")
+	fmt.Fprintln(os.Stderr, "  6. hamlet analyze --write-snapshot   save for trend tracking")
+	fmt.Fprintln(os.Stderr, "  7. hamlet compare                    see what changed")
 }
 
-func runAnalyze(root string, jsonOutput bool, writeSnap bool, coveragePath string, runtimePaths string, slowThreshold float64) error {
-	opt := engine.PipelineOptions{CoveragePath: coveragePath, SlowTestThresholdMs: slowThreshold}
-	if runtimePaths != "" {
-		for _, p := range strings.Split(runtimePaths, ",") {
-			p = strings.TrimSpace(p)
-			if p != "" {
-				opt.RuntimePaths = append(opt.RuntimePaths, p)
+func defaultPipelineOptions() engine.PipelineOptions {
+	return engine.PipelineOptions{
+		EngineVersion: version,
+	}
+}
+
+func analysisPipelineOptions(coveragePath, coverageRunLabel string, runtimePaths []string, slowThreshold float64) engine.PipelineOptions {
+	opt := defaultPipelineOptions()
+	opt.CoveragePath = coveragePath
+	opt.CoverageRunLabel = strings.TrimSpace(coverageRunLabel)
+	opt.RuntimePaths = runtimePaths
+	opt.SlowTestThresholdMs = slowThreshold
+	return opt
+}
+
+func runInit(root string) error {
+	rootInfo, err := os.Stat(root)
+	if err != nil {
+		return fmt.Errorf("invalid --root path %q: %w", root, err)
+	}
+	if !rootInfo.IsDir() {
+		return fmt.Errorf("invalid --root path %q: not a directory", root)
+	}
+
+	absRoot, err := filepath.Abs(root)
+	if err != nil {
+		return fmt.Errorf("resolve root path: %w", err)
+	}
+
+	coveragePath := detectFirstExisting(absRoot, []string{
+		"coverage/lcov.info",
+		"coverage/coverage-final.json",
+		"coverage-final.json",
+		"coverage.out",
+		"coverage.lcov",
+		"lcov.info",
+	})
+	runtimePath := detectFirstExisting(absRoot, []string{
+		"junit.xml",
+		"test-results.xml",
+		"test-results.json",
+		"reports/junit.xml",
+		"jest-results.json",
+		"junit/junit.xml",
+	})
+
+	fmt.Println("Hamlet Init")
+	fmt.Println()
+	fmt.Printf("Root: %s\n", absRoot)
+	if coveragePath != "" {
+		fmt.Printf("Coverage data: found at %s\n", coveragePath)
+	} else {
+		fmt.Println("Coverage data: not found")
+	}
+	if runtimePath != "" {
+		fmt.Printf("Runtime data: found at %s\n", runtimePath)
+	} else {
+		fmt.Println("Runtime data: not found")
+	}
+	fmt.Println()
+	fmt.Println("Recommended command:")
+	fmt.Printf("  hamlet analyze --root %q", root)
+	if coveragePath != "" {
+		fmt.Printf(" --coverage %q", coveragePath)
+	}
+	if runtimePath != "" {
+		fmt.Printf(" --runtime %q", runtimePath)
+	}
+	fmt.Println()
+
+	if coveragePath == "" || runtimePath == "" {
+		fmt.Println()
+		fmt.Println("To unlock fuller analysis:")
+		if coveragePath == "" {
+			fmt.Println("  1. Generate coverage artifacts and rerun with --coverage <path>")
+		}
+		if runtimePath == "" {
+			if coveragePath == "" {
+				fmt.Println("  2. Generate runtime artifacts and rerun with --runtime <path>")
+			} else {
+				fmt.Println("  1. Generate runtime artifacts and rerun with --runtime <path>")
 			}
 		}
 	}
-	var opts []engine.PipelineOptions
-	if opt.CoveragePath != "" || len(opt.RuntimePaths) > 0 || opt.SlowTestThresholdMs > 0 {
-		opts = append(opts, opt)
+
+	return nil
+}
+
+func detectFirstExisting(root string, candidates []string) string {
+	for _, rel := range candidates {
+		p := filepath.Join(root, rel)
+		if info, err := os.Stat(p); err == nil && !info.IsDir() {
+			return p
+		}
 	}
-	result, err := engine.RunPipeline(root, opts...)
+	return ""
+}
+
+func runAnalyze(root string, jsonOutput bool, format string, verbose bool, writeSnap bool, coveragePath, coverageRunLabel string, runtimePaths string, slowThreshold float64) error {
+	parsedRuntime := parseRuntimePaths(runtimePaths)
+	if err := validateCommandInputs(root, coveragePath, parsedRuntime); err != nil {
+		return err
+	}
+	switch strings.ToLower(strings.TrimSpace(format)) {
+	case "":
+	case "json":
+		jsonOutput = true
+	case "text":
+		jsonOutput = false
+	default:
+		return fmt.Errorf("invalid --format %q (valid: json, text)", format)
+	}
+
+	opt := analysisPipelineOptions(coveragePath, coverageRunLabel, parsedRuntime, slowThreshold)
+	result, err := engine.RunPipeline(root, opt)
 	if err != nil {
 		return fmt.Errorf("analysis failed: %w", err)
 	}
@@ -326,7 +466,9 @@ func runAnalyze(root string, jsonOutput bool, writeSnap bool, coveragePath strin
 		return enc.Encode(result.Snapshot)
 	}
 
-	reporting.RenderAnalyzeReport(os.Stdout, result.Snapshot)
+	reporting.RenderAnalyzeReport(os.Stdout, result.Snapshot, reporting.AnalyzeReportOptions{
+		Verbose: verbose,
+	})
 
 	if writeSnap {
 		return persistSnapshot(result.Snapshot, root)
@@ -339,76 +481,126 @@ func runAnalyze(root string, jsonOutput bool, writeSnap bool, coveragePath strin
 //
 // Exit codes:
 //   - 0: no policy file found, or policy exists with no violations
-//   - 1: violations found, policy file malformed, or evaluation error
-func runPolicyCheck(root string, jsonOutput bool) int {
+//   - 1: policy file malformed or evaluation/runtime error
+//   - 2: policy violations found
+func runPolicyCheck(root string, jsonOutput bool, coveragePath, coverageRunLabel string, runtimePaths string, slowThreshold float64) int {
+	parsedRuntime := parseRuntimePaths(runtimePaths)
+	if err := validateCommandInputs(root, coveragePath, parsedRuntime); err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		return exitError
+	}
+
 	// Load policy
 	policyResult, err := policy.Load(root)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		return 1
+		return exitError
 	}
 
 	if !policyResult.Found {
 		if jsonOutput {
 			enc := json.NewEncoder(os.Stdout)
 			enc.SetIndent("", "  ")
-			enc.Encode(map[string]any{
+			if err := enc.Encode(map[string]any{
 				"policyFile": nil,
 				"pass":       true,
 				"violations": []any{},
 				"message":    "No policy file found. Create .hamlet/policy.yaml to define policy.",
-			})
+			}); err != nil {
+				fmt.Fprintf(os.Stderr, "error: failed to render policy output: %v\n", err)
+				return exitError
+			}
 		} else {
 			fmt.Println("Hamlet Policy Check")
 			fmt.Println()
 			fmt.Println("No policy file found.")
 			fmt.Println("Create .hamlet/policy.yaml to define policy rules.")
 		}
-		return 0
+		return exitOK
 	}
 
-	// Policy check uses a targeted pipeline: analyze + quality detectors + governance.
-	// It does not run the full pipeline because its output is specifically the
-	// governance evaluation result, not the full snapshot.
-	analyzer := analysis.New(root)
-	snapshot, err := analyzer.Analyze()
+	opt := analysisPipelineOptions(coveragePath, coverageRunLabel, parsedRuntime, slowThreshold)
+
+	// Reuse the main analysis pipeline so policy evaluation can use runtime and
+	// coverage artifacts when provided.
+	result, err := engine.RunPipeline(root, opt)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: analysis failed: %v\n", err)
-		return 1
+		return exitError
 	}
 
-	// Run quality detectors (some policy rules reference quality signals).
-	signals.RunDetectors(snapshot,
-		&quality.WeakAssertionDetector{},
-		&quality.MockHeavyDetector{},
-		&quality.UntestedExportDetector{},
-		&quality.CoverageThresholdDetector{},
-	)
-
 	// Evaluate policy.
-	govResult := governance.Evaluate(snapshot, policyResult.Config)
+	govResult := governance.Evaluate(result.Snapshot, policyResult.Config)
 
 	if jsonOutput {
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
-		enc.Encode(map[string]any{
+		if err := enc.Encode(map[string]any{
 			"policyFile": policyResult.Path,
 			"pass":       govResult.Pass,
 			"violations": govResult.Violations,
-		})
+			"message":    policyStatusMessage(govResult.Pass),
+		}); err != nil {
+			fmt.Fprintf(os.Stderr, "error: failed to render policy output: %v\n", err)
+			return exitError
+		}
 	} else {
 		reporting.RenderPolicyReport(os.Stdout, policyResult.Path, govResult)
 	}
 
 	if !govResult.Pass {
-		return 1
+		return exitPolicyViolation
 	}
-	return 0
+	return exitOK
+}
+
+func parseRuntimePaths(runtimePaths string) []string {
+	var paths []string
+	if runtimePaths == "" {
+		return paths
+	}
+	for _, p := range strings.Split(runtimePaths, ",") {
+		p = strings.TrimSpace(p)
+		if p != "" {
+			paths = append(paths, p)
+		}
+	}
+	return paths
+}
+
+func validateCommandInputs(root, coveragePath string, runtimePaths []string) error {
+	rootInfo, err := os.Stat(root)
+	if err != nil {
+		return fmt.Errorf("invalid --root %q: %w", root, err)
+	}
+	if !rootInfo.IsDir() {
+		return fmt.Errorf("invalid --root %q: expected a directory", root)
+	}
+
+	if coveragePath != "" {
+		if _, err := os.Stat(coveragePath); err != nil {
+			return fmt.Errorf("invalid --coverage %q: %w", coveragePath, err)
+		}
+	}
+
+	for _, p := range runtimePaths {
+		if _, err := os.Stat(p); err != nil {
+			return fmt.Errorf("invalid --runtime path %q: %w", p, err)
+		}
+	}
+	return nil
+}
+
+func policyStatusMessage(pass bool) string {
+	if pass {
+		return "Policy checks passed."
+	}
+	return "Policy violations detected."
 }
 
 // runImpact performs impact analysis against a git diff.
 func runImpact(root, baseRef string, jsonOutput bool, show, ownerFilter string) error {
-	result, err := engine.RunPipeline(root)
+	result, err := engine.RunPipeline(root, defaultPipelineOptions())
 	if err != nil {
 		return fmt.Errorf("analysis failed: %w", err)
 	}
@@ -459,7 +651,7 @@ func runImpact(root, baseRef string, jsonOutput bool, show, ownerFilter string) 
 
 // runSelectTests performs impact analysis and outputs the protective test set.
 func runSelectTests(root, baseRef string, jsonOutput bool) error {
-	result, err := engine.RunPipeline(root)
+	result, err := engine.RunPipeline(root, defaultPipelineOptions())
 	if err != nil {
 		return fmt.Errorf("analysis failed: %w", err)
 	}
@@ -488,7 +680,7 @@ func runSelectTests(root, baseRef string, jsonOutput bool) error {
 
 // runPortfolio performs analysis and outputs portfolio intelligence.
 func runPortfolio(root string, jsonOutput bool) error {
-	result, err := engine.RunPipeline(root)
+	result, err := engine.RunPipeline(root, defaultPipelineOptions())
 	if err != nil {
 		return fmt.Errorf("analysis failed: %w", err)
 	}
@@ -505,7 +697,7 @@ func runPortfolio(root string, jsonOutput bool) error {
 
 // runPosture performs analysis and outputs a detailed posture breakdown.
 func runPosture(root string, jsonOutput bool) error {
-	result, err := engine.RunPipeline(root)
+	result, err := engine.RunPipeline(root, defaultPipelineOptions())
 	if err != nil {
 		return fmt.Errorf("analysis failed: %w", err)
 	}
@@ -522,7 +714,7 @@ func runPosture(root string, jsonOutput bool) error {
 
 // runMetrics performs analysis and outputs aggregate metrics.
 func runMetrics(root string, jsonOutput bool) error {
-	result, err := engine.RunPipeline(root)
+	result, err := engine.RunPipeline(root, defaultPipelineOptions())
 	if err != nil {
 		return fmt.Errorf("analysis failed: %w", err)
 	}
@@ -542,7 +734,7 @@ func runMetrics(root string, jsonOutput bool) error {
 // runSummary performs analysis and outputs an executive summary with
 // trend highlights (if prior snapshots exist) and benchmark readiness.
 func runSummary(root string, jsonOutput bool) error {
-	result, err := engine.RunPipeline(root)
+	result, err := engine.RunPipeline(root, defaultPipelineOptions())
 	if err != nil {
 		return fmt.Errorf("analysis failed: %w", err)
 	}
@@ -589,10 +781,80 @@ func runSummary(root string, jsonOutput bool) error {
 	return nil
 }
 
+// runFocus performs analysis and emits a compact action-first view.
+func runFocus(root string, jsonOutput bool) error {
+	result, err := engine.RunPipeline(root, defaultPipelineOptions())
+	if err != nil {
+		return fmt.Errorf("analysis failed: %w", err)
+	}
+	snapshot := result.Snapshot
+
+	g := graph.Build(snapshot)
+	h := heatmap.BuildWithGraph(snapshot, g)
+	ms := metrics.Derive(snapshot)
+	seg := &benchmark.BuildExport(snapshot, ms, result.HasPolicy).Segment
+
+	es := summary.Build(&summary.BuildInput{
+		Snapshot:  snapshot,
+		Heatmap:   h,
+		Metrics:   ms,
+		Segment:   seg,
+		HasPolicy: result.HasPolicy,
+	})
+
+	if jsonOutput {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(map[string]any{
+			"recommendedFocus": es.RecommendedFocus,
+			"topRiskAreas":     es.TopRiskAreas,
+			"recommendations":  es.Recommendations,
+			"posture":          es.Posture,
+		})
+	}
+
+	fmt.Println("Hamlet Focus")
+	fmt.Println()
+	if es.RecommendedFocus != "" {
+		fmt.Printf("Now: %s\n", es.RecommendedFocus)
+	} else {
+		fmt.Println("Now: No immediate focus area detected.")
+	}
+
+	if len(es.TopRiskAreas) > 0 {
+		fmt.Println()
+		fmt.Println("Top Risk Areas")
+		for i, area := range es.TopRiskAreas {
+			fmt.Printf("  %d. %s (%s)\n", i+1, area.Name, area.Band)
+			if area.RiskType != "" {
+				fmt.Printf("     risk: %s (%d signal(s))\n", area.RiskType, area.SignalCount)
+			}
+		}
+	}
+
+	if len(es.Recommendations) > 0 {
+		fmt.Println()
+		fmt.Println("Recommended Actions")
+		for i, r := range es.Recommendations {
+			fmt.Printf("  %d. %s\n", i+1, r.What)
+			if r.Why != "" {
+				fmt.Printf("     why: %s\n", r.Why)
+			}
+			if r.Where != "" {
+				fmt.Printf("     where: %s\n", r.Where)
+			}
+		}
+	}
+
+	fmt.Println()
+	fmt.Println("Next: hamlet posture    see detailed evidence by dimension")
+	return nil
+}
+
 // runMigration handles `hamlet migration readiness`, `hamlet migration blockers`,
 // and `hamlet migration preview`.
 func runMigration(subCmd, root string, jsonOutput bool, file, scope string) error {
-	result, err := engine.RunPipeline(root)
+	result, err := engine.RunPipeline(root, defaultPipelineOptions())
 	if err != nil {
 		return fmt.Errorf("analysis failed: %w", err)
 	}
@@ -656,7 +918,7 @@ func runMigration(subCmd, root string, jsonOutput bool, file, scope string) erro
 
 // runExportBenchmark performs analysis and outputs a benchmark-safe JSON export.
 func runExportBenchmark(root string) error {
-	result, err := engine.RunPipeline(root)
+	result, err := engine.RunPipeline(root, defaultPipelineOptions())
 	if err != nil {
 		return fmt.Errorf("analysis failed: %w", err)
 	}
@@ -728,6 +990,7 @@ func loadSnapshot(path string) (*models.TestSuiteSnapshot, error) {
 	if err := json.Unmarshal(data, &snap); err != nil {
 		return nil, fmt.Errorf("invalid snapshot JSON in %s: %w", path, err)
 	}
+	models.MigrateSnapshotInPlace(&snap)
 	return &snap, nil
 }
 
@@ -752,7 +1015,7 @@ func findRecentSnapshots(dir string) (latest, previous string, err error) {
 	if len(snapFiles) < 2 {
 		latestPath := filepath.Join(dir, "latest.json")
 		if _, statErr := os.Stat(latestPath); statErr == nil && len(snapFiles) == 1 {
-			return snapFiles[0], latestPath, nil
+			return latestPath, snapFiles[0], nil
 		}
 		return "", "", fmt.Errorf("need at least 2 snapshots to compare; found %d. Run `hamlet analyze --write-snapshot` to save snapshots", len(snapFiles))
 	}
@@ -796,7 +1059,7 @@ func persistSnapshot(snapshot *models.TestSuiteSnapshot, root string) error {
 
 // runPR performs a PR/change-scoped analysis.
 func runPR(root, baseRef string, jsonOutput bool, format string) error {
-	result, err := engine.RunPipeline(root)
+	result, err := engine.RunPipeline(root, defaultPipelineOptions())
 	if err != nil {
 		return fmt.Errorf("analysis failed: %w", err)
 	}
@@ -834,7 +1097,7 @@ func runPR(root, baseRef string, jsonOutput bool, format string) error {
 
 // runShow handles entity drill-down commands.
 func runShow(entity, id, root string, jsonOutput bool) error {
-	result, err := engine.RunPipeline(root)
+	result, err := engine.RunPipeline(root, defaultPipelineOptions())
 	if err != nil {
 		return fmt.Errorf("analysis failed: %w", err)
 	}
@@ -850,7 +1113,7 @@ func runShow(entity, id, root string, jsonOutput bool) error {
 	case "finding":
 		return showFinding(id, snap, jsonOutput)
 	default:
-		return fmt.Errorf("unknown entity type: %q (valid: test, unit, owner, finding)", entity)
+		return fmt.Errorf("unknown entity type: %q (valid: test, unit, codeunit, owner, finding)", entity)
 	}
 }
 
@@ -903,11 +1166,11 @@ func showOwner(id string, snap *models.TestSuiteSnapshot, jsonOutput bool) error
 
 	// Collect owner's files, signals, test files.
 	type ownerData struct {
-		Owner       string              `json:"owner"`
-		OwnedFiles []string            `json:"ownedFiles"`
-		TestFiles   []string            `json:"testFiles"`
-		SignalCount int                 `json:"signalCount"`
-		Signals     []models.Signal     `json:"signals,omitempty"`
+		Owner       string          `json:"owner"`
+		OwnedFiles  []string        `json:"ownedFiles"`
+		TestFiles   []string        `json:"testFiles"`
+		SignalCount int             `json:"signalCount"`
+		Signals     []models.Signal `json:"signals,omitempty"`
 	}
 
 	data := ownerData{Owner: id}
@@ -1078,10 +1341,11 @@ func renderCodeUnitDetail(cu models.CodeUnit, snap *models.TestSuiteSnapshot) {
 
 	// Find covering tests.
 	unitID := cu.Path + ":" + cu.Name
+	allowNameOnly := isUniqueCodeUnitName(snap, cu.Name)
 	var coveringTests []string
 	for _, tf := range snap.TestFiles {
 		for _, linked := range tf.LinkedCodeUnits {
-			if linked == unitID || linked == cu.Name {
+			if linked == unitID || (allowNameOnly && linked == cu.Name) {
 				coveringTests = append(coveringTests, tf.Path)
 				break
 			}
@@ -1096,4 +1360,20 @@ func renderCodeUnitDetail(cu models.CodeUnit, snap *models.TestSuiteSnapshot) {
 		fmt.Println("\nNo covering tests detected.")
 	}
 	fmt.Println("\nNext: hamlet show test <path>   drill into a covering test")
+}
+
+func isUniqueCodeUnitName(snap *models.TestSuiteSnapshot, name string) bool {
+	if name == "" {
+		return false
+	}
+	count := 0
+	for _, cu := range snap.CodeUnits {
+		if cu.Name == name {
+			count++
+			if count > 1 {
+				return false
+			}
+		}
+	}
+	return count == 1
 }

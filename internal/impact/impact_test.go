@@ -1,6 +1,9 @@
 package impact
 
 import (
+	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -8,6 +11,7 @@ import (
 )
 
 func TestAnalyze_WellProtectedChange(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: []models.TestFile{
 			{Path: "src/auth/__tests__/login.test.js", Framework: "jest", LinkedCodeUnits: []string{"AuthService"}},
@@ -51,6 +55,7 @@ func TestAnalyze_WellProtectedChange(t *testing.T) {
 }
 
 func TestAnalyze_UntestedExportGap(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: []models.TestFile{
 			{Path: "src/__tests__/utils.test.js", Framework: "jest"},
@@ -88,7 +93,41 @@ func TestAnalyze_UntestedExportGap(t *testing.T) {
 	}
 }
 
+func TestAnalyze_NameOnlyLinkingRequiresUniqueSymbol(t *testing.T) {
+	t.Parallel()
+	snap := &models.TestSuiteSnapshot{
+		TestFiles: []models.TestFile{
+			{Path: "test/handler.test.js", Framework: "jest", LinkedCodeUnits: []string{"Handler"}},
+		},
+		CodeUnits: []models.CodeUnit{
+			{Name: "Handler", Path: "src/a/handler.js", Kind: "function", Exported: true},
+			{Name: "Handler", Path: "src/b/handler.js", Kind: "function", Exported: true},
+		},
+		Frameworks: []models.Framework{
+			{Name: "jest", Type: models.FrameworkTypeUnit, FileCount: 1},
+		},
+	}
+
+	scope := &ChangeScope{
+		ChangedFiles: []ChangedFile{
+			{Path: "src/a/handler.js", ChangeKind: ChangeModified, IsTestFile: false},
+		},
+	}
+
+	result := Analyze(scope, snap)
+	if len(result.ImpactedUnits) != 1 {
+		t.Fatalf("expected 1 impacted unit, got %d", len(result.ImpactedUnits))
+	}
+	if result.ImpactedUnits[0].ProtectionStatus != ProtectionNone {
+		t.Fatalf("expected no protection for ambiguous name-only linkage, got %s", result.ImpactedUnits[0].ProtectionStatus)
+	}
+	if len(result.ImpactedUnits[0].CoveringTests) != 0 {
+		t.Fatalf("expected 0 covering tests for ambiguous linkage, got %d", len(result.ImpactedUnits[0].CoveringTests))
+	}
+}
+
 func TestAnalyze_DirectlyChangedTest(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: []models.TestFile{
 			{Path: "src/__tests__/auth.test.js", Framework: "jest"},
@@ -117,7 +156,28 @@ func TestAnalyze_DirectlyChangedTest(t *testing.T) {
 	}
 }
 
+func TestAnalyze_DirectoryProximity_IsPathAware(t *testing.T) {
+	t.Parallel()
+	snap := &models.TestSuiteSnapshot{
+		TestFiles: []models.TestFile{
+			{Path: "src/apple/apple.test.js", Framework: "jest"},
+		},
+	}
+
+	scope := &ChangeScope{
+		ChangedFiles: []ChangedFile{
+			{Path: "src/api/service.js", ChangeKind: ChangeModified, IsTestFile: false},
+		},
+	}
+
+	result := Analyze(scope, snap)
+	if len(result.ImpactedTests) != 0 {
+		t.Fatalf("expected 0 impacted tests, got %d (%v)", len(result.ImpactedTests), result.ImpactedTests)
+	}
+}
+
 func TestAnalyze_FileWithNoCodeUnits(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: []models.TestFile{
 			{Path: "test/config.test.js", Framework: "jest"},
@@ -145,6 +205,7 @@ func TestAnalyze_FileWithNoCodeUnits(t *testing.T) {
 }
 
 func TestAnalyze_MultipleOwners(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		CodeUnits: []models.CodeUnit{
 			{Name: "AuthService", Path: "src/auth/service.js", Exported: true},
@@ -171,6 +232,7 @@ func TestAnalyze_MultipleOwners(t *testing.T) {
 }
 
 func TestAnalyze_Summary(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: []models.TestFile{
 			{Path: "test/a.test.js", Framework: "jest"},
@@ -196,6 +258,7 @@ func TestAnalyze_Summary(t *testing.T) {
 // --- changescope tests ---
 
 func TestChangeScopeFromPaths(t *testing.T) {
+	t.Parallel()
 	scope := ChangeScopeFromPaths([]string{"src/foo.js", "test/foo.test.js"}, ChangeModified)
 
 	if len(scope.ChangedFiles) != 2 {
@@ -213,6 +276,7 @@ func TestChangeScopeFromPaths(t *testing.T) {
 }
 
 func TestParseGitDiffOutput(t *testing.T) {
+	t.Parallel()
 	output := `M	src/auth/service.js
 A	src/api/new.js
 D	src/legacy/old.js
@@ -245,7 +309,58 @@ R100	src/old/name.js	src/new/name.js`
 	}
 }
 
+func TestParseGitDiffOutput_PathWithSpaces(t *testing.T) {
+	t.Parallel()
+	output := "M\tsrc/with space/file name.js"
+	scope := parseGitDiffOutput(output, "/repo")
+	if len(scope.ChangedFiles) != 1 {
+		t.Fatalf("expected 1 changed file, got %d", len(scope.ChangedFiles))
+	}
+	if scope.ChangedFiles[0].Path != "src/with space/file name.js" {
+		t.Fatalf("path = %q, want %q", scope.ChangedFiles[0].Path, "src/with space/file name.js")
+	}
+}
+
+func TestChangeScopeFromGitDiff_DefaultsToWorkingTreeWhenHeadMinusOneMissing(t *testing.T) {
+	t.Parallel()
+	requireGit(t)
+	repo := initImpactTestRepo(t)
+
+	if err := os.WriteFile(filepath.Join(repo, "src", "app.js"), []byte("console.log('v2')\n"), 0o644); err != nil {
+		t.Fatalf("write modified file: %v", err)
+	}
+
+	scope, err := ChangeScopeFromGitDiff(repo, "")
+	if err != nil {
+		t.Fatalf("ChangeScopeFromGitDiff returned error: %v", err)
+	}
+	if scope.Source != "git-diff-working-tree" {
+		t.Fatalf("source = %q, want %q", scope.Source, "git-diff-working-tree")
+	}
+	if len(scope.ChangedFiles) != 1 {
+		t.Fatalf("expected 1 changed file, got %d", len(scope.ChangedFiles))
+	}
+	if scope.ChangedFiles[0].Path != "src/app.js" {
+		t.Fatalf("path = %q, want %q", scope.ChangedFiles[0].Path, "src/app.js")
+	}
+}
+
+func TestChangeScopeFromGitDiff_InvalidBaseIncludesContext(t *testing.T) {
+	t.Parallel()
+	requireGit(t)
+	repo := initImpactTestRepo(t)
+
+	_, err := ChangeScopeFromGitDiff(repo, "DOES_NOT_EXIST")
+	if err == nil {
+		t.Fatal("expected error for invalid base ref")
+	}
+	if !strings.Contains(err.Error(), `against "DOES_NOT_EXIST"`) {
+		t.Fatalf("expected contextual error, got: %v", err)
+	}
+}
+
 func TestIsTestFilePath(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		path string
 		want bool
@@ -268,7 +383,47 @@ func TestIsTestFilePath(t *testing.T) {
 	}
 }
 
+func requireGit(t *testing.T) {
+	t.Helper()
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not available")
+	}
+}
+
+func initImpactTestRepo(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+
+	runGit(t, dir, "init")
+	runGit(t, dir, "config", "user.name", "Test User")
+	runGit(t, dir, "config", "user.email", "test@example.com")
+
+	srcDir := filepath.Join(dir, "src")
+	if err := os.MkdirAll(srcDir, 0o755); err != nil {
+		t.Fatalf("mkdir src: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(srcDir, "app.js"), []byte("console.log('v1')\n"), 0o644); err != nil {
+		t.Fatalf("write app.js: %v", err)
+	}
+
+	runGit(t, dir, "add", ".")
+	runGit(t, dir, "commit", "-m", "initial")
+
+	return dir
+}
+
+func runGit(t *testing.T, dir string, args ...string) {
+	t.Helper()
+	cmd := exec.Command("git", args...)
+	cmd.Dir = dir
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("git %v failed: %v\n%s", args, err, string(out))
+	}
+}
+
 func TestSelectProtectiveTests_ExactFirst(t *testing.T) {
+	t.Parallel()
 	tests := []ImpactedTest{
 		{Path: "a.test.js", ImpactConfidence: ConfidenceInferred},
 		{Path: "b.test.js", ImpactConfidence: ConfidenceExact},
@@ -285,6 +440,7 @@ func TestSelectProtectiveTests_ExactFirst(t *testing.T) {
 }
 
 func TestSelectProtectiveTests_FallbackToInferred(t *testing.T) {
+	t.Parallel()
 	tests := []ImpactedTest{
 		{Path: "a.test.js", ImpactConfidence: ConfidenceInferred},
 		{Path: "b.test.js", ImpactConfidence: ConfidenceInferred},
@@ -300,6 +456,7 @@ func TestSelectProtectiveTests_FallbackToInferred(t *testing.T) {
 // --- filter tests ---
 
 func TestFilterByOwner(t *testing.T) {
+	t.Parallel()
 	result := &ImpactResult{
 		Scope: ChangeScope{
 			ChangedFiles: []ChangedFile{
@@ -340,6 +497,7 @@ func TestFilterByOwner(t *testing.T) {
 // --- aggregate tests ---
 
 func TestBuildAggregate_SparseData(t *testing.T) {
+	t.Parallel()
 	result := &ImpactResult{
 		Scope: ChangeScope{
 			ChangedFiles: []ChangedFile{
@@ -393,6 +551,7 @@ func TestBuildAggregate_SparseData(t *testing.T) {
 }
 
 func TestBuildAggregate_AboveThreshold(t *testing.T) {
+	t.Parallel()
 	result := &ImpactResult{
 		Scope: ChangeScope{
 			ChangedFiles: []ChangedFile{
@@ -453,6 +612,7 @@ func TestBuildAggregate_AboveThreshold(t *testing.T) {
 // --- impact graph tests ---
 
 func TestBuildImpactGraph_NilSnapshot(t *testing.T) {
+	t.Parallel()
 	g := BuildImpactGraph(nil)
 	if g == nil {
 		t.Fatal("expected non-nil graph")
@@ -463,6 +623,7 @@ func TestBuildImpactGraph_NilSnapshot(t *testing.T) {
 }
 
 func TestBuildImpactGraph_LinkedCodeUnits(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: []models.TestFile{
 			{Path: "test/auth.test.js", Framework: "jest", LinkedCodeUnits: []string{"src/auth.js:AuthService"}},
@@ -501,6 +662,7 @@ func TestBuildImpactGraph_LinkedCodeUnits(t *testing.T) {
 }
 
 func TestBuildImpactGraph_NameConvention(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: []models.TestFile{
 			{Path: "src/__tests__/AuthService.test.js", Framework: "jest"},
@@ -524,6 +686,7 @@ func TestBuildImpactGraph_NameConvention(t *testing.T) {
 }
 
 func TestBuildImpactGraph_EdgeBetween(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: []models.TestFile{
 			{Path: "test/a.test.js", Framework: "jest", LinkedCodeUnits: []string{"src/a.js:Foo"}},
@@ -553,6 +716,7 @@ func TestBuildImpactGraph_EdgeBetween(t *testing.T) {
 }
 
 func TestBuildImpactGraph_DeterministicOutput(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: []models.TestFile{
 			{Path: "test/b.test.js", Framework: "jest", LinkedCodeUnits: []string{"src/b.js:B"}},
@@ -583,44 +747,69 @@ func TestBuildImpactGraph_DeterministicOutput(t *testing.T) {
 // --- CI scope tests ---
 
 func TestChangeScopeFromCIList(t *testing.T) {
-	list := "src/auth.js\ntest/auth.test.js\nsrc/db.js\n"
-	scope := ChangeScopeFromCIList(list, "/repo")
+	t.Parallel()
+	tests := []struct {
+		name            string
+		list            string
+		root            string
+		wantCount       int
+		wantTestFileIdx int
+		wantHasTestFile bool
+	}{
+		{
+			name:            "standard list",
+			list:            "src/auth.js\ntest/auth.test.js\nsrc/db.js\n",
+			root:            "/repo",
+			wantCount:       3,
+			wantTestFileIdx: 1,
+			wantHasTestFile: true,
+		},
+		{
+			name:      "empty input",
+			list:      "",
+			root:      "/repo",
+			wantCount: 0,
+		},
+		{
+			name:      "whitespace lines are ignored",
+			list:      "  src/foo.js  \n\n  \n  src/bar.js  \n",
+			root:      "",
+			wantCount: 2,
+		},
+	}
 
-	if len(scope.ChangedFiles) != 3 {
-		t.Fatalf("expected 3 files, got %d", len(scope.ChangedFiles))
-	}
-	if scope.Source != "ci-changed-files" {
-		t.Errorf("expected source ci-changed-files, got %s", scope.Source)
-	}
-	if scope.ChangedFiles[1].IsTestFile != true {
-		t.Error("test/auth.test.js should be detected as test file")
-	}
-	for _, cf := range scope.ChangedFiles {
-		if cf.ChangeKind != ChangeModified {
-			t.Errorf("expected modified kind, got %s", cf.ChangeKind)
-		}
-	}
-}
-
-func TestChangeScopeFromCIList_EmptyInput(t *testing.T) {
-	scope := ChangeScopeFromCIList("", "/repo")
-	if len(scope.ChangedFiles) != 0 {
-		t.Errorf("expected 0 files for empty input, got %d", len(scope.ChangedFiles))
-	}
-}
-
-func TestChangeScopeFromCIList_WhitespaceLines(t *testing.T) {
-	list := "  src/foo.js  \n\n  \n  src/bar.js  \n"
-	scope := ChangeScopeFromCIList(list, "")
-
-	if len(scope.ChangedFiles) != 2 {
-		t.Fatalf("expected 2 files, got %d", len(scope.ChangedFiles))
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			scope := ChangeScopeFromCIList(tt.list, tt.root)
+			if len(scope.ChangedFiles) != tt.wantCount {
+				t.Fatalf("changed files = %d, want %d", len(scope.ChangedFiles), tt.wantCount)
+			}
+			if scope.Source != "ci-changed-files" {
+				t.Errorf("source = %q, want %q", scope.Source, "ci-changed-files")
+			}
+			for _, cf := range scope.ChangedFiles {
+				if cf.ChangeKind != ChangeModified {
+					t.Errorf("expected modified kind, got %s", cf.ChangeKind)
+				}
+			}
+			if tt.wantHasTestFile {
+				if tt.wantTestFileIdx >= len(scope.ChangedFiles) {
+					t.Fatalf("test file index %d out of range", tt.wantTestFileIdx)
+				}
+				if !scope.ChangedFiles[tt.wantTestFileIdx].IsTestFile {
+					t.Errorf("changed file at index %d should be a test file", tt.wantTestFileIdx)
+				}
+			}
+		})
 	}
 }
 
 // --- comparison scope tests ---
 
 func TestChangeScopeFromComparison(t *testing.T) {
+	t.Parallel()
 	from := &models.TestSuiteSnapshot{
 		TestFiles: []models.TestFile{
 			{Path: "test/a.test.js"},
@@ -669,6 +858,7 @@ func TestChangeScopeFromComparison(t *testing.T) {
 }
 
 func TestChangeScopeFromComparison_NilInputs(t *testing.T) {
+	t.Parallel()
 	scope := ChangeScopeFromComparison(nil, nil)
 	if len(scope.ChangedFiles) != 0 {
 		t.Errorf("expected 0 files for nil inputs, got %d", len(scope.ChangedFiles))
@@ -678,6 +868,7 @@ func TestChangeScopeFromComparison_NilInputs(t *testing.T) {
 // --- protective test set tests ---
 
 func TestProtectiveSet_ExactStrategy(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: []models.TestFile{
 			{Path: "test/auth.test.js", Framework: "jest", LinkedCodeUnits: []string{"AuthService"}},
@@ -712,6 +903,7 @@ func TestProtectiveSet_ExactStrategy(t *testing.T) {
 }
 
 func TestProtectiveSet_FallbackBroad(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{}
 	scope := &ChangeScope{
 		ChangedFiles: []ChangedFile{
@@ -732,6 +924,7 @@ func TestProtectiveSet_FallbackBroad(t *testing.T) {
 // --- instability dimension tests ---
 
 func TestInstabilityDimension_WellProtected(t *testing.T) {
+	t.Parallel()
 	result := &ImpactResult{
 		ImpactedUnits: []ImpactedCodeUnit{
 			{ProtectionStatus: ProtectionStrong, Complexity: 2},
@@ -745,6 +938,7 @@ func TestInstabilityDimension_WellProtected(t *testing.T) {
 }
 
 func TestInstabilityDimension_HighRisk(t *testing.T) {
+	t.Parallel()
 	result := &ImpactResult{
 		ImpactedUnits: []ImpactedCodeUnit{
 			{ProtectionStatus: ProtectionNone, Complexity: 15},
@@ -760,6 +954,7 @@ func TestInstabilityDimension_HighRisk(t *testing.T) {
 // --- evidence_limited posture tests ---
 
 func TestEvidenceLimited_NoUnitsNoTests(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{}
 	scope := &ChangeScope{
 		ChangedFiles: []ChangedFile{
@@ -775,6 +970,7 @@ func TestEvidenceLimited_NoUnitsNoTests(t *testing.T) {
 }
 
 func TestEvidenceLimited_AllWeakConfidence(t *testing.T) {
+	t.Parallel()
 	result := &ImpactResult{
 		ImpactedUnits: []ImpactedCodeUnit{
 			{UnitID: "a", ImpactConfidence: ConfidenceWeak, ProtectionStatus: ProtectionNone},
@@ -788,6 +984,7 @@ func TestEvidenceLimited_AllWeakConfidence(t *testing.T) {
 // --- coverage diversity gap tests ---
 
 func TestCoverageDiversityGap_E2EOnlyExport(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: []models.TestFile{
 			{Path: "e2e/auth.spec.js", Framework: "playwright", LinkedCodeUnits: []string{"AuthService"}},
@@ -821,6 +1018,7 @@ func TestCoverageDiversityGap_E2EOnlyExport(t *testing.T) {
 // --- extract test subject tests ---
 
 func TestExtractTestSubject(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		path string
 		want string
@@ -843,6 +1041,7 @@ func TestExtractTestSubject(t *testing.T) {
 // --- graph integration in Analyze ---
 
 func TestAnalyze_GraphIsBuilt(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: []models.TestFile{
 			{Path: "test/a.test.js", Framework: "jest", LinkedCodeUnits: []string{"src/a.js:A"}},
@@ -873,6 +1072,7 @@ func TestAnalyze_GraphIsBuilt(t *testing.T) {
 // --- coverage type info tests ---
 
 func TestCoverageTypeInfo_MixedCoverage(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: []models.TestFile{
 			{Path: "test/unit.test.js", Framework: "jest", LinkedCodeUnits: []string{"AuthService"}},
@@ -912,6 +1112,7 @@ func TestCoverageTypeInfo_MixedCoverage(t *testing.T) {
 // --- summary format tests ---
 
 func TestImpactSummary_ContainsPosture(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		CodeUnits: []models.CodeUnit{
 			{Name: "Foo", Path: "src/foo.js", Exported: true},

@@ -20,7 +20,7 @@ import (
 // Blocker taxonomy categories.
 // These help group migration issues for prioritization.
 const (
-	BlockerCustomMatcher    = "custom-matcher"
+	BlockerCustomMatcher     = "custom-matcher"
 	BlockerDynamicGeneration = "dynamic-generation"
 	BlockerDeprecatedPattern = "deprecated-pattern"
 	BlockerFrameworkHelper   = "framework-helper"
@@ -46,9 +46,9 @@ const (
 // patternToTier maps specific deprecated patterns to their severity tier.
 var patternToTier = map[string]string{
 	// Hard blockers — genuinely block migration.
-	"enzyme-usage":           TierHardBlocker,
+	"enzyme-usage":            TierHardBlocker,
 	"cypress-custom-commands": TierHardBlocker,
-	"cypress-plugin-events":  TierHardBlocker,
+	"cypress-plugin-events":   TierHardBlocker,
 
 	// Soft blockers — require effort but have clear migration paths.
 	"done-callback":          TierSoftBlocker,
@@ -58,7 +58,7 @@ var patternToTier = map[string]string{
 	"framework-test-context": TierSoftBlocker,
 
 	// Advisories — valid patterns that work across frameworks.
-	"setTimeout-in-test":     TierAdvisory,
+	"setTimeout-in-test": TierAdvisory,
 }
 
 // blockerTypeToDefaultTier maps blocker categories to their default tier
@@ -74,6 +74,9 @@ var blockerTypeToDefaultTier = map[string]string{
 // TierForSignal determines the blocker tier for a migration signal
 // based on its metadata.
 func TierForSignal(s models.Signal) string {
+	if s.Type == "frameworkMigration" {
+		return TierAdvisory
+	}
 	// Check for explicit pattern-level tier first.
 	if pattern, ok := s.Metadata["pattern"].(string); ok {
 		if tier, ok := patternToTier[pattern]; ok {
@@ -111,6 +114,10 @@ func (d *DeprecatedPatternDetector) Detect(snap *models.TestSuiteSnapshot) []mod
 
 		found := detectDeprecatedJS(content, tf.Framework)
 		for _, pattern := range found {
+			tier := patternToTier[pattern]
+			if tier == "" {
+				tier = blockerTypeToDefaultTier[BlockerDeprecatedPattern]
+			}
 			signals = append(signals, models.Signal{
 				Type:             "deprecatedTestPattern",
 				Category:         models.CategoryMigration,
@@ -119,17 +126,42 @@ func (d *DeprecatedPatternDetector) Detect(snap *models.TestSuiteSnapshot) []mod
 				EvidenceStrength: models.EvidenceModerate,
 				EvidenceSource:   models.SourceStructuralPattern,
 				Location:         models.SignalLocation{File: tf.Path},
-				Owner:      tf.Owner,
+				Owner:            tf.Owner,
 				Explanation: fmt.Sprintf(
 					"Deprecated pattern '%s' found in %s.",
 					pattern, tf.Path,
 				),
 				SuggestedAction: "Update to modern testing patterns before migration.",
 				Metadata: map[string]any{
-					"pattern":       pattern,
-					"blockerType":   BlockerDeprecatedPattern,
+					"pattern":     pattern,
+					"blockerType": BlockerDeprecatedPattern,
 				},
 			})
+
+			// Hard blockers additionally emit a migrationBlocker signal so
+			// risk scoring and readiness assessment can aggregate them.
+			if tier == TierHardBlocker {
+				signals = append(signals, models.Signal{
+					Type:             "migrationBlocker",
+					Category:         models.CategoryMigration,
+					Severity:         models.SeverityHigh,
+					Confidence:       0.8,
+					EvidenceStrength: models.EvidenceModerate,
+					EvidenceSource:   models.SourceStructuralPattern,
+					Location:         models.SignalLocation{File: tf.Path},
+					Owner:            tf.Owner,
+					Explanation: fmt.Sprintf(
+						"Hard migration blocker: '%s' in %s requires significant rework before migration.",
+						pattern, tf.Path,
+					),
+					SuggestedAction: "Address this blocker before attempting framework migration.",
+					Metadata: map[string]any{
+						"pattern":     pattern,
+						"blockerType": BlockerDeprecatedPattern,
+						"blockerTier": TierHardBlocker,
+					},
+				})
+			}
 		}
 	}
 	return signals
@@ -164,7 +196,7 @@ func (d *DynamicTestGenerationDetector) Detect(snap *models.TestSuiteSnapshot) [
 				EvidenceStrength: models.EvidenceModerate,
 				EvidenceSource:   models.SourceStructuralPattern,
 				Location:         models.SignalLocation{File: tf.Path},
-				Owner:      tf.Owner,
+				Owner:            tf.Owner,
 				Explanation: fmt.Sprintf(
 					"Dynamic test generation detected in %s. Parameterized tests are standard practice but may need syntax adjustment during migration.",
 					tf.Path,
@@ -209,7 +241,7 @@ func (d *CustomMatcherDetector) Detect(snap *models.TestSuiteSnapshot) []models.
 				EvidenceStrength: models.EvidenceWeak,
 				EvidenceSource:   models.SourceStructuralPattern,
 				Location:         models.SignalLocation{File: tf.Path},
-				Owner:      tf.Owner,
+				Owner:            tf.Owner,
 				Explanation: fmt.Sprintf(
 					"Custom matcher or assertion helper usage in %s may need manual migration.",
 					tf.Path,
@@ -227,18 +259,17 @@ func (d *CustomMatcherDetector) Detect(snap *models.TestSuiteSnapshot) []models.
 // Deprecated JS patterns
 var (
 	// done() callback pattern (use async/await instead)
-	doneCallbackPattern = regexp.MustCompile(`\b(it|test)\s*\([^,]+,\s*function\s*\(\s*done\s*\)`)
-	// .toBeTruthy()/.toBeFalsy() without specific value check
-	weakTruthyPattern = regexp.MustCompile(`\.(toBeTruthy|toBeFalsy)\s*\(\s*\)`)
+	doneCallbackPattern = regexp.MustCompile(`\b(it|test)\s*\(\s*[^,]*,\s*(?:async\s*)?(?:function\s*\(\s*done\s*\)|\(\s*done\s*\)\s*=>|done\s*=>)`)
 	// setTimeout in tests (fragile timing)
 	setTimeoutInTest = regexp.MustCompile(`setTimeout\s*\(`)
 	// Enzyme-specific patterns (deprecated React testing)
-	enzymePattern = regexp.MustCompile(`\b(shallow|mount|render)\s*\(.*<`)
+	enzymePattern = regexp.MustCompile(`(?s)\b(shallow|mount|render)\s*\([^)]*<`)
 	// sinon standalone usage (older mocking)
 	sinonPattern = regexp.MustCompile(`\bsinon\.(stub|mock|spy)\s*\(`)
 )
 
 func detectDeprecatedJS(content string, framework string) []string {
+	content = stripJSNoise(content)
 	var found []string
 	// done-callback is idiomatic in mocha; only flag for other frameworks
 	if framework != "mocha" && doneCallbackPattern.MatchString(content) {
@@ -265,6 +296,7 @@ var (
 )
 
 func hasDynamicTestGeneration(content string) bool {
+	content = stripJSNoise(content)
 	return forEachTestPattern.MatchString(content) ||
 		mapTestPattern.MatchString(content) ||
 		testEachPattern.MatchString(content) ||
@@ -280,6 +312,7 @@ var (
 )
 
 func hasCustomMatchers(content string) bool {
+	content = stripJSNoise(content)
 	return addMatcherPattern.MatchString(content) ||
 		customMatcherPattern.MatchString(content) ||
 		chaiUsePattern.MatchString(content) ||
@@ -332,6 +365,10 @@ func (d *UnsupportedSetupDetector) Detect(snap *models.TestSuiteSnapshot) []mode
 
 		found := detectUnsupportedSetup(content, tf.Framework)
 		for _, pattern := range found {
+			tier := patternToTier[pattern]
+			if tier == "" {
+				tier = blockerTypeToDefaultTier[BlockerUnsupportedSetup]
+			}
 			signals = append(signals, models.Signal{
 				Type:             "unsupportedSetup",
 				Category:         models.CategoryMigration,
@@ -351,6 +388,30 @@ func (d *UnsupportedSetupDetector) Detect(snap *models.TestSuiteSnapshot) []mode
 					"blockerType": BlockerUnsupportedSetup,
 				},
 			})
+
+			// Hard blockers additionally emit a migrationBlocker signal.
+			if tier == TierHardBlocker {
+				signals = append(signals, models.Signal{
+					Type:             "migrationBlocker",
+					Category:         models.CategoryMigration,
+					Severity:         models.SeverityHigh,
+					Confidence:       0.7,
+					EvidenceStrength: models.EvidenceModerate,
+					EvidenceSource:   models.SourceStructuralPattern,
+					Location:         models.SignalLocation{File: tf.Path},
+					Owner:            tf.Owner,
+					Explanation: fmt.Sprintf(
+						"Hard migration blocker: '%s' in %s requires significant rework before migration.",
+						pattern, tf.Path,
+					),
+					SuggestedAction: "Address this blocker before attempting framework migration.",
+					Metadata: map[string]any{
+						"pattern":     pattern,
+						"blockerType": BlockerUnsupportedSetup,
+						"blockerTier": TierHardBlocker,
+					},
+				})
+			}
 		}
 	}
 	return signals
@@ -370,6 +431,7 @@ var (
 )
 
 func detectUnsupportedSetup(content string, framework string) []string {
+	content = stripJSNoise(content)
 	var found []string
 	if framework != "jest" && jestGlobalSetup.MatchString(content) {
 		found = append(found, "jest-global-setup")
@@ -383,10 +445,130 @@ func detectUnsupportedSetup(content string, framework string) []string {
 	if framework == "cypress" && cypressPlugins.MatchString(content) {
 		found = append(found, "cypress-plugin-events")
 	}
-	if testContextPattern.MatchString(content) {
+	if framework == "mocha" && testContextPattern.MatchString(content) {
 		found = append(found, "framework-test-context")
 	}
 	return found
+}
+
+// stripJSNoise removes JS comments and string/template literals from content
+// so structural regex detectors avoid matching inside non-code text.
+func stripJSNoise(content string) string {
+	var out strings.Builder
+	inLineComment := false
+	inBlockComment := false
+	inSingle := false
+	inDouble := false
+	inTemplate := false
+	escaped := false
+
+	for i := 0; i < len(content); i++ {
+		ch := content[i]
+		next := byte(0)
+		if i+1 < len(content) {
+			next = content[i+1]
+		}
+
+		if inLineComment {
+			if ch == '\n' {
+				inLineComment = false
+				out.WriteByte('\n')
+			}
+			continue
+		}
+		if inBlockComment {
+			if ch == '*' && next == '/' {
+				inBlockComment = false
+				i++
+				continue
+			}
+			if ch == '\n' {
+				out.WriteByte('\n')
+			}
+			continue
+		}
+		if inSingle {
+			if escaped {
+				escaped = false
+				continue
+			}
+			if ch == '\\' {
+				escaped = true
+				continue
+			}
+			if ch == '\'' {
+				inSingle = false
+			}
+			if ch == '\n' {
+				out.WriteByte('\n')
+			}
+			continue
+		}
+		if inDouble {
+			if escaped {
+				escaped = false
+				continue
+			}
+			if ch == '\\' {
+				escaped = true
+				continue
+			}
+			if ch == '"' {
+				inDouble = false
+			}
+			if ch == '\n' {
+				out.WriteByte('\n')
+			}
+			continue
+		}
+		if inTemplate {
+			if escaped {
+				escaped = false
+				continue
+			}
+			if ch == '\\' {
+				escaped = true
+				continue
+			}
+			if ch == '`' {
+				inTemplate = false
+			}
+			if ch == '\n' {
+				out.WriteByte('\n')
+			}
+			continue
+		}
+
+		if ch == '/' && next == '/' {
+			inLineComment = true
+			i++
+			continue
+		}
+		if ch == '/' && next == '*' {
+			inBlockComment = true
+			i++
+			continue
+		}
+		if ch == '\'' {
+			inSingle = true
+			escaped = false
+			continue
+		}
+		if ch == '"' {
+			inDouble = true
+			escaped = false
+			continue
+		}
+		if ch == '`' {
+			inTemplate = true
+			escaped = false
+			continue
+		}
+
+		out.WriteByte(ch)
+	}
+
+	return out.String()
 }
 
 // FrameworkMigrationDetector detects multi-framework situations that

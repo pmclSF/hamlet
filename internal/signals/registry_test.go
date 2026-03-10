@@ -7,6 +7,7 @@ import (
 )
 
 func TestRegistryContainsAllSignalTypes(t *testing.T) {
+	t.Parallel()
 	expected := []models.SignalType{
 		SignalSlowTest,
 		SignalFlakyTest,
@@ -57,6 +58,7 @@ func TestRegistryContainsAllSignalTypes(t *testing.T) {
 }
 
 func TestRegistryCategoryCounts(t *testing.T) {
+	t.Parallel()
 	counts := map[models.SignalCategory]int{}
 	for _, def := range Registry {
 		counts[def.Category]++

@@ -7,6 +7,7 @@ import (
 )
 
 func TestDetectJSFrameworkResult_NodeTest(t *testing.T) {
+	t.Parallel()
 	// Create a temporary file with node:test import.
 	dir := t.TempDir()
 	file := filepath.Join(dir, "example.test.js")
@@ -36,6 +37,7 @@ describe('example', () => {
 }
 
 func TestDetectJSFrameworkResult_RequireNodeTest(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	file := filepath.Join(dir, "example.test.js")
 	content := `const { describe, it } = require('node:test');
@@ -58,6 +60,7 @@ describe('example', () => {
 }
 
 func TestDetectFrameworkWithContext_Fallback(t *testing.T) {
+	t.Parallel()
 	// Create a JS test file with no framework indicators.
 	dir := t.TempDir()
 	file := filepath.Join(dir, "example.test.js")
@@ -93,6 +96,7 @@ function add(a, b) { return a + b; }
 }
 
 func TestDetectProjectFrameworks_PackageJSON(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	pkgJSON := `{
   "name": "test-project",
@@ -124,6 +128,7 @@ func TestDetectProjectFrameworks_PackageJSON(t *testing.T) {
 }
 
 func TestDetectProjectFrameworks_ConfigFile(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	// Create a vitest config — should be detected with high confidence.
 	if err := os.WriteFile(filepath.Join(dir, "vitest.config.ts"), []byte("export default {}"), 0644); err != nil {
@@ -147,6 +152,7 @@ func TestDetectProjectFrameworks_ConfigFile(t *testing.T) {
 }
 
 func TestDetectProjectFrameworks_GoMod(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module example.com/foo\ngo 1.23\n"), 0644); err != nil {
 		t.Fatal(err)
@@ -160,6 +166,7 @@ func TestDetectProjectFrameworks_GoMod(t *testing.T) {
 }
 
 func TestInferFrameworkType_NodeTest(t *testing.T) {
+	t.Parallel()
 	ft := inferFrameworkType("node-test")
 	if ft != "unit" {
 		t.Errorf("inferFrameworkType('node-test') = %q, want 'unit'", ft)
@@ -167,6 +174,7 @@ func TestInferFrameworkType_NodeTest(t *testing.T) {
 }
 
 func TestDiscoverTestFiles_WithNodeTest(t *testing.T) {
+	t.Parallel()
 	root := fixtureRoot(t)
 	files, err := discoverTestFiles(root)
 	if err != nil {

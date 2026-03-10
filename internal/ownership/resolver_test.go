@@ -8,9 +8,10 @@ import (
 )
 
 func TestResolver_ExplicitConfig(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	hamletDir := filepath.Join(dir, ".hamlet")
-	os.MkdirAll(hamletDir, 0o755)
+	mustMkdirAll(t, hamletDir)
 
 	config := `ownership:
   rules:
@@ -21,7 +22,7 @@ func TestResolver_ExplicitConfig(t *testing.T) {
     - path: "packages/auth/mfa/"
       owner: "security-team"
 `
-	os.WriteFile(filepath.Join(hamletDir, "ownership.yaml"), []byte(config), 0o644)
+	mustWriteFile(t, filepath.Join(hamletDir, "ownership.yaml"), []byte(config))
 
 	r := NewResolver(dir)
 
@@ -43,17 +44,44 @@ func TestResolver_ExplicitConfig(t *testing.T) {
 	}
 }
 
+func TestResolver_ExplicitConfig_PathBoundary(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	hamletDir := filepath.Join(dir, ".hamlet")
+	mustMkdirAll(t, hamletDir)
+
+	config := `ownership:
+  rules:
+    - path: "src/auth/"
+      owner: "auth-team"
+`
+	mustWriteFile(t, filepath.Join(hamletDir, "ownership.yaml"), []byte(config))
+
+	r := NewResolver(dir)
+
+	gotExact := r.Resolve("src/auth/login.js")
+	if gotExact != "auth-team" {
+		t.Fatalf("Resolve exact prefix = %q, want %q", gotExact, "auth-team")
+	}
+
+	gotSibling := r.Resolve("src/authorization/login.js")
+	if gotSibling == "auth-team" {
+		t.Fatalf("Resolve sibling path = %q, want non-match fallback", gotSibling)
+	}
+}
+
 func TestResolver_CODEOWNERS(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	githubDir := filepath.Join(dir, ".github")
-	os.MkdirAll(githubDir, 0o755)
+	mustMkdirAll(t, githubDir)
 
 	codeowners := `# CODEOWNERS
 src/api/ @backend-team
 src/ui/ @frontend-team
 *.test.js @test-infra
 `
-	os.WriteFile(filepath.Join(githubDir, "CODEOWNERS"), []byte(codeowners), 0o644)
+	mustWriteFile(t, filepath.Join(githubDir, "CODEOWNERS"), []byte(codeowners))
 
 	r := NewResolver(dir)
 
@@ -75,6 +103,7 @@ src/ui/ @frontend-team
 }
 
 func TestResolver_DirectoryFallback(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	r := NewResolver(dir)
 
@@ -85,6 +114,7 @@ func TestResolver_DirectoryFallback(t *testing.T) {
 }
 
 func TestResolver_Unknown(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	r := NewResolver(dir)
 
@@ -95,21 +125,22 @@ func TestResolver_Unknown(t *testing.T) {
 }
 
 func TestResolver_Precedence(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 
 	// Set up both CODEOWNERS and explicit config
 	githubDir := filepath.Join(dir, ".github")
-	os.MkdirAll(githubDir, 0o755)
-	os.WriteFile(filepath.Join(githubDir, "CODEOWNERS"), []byte("src/ @code-owner\n"), 0o644)
+	mustMkdirAll(t, githubDir)
+	mustWriteFile(t, filepath.Join(githubDir, "CODEOWNERS"), []byte("src/ @code-owner\n"))
 
 	hamletDir := filepath.Join(dir, ".hamlet")
-	os.MkdirAll(hamletDir, 0o755)
+	mustMkdirAll(t, hamletDir)
 	config := `ownership:
   rules:
     - path: "src/"
       owner: "explicit-owner"
 `
-	os.WriteFile(filepath.Join(hamletDir, "ownership.yaml"), []byte(config), 0o644)
+	mustWriteFile(t, filepath.Join(hamletDir, "ownership.yaml"), []byte(config))
 
 	r := NewResolver(dir)
 
@@ -121,6 +152,7 @@ func TestResolver_Precedence(t *testing.T) {
 }
 
 func TestResolver_NoConfigFiles(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	r := NewResolver(dir)
 
@@ -132,16 +164,17 @@ func TestResolver_NoConfigFiles(t *testing.T) {
 }
 
 func TestResolver_ResolveAssignment_Provenance(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	hamletDir := filepath.Join(dir, ".hamlet")
-	os.MkdirAll(hamletDir, 0o755)
+	mustMkdirAll(t, hamletDir)
 
 	config := `ownership:
   rules:
     - path: "src/auth/"
       owner: "@team-auth"
 `
-	os.WriteFile(filepath.Join(hamletDir, "ownership.yaml"), []byte(config), 0o644)
+	mustWriteFile(t, filepath.Join(hamletDir, "ownership.yaml"), []byte(config))
 
 	r := NewResolver(dir)
 	a := r.ResolveAssignment("src/auth/login.js")
@@ -164,11 +197,12 @@ func TestResolver_ResolveAssignment_Provenance(t *testing.T) {
 }
 
 func TestResolver_ResolveAssignment_CodeownersProvenance(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	githubDir := filepath.Join(dir, ".github")
-	os.MkdirAll(githubDir, 0o755)
+	mustMkdirAll(t, githubDir)
 
-	os.WriteFile(filepath.Join(githubDir, "CODEOWNERS"), []byte("/src/api/ @team-api @team-backend\n"), 0o644)
+	mustWriteFile(t, filepath.Join(githubDir, "CODEOWNERS"), []byte("/src/api/ @team-api @team-backend\n"))
 
 	r := NewResolver(dir)
 	a := r.ResolveAssignment("src/api/handler.go")
@@ -191,6 +225,7 @@ func TestResolver_ResolveAssignment_CodeownersProvenance(t *testing.T) {
 }
 
 func TestResolver_ResolveAssignment_DirectoryFallback(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	r := NewResolver(dir)
 
@@ -204,6 +239,7 @@ func TestResolver_ResolveAssignment_DirectoryFallback(t *testing.T) {
 }
 
 func TestResolver_ResolveAssignment_Unknown(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	r := NewResolver(dir)
 
@@ -220,9 +256,10 @@ func TestResolver_ResolveAssignment_Unknown(t *testing.T) {
 }
 
 func TestResolver_PathMappings(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	hamletDir := filepath.Join(dir, ".hamlet")
-	os.MkdirAll(hamletDir, 0o755)
+	mustMkdirAll(t, hamletDir)
 
 	config := `ownership:
   rules: []
@@ -232,7 +269,7 @@ func TestResolver_PathMappings(t *testing.T) {
     - prefix: "lib/auth/"
       owners: ["@team-auth"]
 `
-	os.WriteFile(filepath.Join(hamletDir, "ownership.yaml"), []byte(config), 0o644)
+	mustWriteFile(t, filepath.Join(hamletDir, "ownership.yaml"), []byte(config))
 
 	r := NewResolver(dir)
 	a := r.ResolveAssignment("lib/payments/stripe.go")
@@ -251,7 +288,35 @@ func TestResolver_PathMappings(t *testing.T) {
 	}
 }
 
+func TestResolver_PathMappings_PathBoundary(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	hamletDir := filepath.Join(dir, ".hamlet")
+	mustMkdirAll(t, hamletDir)
+
+	config := `ownership:
+  rules: []
+  path_mappings:
+    - prefix: "lib/auth/"
+      owners: ["@team-auth"]
+`
+	mustWriteFile(t, filepath.Join(hamletDir, "ownership.yaml"), []byte(config))
+
+	r := NewResolver(dir)
+
+	gotExact := r.Resolve("lib/auth/login.go")
+	if gotExact != "team-auth" {
+		t.Fatalf("Resolve exact mapping = %q, want %q", gotExact, "team-auth")
+	}
+
+	gotSibling := r.Resolve("lib/authorization/login.go")
+	if gotSibling == "team-auth" {
+		t.Fatalf("Resolve sibling mapping = %q, want non-match fallback", gotSibling)
+	}
+}
+
 func TestResolver_InheritFrom(t *testing.T) {
+	t.Parallel()
 	parent := OwnershipAssignment{
 		Owners:      []Owner{{ID: "team-auth"}},
 		Source:      SourceCodeowners,
@@ -274,22 +339,23 @@ func TestResolver_InheritFrom(t *testing.T) {
 }
 
 func TestResolver_SourcesUsed(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 
 	// Set up CODEOWNERS.
 	githubDir := filepath.Join(dir, ".github")
-	os.MkdirAll(githubDir, 0o755)
-	os.WriteFile(filepath.Join(githubDir, "CODEOWNERS"), []byte("* @owner\n"), 0o644)
+	mustMkdirAll(t, githubDir)
+	mustWriteFile(t, filepath.Join(githubDir, "CODEOWNERS"), []byte("* @owner\n"))
 
 	// Set up explicit config.
 	hamletDir := filepath.Join(dir, ".hamlet")
-	os.MkdirAll(hamletDir, 0o755)
+	mustMkdirAll(t, hamletDir)
 	config := `ownership:
   rules:
     - path: "src/"
       owner: "explicit"
 `
-	os.WriteFile(filepath.Join(hamletDir, "ownership.yaml"), []byte(config), 0o644)
+	mustWriteFile(t, filepath.Join(hamletDir, "ownership.yaml"), []byte(config))
 
 	r := NewResolver(dir)
 	sources := r.SourcesUsed()
@@ -303,6 +369,7 @@ func TestResolver_SourcesUsed(t *testing.T) {
 }
 
 func TestResolver_ResolveAll(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	r := NewResolver(dir)
 
@@ -319,6 +386,7 @@ func TestResolver_ResolveAll(t *testing.T) {
 }
 
 func TestResolver_GitHistoryFallback(t *testing.T) {
+	t.Parallel()
 	requireGit(t)
 
 	dir := t.TempDir()
@@ -352,12 +420,43 @@ func TestResolver_GitHistoryFallback(t *testing.T) {
 	}
 }
 
-func TestResolver_GitHistoryDisabledUsesDirectoryFallback(t *testing.T) {
+func TestResolver_GitHistoryAutoFallbackWhenNoCodeowners(t *testing.T) {
+	t.Parallel()
 	requireGit(t)
 
 	dir := t.TempDir()
 	initTestRepo(t, dir)
 	writeAndCommitFile(t, dir, "src/service/handler.go", "package service\n", "alice")
+
+	r := NewResolver(dir)
+	a := r.ResolveAssignment("src/service/handler.go")
+	if a.Source != SourceGitHistory {
+		t.Fatalf("source = %q, want %q", a.Source, SourceGitHistory)
+	}
+	if a.PrimaryOwnerID() != "alice" {
+		t.Fatalf("owner = %q, want %q", a.PrimaryOwnerID(), "alice")
+	}
+}
+
+func TestResolver_GitHistoryAutoDisabledUsesDirectoryFallback(t *testing.T) {
+	t.Parallel()
+	requireGit(t)
+
+	dir := t.TempDir()
+	initTestRepo(t, dir)
+	writeAndCommitFile(t, dir, "src/service/handler.go", "package service\n", "alice")
+
+	hamletDir := filepath.Join(dir, ".hamlet")
+	if err := os.MkdirAll(hamletDir, 0o755); err != nil {
+		t.Fatalf("mkdir .hamlet: %v", err)
+	}
+	config := `ownership:
+  git_history:
+    auto_when_no_codeowners: false
+`
+	if err := os.WriteFile(filepath.Join(hamletDir, "ownership.yaml"), []byte(config), 0o644); err != nil {
+		t.Fatalf("write ownership config: %v", err)
+	}
 
 	r := NewResolver(dir)
 	a := r.ResolveAssignment("src/service/handler.go")
@@ -370,6 +469,7 @@ func TestResolver_GitHistoryDisabledUsesDirectoryFallback(t *testing.T) {
 }
 
 func TestResolver_GitHistoryPrecedence(t *testing.T) {
+	t.Parallel()
 	requireGit(t)
 
 	dir := t.TempDir()
@@ -430,6 +530,7 @@ func TestResolver_GitHistoryPrecedence(t *testing.T) {
 }
 
 func TestResolver_GitHistorySourceReported(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	hamletDir := filepath.Join(dir, ".hamlet")
 	if err := os.MkdirAll(hamletDir, 0o755); err != nil {
@@ -451,6 +552,7 @@ func TestResolver_GitHistorySourceReported(t *testing.T) {
 }
 
 func TestResolver_GitHistoryDiagnosticsWhenNotRepo(t *testing.T) {
+	t.Parallel()
 	requireGit(t)
 
 	dir := t.TempDir()
@@ -511,9 +613,9 @@ func writeAndCommitFile(t *testing.T, dir, relPath, content, author string) {
 	runGit(t, dir, nil, "add", relPath)
 	authorEnv := []string{
 		"GIT_AUTHOR_NAME=" + author,
-		"GIT_AUTHOR_EMAIL=test@example.com",
+		"GIT_AUTHOR_EMAIL=" + author + "@example.com",
 		"GIT_COMMITTER_NAME=" + author,
-		"GIT_COMMITTER_EMAIL=test@example.com",
+		"GIT_COMMITTER_EMAIL=" + author + "@example.com",
 	}
 	runGit(t, dir, authorEnv, "commit", "-m", "add "+relPath)
 }
@@ -536,4 +638,18 @@ func containsSource(sources []SourceType, want SourceType) bool {
 		}
 	}
 	return false
+}
+
+func mustMkdirAll(t *testing.T, path string) {
+	t.Helper()
+	if err := os.MkdirAll(path, 0o755); err != nil {
+		t.Fatalf("mkdir %q: %v", path, err)
+	}
+}
+
+func mustWriteFile(t *testing.T, path string, data []byte) {
+	t.Helper()
+	if err := os.WriteFile(path, data, 0o644); err != nil {
+		t.Fatalf("write %q: %v", path, err)
+	}
 }

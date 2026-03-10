@@ -42,14 +42,16 @@ type EvidenceStrength string
 const (
 	EvidenceStrong   EvidenceStrength = "strong"   // AST-backed, coverage data, runtime observation
 	EvidenceModerate EvidenceStrength = "moderate" // structural pattern matching with context
+	EvidencePartial  EvidenceStrength = "partial"  // some evidence available, with known gaps
 	EvidenceWeak     EvidenceStrength = "weak"     // path/name heuristic only
+	EvidenceNone     EvidenceStrength = "none"     // no supporting evidence available
 )
 
 // EvidenceSource describes how the signal was derived.
 type EvidenceSource string
 
 const (
-	SourceAST              EvidenceSource = "ast"
+	SourceAST               EvidenceSource = "ast"
 	SourceStructuralPattern EvidenceSource = "structural-pattern"
 	SourcePathName          EvidenceSource = "path-name"
 	SourceRuntime           EvidenceSource = "runtime"

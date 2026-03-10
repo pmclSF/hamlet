@@ -212,25 +212,28 @@ func ComputeReadiness(snap *models.TestSuiteSnapshot) *ReadinessSummary {
 	}
 }
 
-// frameworkConfidence returns the average confidence across detected frameworks.
+// frameworkConfidence returns the file-count-weighted average confidence
+// across detected frameworks. This avoids a single low-confidence framework
+// (e.g., ambiguous Jest vs Mocha detection on 1 file) from tanking the
+// entire migration readiness assessment.
+//
 // Returns 1.0 if no confidence data is available (backwards compatibility).
 func frameworkConfidence(snap *models.TestSuiteSnapshot) float64 {
 	if len(snap.Frameworks) == 0 {
-		return 1.0 // No framework data available — assume confident (legacy behavior).
-	}
-	// If no framework has confidence set, assume full confidence (legacy behavior).
-	hasConfidence := false
-	total := 0.0
-	for _, fw := range snap.Frameworks {
-		if fw.Confidence > 0 {
-			hasConfidence = true
-			total += fw.Confidence
-		}
-	}
-	if !hasConfidence {
 		return 1.0
 	}
-	return total / float64(len(snap.Frameworks))
+	var weightedSum float64
+	var totalFiles int
+	for _, fw := range snap.Frameworks {
+		if fw.Confidence > 0 && fw.FileCount > 0 {
+			weightedSum += fw.Confidence * float64(fw.FileCount)
+			totalFiles += fw.FileCount
+		}
+	}
+	if totalFiles == 0 {
+		return 1.0
+	}
+	return weightedSum / float64(totalFiles)
 }
 
 // computeQualityFactors identifies quality signals that co-occur with
@@ -505,12 +508,6 @@ func computeCoverageGuidance(areas []AreaAssessment, snap *models.TestSuiteSnaps
 	})
 
 	return guidance
-}
-
-// deriveReadiness is the legacy readiness function. Kept for backward compatibility
-// with tests that don't use tiers.
-func deriveReadiness(blockerCount, totalFiles int, byType map[string]int) (string, string) {
-	return deriveReadinessWithTiers(blockerCount, 0, 0, totalFiles, byType, 1.0)
 }
 
 // deriveReadinessWithTiers computes readiness level using the blocker tier taxonomy.

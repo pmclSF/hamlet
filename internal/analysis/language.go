@@ -140,8 +140,7 @@ func (a *javaAnalyzer) CountMocks(src string) int {
 func (a *javaAnalyzer) CountSnapshots(src string) int { return 0 }
 
 func (a *javaAnalyzer) ExtractExports(root, relPath string) []models.CodeUnit {
-	// Java export extraction not yet implemented.
-	return nil
+	return extractJavaExports(root, relPath)
 }
 
 // languageForExt maps file extensions to language analyzer keys.

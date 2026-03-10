@@ -53,6 +53,7 @@ func baseInput() *BuildInput {
 }
 
 func TestBuild_PostureDimensions(t *testing.T) {
+	t.Parallel()
 	es := Build(baseInput())
 
 	if len(es.Posture.Dimensions) != 2 {
@@ -72,6 +73,7 @@ func TestBuild_PostureDimensions(t *testing.T) {
 }
 
 func TestBuild_TopRiskAreas(t *testing.T) {
+	t.Parallel()
 	es := Build(baseInput())
 
 	if len(es.TopRiskAreas) == 0 {
@@ -86,6 +88,7 @@ func TestBuild_TopRiskAreas(t *testing.T) {
 }
 
 func TestBuild_DominantDrivers(t *testing.T) {
+	t.Parallel()
 	es := Build(baseInput())
 
 	if len(es.DominantDrivers) == 0 {
@@ -97,6 +100,7 @@ func TestBuild_DominantDrivers(t *testing.T) {
 }
 
 func TestBuild_KeyNumbers(t *testing.T) {
+	t.Parallel()
 	es := Build(baseInput())
 
 	if es.KeyNumbers.TestFiles != 3 {
@@ -111,6 +115,7 @@ func TestBuild_KeyNumbers(t *testing.T) {
 }
 
 func TestBuild_NoTrendData(t *testing.T) {
+	t.Parallel()
 	es := Build(baseInput())
 
 	if es.HasTrendData {
@@ -122,6 +127,7 @@ func TestBuild_NoTrendData(t *testing.T) {
 }
 
 func TestBuild_WithTrendData(t *testing.T) {
+	t.Parallel()
 	in := baseInput()
 	in.Comparison = &comparison.SnapshotComparison{
 		SignalDeltas: []comparison.SignalDelta{
@@ -167,6 +173,7 @@ func TestBuild_WithTrendData(t *testing.T) {
 }
 
 func TestBuild_BenchmarkReadiness(t *testing.T) {
+	t.Parallel()
 	in := baseInput()
 	in.Segment = &benchmark.Segment{
 		PrimaryLanguage:  "javascript",
@@ -188,6 +195,7 @@ func TestBuild_BenchmarkReadiness(t *testing.T) {
 }
 
 func TestBuild_RecommendedFocus(t *testing.T) {
+	t.Parallel()
 	es := Build(baseInput())
 
 	if es.RecommendedFocus == "" {
@@ -200,6 +208,7 @@ func TestBuild_RecommendedFocus(t *testing.T) {
 }
 
 func TestBuild_EmptySnapshot(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{}
 	h := heatmap.Build(snap)
 	ms := metrics.Derive(snap)
@@ -222,6 +231,7 @@ func TestBuild_EmptySnapshot(t *testing.T) {
 }
 
 func TestBuild_JSONSerialization(t *testing.T) {
+	t.Parallel()
 	es := Build(baseInput())
 
 	data, err := json.MarshalIndent(es, "", "  ")
@@ -243,6 +253,7 @@ func TestBuild_JSONSerialization(t *testing.T) {
 }
 
 func TestCategorizeSignalType(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		signal string
 		want   string
@@ -263,6 +274,7 @@ func TestCategorizeSignalType(t *testing.T) {
 }
 
 func TestBuild_TrendWithWorsenedFocusRecommendation(t *testing.T) {
+	t.Parallel()
 	in := baseInput()
 	in.Comparison = &comparison.SnapshotComparison{
 		SignalDeltas: []comparison.SignalDelta{
@@ -279,6 +291,7 @@ func TestBuild_TrendWithWorsenedFocusRecommendation(t *testing.T) {
 }
 
 func TestBuild_Recommendations(t *testing.T) {
+	t.Parallel()
 	in := baseInput()
 	// Add evidence strength to signals.
 	in.Snapshot.Signals[0].EvidenceStrength = models.EvidenceStrong
@@ -304,6 +317,7 @@ func TestBuild_Recommendations(t *testing.T) {
 }
 
 func TestBuild_BlindSpots_NoCoverage(t *testing.T) {
+	t.Parallel()
 	in := baseInput()
 	// No CoverageSummary → should flag coverage blind spot.
 	es := Build(in)
@@ -323,6 +337,7 @@ func TestBuild_BlindSpots_NoCoverage(t *testing.T) {
 }
 
 func TestBuild_BlindSpots_WeakEvidence(t *testing.T) {
+	t.Parallel()
 	in := baseInput()
 	// All signals weak → should flag weak evidence blind spot.
 	for i := range in.Snapshot.Signals {
@@ -343,6 +358,7 @@ func TestBuild_BlindSpots_WeakEvidence(t *testing.T) {
 }
 
 func TestBuild_NoBlindSpots_WithCoverage(t *testing.T) {
+	t.Parallel()
 	in := baseInput()
 	in.Snapshot.CoverageSummary = &models.CoverageSummary{
 		LineCoveragePct: 80.0,
@@ -368,6 +384,7 @@ func TestBuild_NoBlindSpots_WithCoverage(t *testing.T) {
 }
 
 func TestRenderExecutiveSummary_Sections(t *testing.T) {
+	t.Parallel()
 	// Import test - verify rendering doesn't panic and includes expected sections
 	es := Build(baseInput())
 

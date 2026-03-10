@@ -3,6 +3,8 @@ package failure
 import (
 	"sort"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 )
 
 // categoryPattern defines a pattern that matches a failure category.
@@ -250,19 +252,61 @@ func classifyOne(input FailureInput) FailureClassification {
 // matchesAny returns true if the text contains any of the patterns.
 func matchesAny(text string, patterns []string) bool {
 	for _, p := range patterns {
-		if strings.Contains(text, p) {
+		if matchPattern(text, p) {
 			return true
 		}
 	}
 	return false
 }
 
+func matchPattern(text, pattern string) bool {
+	if pattern == "" {
+		return false
+	}
+	if !isWordPattern(pattern) {
+		return strings.Contains(text, pattern)
+	}
+
+	start := 0
+	for {
+		i := strings.Index(text[start:], pattern)
+		if i < 0 {
+			return false
+		}
+		i += start
+		j := i + len(pattern)
+		beforeBoundary := i == 0 || !isWordByte(text[i-1])
+		afterBoundary := j >= len(text) || !isWordByte(text[j])
+		if beforeBoundary && afterBoundary {
+			return true
+		}
+		start = i + len(pattern)
+		if start >= len(text) {
+			return false
+		}
+	}
+}
+
+func isWordPattern(p string) bool {
+	for _, r := range p {
+		if unicode.IsLetter(r) || unicode.IsDigit(r) || r == '_' {
+			continue
+		}
+		return false
+	}
+	return p != ""
+}
+
+func isWordByte(b byte) bool {
+	r, _ := utf8.DecodeRune([]byte{b})
+	return unicode.IsLetter(r) || unicode.IsDigit(r) || r == '_'
+}
+
 // explanationFor returns a human-readable explanation for a category.
 func explanationFor(cat FailureCategory, errorMsg string) string {
-	// Truncate error message for the explanation.
-	msg := errorMsg
-	if len(msg) > 120 {
-		msg = msg[:120] + "..."
+	msg := strings.TrimSpace(errorMsg)
+	if msg == "" {
+		msg = "(no error message)"
 	}
 
 	switch cat {

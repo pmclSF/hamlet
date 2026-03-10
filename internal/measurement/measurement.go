@@ -21,21 +21,23 @@ import "github.com/pmclSF/hamlet/internal/models"
 type Dimension string
 
 const (
-	DimensionHealth           Dimension = "health"
-	DimensionCoverageDepth    Dimension = "coverage_depth"
+	DimensionHealth            Dimension = "health"
+	DimensionCoverageDepth     Dimension = "coverage_depth"
 	DimensionCoverageDiversity Dimension = "coverage_diversity"
-	DimensionStructuralRisk   Dimension = "structural_risk"
-	DimensionOperationalRisk  Dimension = "operational_risk"
+	DimensionStructuralRisk    Dimension = "structural_risk"
+	DimensionOperationalRisk   Dimension = "operational_risk"
 )
 
 // EvidenceStrength describes how much concrete evidence backs a measurement.
-type EvidenceStrength string
+// Reuses the canonical model enum for consistency across signal and
+// measurement layers.
+type EvidenceStrength = models.EvidenceStrength
 
 const (
-	EvidenceStrong  EvidenceStrength = "strong"  // direct observation, high confidence
-	EvidencePartial EvidenceStrength = "partial" // some data available, gaps noted
-	EvidenceWeak    EvidenceStrength = "weak"    // limited data, measurement is best-effort
-	EvidenceNone    EvidenceStrength = "none"    // no data available for this measurement
+	EvidenceStrong  EvidenceStrength = models.EvidenceStrong
+	EvidencePartial EvidenceStrength = models.EvidencePartial
+	EvidenceWeak    EvidenceStrength = models.EvidenceWeak
+	EvidenceNone    EvidenceStrength = models.EvidenceNone
 )
 
 // Units describes the type of value a measurement produces.
