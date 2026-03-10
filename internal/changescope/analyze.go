@@ -35,9 +35,34 @@ func AnalyzePR(scope *impact.ChangeScope, snap *models.TestSuiteSnapshot) *PRAna
 	pr.AffectedOwners = result.ImpactedOwners
 	pr.Limitations = result.Limitations
 
-	// Extract recommended tests.
-	for _, t := range result.SelectedTests {
-		pr.RecommendedTests = append(pr.RecommendedTests, t.Path)
+	// Extract recommended tests with reasoning.
+	if result.ProtectiveSet != nil {
+		pr.SelectionStrategy = result.ProtectiveSet.SetKind
+		pr.SelectionExplanation = result.ProtectiveSet.Explanation
+		for _, st := range result.ProtectiveSet.Tests {
+			pr.RecommendedTests = append(pr.RecommendedTests, st.Path)
+			ts := TestSelection{
+				Path:        st.Path,
+				Confidence:  string(st.ImpactConfidence),
+				Relevance:   st.Relevance,
+				CoversUnits: st.CoversUnits,
+			}
+			for _, r := range st.Reasons {
+				ts.Reasons = append(ts.Reasons, r.Reason)
+			}
+			pr.TestSelections = append(pr.TestSelections, ts)
+		}
+	} else {
+		// Fall back to SelectedTests (no detailed reasons).
+		for _, t := range result.SelectedTests {
+			pr.RecommendedTests = append(pr.RecommendedTests, t.Path)
+			pr.TestSelections = append(pr.TestSelections, TestSelection{
+				Path:        t.Path,
+				Confidence:  string(t.ImpactConfidence),
+				Relevance:   t.Relevance,
+				CoversUnits: t.CoversUnits,
+			})
+		}
 	}
 
 	// Build change-scoped findings from protection gaps and signals.

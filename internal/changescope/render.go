@@ -51,11 +51,39 @@ func RenderPRSummaryMarkdown(w io.Writer, pr *PRAnalysis) {
 		line("")
 	}
 
-	// Recommended tests.
-	if len(pr.RecommendedTests) > 0 {
+	// Recommended tests with reasoning.
+	if len(pr.TestSelections) > 0 {
 		line("### Recommended Tests")
 		line("")
-		limit := 10
+		if pr.SelectionExplanation != "" {
+			line("*%s*", pr.SelectionExplanation)
+			line("")
+		}
+		limit := 15
+		if len(pr.TestSelections) < limit {
+			limit = len(pr.TestSelections)
+		}
+		line("| Test | Confidence | Why |")
+		line("|------|------------|-----|")
+		for _, t := range pr.TestSelections[:limit] {
+			why := t.Relevance
+			if len(t.Reasons) > 0 {
+				why = deduplicateReasons(t.Reasons)
+			}
+			if len(t.CoversUnits) > 0 {
+				why += fmt.Sprintf(" (covers %d unit(s))", len(t.CoversUnits))
+			}
+			line("| `%s` | %s | %s |", t.Path, t.Confidence, why)
+		}
+		if len(pr.TestSelections) > limit {
+			line("")
+			line("...and %d more test(s).", len(pr.TestSelections)-limit)
+		}
+		line("")
+	} else if len(pr.RecommendedTests) > 0 {
+		line("### Recommended Tests")
+		line("")
+		limit := 15
 		if len(pr.RecommendedTests) < limit {
 			limit = len(pr.RecommendedTests)
 		}
@@ -115,7 +143,13 @@ func RenderPRCommentConcise(w io.Writer, pr *PRAnalysis) {
 		}
 	}
 
-	if len(pr.RecommendedTests) > 0 {
+	if len(pr.TestSelections) > 0 {
+		paths := make([]string, 0, len(pr.TestSelections))
+		for _, t := range pr.TestSelections {
+			paths = append(paths, t.Path)
+		}
+		line("  - Run %d test(s): %s", len(paths), strings.Join(paths, ", "))
+	} else if len(pr.RecommendedTests) > 0 {
 		line("  - Run: %s", strings.Join(pr.RecommendedTests, ", "))
 	}
 }
@@ -160,7 +194,23 @@ func RenderChangeScopedReport(w io.Writer, pr *PRAnalysis) {
 		blank()
 	}
 
-	if len(pr.RecommendedTests) > 0 {
+	if len(pr.TestSelections) > 0 {
+		line("Recommended Tests")
+		line(strings.Repeat("-", 40))
+		if pr.SelectionExplanation != "" {
+			line("  Strategy: %s", pr.SelectionExplanation)
+			blank()
+		}
+		for _, t := range pr.TestSelections {
+			why := t.Relevance
+			if len(t.Reasons) > 0 {
+				why = deduplicateReasons(t.Reasons)
+			}
+			line("  [%s] %s", t.Confidence, t.Path)
+			line("         %s", why)
+		}
+		blank()
+	} else if len(pr.RecommendedTests) > 0 {
 		line("Recommended Tests")
 		line(strings.Repeat("-", 40))
 		for _, t := range pr.RecommendedTests {
@@ -197,6 +247,26 @@ func postureBadge(band string) string {
 	default:
 		return "[????]"
 	}
+}
+
+func deduplicateReasons(reasons []string) string {
+	seen := map[string]int{}
+	var unique []string
+	for _, r := range reasons {
+		seen[r]++
+		if seen[r] == 1 {
+			unique = append(unique, r)
+		}
+	}
+	var parts []string
+	for _, r := range unique {
+		if seen[r] > 1 {
+			parts = append(parts, fmt.Sprintf("%s (%dx)", r, seen[r]))
+		} else {
+			parts = append(parts, r)
+		}
+	}
+	return strings.Join(parts, "; ")
 }
 
 func severityIcon(severity string) string {
