@@ -20,10 +20,16 @@ import (
 //
 // These heuristics are sufficient for the V3 nucleus detector stage.
 func analyzeTestFileContent(tf *models.TestFile, root string) {
-	absPath := root + "/" + tf.Path
+	analyzeTestFileContentCached(tf, root)
+}
+
+// analyzeTestFileContentCached reads a test file, populates analysis counts,
+// and returns the file content string for reuse by downstream stages.
+func analyzeTestFileContentCached(tf *models.TestFile, root string) string {
+	absPath := filepath.Join(root, tf.Path)
 	content, err := os.ReadFile(absPath)
 	if err != nil {
-		return
+		return ""
 	}
 	src := string(content)
 
@@ -31,6 +37,7 @@ func analyzeTestFileContent(tf *models.TestFile, root string) {
 	tf.AssertionCount = countAssertions(src, tf.Framework)
 	tf.MockCount = countMocks(src, tf.Framework)
 	tf.SnapshotCount = countSnapshots(src, tf.Framework)
+	return src
 }
 
 // JS/TS patterns
@@ -162,7 +169,7 @@ var (
 )
 
 func extractJSExports(root, relPath string) []models.CodeUnit {
-	content, err := os.ReadFile(root + "/" + relPath)
+	content, err := os.ReadFile(filepath.Join(root, relPath))
 	if err != nil {
 		return nil
 	}
@@ -247,7 +254,7 @@ func buildUnitID(path, name, parent string) string {
 }
 
 func extractGoExports(root, relPath string) []models.CodeUnit {
-	content, err := os.ReadFile(root + "/" + relPath)
+	content, err := os.ReadFile(filepath.Join(root, relPath))
 	if err != nil {
 		return nil
 	}
@@ -290,7 +297,7 @@ func extractGoExports(root, relPath string) []models.CodeUnit {
 }
 
 func extractPythonExports(root, relPath string) []models.CodeUnit {
-	content, err := os.ReadFile(root + "/" + relPath)
+	content, err := os.ReadFile(filepath.Join(root, relPath))
 	if err != nil {
 		return nil
 	}
@@ -339,7 +346,7 @@ func pythonAllExports(src string) map[string]bool {
 }
 
 func extractJavaExports(root, relPath string) []models.CodeUnit {
-	content, err := os.ReadFile(root + "/" + relPath)
+	content, err := os.ReadFile(filepath.Join(root, relPath))
 	if err != nil {
 		return nil
 	}
@@ -519,19 +526,13 @@ func relPathBase(p string) string {
 // walkDir is a simple recursive directory walker that uses relative paths.
 // The callback returns true to skip a directory.
 func walkDir(root string, fn func(relPath string, isDir bool) bool) error {
-	return walkDirRec(root, "", fn, map[string]bool{})
+	return walkDirRec(root, "", fn)
 }
 
-func walkDirRec(root, rel string, fn func(relPath string, isDir bool) bool, seen map[string]bool) error {
+func walkDirRec(root, rel string, fn func(relPath string, isDir bool) bool) error {
 	fullPath := root
 	if rel != "" {
-		fullPath = root + "/" + rel
-	}
-	if resolved, err := filepath.EvalSymlinks(fullPath); err == nil && resolved != "" {
-		if seen[resolved] {
-			return nil
-		}
-		seen[resolved] = true
+		fullPath = filepath.Join(root, rel)
 	}
 
 	entries, err := os.ReadDir(fullPath)
@@ -542,7 +543,7 @@ func walkDirRec(root, rel string, fn func(relPath string, isDir bool) bool, seen
 	for _, e := range entries {
 		childRel := e.Name()
 		if rel != "" {
-			childRel = rel + "/" + e.Name()
+			childRel = filepath.Join(rel, e.Name())
 		}
 		if e.Type()&os.ModeSymlink != 0 {
 			// Skip symlinks to avoid filesystem cycles.
@@ -553,7 +554,7 @@ func walkDirRec(root, rel string, fn func(relPath string, isDir bool) bool, seen
 			if fn(childRel, true) {
 				continue // skip
 			}
-			_ = walkDirRec(root, childRel, fn, seen)
+			_ = walkDirRec(root, childRel, fn)
 		} else {
 			fn(childRel, false)
 		}

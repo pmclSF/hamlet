@@ -1,0 +1,5 @@
+{
+  "framework": "vitest",
+  "path": "tests/unit/login.test.ts",
+  "testCount": 5
+}

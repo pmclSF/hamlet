@@ -297,7 +297,6 @@ func computeOverallStrength(result *AssessmentResult) StrengthClass {
 	}
 
 	strong := result.ByStrength[StrengthStrong]
-	moderate := result.ByStrength[StrengthModerate]
 	weak := result.ByStrength[StrengthWeak]
 	unclear := result.ByStrength[StrengthUnclear]
 
@@ -313,7 +312,6 @@ func computeOverallStrength(result *AssessmentResult) StrengthClass {
 
 	strongPct := float64(strong) / float64(assessed)
 	weakPct := float64(weak) / float64(assessed)
-	_ = moderate // used implicitly
 
 	if strongPct >= 0.5 && weakPct < 0.2 {
 		return StrengthStrong

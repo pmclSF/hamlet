@@ -2,6 +2,7 @@ package testcase
 
 import (
 	"os"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -11,14 +12,19 @@ import (
 
 // Extract discovers individual test cases from a file and assigns stable IDs.
 func Extract(root, relPath, framework string) []TestCase {
-	absPath := root + "/" + relPath
+	absPath := filepath.Join(root, relPath)
 	content, err := os.ReadFile(absPath)
 	if err != nil {
 		return nil
 	}
+	return ExtractFromContent(string(content), relPath, framework)
+}
 
+// ExtractFromContent discovers individual test cases from pre-read file content
+// and assigns stable IDs. This avoids redundant file I/O when the caller has
+// already read the file.
+func ExtractFromContent(src, relPath, framework string) []TestCase {
 	lang := FrameworkLanguage(framework)
-	src := string(content)
 
 	var cases []TestCase
 	switch lang {
