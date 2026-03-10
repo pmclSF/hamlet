@@ -39,11 +39,11 @@ func TestNewRegistry_Empty(t *testing.T) {
 func TestRegistry_Register(t *testing.T) {
 	t.Parallel()
 	r := NewRegistry()
-	r.Register(DetectorRegistration{
+	r.MustRegister(DetectorRegistration{
 		Meta:     DetectorMeta{ID: "test.a", Domain: DomainQuality},
 		Detector: &stubDetector{id: "a"},
 	})
-	r.Register(DetectorRegistration{
+	r.MustRegister(DetectorRegistration{
 		Meta:     DetectorMeta{ID: "test.b", Domain: DomainMigration},
 		Detector: &stubDetector{id: "b"},
 	})
@@ -61,15 +61,15 @@ func TestRegistry_Register(t *testing.T) {
 func TestRegistry_ByDomain(t *testing.T) {
 	t.Parallel()
 	r := NewRegistry()
-	r.Register(DetectorRegistration{
+	r.MustRegister(DetectorRegistration{
 		Meta:     DetectorMeta{ID: "q1", Domain: DomainQuality},
 		Detector: &stubDetector{id: "q1"},
 	})
-	r.Register(DetectorRegistration{
+	r.MustRegister(DetectorRegistration{
 		Meta:     DetectorMeta{ID: "m1", Domain: DomainMigration},
 		Detector: &stubDetector{id: "m1"},
 	})
-	r.Register(DetectorRegistration{
+	r.MustRegister(DetectorRegistration{
 		Meta:     DetectorMeta{ID: "q2", Domain: DomainQuality},
 		Detector: &stubDetector{id: "q2"},
 	})
@@ -96,13 +96,13 @@ func TestRegistry_ByDomain(t *testing.T) {
 func TestRegistry_Run(t *testing.T) {
 	t.Parallel()
 	r := NewRegistry()
-	r.Register(DetectorRegistration{
+	r.MustRegister(DetectorRegistration{
 		Meta: DetectorMeta{ID: "d1", Domain: DomainQuality},
 		Detector: &stubDetector{signals: []models.Signal{
 			{Type: "weakAssertion", Category: models.CategoryQuality},
 		}},
 	})
-	r.Register(DetectorRegistration{
+	r.MustRegister(DetectorRegistration{
 		Meta: DetectorMeta{ID: "d2", Domain: DomainMigration},
 		Detector: &stubDetector{signals: []models.Signal{
 			{Type: "deprecatedTestPattern", Category: models.CategoryMigration},
@@ -130,13 +130,13 @@ func TestRegistry_Run(t *testing.T) {
 func TestRegistry_RunDomain(t *testing.T) {
 	t.Parallel()
 	r := NewRegistry()
-	r.Register(DetectorRegistration{
+	r.MustRegister(DetectorRegistration{
 		Meta: DetectorMeta{ID: "q1", Domain: DomainQuality},
 		Detector: &stubDetector{signals: []models.Signal{
 			{Type: "weakAssertion"},
 		}},
 	})
-	r.Register(DetectorRegistration{
+	r.MustRegister(DetectorRegistration{
 		Meta: DetectorMeta{ID: "m1", Domain: DomainMigration},
 		Detector: &stubDetector{signals: []models.Signal{
 			{Type: "deprecatedTestPattern"},
@@ -159,11 +159,11 @@ func TestRegistry_Detectors(t *testing.T) {
 	r := NewRegistry()
 	d1 := &stubDetector{id: "a"}
 	d2 := &stubDetector{id: "b"}
-	r.Register(DetectorRegistration{
+	r.MustRegister(DetectorRegistration{
 		Meta:     DetectorMeta{ID: "a"},
 		Detector: d1,
 	})
-	r.Register(DetectorRegistration{
+	r.MustRegister(DetectorRegistration{
 		Meta:     DetectorMeta{ID: "b"},
 		Detector: d2,
 	})
@@ -188,8 +188,8 @@ func TestRegistry_DeterministicOutput_DifferentRegistrationOrder(t *testing.T) {
 			case "c":
 				sigs = []models.Signal{{Type: "deprecatedTestPattern"}}
 			}
-			r.Register(DetectorRegistration{
-				Meta:     DetectorMeta{ID: id},
+			r.MustRegister(DetectorRegistration{
+				Meta:     DetectorMeta{ID: id, Domain: DomainQuality},
 				Detector: &stubDetector{signals: sigs},
 			})
 		}
@@ -217,7 +217,7 @@ func TestRegistry_DeterministicOutput_DifferentRegistrationOrder(t *testing.T) {
 func TestRegistry_All_ReturnsCopy(t *testing.T) {
 	t.Parallel()
 	r := NewRegistry()
-	r.Register(DetectorRegistration{
+	r.MustRegister(DetectorRegistration{
 		Meta:     DetectorMeta{ID: "a"},
 		Detector: &stubDetector{},
 	})
@@ -234,32 +234,32 @@ func TestRegistry_All_ReturnsCopy(t *testing.T) {
 func TestRegistry_Register_DependencyOrderEnforced(t *testing.T) {
 	t.Parallel()
 	r := NewRegistry()
-	r.Register(DetectorRegistration{
+	if err := r.Register(DetectorRegistration{
 		Meta:     DetectorMeta{ID: "dependent", DependsOnSignals: true},
 		Detector: &stubDetector{},
-	})
+	}); err != nil {
+		t.Fatalf("registering dependent detector failed: %v", err)
+	}
 
-	defer func() {
-		if recover() == nil {
-			t.Fatal("expected panic when registering non-dependent detector after dependent detector")
-		}
-	}()
-	r.Register(DetectorRegistration{
+	err := r.Register(DetectorRegistration{
 		Meta:     DetectorMeta{ID: "non-dependent", DependsOnSignals: false},
 		Detector: &stubDetector{},
 	})
+	if err == nil {
+		t.Fatal("expected error when registering non-dependent detector after dependent detector")
+	}
 }
 
 func TestRegistry_Run_DependentDetectorsAfterIndependentPhase(t *testing.T) {
 	t.Parallel()
 	r := NewRegistry()
-	r.Register(DetectorRegistration{
+	r.MustRegister(DetectorRegistration{
 		Meta: DetectorMeta{ID: "q", Domain: DomainQuality},
 		Detector: &stubDetector{signals: []models.Signal{
 			{Type: "weakAssertion", Category: models.CategoryQuality, Explanation: "weak"},
 		}},
 	})
-	r.Register(DetectorRegistration{
+	r.MustRegister(DetectorRegistration{
 		Meta:     DetectorMeta{ID: "g", Domain: DomainGovernance, DependsOnSignals: true},
 		Detector: &dependentStubDetector{},
 	})

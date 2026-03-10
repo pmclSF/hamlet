@@ -478,7 +478,7 @@ func attachSignalsToTestFiles(snapshot *models.TestSuiteSnapshot) {
 		}
 		signals := byFile[path]
 		if len(signals) == 0 {
-			snapshot.TestFiles[i].Signals = nil
+			snapshot.TestFiles[i].Signals = []models.Signal{}
 			continue
 		}
 		snapshot.TestFiles[i].Signals = append([]models.Signal(nil), signals...)
@@ -525,7 +525,7 @@ func populateSnapshotMetadata(snapshot *models.TestSuiteSnapshot, opt PipelineOp
 		"dataSourcesError":          errors,
 		"testFilesWithLinkedUnits":  testFilesWithLinkedUnits,
 		"testFilesWithFileSignals":  testFilesWithSignals,
-		"detectorsWithSignalOutput": len(snapshot.Signals),
+		"totalSignals": len(snapshot.Signals),
 	}
 }
 

@@ -57,8 +57,11 @@ jobs:
           go mod tidy
           git diff --exit-code go.mod go.sum
 
-      - name: Run Go tests (no cache masking)
-        run: go test ./... -count=1
+      - name: Build Go binary
+        run: go build -o /dev/null ./cmd/hamlet
+
+      - name: Run Go tests with race detector
+        run: go test ./... -count=1 -race
 
   go-bench-compare:
     if: github.event_name == 'pull_request'

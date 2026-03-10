@@ -1,6 +1,7 @@
 package runtime
 
 import (
+	"sort"
 	"strings"
 
 	"github.com/pmclSF/hamlet/internal/models"
@@ -54,12 +55,17 @@ func ResolveTestIDs(results []TestResult, testCases []models.TestCase) int {
 		}
 
 		// Strategy 2: suffix file match + exact name.
-		matchedFile := ""
+		// Collect all matches and sort for deterministic selection.
+		var suffixMatches []string
 		for filePath := range byFile {
 			if pathSuffixMatch(r.File, filePath) {
-				matchedFile = filePath
-				break
+				suffixMatches = append(suffixMatches, filePath)
 			}
+		}
+		sort.Strings(suffixMatches)
+		matchedFile := ""
+		if len(suffixMatches) > 0 {
+			matchedFile = suffixMatches[0]
 		}
 		if matchedFile != "" {
 			if id, ok := exact[tcKey{file: matchedFile, name: r.Name}]; ok {

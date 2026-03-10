@@ -9,7 +9,12 @@ import "github.com/pmclSF/hamlet/internal/models"
 //   - stateless
 //   - deterministic given the same snapshot
 //   - honest about confidence
+//   - read-only with respect to the snapshot (MUST NOT mutate snap)
+//
+// Non-dependent detectors run concurrently. Their results are collected
+// and appended to snap.Signals only after all concurrent detectors complete.
 type Detector interface {
 	// Detect examines the snapshot and returns signals found.
+	// Implementations MUST treat snap as read-only.
 	Detect(snap *models.TestSuiteSnapshot) []models.Signal
 }

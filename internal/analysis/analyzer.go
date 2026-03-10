@@ -283,16 +283,13 @@ func detectCISystems(root string) []string {
 }
 
 // gitInfo attempts to read the current commit SHA and branch.
+// Returns empty strings if git is unavailable or the directory is not a repo.
 func gitInfo(root string) (sha, branch string) {
-	if cmd := exec.Command("git", "-C", root, "rev-parse", "HEAD"); cmd != nil {
-		if out, err := cmd.Output(); err == nil {
-			sha = strings.TrimSpace(string(out))
-		}
+	if out, err := exec.Command("git", "-C", root, "rev-parse", "HEAD").Output(); err == nil {
+		sha = strings.TrimSpace(string(out))
 	}
-	if cmd := exec.Command("git", "-C", root, "rev-parse", "--abbrev-ref", "HEAD"); cmd != nil {
-		if out, err := cmd.Output(); err == nil {
-			branch = strings.TrimSpace(string(out))
-		}
+	if out, err := exec.Command("git", "-C", root, "rev-parse", "--abbrev-ref", "HEAD").Output(); err == nil {
+		branch = strings.TrimSpace(string(out))
 	}
 	return
 }

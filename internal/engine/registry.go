@@ -31,7 +31,7 @@ func DefaultRegistry(cfg Config) *signals.DetectorRegistry {
 	r := signals.NewRegistry()
 
 	// Quality detectors (no dependencies on other signals).
-	r.Register(signals.DetectorRegistration{
+	r.MustRegister(signals.DetectorRegistration{
 		Meta: signals.DetectorMeta{
 			ID:           "quality.weak-assertion",
 			Domain:       signals.DomainQuality,
@@ -41,7 +41,7 @@ func DefaultRegistry(cfg Config) *signals.DetectorRegistry {
 		},
 		Detector: &quality.WeakAssertionDetector{},
 	})
-	r.Register(signals.DetectorRegistration{
+	r.MustRegister(signals.DetectorRegistration{
 		Meta: signals.DetectorMeta{
 			ID:           "quality.mock-heavy",
 			Domain:       signals.DomainQuality,
@@ -51,7 +51,7 @@ func DefaultRegistry(cfg Config) *signals.DetectorRegistry {
 		},
 		Detector: &quality.MockHeavyDetector{},
 	})
-	r.Register(signals.DetectorRegistration{
+	r.MustRegister(signals.DetectorRegistration{
 		Meta: signals.DetectorMeta{
 			ID:           "quality.snapshot-heavy",
 			Domain:       signals.DomainQuality,
@@ -61,7 +61,7 @@ func DefaultRegistry(cfg Config) *signals.DetectorRegistry {
 		},
 		Detector: &quality.SnapshotHeavyDetector{},
 	})
-	r.Register(signals.DetectorRegistration{
+	r.MustRegister(signals.DetectorRegistration{
 		Meta: signals.DetectorMeta{
 			ID:           "quality.untested-export",
 			Domain:       signals.DomainQuality,
@@ -71,7 +71,7 @@ func DefaultRegistry(cfg Config) *signals.DetectorRegistry {
 		},
 		Detector: &quality.UntestedExportDetector{},
 	})
-	r.Register(signals.DetectorRegistration{
+	r.MustRegister(signals.DetectorRegistration{
 		Meta: signals.DetectorMeta{
 			ID:             "quality.coverage-threshold",
 			Domain:         signals.DomainCoverage,
@@ -82,7 +82,7 @@ func DefaultRegistry(cfg Config) *signals.DetectorRegistry {
 		},
 		Detector: &quality.CoverageThresholdDetector{},
 	})
-	r.Register(signals.DetectorRegistration{
+	r.MustRegister(signals.DetectorRegistration{
 		Meta: signals.DetectorMeta{
 			ID:           "coverage.blind-spot",
 			Domain:       signals.DomainCoverage,
@@ -94,7 +94,7 @@ func DefaultRegistry(cfg Config) *signals.DetectorRegistry {
 	})
 
 	// Migration detectors (no dependencies on other signals).
-	r.Register(signals.DetectorRegistration{
+	r.MustRegister(signals.DetectorRegistration{
 		Meta: signals.DetectorMeta{
 			ID:             "migration.deprecated-pattern",
 			Domain:         signals.DomainMigration,
@@ -105,7 +105,7 @@ func DefaultRegistry(cfg Config) *signals.DetectorRegistry {
 		},
 		Detector: &migration.DeprecatedPatternDetector{RepoRoot: cfg.RepoRoot},
 	})
-	r.Register(signals.DetectorRegistration{
+	r.MustRegister(signals.DetectorRegistration{
 		Meta: signals.DetectorMeta{
 			ID:             "migration.dynamic-test-generation",
 			Domain:         signals.DomainMigration,
@@ -116,7 +116,7 @@ func DefaultRegistry(cfg Config) *signals.DetectorRegistry {
 		},
 		Detector: &migration.DynamicTestGenerationDetector{RepoRoot: cfg.RepoRoot},
 	})
-	r.Register(signals.DetectorRegistration{
+	r.MustRegister(signals.DetectorRegistration{
 		Meta: signals.DetectorMeta{
 			ID:             "migration.custom-matcher",
 			Domain:         signals.DomainMigration,
@@ -127,7 +127,7 @@ func DefaultRegistry(cfg Config) *signals.DetectorRegistry {
 		},
 		Detector: &migration.CustomMatcherDetector{RepoRoot: cfg.RepoRoot},
 	})
-	r.Register(signals.DetectorRegistration{
+	r.MustRegister(signals.DetectorRegistration{
 		Meta: signals.DetectorMeta{
 			ID:             "migration.unsupported-setup",
 			Domain:         signals.DomainMigration,
@@ -138,7 +138,7 @@ func DefaultRegistry(cfg Config) *signals.DetectorRegistry {
 		},
 		Detector: &migration.UnsupportedSetupDetector{RepoRoot: cfg.RepoRoot},
 	})
-	r.Register(signals.DetectorRegistration{
+	r.MustRegister(signals.DetectorRegistration{
 		Meta: signals.DetectorMeta{
 			ID:           "migration.framework-migration",
 			Domain:       signals.DomainMigration,
@@ -151,7 +151,7 @@ func DefaultRegistry(cfg Config) *signals.DetectorRegistry {
 
 	// Governance detectors (depend on signals from quality/migration detectors).
 	if cfg.PolicyConfig != nil && !cfg.PolicyConfig.IsEmpty() {
-		r.Register(signals.DetectorRegistration{
+		r.MustRegister(signals.DetectorRegistration{
 			Meta: signals.DetectorMeta{
 				ID:               "governance.policy",
 				Domain:           signals.DomainGovernance,

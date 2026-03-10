@@ -111,32 +111,31 @@ func TestEvidenceLimitations(t *testing.T) {
 func TestRegistry_RegisterAndLen(t *testing.T) {
 	t.Parallel()
 	r := NewRegistry()
-	r.Register(Definition{ID: "test.one", Dimension: DimensionHealth})
-	r.Register(Definition{ID: "test.two", Dimension: DimensionHealth})
+	r.MustRegister(Definition{ID: "test.one", Dimension: DimensionHealth})
+	r.MustRegister(Definition{ID: "test.two", Dimension: DimensionHealth})
 
 	if r.Len() != 2 {
 		t.Errorf("Len() = %d, want 2", r.Len())
 	}
 }
 
-func TestRegistry_DuplicatePanics(t *testing.T) {
+func TestRegistry_DuplicateReturnsError(t *testing.T) {
 	t.Parallel()
-	defer func() {
-		if r := recover(); r == nil {
-			t.Error("expected panic on duplicate ID")
-		}
-	}()
 	r := NewRegistry()
-	r.Register(Definition{ID: "test.dup", Dimension: DimensionHealth})
-	r.Register(Definition{ID: "test.dup", Dimension: DimensionHealth})
+	if err := r.Register(Definition{ID: "test.dup", Dimension: DimensionHealth}); err != nil {
+		t.Fatalf("first Register failed: %v", err)
+	}
+	if err := r.Register(Definition{ID: "test.dup", Dimension: DimensionHealth}); err == nil {
+		t.Error("expected error on duplicate ID, got nil")
+	}
 }
 
 func TestRegistry_ByDimension(t *testing.T) {
 	t.Parallel()
 	r := NewRegistry()
-	r.Register(Definition{ID: "h.one", Dimension: DimensionHealth})
-	r.Register(Definition{ID: "s.one", Dimension: DimensionStructuralRisk})
-	r.Register(Definition{ID: "h.two", Dimension: DimensionHealth})
+	r.MustRegister(Definition{ID: "h.one", Dimension: DimensionHealth})
+	r.MustRegister(Definition{ID: "s.one", Dimension: DimensionStructuralRisk})
+	r.MustRegister(Definition{ID: "h.two", Dimension: DimensionHealth})
 
 	health := r.ByDimension(DimensionHealth)
 	if len(health) != 2 {
@@ -151,7 +150,7 @@ func TestRegistry_ByDimension(t *testing.T) {
 func TestRegistry_Run(t *testing.T) {
 	t.Parallel()
 	r := NewRegistry()
-	r.Register(Definition{
+	r.MustRegister(Definition{
 		ID:        "test.constant",
 		Dimension: DimensionHealth,
 		Compute: func(_ *models.TestSuiteSnapshot) Result {
@@ -192,7 +191,7 @@ func TestDefaultRegistry_AllDimensionsCovered(t *testing.T) {
 
 func TestDefaultRegistry_NoDuplicateIDs(t *testing.T) {
 	t.Parallel()
-	// DefaultRegistry panics on duplicate IDs; if this runs, no duplicates.
+	// DefaultRegistry uses MustRegister which panics on duplicate IDs; if this runs, no duplicates.
 	r := DefaultRegistry()
 	if r.Len() == 0 {
 		t.Error("default registry has no measurements")
