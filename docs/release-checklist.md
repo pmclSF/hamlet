@@ -4,8 +4,9 @@ Status checklist for Hamlet release readiness.
 
 ## Product
 
-- [x] Core commands work: analyze, summary, posture, metrics, impact, compare, policy check, export benchmark
+- [x] Core commands work: analyze, summary, insights, explain, focus, portfolio, posture, metrics, impact, select-tests, pr, show, compare, policy check, export benchmark, init
 - [x] Migration commands: readiness, blockers, preview (file + scope)
+- [x] Debug/inspection commands: debug (graph, coverage, fanout, duplicates), depgraph
 - [x] Human-readable and JSON output for all commands
 - [x] Executive summary with posture, trends, focus, benchmark readiness
 - [x] Structured recommendations with what/why/where/evidence-strength
@@ -40,7 +41,7 @@ Status checklist for Hamlet release readiness.
 - [x] README accurate with quick start, commands, architecture
 - [x] docs/README.md provides navigation index with product evolution
 - [x] docs/demo.md walkthrough complete (includes migration workflow)
-- [x] docs/cli-spec.md covers all commands
+- [x] docs/cli-spec.md covers all 22 commands
 - [x] docs/roadmap.md milestones A through O documented
 - [x] docs/architecture.md layered architecture documented
 - [x] docs/engineering/detector-architecture.md documented

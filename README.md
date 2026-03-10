@@ -40,15 +40,23 @@ hamlet metrics --json
 |---------|-------------|
 | `hamlet analyze` | Analyze repository test suite — frameworks, signals, risk |
 | `hamlet summary` | Executive summary — posture, trends, focus, benchmark readiness |
+| `hamlet insights` | Prioritized improvement actions with rationale |
+| `hamlet explain <entity>` | Evidence chain for a test, code unit, owner, or finding |
+| `hamlet focus` | Where to concentrate testing effort based on risk and gaps |
+| `hamlet portfolio` | Portfolio view — coverage breadth, test type distribution, risk allocation |
 | `hamlet posture` | Detailed posture breakdown with measurement evidence |
 | `hamlet metrics` | Aggregate metrics scorecard (privacy-safe, benchmark-ready) |
 | `hamlet impact` | Impact analysis for changed code (git diff-aware) |
+| `hamlet select-tests` | Protective test selection for a git diff |
+| `hamlet pr` | PR analysis — impact, test selection, and risk for review |
+| `hamlet show <type> <id>` | Drill into a specific test, unit, owner, or finding |
 | `hamlet migration readiness` | Migration readiness assessment with quality factors |
 | `hamlet migration blockers` | List migration blockers by type and area |
 | `hamlet migration preview` | Preview migration difficulty for a file or scope |
 | `hamlet compare` | Compare two snapshots and show trend changes |
 | `hamlet policy check` | Evaluate repository against local policy rules |
 | `hamlet export benchmark` | Output benchmark-safe JSON export for future comparison |
+| `hamlet init` | Detect coverage/runtime paths and print recommended analyze command |
 | `hamlet version` | Show version, commit, and build date |
 
 Run `hamlet --help` for full flag documentation.

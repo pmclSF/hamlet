@@ -25,8 +25,25 @@ git tag vX.Y.Z && git push origin vX.Y.Z
           └── Create GitHub Release (auto-generated notes)
 ```
 
-A single workflow (`release.yml`) handles the full pipeline: verify → release →
-publish. The release job only runs if verify passes.
+A single workflow (`release.yml`) handles the full pipeline: verify → npm release →
+Go binary release. Both release jobs only run if verify passes.
+
+### Go Binary Release
+
+The `go-release` job uses [GoReleaser](https://goreleaser.com/) to build
+multi-platform binaries (Linux/macOS/Windows × amd64/arm64) and attach them
+to the GitHub Release. Configuration lives in `.goreleaser.yaml`.
+
+Binaries are stamped with version, commit, and build date via ldflags:
+```
+-X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}}
+```
+
+Users can install via:
+```bash
+go install github.com/pmclSF/hamlet/cmd/hamlet@latest
+```
+Or download pre-built binaries from the GitHub Releases page.
 
 The verify job includes a **tag/version guard** that aborts if the git tag
 version does not match `package.json` version — preventing accidental publishes

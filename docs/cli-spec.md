@@ -233,6 +233,106 @@ Privacy boundary:
 - Only aggregate counts, ratios, qualitative bands, and segmentation tags
 - Safe for anonymous aggregation and cross-repo comparison
 
+### `hamlet insights`
+Purpose:
+Prioritized improvement actions with rationale. Shows what to fix first
+and why, based on signal analysis.
+
+Flags:
+- `--root PATH` — repository root (default: current directory)
+- `--json` — output JSON insights
+
+### `hamlet explain`
+Purpose:
+Evidence chain for a specific entity — test file, code unit, owner, or finding.
+Answers "why did Hamlet say this?"
+
+Usage: `hamlet explain <test-path|test-id|code-unit|owner|finding>`
+
+Flags:
+- `--root PATH` — repository root (default: current directory)
+- `--json` — output JSON explanation
+
+### `hamlet focus`
+Purpose:
+Focus summary — where to concentrate testing effort based on risk,
+coverage gaps, and recent changes.
+
+Flags:
+- `--root PATH` — repository root (default: current directory)
+- `--json` — output JSON focus summary
+
+### `hamlet portfolio`
+Purpose:
+Portfolio view of the test suite — treats the test suite as a portfolio
+of investments, showing coverage breadth, test type distribution, and
+risk allocation across the codebase.
+
+Flags:
+- `--root PATH` — repository root (default: current directory)
+- `--json` — output JSON portfolio snapshot
+
+### `hamlet select-tests`
+Purpose:
+Protective test selection for changed code. Given a git diff, returns the
+minimal set of tests that should run to cover affected code paths.
+
+Flags:
+- `--root PATH` — repository root (default: current directory)
+- `--base REF` — git base ref for diff (default: HEAD~1)
+- `--json` — output JSON protective test set
+
+### `hamlet pr`
+Purpose:
+PR analysis — combined impact, test selection, and risk summary formatted
+for pull request review workflows.
+
+Flags:
+- `--root PATH` — repository root (default: current directory)
+- `--base REF` — git base ref for diff (default: HEAD~1)
+- `--json` — output JSON PR analysis
+- `--format FORMAT` — output format: markdown, comment, annotation
+
+### `hamlet show`
+Purpose:
+Drill into a specific entity — show details for a test, code unit, owner,
+or finding by ID or path.
+
+Usage: `hamlet show <test|unit|codeunit|owner|finding> <id-or-path>`
+
+Flags:
+- `--root PATH` — repository root (default: current directory)
+- `--json` — output JSON
+
+### `hamlet debug`
+Purpose:
+Developer debugging commands for inspecting internal analysis state.
+
+Usage: `hamlet debug <graph|coverage|fanout|duplicates> [flags]`
+
+Subcommands:
+- `graph` — dependency graph statistics
+- `coverage` — coverage attribution details
+- `fanout` — import fan-out analysis
+- `duplicates` — test identity collision detection
+
+Flags:
+- `--root PATH` — repository root (default: current directory)
+- `--json` — output JSON
+- `--changed FILES` — comma-separated changed files for impact context
+
+### `hamlet depgraph`
+Purpose:
+Full dependency graph inspection with multiple sub-views.
+
+Flags:
+- `--root PATH` — repository root (default: current directory)
+- `--json` — output JSON
+- `--show VIEW` — sub-view: stats, coverage, duplicates, fanout, impact, profile
+- `--changed FILES` — comma-separated changed files for impact analysis
+
+---
+
 ## Output rules
 
 ### Human-readable output
@@ -247,6 +347,3 @@ Should be stable enough to support:
 - CI integration
 - snapshot persistence
 - future hosted ingestion
-
-## First command to implement
-`hamlet analyze`
