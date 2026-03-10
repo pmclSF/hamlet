@@ -91,9 +91,8 @@ async function convertAction(source, options) {
   // Auto-detect framework if requested
   if (options.autoDetect) {
     try {
-      const { FrameworkDetector } = await import(
-        '../src/core/FrameworkDetector.js'
-      );
+      const { FrameworkDetector } =
+        await import('../src/core/FrameworkDetector.js');
       const content = await fs.readFile(source, 'utf8');
       const detection = FrameworkDetector.detectFromContent(content);
       if (detection.framework && detection.confidence > 0.5) {
@@ -1396,9 +1395,8 @@ program
   .argument('<file>', 'Test file to analyze')
   .action(async (file) => {
     try {
-      const { FrameworkDetector } = await import(
-        '../src/core/FrameworkDetector.js'
-      );
+      const { FrameworkDetector } =
+        await import('../src/core/FrameworkDetector.js');
       const content = await fs.readFile(file, 'utf8');
       const result = FrameworkDetector.detect(content, file);
 
@@ -1537,9 +1535,8 @@ program
     try {
       if (options.dryRun || options.plan) {
         // Migrate dry-run / plan delegates to estimator
-        const { MigrationEstimator } = await import(
-          '../src/core/MigrationEstimator.js'
-        );
+        const { MigrationEstimator } =
+          await import('../src/core/MigrationEstimator.js');
         const estimator = new MigrationEstimator();
 
         const result = await estimator.estimate(dir, {
@@ -1603,9 +1600,8 @@ program
         return;
       }
 
-      const { MigrationEngine } = await import(
-        '../src/core/MigrationEngine.js'
-      );
+      const { MigrationEngine } =
+        await import('../src/core/MigrationEngine.js');
       const engine = new MigrationEngine();
 
       console.log(
@@ -1660,9 +1656,8 @@ program
   .option('-t, --to <framework>', 'Target framework', 'vitest')
   .action(async (dir, options) => {
     try {
-      const { MigrationEstimator } = await import(
-        '../src/core/MigrationEstimator.js'
-      );
+      const { MigrationEstimator } =
+        await import('../src/core/MigrationEstimator.js');
       const estimator = new MigrationEstimator();
 
       console.log(chalk.blue(`Estimating migration for ${chalk.bold(dir)}...`));
@@ -1725,9 +1720,8 @@ program
   .option('--exclude <globs>', 'Comma-separated exclude patterns')
   .action(async (targetPath, options) => {
     try {
-      const { ProjectAnalyzer } = await import(
-        '../src/core/ProjectAnalyzer.js'
-      );
+      const { ProjectAnalyzer } =
+        await import('../src/core/ProjectAnalyzer.js');
       const analyzer = new ProjectAnalyzer();
 
       const include = options.include
@@ -1744,9 +1738,8 @@ program
       });
 
       if (options.html) {
-        const { generateHtmlReport } = await import(
-          '../src/core/HtmlReportGenerator.js'
-        );
+        const { generateHtmlReport } =
+          await import('../src/core/HtmlReportGenerator.js');
         await generateHtmlReport(report, options.html);
         const resolved = path.resolve(options.html);
         console.log(
@@ -1799,9 +1792,8 @@ program
   .option('-d, --dir <path>', 'Project directory', '.')
   .action(async (options) => {
     try {
-      const { MigrationStateManager } = await import(
-        '../src/core/MigrationStateManager.js'
-      );
+      const { MigrationStateManager } =
+        await import('../src/core/MigrationStateManager.js');
       const stateManager = new MigrationStateManager(path.resolve(options.dir));
 
       if (!(await stateManager.exists())) {
@@ -1838,12 +1830,10 @@ program
   .option('-d, --dir <path>', 'Project directory', '.')
   .action(async (options) => {
     try {
-      const { MigrationStateManager } = await import(
-        '../src/core/MigrationStateManager.js'
-      );
-      const { MigrationChecklistGenerator } = await import(
-        '../src/core/MigrationChecklistGenerator.js'
-      );
+      const { MigrationStateManager } =
+        await import('../src/core/MigrationStateManager.js');
+      const { MigrationChecklistGenerator } =
+        await import('../src/core/MigrationChecklistGenerator.js');
 
       const stateManager = new MigrationStateManager(path.resolve(options.dir));
 
@@ -1889,9 +1879,8 @@ program
   .option('-y, --yes', 'Skip confirmation prompt')
   .action(async (options) => {
     try {
-      const { MigrationStateManager } = await import(
-        '../src/core/MigrationStateManager.js'
-      );
+      const { MigrationStateManager } =
+        await import('../src/core/MigrationStateManager.js');
       const stateManager = new MigrationStateManager(path.resolve(options.dir));
 
       if (!(await stateManager.exists())) {
