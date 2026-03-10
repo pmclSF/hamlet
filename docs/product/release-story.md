@@ -10,4 +10,4 @@ Run `hamlet analyze` on any repository with test files. Within seconds, you get 
 
 Hamlet is local-first. All analysis runs on your machine against your code. Static analysis is the foundation; optional coverage and runtime artifact ingestion enrich the picture. There is no hosted service, no telemetry, no account required. Privacy-safe benchmark exports let you compare anonymized posture data across repositories without exposing source code or file paths.
 
-V3 introduces 18 measurements across 5 posture dimensions, portfolio intelligence, impact analysis, migration readiness assessment, snapshot-based trend tracking, and policy governance. It is a new engine written in Go, designed for speed and precision on repositories of any size.
+The current engine introduces 18 measurements across 5 posture dimensions, portfolio intelligence, impact analysis, migration readiness assessment, snapshot-based trend tracking, and policy governance. It is a new engine written in Go, designed for speed and precision on repositories of any size.

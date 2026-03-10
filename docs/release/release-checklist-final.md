@@ -1,4 +1,4 @@
-# V3 Release Checklist
+# Release Checklist
 
 ## Build verification
 - [ ] `go build ./cmd/hamlet/` succeeds
@@ -54,4 +54,4 @@
 ## Version and metadata
 - [ ] go.mod version is correct
 - [ ] GeneratedAt timestamps are UTC
-- [ ] Analysis version string is current
+- [ ] Analysis version string reflects the current engine

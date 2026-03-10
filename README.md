@@ -53,6 +53,25 @@ hamlet metrics --json
 
 Run `hamlet --help` for full flag documentation.
 
+## Canonical User Journeys (Walkthrough)
+
+Use this sequence for a complete first-run pass:
+
+```bash
+hamlet analyze
+hamlet insights
+hamlet impact
+hamlet explain src/auth/login.test.ts
+```
+
+What each step gives you:
+- `analyze`: baseline framework inventory, signal profile, and risk surfaces.
+- `insights`: prioritized improvement actions with rationale.
+- `impact`: changed-file test selection with confidence and fallback context.
+- `explain`: evidence chain for a specific finding or recommendation.
+
+See [Canonical User Journeys](docs/product/canonical-user-journeys.md) for the full workflow and [example outputs](docs/examples/).
+
 ## What Hamlet Reveals
 
 ### Structure
@@ -118,7 +137,7 @@ Exit code 0 = pass, 2 = violations found, 1 = execution/error conditions.
 
 ## Migration Workflow
 
-Hamlet started with migration pain — "how hard will this migration be?" V3 turns that pain into broader test intelligence while keeping migration as a first-class workflow:
+Hamlet started with migration pain — "how hard will this migration be?" The current engine turns that pain into broader test intelligence while keeping migration as a first-class workflow:
 
 ```bash
 # Assess migration readiness
@@ -153,7 +172,7 @@ Repository scan → Signal detection → Risk modeling → Reporting
 See [DESIGN.md](DESIGN.md) for architecture overview and [docs/](docs/) for detailed documentation.
 JSON output structure is documented in [docs/json-schema.md](docs/json-schema.md).
 
-## Project Structure (V3 Go Engine)
+## Project Structure (Go Engine)
 
 ```
 cmd/hamlet/          CLI entry point
@@ -186,7 +205,7 @@ internal/
 
 ## Legacy Converter Engine
 
-Hamlet originated as a multi-framework test converter (V2, JavaScript ES modules). That engine is preserved in `src/`, `bin/`, and `test/` and remains functional. V3 reframes migration as one dimension of broader test intelligence. See [docs/legacy/](docs/legacy/) for historical architecture docs and [CLAUDE.md](CLAUDE.md) for legacy code conventions.
+Hamlet originated as a multi-framework test converter (legacy, JavaScript ES modules). That engine is preserved in `src/`, `bin/`, and `test/` and remains functional. The current engine reframes migration as one dimension of broader test intelligence. See [docs/legacy/](docs/legacy/) for historical architecture docs and [CLAUDE.md](CLAUDE.md) for legacy code conventions.
 
 ## Development
 
@@ -215,7 +234,7 @@ npm test
 
 ## Status
 
-Hamlet V3 is in active development. The Go engine implements:
+Hamlet's current engine is in active development. The Go engine implements:
 - repository analysis and signal detection
 - explainable risk modeling
 - local policy and governance

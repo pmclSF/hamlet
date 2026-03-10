@@ -1,6 +1,6 @@
 # Signal Catalog
 
-This file defines the initial V3 signal catalog.
+This file defines the initial signal catalog for the current engine.
 
 Each signal includes:
 - category

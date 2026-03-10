@@ -1,14 +1,14 @@
-# Hamlet V3 Master Plan
+# Hamlet Master Plan
 
 ## Status
 
-This document is the primary source of truth for the Hamlet V3 refactor.
+This document is the primary source of truth for the current refactor.
 
-Hamlet V3 is a strategic evolution of Hamlet from a framework migration tool into:
+Hamlet's current engine is a strategic evolution from a framework migration tool into:
 
 **Observability and intelligence for test suites**
 
-The purpose of V3 is to rebuild the product around a durable signal model, a risk model, and a multi-surface architecture that supports:
+The purpose of this plan is to rebuild the product around a durable signal model, a risk model, and a multi-surface architecture that supports:
 
 - local repository analysis
 - test suite health visibility
@@ -125,7 +125,7 @@ This maps to:
 
 ---
 
-## V3 Refactor Goals
+## Refactor Goals
 
 ### Goal 1
 Standardize the signal model and snapshot model.
@@ -152,9 +152,9 @@ Preserve migration features, but reposition them as one capability within test i
 
 ---
 
-## What V3 Is Not
+## What This Plan Is Not
 
-V3 is not:
+This plan is not:
 - a test runner
 - a CI system
 - a generic static analysis platform
@@ -165,7 +165,7 @@ V3 is not:
 
 ## Implementation Strategy
 
-V3 will be implemented in vertical slices.
+This plan will be implemented in vertical slices.
 
 ### Slice 1
 Documentation, repo structure, models, signal registry
@@ -190,7 +190,7 @@ Policy/governance checks
 
 ---
 
-## Initial V3 Signal Set
+## Initial Signal Set
 
 ### Health
 - slowTest

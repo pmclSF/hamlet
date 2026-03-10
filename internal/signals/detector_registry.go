@@ -75,6 +75,8 @@ func NewRegistry() *DetectorRegistry {
 }
 
 // Register adds a detector to the registry.
+// Panics if a non-signal-dependent detector is registered after a
+// signal-dependent one, since dependent detectors must run last.
 func (r *DetectorRegistry) Register(reg DetectorRegistration) {
 	if !reg.Meta.DependsOnSignals {
 		for _, existing := range r.registrations {

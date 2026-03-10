@@ -1,6 +1,6 @@
 # cmd/hamlet
 
-V3 CLI entry point for the Hamlet test intelligence platform.
+Go CLI entry point for the Hamlet test intelligence platform.
 
 ## Implemented Commands
 
@@ -18,5 +18,18 @@ V3 CLI entry point for the Hamlet test intelligence platform.
 | `hamlet policy check` | Evaluate local policy rules |
 | `hamlet export benchmark` | Privacy-safe JSON export for benchmarking |
 | `hamlet version` | Show version, commit, and build date |
+
+## Canonical Workflow
+
+Run the four primary journeys in order:
+
+```bash
+hamlet analyze
+hamlet insights
+hamlet impact
+hamlet explain src/auth/login.test.ts
+```
+
+This flow maps to the canonical product journeys documented in [docs/product/canonical-user-journeys.md](../../docs/product/canonical-user-journeys.md).
 
 All commands support `--root PATH` and `--json` flags. See [docs/cli-spec.md](../../docs/cli-spec.md) for the full CLI specification.

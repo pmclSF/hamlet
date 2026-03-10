@@ -125,7 +125,7 @@ hamlet migration preview --file test/auth/login.test.js
 hamlet migration preview --scope test/
 ```
 
-The migration workflow bridges old Hamlet pain ("how hard will this migration be?") with V3 intelligence ("where is the risk and what should we fix first?").
+The migration workflow bridges old Hamlet pain ("how hard will this migration be?") with current-engine intelligence ("where is the risk and what should we fix first?").
 
 ## 7. Impact Analysis
 

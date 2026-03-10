@@ -41,7 +41,7 @@ All subsystems import these sets from `signals` rather than defining local copie
       |
       +---> [summary/executive] → ExecutiveSummary (posture, focus, trends)
       |
-      +---> [benchmark/export] → privacy-safe Export (schema v3)
+      +---> [benchmark/export] → privacy-safe Export (current schema)
       |
       +---> [reporting/] → human-readable CLI output
 ```

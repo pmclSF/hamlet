@@ -168,7 +168,7 @@ Implemented:
 Final pre-launch hardening
 
 Implemented:
-- Removed stale messages ("not yet active", "V3 analysis nucleus" → "V3")
+- Removed stale messages ("not yet active", "current analysis nucleus" → "current")
 - Improved compare error messages (actionable guidance for missing snapshots)
 - CLI doc comment aligned with actual command surface
 - Test expectations updated for output changes

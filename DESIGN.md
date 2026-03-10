@@ -73,9 +73,9 @@ See [docs/engineering/architecture-map.md](docs/engineering/architecture-map.md)
 
 ## Migration Context
 
-Hamlet originated as a multi-framework test converter (V2). That converter engine (JavaScript ES modules, `src/`) remains in the repository and is fully functional. V3 reframes migration as one dimension of broader test intelligence rather than the sole product.
+Hamlet originated as a multi-framework test converter (legacy). That converter engine (JavaScript ES modules, `src/`) remains in the repository and is fully functional. The current engine reframes migration as one dimension of broader test intelligence rather than the sole product.
 
-The V2 converter architecture is documented in [docs/legacy/v2-converter-architecture.md](docs/legacy/v2-converter-architecture.md).
+The legacy converter architecture is documented in [docs/legacy/converter-architecture-legacy.md](docs/legacy/converter-architecture-legacy.md).
 
 ## Extension Architecture
 

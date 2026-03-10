@@ -1,6 +1,6 @@
 # Roadmap
 
-## V3 Objective
+## Current Objective
 
 Refactor Hamlet into a signal-first test intelligence platform while preserving the migration wedge.
 

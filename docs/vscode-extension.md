@@ -8,7 +8,7 @@ It is not a separate engine.
 
 The extension should remain a thin client over CLI JSON output.
 
-## V1 / V3 architecture
+## V1 / current-engine architecture
 
 Flow:
 1. extension invokes `hamlet analyze --json`

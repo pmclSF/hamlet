@@ -1,6 +1,6 @@
 # Contributing to Hamlet
 
-## Quick Start (V3 Go Engine)
+## Quick Start (Go Engine)
 
 ```bash
 git clone https://github.com/pmclSF/hamlet.git
@@ -10,7 +10,7 @@ make test
 ./hamlet analyze
 ```
 
-## Quick Start (V2 Legacy Converter)
+## Quick Start (Legacy Converter)
 
 The JavaScript converter engine is still functional for framework conversion work:
 
@@ -19,7 +19,7 @@ npm install
 npm test
 ```
 
-## Adding a New Framework (V2 Legacy)
+## Adding a New Framework (Legacy Converter)
 
 ### 1. Create Framework Definition
 
@@ -109,7 +109,7 @@ type(scope): description
 
 ## Architecture
 
-### V3 Go Engine (current product direction)
+### Go Engine (current product direction)
 
 ```
 Repository scan → Signal detection → Risk scoring → Snapshot → Reporting
@@ -117,10 +117,10 @@ Repository scan → Signal detection → Risk scoring → Snapshot → Reporting
 
 See [DESIGN.md](DESIGN.md) for the full architecture overview and [docs/architecture.md](docs/architecture.md) for the layered design.
 
-### V2 JavaScript Converter Engine (legacy, still functional)
+### Legacy JavaScript converter engine (still functional)
 
 ```
 Source Code → Framework Parser → IR Nodes → Framework Emitter → Target Code
 ```
 
-See [docs/legacy/v2-converter-architecture.md](docs/legacy/v2-converter-architecture.md) for the converter architecture.
+See [docs/legacy/converter-architecture-legacy.md](docs/legacy/converter-architecture-legacy.md) for the converter architecture.

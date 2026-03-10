@@ -1,10 +1,10 @@
-# Hamlet V3 Release Notes
+# Hamlet Release Notes
 
 ## Overview
 
-Hamlet V3 is a ground-up rewrite of the analysis engine in Go. It introduces a signal-first architecture that maps test suites into structured snapshots, evaluates them across five posture dimensions backed by 18 measurements, and surfaces portfolio intelligence, impact analysis, and migration readiness -- all from a single CLI.
+Hamlet's current engine is a ground-up rewrite of the analysis engine in Go. It introduces a signal-first architecture that maps test suites into structured snapshots, evaluates them across five posture dimensions backed by 18 measurements, and surfaces portfolio intelligence, impact analysis, and migration readiness -- all from a single CLI.
 
-V3 is a new product, not an upgrade to V2. The V2 JavaScript converter engine (test framework conversion across 16 frameworks) remains functional and unchanged.
+This is a new product line, not an upgrade to the legacy converter. The legacy JavaScript converter engine (test framework conversion across 16 frameworks) remains functional and unchanged.
 
 ## Key Capabilities
 
@@ -224,7 +224,7 @@ The `hamlet pr` command supports multiple output formats:
 
 All commands support `--json` for machine-readable output.
 
-## New in V3
+## What's New
 
 - **Signal-first architecture**: all findings trace back to detected signals with evidence metadata
 - **Measurement framework**: 18 measurements with transparent computation, evidence strength, and stated limitations
@@ -271,7 +271,7 @@ All commands support `--json` for machine-readable output and `--root PATH` to t
 
 ## Breaking Changes
 
-None. V3 is a new engine and a new binary. The V2 JavaScript converter engine (`node bin/hamlet.js`) is unchanged and continues to work independently.
+None. This is a new engine and a new binary. The legacy JavaScript converter engine (`node bin/hamlet.js`) is unchanged and continues to work independently.
 
 ## Known Limitations
 
@@ -315,7 +315,7 @@ hamlet impact            # what changed and is it tested?
 
 ## Verification System
 
-V3 includes a formal, layered verification system:
+This release includes a formal, layered verification system:
 
 - **Unit tests** — deterministic core logic across identity, lifecycle, ownership, coverage, measurement, scoring, and impact
 - **Golden tests** — 9 golden outputs protecting metrics, exports, reports, and impact analysis artifacts

@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Hamlet is a signal-first test intelligence platform. The V3 engine (Go, in `internal/` and `cmd/`) analyzes repository structure, test code, and policy to surface risk, quality, migration readiness, and governance findings. The V2 converter engine (JavaScript ES modules, in `src/` and `bin/`) provides multi-framework test conversion across 16 frameworks and remains functional.
+Hamlet is a signal-first test intelligence platform. The current engine (Go, in `internal/` and `cmd/`) analyzes repository structure, test code, and policy to surface risk, quality, migration readiness, and governance findings. The legacy converter engine (JavaScript ES modules, in `src/` and `bin/`) provides multi-framework test conversion across 16 frameworks and remains functional.
 
 The instructions below apply to the JavaScript codebase (`src/`, `test/`, `bin/`).
 

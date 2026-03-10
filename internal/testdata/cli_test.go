@@ -43,7 +43,7 @@ func TestCLI_HelpContainsAllCommands(t *testing.T) {
 	out, _ := cmd.CombinedOutput()
 	output := string(out)
 
-	commands := []string{"analyze", "summary", "posture", "metrics", "compare", "impact", "policy check", "export benchmark"}
+	commands := []string{"analyze", "insights", "impact", "explain", "summary", "posture", "metrics", "compare", "policy check", "export benchmark"}
 	for _, c := range commands {
 		if !strings.Contains(output, c) {
 			t.Errorf("help text missing command %q", c)
@@ -156,6 +156,28 @@ func TestCLI_HelpContainsNewCommands(t *testing.T) {
 	for _, c := range newCommands {
 		if !strings.Contains(output, c) {
 			t.Errorf("help text missing command %q", c)
+		}
+	}
+}
+
+// TestCLI_HelpContainsCanonicalWorkflow verifies help includes the standard journey walkthrough.
+func TestCLI_HelpContainsCanonicalWorkflow(t *testing.T) {
+	t.Parallel()
+	cmd := exec.Command("go", "run", "./cmd/hamlet/", "--help")
+	cmd.Dir = "../.."
+	out, _ := cmd.CombinedOutput()
+	output := string(out)
+
+	workflow := []string{
+		"Typical flow:",
+		"hamlet analyze",
+		"hamlet insights",
+		"hamlet impact",
+		"hamlet explain <target>",
+	}
+	for _, expected := range workflow {
+		if !strings.Contains(output, expected) {
+			t.Errorf("help text missing canonical workflow item %q", expected)
 		}
 	}
 }

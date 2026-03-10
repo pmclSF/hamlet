@@ -1,6 +1,6 @@
 # Architecture
 
-Hamlet V3 is built around a signal-first architecture.
+Hamlet's current engine is built around a signal-first architecture.
 
 ## Core idea
 

@@ -52,4 +52,4 @@ Hamlet becomes sticky when it is:
 
 ## Strategic implication
 
-V3 must be snapshot-first and signal-first so the data needed for the moat can accumulate immediately.
+The current engine must be snapshot-first and signal-first so the data needed for the moat can accumulate immediately.

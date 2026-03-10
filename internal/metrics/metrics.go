@@ -145,7 +145,7 @@ func Derive(snap *models.TestSuiteSnapshot) *Snapshot {
 
 	ms := &Snapshot{
 		GeneratedAt:     time.Now().UTC(),
-		AnalysisVersion: "v3-nucleus",
+		AnalysisVersion: "signal-first",
 	}
 
 	// Structure

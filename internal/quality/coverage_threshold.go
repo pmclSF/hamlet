@@ -73,7 +73,7 @@ func (d *CoverageThresholdDetector) Detect(snap *models.TestSuiteSnapshot) []mod
 	}
 
 	// No coverage data found — no signals to emit.
-	// TODO: Support additional coverage formats (lcov, clover, Go coverage).
+	// Currently supports Istanbul JSON format only.
 	return nil
 }
 

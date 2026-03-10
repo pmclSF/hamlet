@@ -1,6 +1,6 @@
 # Lovable Release Audit
 
-An honest assessment of what makes Hamlet V3 ready for release, what still needs work, and where confidence is strongest.
+An honest assessment of what makes Hamlet's current engine ready for release, what still needs work, and where confidence is strongest.
 
 ## What Makes Hamlet Lovable Now
 

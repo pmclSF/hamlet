@@ -169,7 +169,10 @@ func parseLCOV(content string) ([]CoverageRecord, error) {
 			// FNDA:hit_count,function_name
 			parts := strings.SplitN(strings.TrimPrefix(line, "FNDA:"), ",", 2)
 			if len(parts) == 2 {
-				hits, _ := strconv.Atoi(parts[0])
+				hits, err := strconv.Atoi(parts[0])
+				if err != nil {
+					continue // skip malformed FNDA line
+				}
 				fnName := parts[1]
 				current.FunctionHits[fnName] = hits
 			}
@@ -181,7 +184,11 @@ func parseLCOV(content string) ([]CoverageRecord, error) {
 				key := parts[0] + ":" + parts[1] + ":" + parts[2]
 				hits := 0
 				if parts[3] != "-" {
-					hits, _ = strconv.Atoi(parts[3])
+					var err error
+					hits, err = strconv.Atoi(parts[3])
+					if err != nil {
+						continue // skip malformed BRDA line
+					}
 				}
 				current.BranchHits[key] = hits
 			}

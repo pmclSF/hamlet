@@ -1,6 +1,6 @@
 # Impact Analysis System Map
 
-Stage 132 architecture document for the Hamlet V3 impact analysis subsystem.
+Stage 132 architecture document for the Hamlet current-engine impact analysis subsystem.
 
 ## Subsystem Inventory
 

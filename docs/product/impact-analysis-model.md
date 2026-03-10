@@ -16,7 +16,7 @@ Hamlet's impact analysis engine examines a set of changed files, resolves the co
 
 ### How It Fits With Existing Hamlet Capabilities
 
-Impact analysis builds on three foundational layers already present in Hamlet V3:
+Impact analysis builds on three foundational layers already present in Hamlet's current engine:
 
 | Layer | Role in Impact Analysis |
 |-------|------------------------|

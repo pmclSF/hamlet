@@ -1,6 +1,6 @@
 # Launch Assets Guide
 
-This document lists the demo fixtures, sample workflows, and screenshot recommendations for the Hamlet V3 launch.
+This document lists the demo fixtures, sample workflows, and screenshot recommendations for the Hamlet launch.
 
 ## Demo Fixtures
 

@@ -1,6 +1,6 @@
 # Release Checklist
 
-Status checklist for Hamlet V3 release readiness.
+Status checklist for Hamlet release readiness.
 
 ## Product
 
@@ -18,7 +18,7 @@ Status checklist for Hamlet V3 release readiness.
 - [x] All Go packages build cleanly (`go build ./internal/... ./cmd/...`)
 - [x] All Go tests pass (`go test ./internal/... ./cmd/...`)
 - [x] 25 internal packages with test coverage
-- [x] Snapshot contract (`TestSuiteSnapshot`) stable for current features
+- [x] Snapshot contract (`TestSuiteSnapshot`) stable for current engine features
 - [x] Evidence model: EvidenceStrength, EvidenceSource, Confidence on all signals
 - [x] Registry-based detector architecture with 10 detectors (quality, migration, governance)
 - [x] Runtime ingestion: JUnit XML, Jest JSON parsers
@@ -58,7 +58,7 @@ Status checklist for Hamlet V3 release readiness.
 
 ## Hardening
 
-- [x] V3 identity consistent across all top-level files
+- [x] signal-first identity consistent across all top-level files
 - [x] Legacy converter material clearly marked as historical
 - [x] CLI help text aligned with actual behavior
 - [x] Doc comment in main.go matches CLI surface

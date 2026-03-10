@@ -96,7 +96,7 @@ When coverage data is absent (`CoverageSummary` is nil):
 
 ## Subsystem Integration Matrix
 
-| Subsystem | Test Identity | Coverage-by-Type | New in v3 Schema |
+| Subsystem | Test Identity | Coverage-by-Type | New in Current Schema |
 |-----------|:---:|:---:|:---:|
 | `internal/graph` | HealthSignalsByTestID | UncoveredExportedUnits, E2EOnlyUnits | Yes |
 | `internal/health` | testId in signal metadata | - | Modified |
@@ -106,7 +106,7 @@ When coverage data is absent (`CoverageSummary` is nil):
 | `internal/comparison` | TestCase diff | UnitTestCoverage delta | Modified |
 | `internal/migration` | - | e2e-only directory guidance | Modified |
 | `internal/reporting` | Identity changes section | Coverage-by-type sections | Modified |
-| `internal/benchmark` | TestIdentityStats | CoverageByType aggregate | Schema v3 |
+| `internal/benchmark` | TestIdentityStats | CoverageByType aggregate | Current schema |
 | `internal/engine` | ResolveTestIDs in pipeline | - | Modified |
 
 ## Privacy Boundary

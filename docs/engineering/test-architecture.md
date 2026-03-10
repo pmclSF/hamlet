@@ -1,6 +1,6 @@
 # Test Architecture
 
-Hamlet's V3 engine (Go) uses a layered test strategy. Each layer targets a different failure class, from pure logic bugs through schema drift to performance regressions. All test infrastructure lives under `internal/testdata/`.
+Hamlet's current engine (Go) uses a layered test strategy. Each layer targets a different failure class, from pure logic bugs through schema drift to performance regressions. All test infrastructure lives under `internal/testdata/`.
 
 ## File Organization
 

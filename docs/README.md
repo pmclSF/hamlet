@@ -4,15 +4,16 @@
 
 ## Product Evolution
 
-- **V2** was conversion-led: a multi-framework test converter (JS/Java/Python, 25 directions).
-- **V3** is signal-led: a test intelligence platform that surfaces risk, quality, migration readiness, and governance from static and runtime analysis.
-- **Migration remains the acquisition wedge** — the pain of framework migration is what brings teams to Hamlet. V3 turns that pain into broader test intelligence.
+- **Legacy** was conversion-led: a multi-framework test converter (JS/Java/Python, 25 directions).
+- **The current engine** is signal-led: a test intelligence platform that surfaces risk, quality, migration readiness, and governance from static and runtime analysis.
+- **Migration remains the acquisition wedge** — the pain of framework migration is what brings teams to Hamlet. The current engine turns that pain into broader test intelligence.
 
-The V2 converter engine is preserved and functional. See [legacy/](legacy/) for historical architecture docs.
+The legacy converter engine is preserved and functional. See [legacy/](legacy/) for historical architecture docs.
 
 ## Start Here
 
 - [Demo Walkthrough](demo.md) — try Hamlet in a few minutes
+- [Canonical User Journeys](product/canonical-user-journeys.md) — primary workflows and expected outcomes
 - [CLI Specification](cli-spec.md) — full command and flag reference
 - [Architecture](architecture.md) — how Hamlet works internally
 
@@ -62,11 +63,11 @@ The V2 converter engine is preserved and functional. See [legacy/](legacy/) for 
 - [Release Checklist](release-checklist.md) — launch readiness status
 - [Release Process](releasing.md) — versioning and release workflow
 
-## Legacy (V2 Converter Engine)
+## Legacy Converter Engine
 
 Historical documentation for the JavaScript converter engine:
 
-- [V2 Converter Architecture](legacy/v2-converter-architecture.md)
+- [Converter Architecture (legacy)](legacy/converter-architecture-legacy.md)
 - [Legacy Notes](legacy/legacy-notes.md)
 - [Getting Started](guides/getting-started.md)
 - [Migration Guide](guides/migration-guide.md)

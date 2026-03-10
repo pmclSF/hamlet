@@ -1,6 +1,6 @@
 # Contributing: Advanced Test Intelligence Subsystems
 
-This guide covers how to extend the advanced assessment and workflow subsystems in Hamlet V3. It describes how to add new assessment dimensions, new CLI drill-down entities, new output formats, and how to follow the conventions that keep these subsystems consistent and cautious.
+This guide covers how to extend the advanced assessment and workflow subsystems in Hamlet's current engine. It describes how to add new assessment dimensions, new CLI drill-down entities, new output formats, and how to follow the conventions that keep these subsystems consistent and cautious.
 
 ## Package Conventions
 

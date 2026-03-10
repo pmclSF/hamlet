@@ -20,6 +20,38 @@ import (
 	"github.com/pmclSF/hamlet/internal/signals"
 )
 
+// Coverage diversity thresholds: classify how much of the test coverage
+// relies exclusively on E2E tests. Lower E2E-only ratios indicate stronger
+// diversity (unit/integration tests cover the same code paths).
+const (
+	coverageDiversityStrong   = 0.05 // ≤5% E2E-only: unit/integration dominate
+	coverageDiversityModerate = 0.15 // ≤15%: reasonable mix
+	coverageDiversityWeak     = 0.30 // ≤30%: over-reliant on E2E
+)
+
+// Ownership coverage thresholds: classify how much of the codebase has
+// CODEOWNERS entries. Stronger ownership means clearer accountability.
+const (
+	ownershipCoverageStrong  = 0.80 // ≥80% of files have owners
+	ownershipCoveragePartial = 0.50 // ≥50% of files have owners
+)
+
+// Risk concentration thresholds: classify how evenly risk is distributed
+// across owners. Balanced means no single owner dominates.
+const (
+	riskConcentrationBalanced      = 0.50 // ≤50%: well-distributed
+	riskConcentrationModerate      = 0.70 // ≤70%: some concentration
+	riskConcentrationConcentrated  = 0.85 // ≤85%: concerning concentration
+)
+
+// Signal share thresholds: classify what proportion of total signals
+// a single category represents.
+const (
+	signalShareMinimal  = 0.02 // ≤2%: negligible share
+	signalShareLow      = 0.10 // ≤10%: small share
+	signalShareModerate = 0.25 // ≤25%: notable share
+)
+
 // Export is the benchmark-safe artifact that can be shared for comparison.
 //
 // It intentionally contains only aggregate data and segmentation tags.
@@ -161,11 +193,11 @@ func BuildExport(snap *models.TestSuiteSnapshot, ms *metrics.Snapshot, hasPolicy
 		// Derive diversity band from e2e-only share.
 		e2eRatio := float64(cs.CoveredOnlyByE2E) / total
 		switch {
-		case e2eRatio <= 0.05:
+		case e2eRatio <= coverageDiversityStrong:
 			agg.CoverageDiversityBand = "strong"
-		case e2eRatio <= 0.15:
+		case e2eRatio <= coverageDiversityModerate:
 			agg.CoverageDiversityBand = "moderate"
-		case e2eRatio <= 0.30:
+		case e2eRatio <= coverageDiversityWeak:
 			agg.CoverageDiversityBand = "weak"
 		default:
 			agg.CoverageDiversityBand = "critical"
@@ -250,9 +282,9 @@ func buildOwnershipAggregate(snap *models.TestSuiteSnapshot) *OwnershipAggregate
 	if len(allFiles) > 0 {
 		ratio := float64(ownedCount) / float64(len(allFiles))
 		switch {
-		case ratio >= 0.80:
+		case ratio >= ownershipCoverageStrong:
 			agg.CoveragePosture = "strong"
-		case ratio >= 0.50:
+		case ratio >= ownershipCoveragePartial:
 			agg.CoveragePosture = "partial"
 		case ratio > 0:
 			agg.CoveragePosture = "weak"
@@ -416,11 +448,11 @@ func concentrationBand(ratio float64) string {
 	switch {
 	case ratio <= 0:
 		return "unknown"
-	case ratio <= 0.50:
+	case ratio <= riskConcentrationBalanced:
 		return "balanced"
-	case ratio <= 0.70:
+	case ratio <= riskConcentrationModerate:
 		return "moderate"
-	case ratio <= 0.85:
+	case ratio <= riskConcentrationConcentrated:
 		return "concentrated"
 	default:
 		return "highly_concentrated"
@@ -429,11 +461,11 @@ func concentrationBand(ratio float64) string {
 
 func shareBand(ratio float64) string {
 	switch {
-	case ratio <= 0.02:
+	case ratio <= signalShareMinimal:
 		return "minimal"
-	case ratio <= 0.10:
+	case ratio <= signalShareLow:
 		return "low"
-	case ratio <= 0.25:
+	case ratio <= signalShareModerate:
 		return "moderate"
 	default:
 		return "high"
