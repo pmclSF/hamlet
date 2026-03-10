@@ -52,6 +52,11 @@ jobs:
         with:
           go-version-file: go.mod
 
+      - name: Verify go.mod is tidy
+        run: |
+          go mod tidy
+          git diff --exit-code go.mod go.sum
+
       - name: Run Go tests (no cache masking)
         run: go test ./... -count=1
 

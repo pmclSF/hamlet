@@ -382,6 +382,12 @@ export async function convertConfig(configPath, options = {}) {
  * @param {Object} options - Conversion options
  */
 export async function convertFile(sourcePath, outputPath, options = {}) {
+  if (!sourcePath || typeof sourcePath !== 'string') {
+    throw new Error('sourcePath must be a non-empty string');
+  }
+  if (!outputPath || typeof outputPath !== 'string') {
+    throw new Error('outputPath must be a non-empty string');
+  }
   try {
     // Initialize collectors and analyzers
     const metadataCollector = new TestMetadataCollector();

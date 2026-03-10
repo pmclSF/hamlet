@@ -400,6 +400,12 @@ const converterLogger = logUtils.createLogger('Converter');
  * @param {Object} options - Conversion options
  */
 export async function convertRepository(repoPath, outputPath, options = {}) {
+  if (!repoPath || typeof repoPath !== 'string') {
+    throw new Error('repoPath must be a non-empty string');
+  }
+  if (!outputPath || typeof outputPath !== 'string') {
+    throw new Error('outputPath must be a non-empty string');
+  }
   const fromFramework = (
     options.from ||
     options.fromFramework ||
