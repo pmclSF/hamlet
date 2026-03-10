@@ -2,7 +2,7 @@
  * Hamlet internal/advanced exports.
  *
  * These are implementation details that may change between minor versions.
- * Prefer the public API from "hamlet-converter" unless you need low-level
+ * Prefer the public API from "hamlet-testframework" unless you need low-level
  * access for custom tooling.
  */
 

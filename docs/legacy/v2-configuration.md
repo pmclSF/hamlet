@@ -1,4 +1,6 @@
-# Configuration
+> **Legacy document.** This describes the V2 JavaScript converter engine. For V3, see the [CLI spec](../cli-spec.md) and [architecture overview](../architecture/00-overview.md).
+
+# Configuration (V2 Converter)
 
 Hamlet is configured through CLI flags and programmatic API options. There is no configuration file format.
 

@@ -1,4 +1,6 @@
-# CLI Reference
+> **Legacy document.** This describes the V2 JavaScript converter engine. For V3, see the [CLI spec](../cli-spec.md) and [architecture overview](../architecture/00-overview.md).
+
+# CLI Reference (V2 Converter)
 
 ## Commands
 

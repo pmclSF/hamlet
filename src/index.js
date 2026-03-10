@@ -1,5 +1,5 @@
 /**
- * Hamlet — Multi-framework test converter.
+ * Hamlet — Legacy test converter module.
  *
  * Public API surface:
  *   Functions: convertFile, convertRepository, convertConfig,
@@ -9,7 +9,7 @@
  *   Constants: VERSION, SUPPORTED_TEST_TYPES, DEFAULT_OPTIONS
  *
  * Internal/advanced classes and utilities are available via the
- * "hamlet-converter/internals" subpath export.
+ * "hamlet-testframework/internals" subpath export.
  */
 
 // Core orchestration

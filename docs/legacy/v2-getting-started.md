@@ -1,4 +1,6 @@
-# Getting Started with Hamlet
+> **Legacy document.** This describes the V2 JavaScript converter engine. For V3, see the [CLI spec](../cli-spec.md) and [architecture overview](../architecture/00-overview.md).
+
+# Getting Started with Hamlet (V2 Converter)
 
 ## Installation
 
@@ -143,7 +145,7 @@ Search for `HAMLET-TODO` after conversion to find patterns that need manual atte
 
 ## Next Steps
 
-- [Migration Guide](./migration-guide.md) - full project migration workflow
-- [CLI Reference](../api/cli.md) - all commands and options
-- [Configuration](../api/configuration.md) - CLI flags and programmatic API
-- [Conversion Process](../api/conversion.md) - how conversion works under the hood
+- [Migration Guide](./v2-migration-guide.md) - full project migration workflow
+- [CLI Reference](./v2-cli-reference.md) - all commands and options
+- [Configuration](./v2-configuration.md) - CLI flags and programmatic API
+- [Conversion Process](./v2-conversion-process.md) - how conversion works under the hood

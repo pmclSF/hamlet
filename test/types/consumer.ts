@@ -17,7 +17,7 @@ import type {
   IConverterFactory,
   IFrameworkDetector,
   IPatternEngine,
-} from 'hamlet-converter';
+} from 'hamlet-testframework';
 
 import {
   convertFile,
@@ -33,7 +33,7 @@ import {
   BatchProcessor,
   ConversionReporter,
   RepositoryConverter,
-} from 'hamlet-converter';
+} from 'hamlet-testframework';
 
 import {
   ConverterFactory,
@@ -42,7 +42,7 @@ import {
   BaseConverter,
   PipelineConverter,
   FRAMEWORKS,
-} from 'hamlet-converter/core';
+} from 'hamlet-testframework/core';
 
 import {
   CypressToPlaywright,
@@ -51,9 +51,9 @@ import {
   PlaywrightToSelenium,
   SeleniumToCypress,
   SeleniumToPlaywright,
-} from 'hamlet-converter/converters';
+} from 'hamlet-testframework/converters';
 
-import { DependencyAnalyzer, fileUtils } from 'hamlet-converter/internals';
+import { DependencyAnalyzer, fileUtils } from 'hamlet-testframework/internals';
 
 // ── Framework type ──
 const fw: Framework = 'jest';

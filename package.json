@@ -1,7 +1,7 @@
 {
-  "name": "hamlet-converter",
+  "name": "hamlet-testframework",
   "version": "2.0.2",
-  "description": "Hamlet: Multi-framework test converter — 25 directions across JavaScript, Java, and Python.",
+  "description": "Hamlet: Signal-first test intelligence platform with legacy multi-framework converter.",
   "type": "module",
   "main": "src/index.js",
   "types": "src/types/index.d.ts",

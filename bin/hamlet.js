@@ -1122,7 +1122,7 @@ async function convertAction(source, options) {
 program
   .version(version)
   .description(
-    'Hamlet: Multi-framework test converter — 25 directions across JavaScript, Java, and Python.'
+    'Hamlet: Signal-first test intelligence platform with legacy multi-framework converter.'
   )
   .addHelpText(
     'after',

@@ -2,7 +2,7 @@
 
 ## Supported Versions
 
-Security updates are provided for the latest published major version of `hamlet-converter`.
+Security updates are provided for the latest published major version of Hamlet, covering both the Go CLI (`hamlet`) and the JavaScript converter package.
 
 ## Reporting a Vulnerability
 
