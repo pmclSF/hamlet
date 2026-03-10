@@ -50,7 +50,7 @@ describe('Package version resolution', () => {
     await fs.mkdir(consumerNodeModules, { recursive: true });
     await fs.symlink(
       packageDir,
-      path.join(consumerNodeModules, 'hamlet-converter')
+      path.join(consumerNodeModules, 'hamlet-testframework')
     );
 
     // Allow extracted package to resolve dependencies from this workspace.
@@ -86,7 +86,7 @@ describe('Package version resolution', () => {
       [
         '--input-type=module',
         '-e',
-        "import { VERSION } from 'hamlet-converter'; process.stdout.write(VERSION);",
+        "import { VERSION } from 'hamlet-testframework'; process.stdout.write(VERSION);",
       ],
       {
         cwd: consumerDir,
@@ -103,7 +103,7 @@ describe('Package version resolution', () => {
       [
         '--input-type=module',
         '-e',
-        "import { ConverterFactory, FRAMEWORKS } from 'hamlet-converter/core'; process.stdout.write(String(Boolean(ConverterFactory && FRAMEWORKS)));",
+        "import { ConverterFactory, FRAMEWORKS } from 'hamlet-testframework/core'; process.stdout.write(String(Boolean(ConverterFactory && FRAMEWORKS)));",
       ],
       {
         cwd: consumerDir,

@@ -1,4 +1,6 @@
-# Migration Guide
+> **Legacy document.** This describes the V2 JavaScript converter engine. For V3, see the [CLI spec](../cli-spec.md) and [architecture overview](../architecture/00-overview.md).
+
+# Migration Guide (V2 Converter)
 
 ## Overview
 
@@ -229,6 +231,6 @@ If the detector misidentifies the framework, specify it explicitly with `--from`
 
 ## Next Steps
 
-- [CLI Reference](../api/cli.md) - all commands and options
-- [Configuration](../api/configuration.md) - flags and programmatic API
-- [Conversion Process](../api/conversion.md) - how conversion works
+- [CLI Reference](./v2-cli-reference.md) - all commands and options
+- [Configuration](./v2-configuration.md) - flags and programmatic API
+- [Conversion Process](./v2-conversion-process.md) - how conversion works

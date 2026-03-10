@@ -3,7 +3,7 @@
 ## Release Flow
 
 ```
-git tag v2.x.x && git push origin v2.x.x
+git tag vX.Y.Z && git push origin vX.Y.Z
          │
          ▼
   release.yml (trigger: tag push v*)
@@ -92,25 +92,25 @@ No test files, no `.github/`, no `node_modules/`, no `.env`.
 ### 3. Tag and push
 
 ```bash
-git tag v2.x.x
-git push origin v2.x.x
+git tag vX.Y.Z
+git push origin vX.Y.Z
 ```
 
 ### 4. Verify after push
 
 - [ ] GitHub Actions: `release.yml` completed successfully
 - [ ] GitHub Releases: new release exists with auto-generated notes
-- [ ] npm: `npm view hamlet-converter version` shows the new version
-- [ ] Install test: `npx hamlet-converter@latest --version` prints the new version
+- [ ] npm: `npm view hamlet-testframework version` shows the new version
+- [ ] Install test: `npx hamlet-testframework@latest --version` prints the new version
 
 ## Tag Naming Convention
 
 Tags follow semver prefixed with `v`:
 
 ```
-v2.0.0      # major
-v2.1.0      # minor (new features, no breaking changes)
-v2.1.1      # patch (bug fixes only)
+vX.0.0      # major
+vX.Y.0      # minor (new features, no breaking changes)
+vX.Y.Z      # patch (bug fixes only)
 ```
 
 The `v` prefix is required — `release.yml` triggers on `push: tags: ['v*']`.

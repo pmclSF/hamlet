@@ -235,7 +235,7 @@ export interface IPatternEngine {
   clear(): void;
 }
 
-// ── Classes exported from main entry (hamlet-converter) ──
+// ── Classes exported from main entry (hamlet-testframework) ──
 
 export class RepositoryConverter {
   constructor();

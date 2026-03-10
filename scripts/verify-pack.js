@@ -62,8 +62,8 @@ try {
       '--input-type=module',
       '-e',
       `
-      import { VERSION, convertFile, convertRepository, BatchProcessor, ConversionReporter } from 'hamlet-converter';
-      const pkg = JSON.parse(await import('fs/promises').then(f => f.default.readFile('node_modules/hamlet-converter/package.json', 'utf8')));
+      import { VERSION, convertFile, convertRepository, BatchProcessor, ConversionReporter } from 'hamlet-testframework';
+      const pkg = JSON.parse(await import('fs/promises').then(f => f.default.readFile('node_modules/hamlet-testframework/package.json', 'utf8')));
       const errors = [];
       if (VERSION !== pkg.version) errors.push('VERSION ' + VERSION + ' !== package.json ' + pkg.version);
       if (typeof convertFile !== 'function') errors.push('convertFile is not a function');
@@ -96,7 +96,7 @@ try {
   }).trim();
   const pkgVersion = JSON.parse(
     await fs.readFile(
-      path.join(tmpDir, 'node_modules', 'hamlet-converter', 'package.json'),
+      path.join(tmpDir, 'node_modules', 'hamlet-testframework', 'package.json'),
       'utf8'
     )
   ).version;
