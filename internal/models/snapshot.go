@@ -70,6 +70,10 @@ type SnapshotMeta struct {
 
 	// Detectors lists the IDs of detectors that ran during analysis.
 	Detectors []string `json:"detectors,omitempty"`
+
+	// MethodologyFingerprint identifies detector/measurement/risk-model
+	// methodology used to produce this snapshot.
+	MethodologyFingerprint string `json:"methodologyFingerprint,omitempty"`
 }
 
 // TestSuiteSnapshot is the canonical output artifact of Hamlet analysis.

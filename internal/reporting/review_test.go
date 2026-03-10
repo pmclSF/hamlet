@@ -9,6 +9,7 @@ import (
 )
 
 func TestGroupSignalsByOwner(t *testing.T) {
+	t.Parallel()
 	signals := []models.Signal{
 		{Type: "weakAssertion", Owner: "payments-team"},
 		{Type: "mockHeavyTest", Owner: "payments-team"},
@@ -27,6 +28,7 @@ func TestGroupSignalsByOwner(t *testing.T) {
 }
 
 func TestGroupSignalsByType(t *testing.T) {
+	t.Parallel()
 	signals := []models.Signal{
 		{Type: "weakAssertion"},
 		{Type: "weakAssertion"},
@@ -43,6 +45,7 @@ func TestGroupSignalsByType(t *testing.T) {
 }
 
 func TestGroupSignalsByDirectory(t *testing.T) {
+	t.Parallel()
 	signals := []models.Signal{
 		{Type: "weakAssertion", Location: models.SignalLocation{File: "src/auth/login.test.js"}},
 		{Type: "weakAssertion", Location: models.SignalLocation{File: "src/auth/signup.test.js"}},
@@ -60,6 +63,7 @@ func TestGroupSignalsByDirectory(t *testing.T) {
 }
 
 func TestMigrationBlockers(t *testing.T) {
+	t.Parallel()
 	signals := []models.Signal{
 		{Type: "migrationBlocker"},
 		{Type: "weakAssertion"},
@@ -75,6 +79,7 @@ func TestMigrationBlockers(t *testing.T) {
 }
 
 func TestMigrationBlockers_None(t *testing.T) {
+	t.Parallel()
 	signals := []models.Signal{
 		{Type: "weakAssertion"},
 		{Type: "flakyTest"},
@@ -87,6 +92,7 @@ func TestMigrationBlockers_None(t *testing.T) {
 }
 
 func TestRenderReviewSections_WithData(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		Signals: []models.Signal{
 			{Type: "weakAssertion", Owner: "auth-team", Location: models.SignalLocation{File: "src/auth/login.test.js"}},
@@ -111,6 +117,7 @@ func TestRenderReviewSections_WithData(t *testing.T) {
 }
 
 func TestRenderReviewSections_Empty(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{}
 
 	var buf bytes.Buffer

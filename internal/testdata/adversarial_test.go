@@ -16,6 +16,7 @@ import (
 
 // TestAdversarial_NilMeasurements verifies reporting handles nil measurements.
 func TestAdversarial_NilMeasurements(t *testing.T) {
+	t.Parallel()
 	snap := MinimalSnapshot()
 	snap.Measurements = nil
 
@@ -30,6 +31,7 @@ func TestAdversarial_NilMeasurements(t *testing.T) {
 
 // TestAdversarial_EmptySignals verifies scoring handles zero signals.
 func TestAdversarial_EmptySignals(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		Signals: []models.Signal{},
 	}
@@ -40,6 +42,7 @@ func TestAdversarial_EmptySignals(t *testing.T) {
 
 // TestAdversarial_ZeroTestFiles verifies metrics handles zero test files.
 func TestAdversarial_ZeroTestFiles(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		GeneratedAt: FixedTime,
 	}
@@ -52,6 +55,7 @@ func TestAdversarial_ZeroTestFiles(t *testing.T) {
 
 // TestAdversarial_MeasurementsOnEmpty verifies measurement handles empty snapshot.
 func TestAdversarial_MeasurementsOnEmpty(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{}
 
 	reg := measurement.DefaultRegistry()
@@ -67,6 +71,7 @@ func TestAdversarial_MeasurementsOnEmpty(t *testing.T) {
 
 // TestAdversarial_ImpactEmptyScope verifies impact analysis handles empty scope.
 func TestAdversarial_ImpactEmptyScope(t *testing.T) {
+	t.Parallel()
 	snap := HealthyBalancedSnapshot()
 	scope := &impact.ChangeScope{
 		ChangedFiles: []impact.ChangedFile{},
@@ -84,6 +89,7 @@ func TestAdversarial_ImpactEmptyScope(t *testing.T) {
 
 // TestAdversarial_ImpactNonexistentFile verifies impact handles files not in snapshot.
 func TestAdversarial_ImpactNonexistentFile(t *testing.T) {
+	t.Parallel()
 	snap := MinimalSnapshot()
 	scope := &impact.ChangeScope{
 		ChangedFiles: []impact.ChangedFile{
@@ -104,6 +110,7 @@ func TestAdversarial_ImpactNonexistentFile(t *testing.T) {
 
 // TestAdversarial_HeatmapNoRisk verifies heatmap builds without risk data.
 func TestAdversarial_HeatmapNoRisk(t *testing.T) {
+	t.Parallel()
 	snap := MinimalSnapshot()
 	snap.Risk = nil
 
@@ -115,6 +122,7 @@ func TestAdversarial_HeatmapNoRisk(t *testing.T) {
 
 // TestAdversarial_LargeSignalVolume verifies scoring handles many signals.
 func TestAdversarial_LargeSignalVolume(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		GeneratedAt: FixedTime,
 	}
@@ -135,6 +143,7 @@ func TestAdversarial_LargeSignalVolume(t *testing.T) {
 
 // TestAdversarial_FilterByOwner_NoMatch verifies filter with nonexistent owner.
 func TestAdversarial_FilterByOwner_NoMatch(t *testing.T) {
+	t.Parallel()
 	result := &impact.ImpactResult{
 		ImpactedUnits: []impact.ImpactedCodeUnit{
 			{Name: "Foo", Owner: "team-a"},
@@ -154,6 +163,7 @@ func TestAdversarial_FilterByOwner_NoMatch(t *testing.T) {
 
 // TestAdversarial_NilSnapshot verifies analysis handles nil snapshot.
 func TestAdversarial_NilSnapshot(t *testing.T) {
+	t.Parallel()
 	defer func() {
 		if r := recover(); r != nil {
 			// Some functions may panic on nil; that is acceptable if documented.
@@ -167,6 +177,7 @@ func TestAdversarial_NilSnapshot(t *testing.T) {
 
 // TestAdversarial_ImpactLargeScope verifies impact with many changed files.
 func TestAdversarial_ImpactLargeScope(t *testing.T) {
+	t.Parallel()
 	snap := LargeScaleSnapshot()
 	var files []impact.ChangedFile
 	for i := 0; i < 100; i++ {
@@ -188,6 +199,7 @@ func TestAdversarial_ImpactLargeScope(t *testing.T) {
 
 // TestAdversarial_DuplicateSignals verifies scoring handles duplicate signals.
 func TestAdversarial_DuplicateSignals(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		GeneratedAt: FixedTime,
 		Signals: []models.Signal{
@@ -202,6 +214,7 @@ func TestAdversarial_DuplicateSignals(t *testing.T) {
 
 // TestAdversarial_MixedFrameworkMetrics verifies metrics on mixed-language repos.
 func TestAdversarial_MixedFrameworkMetrics(t *testing.T) {
+	t.Parallel()
 	snap := MixedFrameworkSnapshot()
 	ms := metrics.Derive(snap)
 
@@ -212,6 +225,7 @@ func TestAdversarial_MixedFrameworkMetrics(t *testing.T) {
 
 // TestAdversarial_DeepNestingMetrics verifies deeply nested paths don't break metrics.
 func TestAdversarial_DeepNestingMetrics(t *testing.T) {
+	t.Parallel()
 	snap := DeepNestingSnapshot()
 	ms := metrics.Derive(snap)
 
@@ -222,6 +236,7 @@ func TestAdversarial_DeepNestingMetrics(t *testing.T) {
 
 // TestAdversarial_OwnershipFragmentedScoring verifies scoring on fragmented ownership.
 func TestAdversarial_OwnershipFragmentedScoring(t *testing.T) {
+	t.Parallel()
 	snap := OwnershipFragmentedSnapshot()
 	snap.Risk = scoring.ComputeRisk(snap)
 
@@ -234,6 +249,7 @@ func TestAdversarial_OwnershipFragmentedScoring(t *testing.T) {
 
 // TestAdversarial_SuppressionHeavyMetrics verifies metrics on suppression-heavy repos.
 func TestAdversarial_SuppressionHeavyMetrics(t *testing.T) {
+	t.Parallel()
 	snap := SuppressionHeavySnapshot()
 	ms := metrics.Derive(snap)
 
@@ -244,6 +260,7 @@ func TestAdversarial_SuppressionHeavyMetrics(t *testing.T) {
 
 // TestAdversarial_AllSignalRendering verifies rendering with every signal type.
 func TestAdversarial_AllSignalRendering(t *testing.T) {
+	t.Parallel()
 	snap := AllSignalTypesSnapshot()
 	snap.Risk = scoring.ComputeRisk(snap)
 
@@ -257,6 +274,7 @@ func TestAdversarial_AllSignalRendering(t *testing.T) {
 
 // TestAdversarial_ImpactNilGraph verifies impact report renders with nil graph.
 func TestAdversarial_ImpactNilGraph(t *testing.T) {
+	t.Parallel()
 	result := &impact.ImpactResult{
 		Posture: impact.ChangeRiskPosture{Band: "evidence_limited"},
 		Graph:   nil,
@@ -271,6 +289,7 @@ func TestAdversarial_ImpactNilGraph(t *testing.T) {
 
 // TestAdversarial_CompareIdenticalSnapshots verifies comparison of identical snapshots.
 func TestAdversarial_CompareIdenticalSnapshots(t *testing.T) {
+	t.Parallel()
 	snap := MinimalSnapshot()
 	comp := comparison.Compare(snap, snap)
 

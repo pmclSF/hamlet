@@ -7,6 +7,7 @@ import (
 )
 
 func TestDerive_Empty(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{}
 	ms := Derive(snap)
 
@@ -19,6 +20,7 @@ func TestDerive_Empty(t *testing.T) {
 }
 
 func TestDerive_Structure(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: []models.TestFile{
 			{Path: "a.test.js"},
@@ -55,6 +57,7 @@ func TestDerive_Structure(t *testing.T) {
 }
 
 func TestDerive_HealthSignals(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: make([]models.TestFile, 10),
 		Signals: []models.Signal{
@@ -85,7 +88,28 @@ func TestDerive_HealthSignals(t *testing.T) {
 	}
 }
 
+func TestDerive_HealthSignals_UsesUniqueFilesForRatios(t *testing.T) {
+	t.Parallel()
+	snap := &models.TestSuiteSnapshot{
+		TestFiles: make([]models.TestFile, 4),
+		Signals: []models.Signal{
+			{Type: "slowTest", Location: models.SignalLocation{File: "a.test.js"}},
+			{Type: "slowTest", Location: models.SignalLocation{File: "a.test.js"}},
+			{Type: "slowTest", Location: models.SignalLocation{File: "b.test.js"}},
+		},
+	}
+
+	ms := Derive(snap)
+	if ms.Health.SlowTestCount != 2 {
+		t.Fatalf("slowTestCount = %d, want 2 unique files", ms.Health.SlowTestCount)
+	}
+	if ms.Health.SlowTestRatio != 0.5 {
+		t.Fatalf("slowTestRatio = %.2f, want 0.50", ms.Health.SlowTestRatio)
+	}
+}
+
 func TestDerive_QualitySignals(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: make([]models.TestFile, 5),
 		Signals: []models.Signal{
@@ -117,6 +141,7 @@ func TestDerive_QualitySignals(t *testing.T) {
 }
 
 func TestDerive_ChangeReadiness(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: make([]models.TestFile, 5),
 		Signals: []models.Signal{
@@ -151,6 +176,7 @@ func TestDerive_ChangeReadiness(t *testing.T) {
 }
 
 func TestDerive_RiskMetrics(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: make([]models.TestFile, 5),
 		Risk: []models.RiskSurface{
@@ -180,6 +206,7 @@ func TestDerive_RiskMetrics(t *testing.T) {
 }
 
 func TestDerive_GovernanceSignals(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: make([]models.TestFile, 5),
 		Signals: []models.Signal{
@@ -204,6 +231,7 @@ func TestDerive_GovernanceSignals(t *testing.T) {
 }
 
 func TestDerive_NoRuntimeNote(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: []models.TestFile{
 			{Path: "a.test.js"},
@@ -224,6 +252,7 @@ func TestDerive_NoRuntimeNote(t *testing.T) {
 }
 
 func TestDerive_WithRuntime(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: []models.TestFile{
 			{
@@ -243,6 +272,7 @@ func TestDerive_WithRuntime(t *testing.T) {
 }
 
 func TestSafeRatio(t *testing.T) {
+	t.Parallel()
 	if r := safeRatio(3, 10); r != 0.3 {
 		t.Errorf("safeRatio(3, 10) = %.2f, want 0.30", r)
 	}
@@ -252,6 +282,7 @@ func TestSafeRatio(t *testing.T) {
 }
 
 func TestDerive_QualityPostureBand(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		files    int
@@ -266,6 +297,7 @@ func TestDerive_QualityPostureBand(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := deriveQualityPosture(tt.quality, tt.files)
 			if got != tt.wantBand {
 				t.Errorf("deriveQualityPosture(%d, %d) = %q, want %q", tt.quality, tt.files, got, tt.wantBand)
@@ -275,6 +307,7 @@ func TestDerive_QualityPostureBand(t *testing.T) {
 }
 
 func TestDerive_MigrationReadinessBand(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: make([]models.TestFile, 10),
 		Signals: []models.Signal{
@@ -291,6 +324,7 @@ func TestDerive_MigrationReadinessBand(t *testing.T) {
 }
 
 func TestDerive_MigrationAreaCounts(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: []models.TestFile{
 			{Path: "safe/clean.test.js"},
@@ -311,6 +345,7 @@ func TestDerive_MigrationAreaCounts(t *testing.T) {
 }
 
 func TestDerive_QualityCompoundedBlockers(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: []models.TestFile{
 			{Path: "src/a.test.js"},
@@ -330,6 +365,7 @@ func TestDerive_QualityCompoundedBlockers(t *testing.T) {
 }
 
 func TestDerive_PrivacySafety_NoRawPaths(t *testing.T) {
+	t.Parallel()
 	// Verify that metrics.Snapshot contains no raw file paths.
 	// This is a structural test — the Snapshot type uses only counts,
 	// ratios, bands, and framework name strings.

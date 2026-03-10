@@ -19,10 +19,18 @@ func SortSnapshot(snap *TestSuiteSnapshot) {
 	if snap == nil {
 		return
 	}
+	normalizeCodeUnitIDs(snap)
 
 	sort.Slice(snap.TestFiles, func(i, j int) bool {
 		return snap.TestFiles[i].Path < snap.TestFiles[j].Path
 	})
+	for i := range snap.TestFiles {
+		tf := &snap.TestFiles[i]
+		if len(tf.LinkedCodeUnits) > 1 {
+			sort.Strings(tf.LinkedCodeUnits)
+		}
+		sortSignals(tf.Signals)
+	}
 
 	sort.Slice(snap.TestCases, func(i, j int) bool {
 		if snap.TestCases[i].TestID != snap.TestCases[j].TestID {
@@ -69,6 +77,25 @@ func SortSnapshot(snap *TestSuiteSnapshot) {
 		}
 		return a.UnitID < b.UnitID
 	})
+
+	normalizeSnapshotMaps(snap)
+}
+
+func normalizeCodeUnitIDs(snap *TestSuiteSnapshot) {
+	if snap == nil {
+		return
+	}
+	for i := range snap.CodeUnits {
+		cu := &snap.CodeUnits[i]
+		if cu.UnitID != "" || cu.Path == "" || cu.Name == "" {
+			continue
+		}
+		if cu.ParentName != "" {
+			cu.UnitID = cu.Path + ":" + cu.ParentName + "." + cu.Name
+			continue
+		}
+		cu.UnitID = cu.Path + ":" + cu.Name
+	}
 }
 
 // sortSignals sorts a slice of signals into canonical order.
@@ -89,4 +116,62 @@ func sortSignals(signals []Signal) {
 		}
 		return a.Explanation < b.Explanation
 	})
+}
+
+func normalizeSnapshotMaps(snap *TestSuiteSnapshot) {
+	if snap == nil {
+		return
+	}
+	for path, owners := range snap.Ownership {
+		if len(owners) <= 1 {
+			continue
+		}
+		dup := append([]string(nil), owners...)
+		sort.Strings(dup)
+		snap.Ownership[path] = dedupeStrings(dup)
+	}
+
+	if rulesRaw, ok := snap.Policies["rules"]; ok {
+		if rules, ok := rulesRaw.(map[string]any); ok {
+			if frameworksRaw, ok := rules["disallow_frameworks"]; ok {
+				if frameworks, ok := toStringSlice(frameworksRaw); ok {
+					sort.Strings(frameworks)
+					rules["disallow_frameworks"] = frameworks
+				}
+			}
+		}
+	}
+}
+
+func toStringSlice(v any) ([]string, bool) {
+	switch arr := v.(type) {
+	case []string:
+		out := append([]string(nil), arr...)
+		return out, true
+	case []any:
+		out := make([]string, 0, len(arr))
+		for _, item := range arr {
+			s, ok := item.(string)
+			if !ok {
+				return nil, false
+			}
+			out = append(out, s)
+		}
+		return out, true
+	default:
+		return nil, false
+	}
+}
+
+func dedupeStrings(items []string) []string {
+	if len(items) < 2 {
+		return items
+	}
+	out := items[:0]
+	for i, item := range items {
+		if i == 0 || item != items[i-1] {
+			out = append(out, item)
+		}
+	}
+	return out
 }

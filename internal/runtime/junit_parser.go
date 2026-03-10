@@ -4,6 +4,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 )
@@ -62,8 +63,9 @@ type junitSkipped struct {
 //   - classname and file attributes
 //
 // Limitations:
-//   - retry/rerun detection requires convention: duplicate test names
-//     within the same suite are treated as retries
+//   - retry/rerun detection is heuristic and based on repeated identity
+//     (suite + file/class + test name), with pass-only duplicates treated as
+//     duplicate reporting rather than retries
 //   - no support for custom properties or attachments
 func ParseJUnitXML(path string) (*IngestionResult, error) {
 	data, err := os.ReadFile(path)
@@ -78,19 +80,27 @@ func ParseJUnitXML(path string) (*IngestionResult, error) {
 
 	var results []TestResult
 	for _, suite := range suites {
-		// Track test names within suite to detect retries.
-		seen := map[string]int{}
+		// Track test identity within a suite to detect retries conservatively.
+		seenAttempts := map[string]int{}
+		seenStatuses := map[string][]TestStatus{}
 		for _, tc := range suite.TestCases {
-			attempt := seen[tc.Name]
-			seen[tc.Name]++
+			status := junitStatus(tc)
+			key := junitRetryKey(suite.Name, tc)
+			attempt := seenAttempts[key]
+			retried := false
+			if attempt > 0 {
+				retried = shouldMarkRetry(seenStatuses[key], status)
+			}
+			seenAttempts[key]++
+			seenStatuses[key] = append(seenStatuses[key], status)
 
 			result := TestResult{
 				Name:         tc.Name,
 				Suite:        suite.Name,
 				File:         resolveFile(tc.File, tc.ClassName),
 				DurationMs:   parseSeconds(tc.Time) * 1000,
-				Status:       junitStatus(tc),
-				Retried:      attempt > 0,
+				Status:       status,
+				Retried:      retried,
 				RetryAttempt: attempt,
 			}
 
@@ -109,6 +119,35 @@ func ParseJUnitXML(path string) (*IngestionResult, error) {
 		Format:     "junit-xml",
 		SourcePath: path,
 	}, nil
+}
+
+func junitRetryKey(suite string, tc junitTestCase) string {
+	file := resolveFile(tc.File, tc.ClassName)
+	if file != "" {
+		file = filepath.ToSlash(file)
+	}
+	return suite + "|" + file + "|" + tc.ClassName + "|" + tc.Name
+}
+
+func shouldMarkRetry(previous []TestStatus, current TestStatus) bool {
+	if len(previous) == 0 {
+		return false
+	}
+	// If all observed results are passes (including the current one), this is
+	// likely duplicate reporting (e.g., shard aggregation) rather than a retry.
+	if current == StatusPassed {
+		allPassed := true
+		for _, s := range previous {
+			if s != StatusPassed {
+				allPassed = false
+				break
+			}
+		}
+		if allPassed {
+			return false
+		}
+	}
+	return true
 }
 
 func parseJUnitSuites(data []byte) ([]junitTestSuite, error) {

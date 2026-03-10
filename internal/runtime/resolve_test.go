@@ -7,6 +7,7 @@ import (
 )
 
 func TestResolveTestIDs_ExactMatch(t *testing.T) {
+	t.Parallel()
 	results := []TestResult{
 		{Name: "validates token", File: "src/auth/auth.test.js"},
 		{Name: "creates user", File: "src/api/api.test.js"},
@@ -29,6 +30,7 @@ func TestResolveTestIDs_ExactMatch(t *testing.T) {
 }
 
 func TestResolveTestIDs_SuffixMatch(t *testing.T) {
+	t.Parallel()
 	results := []TestResult{
 		{Name: "validates token", File: "/home/ci/project/src/auth/auth.test.js"},
 	}
@@ -46,6 +48,7 @@ func TestResolveTestIDs_SuffixMatch(t *testing.T) {
 }
 
 func TestResolveTestIDs_FuzzyNameMatch(t *testing.T) {
+	t.Parallel()
 	results := []TestResult{
 		{Name: "validates token with param=42", File: "src/auth/auth.test.js"},
 	}
@@ -60,6 +63,7 @@ func TestResolveTestIDs_FuzzyNameMatch(t *testing.T) {
 }
 
 func TestResolveTestIDs_NoMatch(t *testing.T) {
+	t.Parallel()
 	results := []TestResult{
 		{Name: "unknown test", File: "unknown/file.js"},
 	}
@@ -77,6 +81,7 @@ func TestResolveTestIDs_NoMatch(t *testing.T) {
 }
 
 func TestResolveTestIDs_EmptyInputs(t *testing.T) {
+	t.Parallel()
 	if ResolveTestIDs(nil, nil) != 0 {
 		t.Error("nil inputs should return 0")
 	}

@@ -72,10 +72,10 @@ func BuildAssets(snap *models.TestSuiteSnapshot) []TestAsset {
 
 func classifyCost(a TestAsset) CostClass {
 	if !a.HasRuntimeData {
-		// Infer from test type when no runtime data.
+		// Keep no-runtime classifications conservative to avoid overstating cost.
 		switch a.TestType {
 		case "e2e":
-			return CostHigh
+			return CostModerate
 		case "integration":
 			return CostModerate
 		default:
@@ -159,21 +159,29 @@ type linkedUnit struct {
 }
 
 func buildLinkedUnitIndex(snap *models.TestSuiteSnapshot) map[string][]linkedUnit {
-	// Map code unit names to their details.
-	unitsByName := map[string]*models.CodeUnit{}
+	// Map code unit references (UnitID and Name) to all matching code units.
+	unitsByRef := map[string][]*models.CodeUnit{}
 	for i := range snap.CodeUnits {
 		cu := &snap.CodeUnits[i]
-		unitsByName[cu.Name] = cu
+		if cu.Name != "" {
+			unitsByRef[cu.Name] = append(unitsByRef[cu.Name], cu)
+		}
 		if cu.UnitID != "" {
-			unitsByName[cu.UnitID] = cu
+			unitsByRef[cu.UnitID] = append(unitsByRef[cu.UnitID], cu)
 		}
 	}
 
 	index := map[string][]linkedUnit{}
 	for _, tf := range snap.TestFiles {
-		for _, name := range tf.LinkedCodeUnits {
-			cu := unitsByName[name]
-			if cu != nil {
+		seen := map[string]bool{}
+		for _, ref := range tf.LinkedCodeUnits {
+			candidates := unitsByRef[ref]
+			for _, cu := range candidates {
+				key := cu.UnitID + "|" + cu.Path
+				if seen[key] {
+					continue
+				}
+				seen[key] = true
 				index[tf.Path] = append(index[tf.Path], linkedUnit{
 					UnitID:   cu.UnitID,
 					Path:     cu.Path,

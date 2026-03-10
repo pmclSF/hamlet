@@ -12,6 +12,7 @@ func float64Ptr(v float64) *float64 { return &v }
 func intPtr(v int) *int             { return &v }
 
 func TestEvaluate_NoPolicy(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{}
 	result := Evaluate(snap, nil)
 	if !result.Pass {
@@ -23,6 +24,7 @@ func TestEvaluate_NoPolicy(t *testing.T) {
 }
 
 func TestEvaluate_EmptyPolicy(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{}
 	cfg := &policy.Config{}
 	result := Evaluate(snap, cfg)
@@ -32,6 +34,7 @@ func TestEvaluate_EmptyPolicy(t *testing.T) {
 }
 
 func TestEvaluate_DisallowedFramework(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		Repository: models.RepositoryMetadata{Name: "test-repo"},
 		Frameworks: []models.Framework{
@@ -62,6 +65,7 @@ func TestEvaluate_DisallowedFramework(t *testing.T) {
 }
 
 func TestEvaluate_DisallowedFramework_CaseInsensitive(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		Frameworks: []models.Framework{
 			{Name: "Jest", FileCount: 5},
@@ -80,6 +84,7 @@ func TestEvaluate_DisallowedFramework_CaseInsensitive(t *testing.T) {
 }
 
 func TestEvaluate_SkippedTests(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		Repository: models.RepositoryMetadata{Name: "test-repo"},
 		Signals: []models.Signal{
@@ -106,6 +111,7 @@ func TestEvaluate_SkippedTests(t *testing.T) {
 }
 
 func TestEvaluate_SkippedTests_NonePresent(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{}
 	cfg := &policy.Config{
 		Rules: policy.Rules{
@@ -119,7 +125,77 @@ func TestEvaluate_SkippedTests_NonePresent(t *testing.T) {
 	}
 }
 
+func TestEvaluate_SkippedTests_CountsBeyondTopFiveFiles(t *testing.T) {
+	t.Parallel()
+	signals := make([]models.Signal, 0, 6)
+	for i := 0; i < 6; i++ {
+		signals = append(signals, models.Signal{
+			Type: "skippedTest",
+			Location: models.SignalLocation{
+				File: "test/skip" + string(rune('A'+i)) + ".test.js",
+			},
+		})
+	}
+
+	snap := &models.TestSuiteSnapshot{
+		Repository: models.RepositoryMetadata{Name: "test-repo"},
+		Signals:    signals,
+	}
+	cfg := &policy.Config{
+		Rules: policy.Rules{
+			DisallowSkippedTests: boolPtr(true),
+		},
+	}
+
+	result := Evaluate(snap, cfg)
+	if result.Pass {
+		t.Fatal("expected FAIL when skipped tests exist across more than five files")
+	}
+	if len(result.Violations) != 1 {
+		t.Fatalf("expected 1 violation, got %d", len(result.Violations))
+	}
+	gotCount, ok := result.Violations[0].Metadata["skippedCount"].(int)
+	if !ok {
+		t.Fatalf("expected skippedCount metadata as int, got %T", result.Violations[0].Metadata["skippedCount"])
+	}
+	if gotCount != 6 {
+		t.Fatalf("skippedCount metadata = %d, want 6", gotCount)
+	}
+}
+
+func TestEvaluate_SkippedTests_CountsMixedRepoAndFileLevel(t *testing.T) {
+	t.Parallel()
+	snap := &models.TestSuiteSnapshot{
+		Repository: models.RepositoryMetadata{Name: "test-repo"},
+		Signals: []models.Signal{
+			{Type: "skippedTest", Location: models.SignalLocation{File: "test/a.test.js"}},
+			{Type: "skippedTest", Location: models.SignalLocation{Repository: "test-repo"}},
+		},
+	}
+	cfg := &policy.Config{
+		Rules: policy.Rules{
+			DisallowSkippedTests: boolPtr(true),
+		},
+	}
+
+	result := Evaluate(snap, cfg)
+	if result.Pass {
+		t.Fatal("expected FAIL when skipped tests exist")
+	}
+	if len(result.Violations) != 1 {
+		t.Fatalf("expected 1 violation, got %d", len(result.Violations))
+	}
+	gotCount, ok := result.Violations[0].Metadata["skippedCount"].(int)
+	if !ok {
+		t.Fatalf("expected skippedCount metadata as int, got %T", result.Violations[0].Metadata["skippedCount"])
+	}
+	if gotCount != 2 {
+		t.Fatalf("skippedCount metadata = %d, want 2", gotCount)
+	}
+}
+
 func TestEvaluate_RuntimeBudget(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: []models.TestFile{
 			{Path: "test/fast.test.js", RuntimeStats: &models.RuntimeStats{AvgRuntimeMs: 1000}},
@@ -145,6 +221,7 @@ func TestEvaluate_RuntimeBudget(t *testing.T) {
 }
 
 func TestEvaluate_RuntimeBudget_AllUnderBudget(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: []models.TestFile{
 			{Path: "test/fast.test.js", RuntimeStats: &models.RuntimeStats{AvgRuntimeMs: 1000}},
@@ -163,6 +240,7 @@ func TestEvaluate_RuntimeBudget_AllUnderBudget(t *testing.T) {
 }
 
 func TestEvaluate_CoverageThreshold(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		Repository: models.RepositoryMetadata{Name: "test-repo"},
 		Signals: []models.Signal{
@@ -182,6 +260,7 @@ func TestEvaluate_CoverageThreshold(t *testing.T) {
 }
 
 func TestEvaluate_WeakAssertionThreshold(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		Repository: models.RepositoryMetadata{Name: "test-repo"},
 		Signals: []models.Signal{
@@ -203,6 +282,7 @@ func TestEvaluate_WeakAssertionThreshold(t *testing.T) {
 }
 
 func TestEvaluate_WeakAssertionThreshold_CountsBeyondTopFiveFiles(t *testing.T) {
+	t.Parallel()
 	signals := make([]models.Signal, 0, 6)
 	for i := 0; i < 6; i++ {
 		signals = append(signals, models.Signal{
@@ -240,6 +320,7 @@ func TestEvaluate_WeakAssertionThreshold_CountsBeyondTopFiveFiles(t *testing.T) 
 }
 
 func TestEvaluate_WeakAssertionThreshold_UnderLimit(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		Signals: []models.Signal{
 			{Type: "weakAssertion"},
@@ -258,6 +339,7 @@ func TestEvaluate_WeakAssertionThreshold_UnderLimit(t *testing.T) {
 }
 
 func TestEvaluate_MockHeavyThreshold(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		Repository: models.RepositoryMetadata{Name: "test-repo"},
 		Signals: []models.Signal{
@@ -278,6 +360,7 @@ func TestEvaluate_MockHeavyThreshold(t *testing.T) {
 }
 
 func TestEvaluate_MockHeavyThreshold_CountsBeyondTopFiveFiles(t *testing.T) {
+	t.Parallel()
 	signals := make([]models.Signal, 0, 6)
 	for i := 0; i < 6; i++ {
 		signals = append(signals, models.Signal{
@@ -314,7 +397,87 @@ func TestEvaluate_MockHeavyThreshold_CountsBeyondTopFiveFiles(t *testing.T) {
 	}
 }
 
+func TestEvaluate_WeakAssertionThreshold_SizeAdjustedLargeRepo(t *testing.T) {
+	t.Parallel()
+	testFiles := make([]models.TestFile, 1000)
+	signals := make([]models.Signal, 0, 50)
+	for i := 0; i < 50; i++ {
+		signals = append(signals, models.Signal{Type: "weakAssertion"})
+	}
+
+	snap := &models.TestSuiteSnapshot{
+		TestFiles: testFiles,
+		Signals:   signals,
+	}
+	cfg := &policy.Config{
+		Rules: policy.Rules{
+			MaxWeakAssertions: intPtr(10), // scales to 100 for 1000 files
+		},
+	}
+
+	result := Evaluate(snap, cfg)
+	if !result.Pass {
+		t.Fatal("expected PASS when weakAssertion count is under size-adjusted threshold")
+	}
+}
+
+func TestEvaluate_WeakAssertionThreshold_SizeAdjustedViolation(t *testing.T) {
+	t.Parallel()
+	testFiles := make([]models.TestFile, 1000)
+	signals := make([]models.Signal, 0, 120)
+	for i := 0; i < 120; i++ {
+		signals = append(signals, models.Signal{Type: "weakAssertion"})
+	}
+
+	snap := &models.TestSuiteSnapshot{
+		Repository: models.RepositoryMetadata{Name: "test-repo"},
+		TestFiles:  testFiles,
+		Signals:    signals,
+	}
+	cfg := &policy.Config{
+		Rules: policy.Rules{
+			MaxWeakAssertions: intPtr(10),
+		},
+	}
+
+	result := Evaluate(snap, cfg)
+	if result.Pass {
+		t.Fatal("expected FAIL when weakAssertion count exceeds size-adjusted threshold")
+	}
+	if len(result.Violations) != 1 {
+		t.Fatalf("expected 1 violation, got %d", len(result.Violations))
+	}
+	if gotMax, ok := result.Violations[0].Metadata["max"].(int); !ok || gotMax != 100 {
+		t.Fatalf("expected metadata max=100, got %#v", result.Violations[0].Metadata["max"])
+	}
+}
+
+func TestEvaluate_MockHeavyThreshold_SizeAdjustedLargeRepo(t *testing.T) {
+	t.Parallel()
+	testFiles := make([]models.TestFile, 800)
+	signals := make([]models.Signal, 0, 60)
+	for i := 0; i < 60; i++ {
+		signals = append(signals, models.Signal{Type: "mockHeavyTest"})
+	}
+
+	snap := &models.TestSuiteSnapshot{
+		TestFiles: testFiles,
+		Signals:   signals,
+	}
+	cfg := &policy.Config{
+		Rules: policy.Rules{
+			MaxMockHeavyTests: intPtr(10), // scales to 80 for 800 files
+		},
+	}
+
+	result := Evaluate(snap, cfg)
+	if !result.Pass {
+		t.Fatal("expected PASS when mockHeavy count is under size-adjusted threshold")
+	}
+}
+
 func TestEvaluate_NoViolations(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		Frameworks: []models.Framework{
 			{Name: "vitest", FileCount: 10},

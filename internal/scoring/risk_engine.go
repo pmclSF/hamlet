@@ -12,12 +12,16 @@ package scoring
 
 import (
 	"fmt"
+	"math"
 	"path/filepath"
 	"sort"
 	"strings"
 
 	"github.com/pmclSF/hamlet/internal/models"
 )
+
+// RiskModelVersion increments when scoring methodology changes.
+const RiskModelVersion = "2.0.0"
 
 // Severity weights for risk score computation.
 // These are explicit so future stages can tune them transparently.
@@ -45,11 +49,11 @@ var changeRiskSignals = map[models.SignalType]bool{
 	"testsOnlyMocks":         true,
 	"coverageBlindSpot":      true,
 	"coverageThresholdBreak": true,
-	"migrationBlocker":          true,
-	"deprecatedTestPattern":    true,
-	"dynamicTestGeneration":    true,
-	"customMatcherRisk":        true,
-	"unsupportedSetup":         true,
+	"migrationBlocker":       true,
+	"deprecatedTestPattern":  true,
+	"dynamicTestGeneration":  true,
+	"customMatcherRisk":      true,
+	"unsupportedSetup":       true,
 }
 
 var speedSignals = map[models.SignalType]bool{
@@ -57,24 +61,44 @@ var speedSignals = map[models.SignalType]bool{
 	"runtimeBudgetExceeded": true,
 }
 
+var governanceSignals = map[models.SignalType]bool{
+	"policyViolation":       true,
+	"legacyFrameworkUsage":  true,
+	"runtimeBudgetExceeded": true,
+}
+
 // ComputeRisk generates risk surfaces from the signals in the snapshot.
 //
-// Risk is density-normalized: scores are computed relative to the number
-// of test files so that a 5000-test repo with 10 issues isn't treated
-// the same as a 50-test repo with 10 issues.
+// Risk uses a hybrid score:
+//   - density score (weighted issues per 10 files)
+//   - absolute burden score (log-scaled weight and count)
+//
+// The final score is the maximum of those two signals, which preserves
+// local concentration while avoiding under-reporting severe absolute burden
+// in very large repositories.
 //
 // Currently computes:
-//   - repository-level reliability, change, and speed risk
+//   - repository-level reliability, change, speed, and governance risk
 //   - directory-level change risk rollups
 func ComputeRisk(snap *models.TestSuiteSnapshot) []models.RiskSurface {
 	var surfaces []models.RiskSurface
 
 	totalFiles := len(snap.TestFiles)
+	previousRepoBands := previousRepositoryBands(snap.Risk)
 
 	// Repository-level risk
-	surfaces = append(surfaces, computeRepoRisk(snap.Signals, "reliability", reliabilitySignals, totalFiles)...)
-	surfaces = append(surfaces, computeRepoRisk(snap.Signals, "change", changeRiskSignals, totalFiles)...)
-	surfaces = append(surfaces, computeRepoRisk(snap.Signals, "speed", speedSignals, totalFiles)...)
+	surfaces = append(surfaces, computeRepoRisk(
+		snap.Signals, "reliability", reliabilitySignals, totalFiles, previousRepoBands["reliability"],
+	)...)
+	surfaces = append(surfaces, computeRepoRisk(
+		snap.Signals, "change", changeRiskSignals, totalFiles, previousRepoBands["change"],
+	)...)
+	surfaces = append(surfaces, computeRepoRisk(
+		snap.Signals, "speed", speedSignals, totalFiles, previousRepoBands["speed"],
+	)...)
+	surfaces = append(surfaces, computeRepoRisk(
+		snap.Signals, "governance", governanceSignals, totalFiles, previousRepoBands["governance"],
+	)...)
 
 	// Directory-level change risk rollups
 	surfaces = append(surfaces, computeDirectoryRisk(snap)...)
@@ -83,8 +107,15 @@ func ComputeRisk(snap *models.TestSuiteSnapshot) []models.RiskSurface {
 }
 
 // computeRepoRisk computes a single risk dimension at repo scope.
-// totalFiles is used to normalize the score by signal density.
-func computeRepoRisk(signals []models.Signal, riskType string, relevant map[models.SignalType]bool, totalFiles int) []models.RiskSurface {
+// totalFiles is used for density normalization; absolute burden is always
+// considered to avoid masking severe issues in large suites.
+func computeRepoRisk(
+	signals []models.Signal,
+	riskType string,
+	relevant map[models.SignalType]bool,
+	totalFiles int,
+	previousBand models.RiskBand,
+) []models.RiskSurface {
 	var contributing []models.Signal
 	var totalWeight float64
 
@@ -99,25 +130,59 @@ func computeRepoRisk(signals []models.Signal, riskType string, relevant map[mode
 		return nil
 	}
 
-	// Normalize by test file count: density = weight per 10 files.
-	// This ensures a 5000-file repo with 10 issues isn't treated
-	// the same as a 50-file repo with 10 issues.
-	normalizedScore := totalWeight
-	if totalFiles > 0 {
-		normalizedScore = (totalWeight / float64(totalFiles)) * 10.0
+	score := computeHybridScore(totalWeight, len(contributing), totalFiles)
+	if riskType == "governance" && score < 4 && hasGovernanceFloorTrigger(contributing) {
+		score = 4
 	}
-	band := scoreToBand(normalizedScore)
+	band := scoreToBandWithHysteresis(score, previousBand)
 
 	return []models.RiskSurface{{
 		Type:                riskType,
 		Scope:               "repository",
 		ScopeName:           "repo",
 		Band:                band,
-		Score:               normalizedScore,
+		Score:               score,
 		ContributingSignals: contributing,
-		Explanation:         buildExplanation(riskType, band, contributing, totalFiles),
+		Explanation:         buildExplanation(riskType, band, contributing, totalFiles, totalWeight, score),
 		SuggestedAction:     buildSuggestedAction(riskType, band),
 	}}
+}
+
+func previousRepositoryBands(risk []models.RiskSurface) map[string]models.RiskBand {
+	byType := map[string]models.RiskBand{}
+	for _, r := range risk {
+		if r.Scope != "repository" || r.Type == "" {
+			continue
+		}
+		byType[r.Type] = r.Band
+	}
+	return byType
+}
+
+func hasGovernanceFloorTrigger(signals []models.Signal) bool {
+	for _, s := range signals {
+		if s.Type == "policyViolation" || severityRank(s.Severity) >= severityRank(models.SeverityHigh) {
+			return true
+		}
+	}
+	return false
+}
+
+func severityRank(sev models.SignalSeverity) int {
+	switch sev {
+	case models.SeverityCritical:
+		return 5
+	case models.SeverityHigh:
+		return 4
+	case models.SeverityMedium:
+		return 3
+	case models.SeverityLow:
+		return 2
+	case models.SeverityInfo:
+		return 1
+	default:
+		return 0
+	}
 }
 
 // computeDirectoryRisk groups signals by directory and computes per-directory risk.
@@ -158,8 +223,11 @@ func computeDirectoryRisk(snap *models.TestSuiteSnapshot) []models.RiskSurface {
 	var surfaces []models.RiskSurface
 	for _, dir := range dirs {
 		sigs := dirSignals[dir]
-		if len(sigs) < 2 {
-			continue // Only flag directories with multiple signals
+		// Flag directories with multiple signals, or single signals at
+		// high/critical severity — a lone high-severity issue in a
+		// directory still represents concentrated risk worth surfacing.
+		if len(sigs) < 2 && !hasHighSeveritySignal(sigs) {
+			continue
 		}
 		// Normalize by directory file count.
 		fileCount := dirFileCount[dir]
@@ -214,7 +282,87 @@ func scoreToBand(score float64) models.RiskBand {
 	}
 }
 
-func buildExplanation(riskType string, band models.RiskBand, signals []models.Signal, totalFiles int) string {
+func scoreToBandWithHysteresis(score float64, previousBand models.RiskBand) models.RiskBand {
+	if previousBand == "" {
+		return scoreToBand(score)
+	}
+
+	// Deadband around thresholds to reduce band flapping near boundaries.
+	const hysteresis = 0.5
+	lowUp := 4.0 + hysteresis
+	mediumDown := 4.0 - hysteresis
+	mediumUp := 9.0 + hysteresis
+	highDown := 9.0 - hysteresis
+	highUp := 16.0 + hysteresis
+	criticalDown := 16.0 - hysteresis
+
+	switch previousBand {
+	case models.RiskBandLow:
+		switch {
+		case score >= highUp:
+			return models.RiskBandCritical
+		case score >= mediumUp:
+			return models.RiskBandHigh
+		case score >= lowUp:
+			return models.RiskBandMedium
+		default:
+			return models.RiskBandLow
+		}
+	case models.RiskBandMedium:
+		switch {
+		case score >= highUp:
+			return models.RiskBandCritical
+		case score >= mediumUp:
+			return models.RiskBandHigh
+		case score < mediumDown:
+			return models.RiskBandLow
+		default:
+			return models.RiskBandMedium
+		}
+	case models.RiskBandHigh:
+		switch {
+		case score >= highUp:
+			return models.RiskBandCritical
+		case score < highDown:
+			if score < mediumDown {
+				return models.RiskBandLow
+			}
+			return models.RiskBandMedium
+		default:
+			return models.RiskBandHigh
+		}
+	case models.RiskBandCritical:
+		if score < criticalDown {
+			if score < highDown {
+				if score < mediumDown {
+					return models.RiskBandLow
+				}
+				return models.RiskBandMedium
+			}
+			return models.RiskBandHigh
+		}
+		return models.RiskBandCritical
+	default:
+		return scoreToBand(score)
+	}
+}
+
+func computeHybridScore(totalWeight float64, signalCount, totalFiles int) float64 {
+	densityScore := totalWeight
+	if totalFiles > 0 {
+		densityScore = (totalWeight / float64(totalFiles)) * 10.0
+	}
+
+	// Absolute burden: log-scaled so large repos are comparable while still
+	// surfacing substantial issue volume even at low density.
+	absoluteScore := (math.Log1p(totalWeight) * 1.2) + (math.Log1p(float64(signalCount)) * 0.8)
+	if densityScore > absoluteScore {
+		return densityScore
+	}
+	return absoluteScore
+}
+
+func buildExplanation(riskType string, band models.RiskBand, signals []models.Signal, totalFiles int, totalWeight, score float64) string {
 	// Count by type for a useful explanation
 	typeCounts := map[models.SignalType]int{}
 	for _, s := range signals {
@@ -227,14 +375,15 @@ func buildExplanation(riskType string, band models.RiskBand, signals []models.Si
 	}
 	sort.Strings(parts)
 
-	density := ""
+	density := "n/a"
 	if totalFiles > 0 {
-		pct := float64(len(signals)) / float64(totalFiles) * 100
-		density = fmt.Sprintf(" (%.0f%% of %d test files affected)", pct, totalFiles)
+		densityScore := (totalWeight / float64(totalFiles)) * 10.0
+		density = fmt.Sprintf("%.2f/10 across %d test files", densityScore, totalFiles)
 	}
+	absoluteScore := (math.Log1p(totalWeight) * 1.2) + (math.Log1p(float64(len(signals))) * 0.8)
 
-	return fmt.Sprintf("%s risk is %s based on %d signals%s: %s.",
-		titleRiskType(riskType), band, len(signals), density, strings.Join(parts, ", "))
+	return fmt.Sprintf("%s risk is %s (score %.2f) from %d signal(s): density=%s, absolute=%.2f, types=%s.",
+		titleRiskType(riskType), band, score, len(signals), density, absoluteScore, strings.Join(parts, ", "))
 }
 
 func buildSuggestedAction(riskType string, band models.RiskBand) string {
@@ -248,6 +397,8 @@ func buildSuggestedAction(riskType string, band models.RiskBand) string {
 		return "Improve test coverage and assertion quality to reduce change risk."
 	case "speed":
 		return "Identify and optimize slow tests to maintain fast feedback loops."
+	case "governance":
+		return "Address policy violations and governance findings before expanding test investments."
 	default:
 		return "Review contributing signals and address highest-severity items first."
 	}
@@ -258,4 +409,13 @@ func titleRiskType(riskType string) string {
 		return riskType
 	}
 	return strings.ToUpper(riskType[:1]) + riskType[1:]
+}
+
+func hasHighSeveritySignal(signals []models.Signal) bool {
+	for _, s := range signals {
+		if s.Severity == models.SeverityHigh || s.Severity == models.SeverityCritical {
+			return true
+		}
+	}
+	return false
 }

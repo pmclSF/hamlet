@@ -3,6 +3,7 @@ package ownership
 import "testing"
 
 func TestNormalizeGitOwnerID(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		in   string
@@ -37,6 +38,7 @@ func TestNormalizeGitOwnerID(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			got := normalizeGitOwnerID(tc.in)
 			if got != tc.want {
 				t.Fatalf("normalizeGitOwnerID(%q) = %q, want %q", tc.in, got, tc.want)

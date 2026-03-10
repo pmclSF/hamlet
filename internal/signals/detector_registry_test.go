@@ -16,7 +16,17 @@ func (d *stubDetector) Detect(_ *models.TestSuiteSnapshot) []models.Signal {
 	return d.signals
 }
 
+type dependentStubDetector struct{}
+
+func (d *dependentStubDetector) Detect(snap *models.TestSuiteSnapshot) []models.Signal {
+	if len(snap.Signals) == 0 {
+		return []models.Signal{{Type: "policyViolation", Category: models.CategoryGovernance, Explanation: "no upstream signals"}}
+	}
+	return []models.Signal{{Type: "policyViolation", Category: models.CategoryGovernance, Explanation: "upstream signals present"}}
+}
+
 func TestNewRegistry_Empty(t *testing.T) {
+	t.Parallel()
 	r := NewRegistry()
 	if r.Len() != 0 {
 		t.Errorf("new registry Len() = %d, want 0", r.Len())
@@ -27,6 +37,7 @@ func TestNewRegistry_Empty(t *testing.T) {
 }
 
 func TestRegistry_Register(t *testing.T) {
+	t.Parallel()
 	r := NewRegistry()
 	r.Register(DetectorRegistration{
 		Meta:     DetectorMeta{ID: "test.a", Domain: DomainQuality},
@@ -48,6 +59,7 @@ func TestRegistry_Register(t *testing.T) {
 }
 
 func TestRegistry_ByDomain(t *testing.T) {
+	t.Parallel()
 	r := NewRegistry()
 	r.Register(DetectorRegistration{
 		Meta:     DetectorMeta{ID: "q1", Domain: DomainQuality},
@@ -82,6 +94,7 @@ func TestRegistry_ByDomain(t *testing.T) {
 }
 
 func TestRegistry_Run(t *testing.T) {
+	t.Parallel()
 	r := NewRegistry()
 	r.Register(DetectorRegistration{
 		Meta: DetectorMeta{ID: "d1", Domain: DomainQuality},
@@ -115,6 +128,7 @@ func TestRegistry_Run(t *testing.T) {
 }
 
 func TestRegistry_RunDomain(t *testing.T) {
+	t.Parallel()
 	r := NewRegistry()
 	r.Register(DetectorRegistration{
 		Meta: DetectorMeta{ID: "q1", Domain: DomainQuality},
@@ -141,6 +155,7 @@ func TestRegistry_RunDomain(t *testing.T) {
 }
 
 func TestRegistry_Detectors(t *testing.T) {
+	t.Parallel()
 	r := NewRegistry()
 	d1 := &stubDetector{id: "a"}
 	d2 := &stubDetector{id: "b"}
@@ -160,6 +175,7 @@ func TestRegistry_Detectors(t *testing.T) {
 }
 
 func TestRegistry_DeterministicOutput_DifferentRegistrationOrder(t *testing.T) {
+	t.Parallel()
 	makeSignals := func(order []string) []models.Signal {
 		r := NewRegistry()
 		for _, id := range order {
@@ -199,6 +215,7 @@ func TestRegistry_DeterministicOutput_DifferentRegistrationOrder(t *testing.T) {
 }
 
 func TestRegistry_All_ReturnsCopy(t *testing.T) {
+	t.Parallel()
 	r := NewRegistry()
 	r.Register(DetectorRegistration{
 		Meta:     DetectorMeta{ID: "a"},
@@ -211,5 +228,52 @@ func TestRegistry_All_ReturnsCopy(t *testing.T) {
 	// Original should be unchanged.
 	if r.All()[0].Meta.ID != "a" {
 		t.Error("All() did not return a copy — mutation leaked")
+	}
+}
+
+func TestRegistry_Register_DependencyOrderEnforced(t *testing.T) {
+	t.Parallel()
+	r := NewRegistry()
+	r.Register(DetectorRegistration{
+		Meta:     DetectorMeta{ID: "dependent", DependsOnSignals: true},
+		Detector: &stubDetector{},
+	})
+
+	defer func() {
+		if recover() == nil {
+			t.Fatal("expected panic when registering non-dependent detector after dependent detector")
+		}
+	}()
+	r.Register(DetectorRegistration{
+		Meta:     DetectorMeta{ID: "non-dependent", DependsOnSignals: false},
+		Detector: &stubDetector{},
+	})
+}
+
+func TestRegistry_Run_DependentDetectorsAfterIndependentPhase(t *testing.T) {
+	t.Parallel()
+	r := NewRegistry()
+	r.Register(DetectorRegistration{
+		Meta: DetectorMeta{ID: "q", Domain: DomainQuality},
+		Detector: &stubDetector{signals: []models.Signal{
+			{Type: "weakAssertion", Category: models.CategoryQuality, Explanation: "weak"},
+		}},
+	})
+	r.Register(DetectorRegistration{
+		Meta:     DetectorMeta{ID: "g", Domain: DomainGovernance, DependsOnSignals: true},
+		Detector: &dependentStubDetector{},
+	})
+
+	snap := &models.TestSuiteSnapshot{}
+	r.Run(snap)
+	if len(snap.Signals) != 2 {
+		t.Fatalf("Run produced %d signals, want 2", len(snap.Signals))
+	}
+	last := snap.Signals[len(snap.Signals)-1]
+	if last.Type != "policyViolation" {
+		t.Fatalf("last signal type = %q, want policyViolation", last.Type)
+	}
+	if last.Explanation != "upstream signals present" {
+		t.Fatalf("dependent detector did not observe upstream signals, explanation=%q", last.Explanation)
 	}
 }

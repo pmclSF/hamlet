@@ -8,6 +8,7 @@ import (
 )
 
 func TestBuildHealthSummaries(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		Signals: []models.Signal{
 			{Type: signals.SignalFlakyTest, Category: models.CategoryHealth, Owner: "team-auth", Location: models.SignalLocation{File: "src/auth/login.test.js"}},
@@ -36,6 +37,7 @@ func TestBuildHealthSummaries(t *testing.T) {
 }
 
 func TestBuildQualitySummaries(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		Signals: []models.Signal{
 			{Type: signals.SignalWeakAssertion, Category: models.CategoryQuality, Owner: "team-auth"},
@@ -64,6 +66,7 @@ func TestBuildQualitySummaries(t *testing.T) {
 }
 
 func TestBuildMigrationSummaries(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		Signals: []models.Signal{
 			{Type: signals.SignalDeprecatedTestPattern, Category: models.CategoryMigration, Owner: "team-auth"},
@@ -85,6 +88,7 @@ func TestBuildMigrationSummaries(t *testing.T) {
 }
 
 func TestComputeMigrationCoordinationRisk(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name      string
 		summaries []OwnerMigrationSummary
@@ -131,6 +135,7 @@ func TestComputeMigrationCoordinationRisk(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			risk := ComputeMigrationCoordinationRisk(tt.summaries)
 			if risk.Level != tt.wantLevel {
 				t.Errorf("level = %q, want %q", risk.Level, tt.wantLevel)
@@ -140,6 +145,7 @@ func TestComputeMigrationCoordinationRisk(t *testing.T) {
 }
 
 func TestCompareOwnerSignals(t *testing.T) {
+	t.Parallel()
 	from := &models.TestSuiteSnapshot{
 		Signals: []models.Signal{
 			{Owner: "team-auth", Type: "weakAssertion"},
@@ -180,6 +186,7 @@ func TestCompareOwnerSignals(t *testing.T) {
 }
 
 func TestBuildFocusItems(t *testing.T) {
+	t.Parallel()
 	summary := OwnershipSummary{
 		Owners: []OwnerAggregate{
 			{Owner: Owner{ID: "unknown"}, CriticalSignalCount: 2, UncoveredExportedCount: 3},
@@ -204,6 +211,7 @@ func TestBuildFocusItems(t *testing.T) {
 }
 
 func TestBuildBenchmarkAggregate(t *testing.T) {
+	t.Parallel()
 	summary := OwnershipSummary{
 		OwnerCount:      3,
 		CoveragePosture: "partial",
@@ -247,6 +255,7 @@ func TestBuildBenchmarkAggregate(t *testing.T) {
 }
 
 func TestBuildBenchmarkAggregate_NilWhenNoOwners(t *testing.T) {
+	t.Parallel()
 	summary := OwnershipSummary{OwnerCount: 0}
 	snap := &models.TestSuiteSnapshot{}
 
@@ -257,6 +266,7 @@ func TestBuildBenchmarkAggregate_NilWhenNoOwners(t *testing.T) {
 }
 
 func TestComputeFragmentation(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name   string
 		owners []OwnerAggregate
@@ -264,20 +274,21 @@ func TestComputeFragmentation(t *testing.T) {
 		want   float64
 	}{
 		{
-			name:  "single owner",
+			name:   "single owner",
 			owners: []OwnerAggregate{{SignalCount: 10}},
-			total: 10,
-			want:  0,
+			total:  10,
+			want:   0,
 		},
 		{
-			name: "two owners even",
+			name:   "two owners even",
 			owners: []OwnerAggregate{{SignalCount: 5}, {SignalCount: 5}},
-			total: 10,
-			want:  1.0,
+			total:  10,
+			want:   1.0,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := computeFragmentation(tt.owners, tt.total)
 			if got < tt.want-0.01 || got > tt.want+0.01 {
 				t.Errorf("fragmentation = %.2f, want %.2f", got, tt.want)

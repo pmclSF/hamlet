@@ -35,6 +35,7 @@ func testSnapshot() *models.TestSuiteSnapshot {
 }
 
 func TestAnalyzePR_NarrowChange(t *testing.T) {
+	t.Parallel()
 	snap := testSnapshot()
 	scope := impact.ChangeScopeFromPaths([]string{"src/auth.js"}, impact.ChangeModified)
 
@@ -61,6 +62,7 @@ func TestAnalyzePR_NarrowChange(t *testing.T) {
 }
 
 func TestAnalyzePR_BroadChange(t *testing.T) {
+	t.Parallel()
 	snap := testSnapshot()
 	scope := impact.ChangeScopeFromPaths(
 		[]string{"src/auth.js", "src/payment.js", "src/utils.js"},
@@ -78,6 +80,7 @@ func TestAnalyzePR_BroadChange(t *testing.T) {
 }
 
 func TestAnalyzePR_WithTestChanges(t *testing.T) {
+	t.Parallel()
 	snap := testSnapshot()
 	scope := impact.ChangeScopeFromPaths(
 		[]string{"src/auth.js", "src/__tests__/auth.test.js"},
@@ -95,6 +98,7 @@ func TestAnalyzePR_WithTestChanges(t *testing.T) {
 }
 
 func TestAnalyzePR_UntestedExport(t *testing.T) {
+	t.Parallel()
 	snap := testSnapshot()
 	// Add a new exported function with no test coverage.
 	snap.CodeUnits = append(snap.CodeUnits, models.CodeUnit{
@@ -117,6 +121,7 @@ func TestAnalyzePR_UntestedExport(t *testing.T) {
 }
 
 func TestAnalyzeChangedPaths(t *testing.T) {
+	t.Parallel()
 	snap := testSnapshot()
 	pr := AnalyzeChangedPaths([]string{"src/auth.js"}, impact.ChangeModified, snap)
 
@@ -129,6 +134,7 @@ func TestAnalyzeChangedPaths(t *testing.T) {
 }
 
 func TestRenderPRSummaryMarkdown(t *testing.T) {
+	t.Parallel()
 	snap := testSnapshot()
 	scope := impact.ChangeScopeFromPaths([]string{"src/auth.js"}, impact.ChangeModified)
 	pr := AnalyzePR(scope, snap)
@@ -149,6 +155,7 @@ func TestRenderPRSummaryMarkdown(t *testing.T) {
 }
 
 func TestRenderPRCommentConcise(t *testing.T) {
+	t.Parallel()
 	snap := testSnapshot()
 	scope := impact.ChangeScopeFromPaths([]string{"src/auth.js"}, impact.ChangeModified)
 	pr := AnalyzePR(scope, snap)
@@ -163,6 +170,7 @@ func TestRenderPRCommentConcise(t *testing.T) {
 }
 
 func TestRenderCIAnnotation(t *testing.T) {
+	t.Parallel()
 	snap := testSnapshot()
 	// Add a new untested export to generate findings.
 	snap.CodeUnits = append(snap.CodeUnits, models.CodeUnit{
@@ -182,6 +190,7 @@ func TestRenderCIAnnotation(t *testing.T) {
 }
 
 func TestRenderChangeScopedReport(t *testing.T) {
+	t.Parallel()
 	snap := testSnapshot()
 	scope := impact.ChangeScopeFromPaths([]string{"src/auth.js", "src/payment.js"}, impact.ChangeModified)
 	pr := AnalyzePR(scope, snap)
@@ -199,6 +208,7 @@ func TestRenderChangeScopedReport(t *testing.T) {
 }
 
 func TestPostureBadge(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		band string
 		want string

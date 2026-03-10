@@ -44,8 +44,10 @@ func ApplyToTestFiles(results []TestResult, testFiles []TestFileUpdate) {
 		var totalMs float64
 		var maxMs float64
 		var passCount, failCount, retryCount int
+		values := make([]float64, 0, len(fileResults))
 		for _, r := range fileResults {
 			totalMs += r.DurationMs
+			values = append(values, r.DurationMs)
 			if r.DurationMs > maxMs {
 				maxMs = r.DurationMs
 			}
@@ -73,16 +75,18 @@ func ApplyToTestFiles(results []TestResult, testFiles []TestFileUpdate) {
 		testFiles[i].P95RuntimeMs = maxMs // approximate: use max as P95 for single-run data
 		testFiles[i].PassRate = passRate
 		testFiles[i].RetryRate = retryRate
+		testFiles[i].RuntimeVariance = variance(values)
 	}
 }
 
 // TestFileUpdate is a lightweight struct for applying runtime stats.
 type TestFileUpdate struct {
-	Path         string
-	AvgRuntimeMs float64
-	P95RuntimeMs float64
-	PassRate     float64
-	RetryRate    float64
+	Path            string
+	AvgRuntimeMs    float64
+	P95RuntimeMs    float64
+	PassRate        float64
+	RetryRate       float64
+	RuntimeVariance float64
 }
 
 // findResultsForFile matches runtime results to a test file path.
@@ -100,4 +104,22 @@ func findResultsForFile(byFile map[string][]TestResult, testFilePath string) []T
 		}
 	}
 	return nil
+}
+
+func variance(values []float64) float64 {
+	n := len(values)
+	if n < 2 {
+		return 0
+	}
+	var sum float64
+	for _, v := range values {
+		sum += v
+	}
+	mean := sum / float64(n)
+	var ssd float64
+	for _, v := range values {
+		diff := v - mean
+		ssd += diff * diff
+	}
+	return ssd / float64(n)
 }

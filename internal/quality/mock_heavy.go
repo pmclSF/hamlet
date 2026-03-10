@@ -33,14 +33,29 @@ func (d *MockHeavyDetector) Detect(snap *models.TestSuiteSnapshot) []models.Sign
 			continue
 		}
 
-		// Mock-to-assertion ratio
-		if tf.AssertionCount == 0 || tf.MockCount > tf.AssertionCount {
+		// Tests-only-mocks: file has mocks but zero assertions — the most
+		// severe form of mock overuse. These tests verify wiring, not behavior.
+		if tf.AssertionCount == 0 {
+			signals = append(signals, models.Signal{
+				Type:             "testsOnlyMocks",
+				Category:         models.CategoryQuality,
+				Severity:         models.SeverityHigh,
+				Confidence:       0.8,
+				EvidenceStrength: models.EvidenceModerate,
+				EvidenceSource:   models.SourceStructuralPattern,
+				Location:         models.SignalLocation{File: tf.Path},
+				Explanation: "Test file contains " + itoa(tf.MockCount) +
+					" mock(s) but zero assertions. Tests verify wiring only, not behavior.",
+				SuggestedAction: "Add assertions on outputs, state changes, or side effects to validate real behavior.",
+			})
+			continue
+		}
+
+		// Mock-heavy: mocks outnumber assertions, suggesting over-isolation.
+		if tf.MockCount > tf.AssertionCount {
 			sev := models.SeverityMedium
 			conf := 0.7
-			if tf.AssertionCount == 0 {
-				sev = models.SeverityHigh
-				conf = 0.8
-			} else if tf.MockCount > 2*tf.AssertionCount {
+			if tf.MockCount > 2*tf.AssertionCount {
 				sev = models.SeverityHigh
 				conf = 0.75
 			}

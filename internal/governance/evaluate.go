@@ -4,6 +4,7 @@ package governance
 
 import (
 	"fmt"
+	"math"
 	"sort"
 	"strings"
 
@@ -95,10 +96,8 @@ func checkSkippedTests(snap *models.TestSuiteSnapshot, cfg *policy.Config) []mod
 		return nil
 	}
 
-	skippedCount := 0
-	for _, tf := range topFiles {
-		skippedCount += tf.count
-	}
+	// Count across all skippedTest signals, not just top files.
+	skippedCount := countSignalsForType(snap.Signals, "skippedTest")
 
 	return []models.Signal{{
 		Type:       "policyViolation",
@@ -204,8 +203,9 @@ func checkWeakAssertionThreshold(snap *models.TestSuiteSnapshot, cfg *policy.Con
 
 	count := countSignalsForType(snap.Signals, "weakAssertion")
 	topFiles := topFilesForType(snap.Signals, "weakAssertion", 5)
-	max := *cfg.Rules.MaxWeakAssertions
-	if count <= max {
+	baseMax := *cfg.Rules.MaxWeakAssertions
+	effectiveMax := sizeAdjustedThreshold(baseMax, len(snap.TestFiles))
+	if count <= effectiveMax {
 		return nil
 	}
 
@@ -218,15 +218,18 @@ func checkWeakAssertionThreshold(snap *models.TestSuiteSnapshot, cfg *policy.Con
 			Repository: snap.Repository.Name,
 		},
 		Explanation: fmt.Sprintf(
-			"Found %d weakAssertion signal(s), exceeding policy maximum of %d. Top files: %s.",
-			count, max, formatTopFiles(topFiles),
+			"Found %d weakAssertion signal(s), exceeding effective policy maximum of %d (base %d, suite size %d files). Top files: %s.",
+			count, effectiveMax, baseMax, len(snap.TestFiles), formatTopFiles(topFiles),
 		),
 		SuggestedAction: "Add meaningful assertions to test files with weak or missing assertions.",
 		Metadata: map[string]any{
-			"count":    count,
-			"max":      max,
-			"rule":     "max_weak_assertions",
-			"topFiles": topFileNames(topFiles),
+			"count":        count,
+			"max":          effectiveMax,
+			"baseMax":      baseMax,
+			"totalFiles":   len(snap.TestFiles),
+			"rule":         "max_weak_assertions",
+			"sizeAdjusted": effectiveMax != baseMax,
+			"topFiles":     topFileNames(topFiles),
 		},
 	}}
 }
@@ -240,8 +243,9 @@ func checkMockHeavyThreshold(snap *models.TestSuiteSnapshot, cfg *policy.Config)
 
 	count := countSignalsForType(snap.Signals, "mockHeavyTest")
 	topFiles := topFilesForType(snap.Signals, "mockHeavyTest", 5)
-	max := *cfg.Rules.MaxMockHeavyTests
-	if count <= max {
+	baseMax := *cfg.Rules.MaxMockHeavyTests
+	effectiveMax := sizeAdjustedThreshold(baseMax, len(snap.TestFiles))
+	if count <= effectiveMax {
 		return nil
 	}
 
@@ -254,17 +258,37 @@ func checkMockHeavyThreshold(snap *models.TestSuiteSnapshot, cfg *policy.Config)
 			Repository: snap.Repository.Name,
 		},
 		Explanation: fmt.Sprintf(
-			"Found %d mockHeavyTest signal(s), exceeding policy maximum of %d. Top files: %s.",
-			count, max, formatTopFiles(topFiles),
+			"Found %d mockHeavyTest signal(s), exceeding effective policy maximum of %d (base %d, suite size %d files). Top files: %s.",
+			count, effectiveMax, baseMax, len(snap.TestFiles), formatTopFiles(topFiles),
 		),
 		SuggestedAction: "Reduce mock usage in favor of real implementations in tests.",
 		Metadata: map[string]any{
-			"count":    count,
-			"max":      max,
-			"rule":     "max_mock_heavy_tests",
-			"topFiles": topFileNames(topFiles),
+			"count":        count,
+			"max":          effectiveMax,
+			"baseMax":      baseMax,
+			"totalFiles":   len(snap.TestFiles),
+			"rule":         "max_mock_heavy_tests",
+			"sizeAdjusted": effectiveMax != baseMax,
+			"topFiles":     topFileNames(topFiles),
 		},
 	}}
+}
+
+func sizeAdjustedThreshold(baseMax, totalFiles int) int {
+	// Keep legacy behavior for missing suite size information.
+	if baseMax <= 0 || totalFiles <= 0 {
+		return baseMax
+	}
+	// Policy thresholds are interpreted as baseline limits for a 100-file suite.
+	// Larger suites scale linearly to avoid penalizing healthy large repos.
+	if totalFiles <= 100 {
+		return baseMax
+	}
+	scaled := int(math.Ceil(float64(baseMax) * (float64(totalFiles) / 100.0)))
+	if scaled < baseMax {
+		return baseMax
+	}
+	return scaled
 }
 
 // fileCount tracks signal count per file for governance reporting.

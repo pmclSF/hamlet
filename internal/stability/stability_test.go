@@ -20,6 +20,7 @@ func stableHistory(id string, n int) TestHistory {
 }
 
 func TestClassify_ConsistentlyStable(t *testing.T) {
+	t.Parallel()
 	h := stableHistory("test-1", 5)
 	result := Classify([]TestHistory{h})
 	if len(result.Classifications) != 1 {
@@ -35,6 +36,7 @@ func TestClassify_ConsistentlyStable(t *testing.T) {
 }
 
 func TestClassify_NewlyUnstable(t *testing.T) {
+	t.Parallel()
 	h := TestHistory{TestID: "test-2", TestName: "unstable test", FilePath: "test.js"}
 	// 6 stable observations, then 4 failures.
 	for i := 0; i < 6; i++ {
@@ -55,6 +57,7 @@ func TestClassify_NewlyUnstable(t *testing.T) {
 }
 
 func TestClassify_ChronicallyFlaky(t *testing.T) {
+	t.Parallel()
 	h := TestHistory{TestID: "test-3", TestName: "flaky test", FilePath: "test.js"}
 	for i := 0; i < 5; i++ {
 		h.Observations = append(h.Observations, Observation{
@@ -69,6 +72,7 @@ func TestClassify_ChronicallyFlaky(t *testing.T) {
 }
 
 func TestClassify_IntermittentlySlow(t *testing.T) {
+	t.Parallel()
 	h := TestHistory{TestID: "test-4", TestName: "slow test", FilePath: "test.js"}
 	for i := 0; i < 5; i++ {
 		obs := Observation{
@@ -87,6 +91,7 @@ func TestClassify_IntermittentlySlow(t *testing.T) {
 }
 
 func TestClassify_Improving(t *testing.T) {
+	t.Parallel()
 	h := TestHistory{TestID: "test-5", TestName: "improving test", FilePath: "test.js"}
 	// Early: failures and flaky
 	for i := 0; i < 4; i++ {
@@ -108,6 +113,7 @@ func TestClassify_Improving(t *testing.T) {
 }
 
 func TestClassify_QuarantinedSuppressed(t *testing.T) {
+	t.Parallel()
 	h := TestHistory{TestID: "test-6", TestName: "quarantined test", FilePath: "test.js"}
 	for i := 0; i < 5; i++ {
 		h.Observations = append(h.Observations, Observation{
@@ -122,6 +128,7 @@ func TestClassify_QuarantinedSuppressed(t *testing.T) {
 }
 
 func TestClassify_DataInsufficient(t *testing.T) {
+	t.Parallel()
 	h := TestHistory{TestID: "test-7", TestName: "new test", FilePath: "test.js"}
 	h.Observations = append(h.Observations, Observation{
 		SnapshotIndex: 0, Present: true, Passed: true,
@@ -134,6 +141,7 @@ func TestClassify_DataInsufficient(t *testing.T) {
 }
 
 func TestClassify_EmptyHistories(t *testing.T) {
+	t.Parallel()
 	result := Classify(nil)
 	if len(result.Classifications) != 0 {
 		t.Errorf("expected 0 classifications, got %d", len(result.Classifications))
@@ -141,6 +149,7 @@ func TestClassify_EmptyHistories(t *testing.T) {
 }
 
 func TestBuildHistories(t *testing.T) {
+	t.Parallel()
 	tc := models.TestCase{
 		TestID:   "abc123",
 		TestName: "should work",
@@ -173,6 +182,7 @@ func TestBuildHistories(t *testing.T) {
 }
 
 func TestTrend(t *testing.T) {
+	t.Parallel()
 	// Improving trend
 	obs := make([]Observation, 6)
 	for i := 0; i < 3; i++ {

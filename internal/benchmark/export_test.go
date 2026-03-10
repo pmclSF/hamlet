@@ -8,6 +8,7 @@ import (
 )
 
 func TestBuildExport_Basic(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: make([]models.TestFile, 10),
 		Frameworks: []models.Framework{
@@ -42,6 +43,7 @@ func TestBuildExport_Basic(t *testing.T) {
 }
 
 func TestBuildExport_WithPolicy(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: make([]models.TestFile, 10),
 	}
@@ -54,6 +56,7 @@ func TestBuildExport_WithPolicy(t *testing.T) {
 }
 
 func TestSegment_TestFileBuckets(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		count int
 		want  string
@@ -78,6 +81,7 @@ func TestSegment_TestFileBuckets(t *testing.T) {
 }
 
 func TestSegment_RuntimeDetection(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: []models.TestFile{
 			{Path: "a.test.js", RuntimeStats: &models.RuntimeStats{AvgRuntimeMs: 100}},
@@ -92,6 +96,7 @@ func TestSegment_RuntimeDetection(t *testing.T) {
 }
 
 func TestSegment_NoRuntime(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: []models.TestFile{
 			{Path: "a.test.js"},
@@ -106,6 +111,7 @@ func TestSegment_NoRuntime(t *testing.T) {
 }
 
 func TestSegment_CoverageDetection(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: make([]models.TestFile, 5),
 		Signals: []models.Signal{
@@ -121,6 +127,7 @@ func TestSegment_CoverageDetection(t *testing.T) {
 }
 
 func TestExport_MetricsIncluded(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: make([]models.TestFile, 5),
 		Signals: []models.Signal{
@@ -140,6 +147,7 @@ func TestExport_MetricsIncluded(t *testing.T) {
 }
 
 func TestExport_MigrationPostureIncluded(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: []models.TestFile{
 			{Path: "safe/a.test.js"},
@@ -165,6 +173,7 @@ func TestExport_MigrationPostureIncluded(t *testing.T) {
 }
 
 func TestExport_PrivacySafety(t *testing.T) {
+	t.Parallel()
 	// The export should contain no raw file paths, symbol names, or test names.
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: []models.TestFile{
@@ -199,8 +208,8 @@ func TestExport_PrivacySafety(t *testing.T) {
 		t.Errorf("totalTestFiles = %d, want 1", exp.Metrics.Structure.TotalTestFiles)
 	}
 
-	// SchemaVersion should be 2.
+	// SchemaVersion should be 3.
 	if exp.SchemaVersion != "3" {
-		t.Errorf("schemaVersion = %q, want 2", exp.SchemaVersion)
+		t.Errorf("schemaVersion = %q, want 3", exp.SchemaVersion)
 	}
 }

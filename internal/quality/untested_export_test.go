@@ -7,6 +7,7 @@ import (
 )
 
 func TestUntestedExportDetector_NoLinkedTests(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: []models.TestFile{
 			{Path: "src/__tests__/auth.test.js"},
@@ -31,6 +32,7 @@ func TestUntestedExportDetector_NoLinkedTests(t *testing.T) {
 }
 
 func TestUntestedExportDetector_HasNearbyTest(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: []models.TestFile{
 			{Path: "src/__tests__/auth.test.js"},
@@ -50,6 +52,7 @@ func TestUntestedExportDetector_HasNearbyTest(t *testing.T) {
 }
 
 func TestUntestedExportDetector_UnexportedIgnored(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: []models.TestFile{},
 		CodeUnits: []models.CodeUnit{
@@ -66,6 +69,7 @@ func TestUntestedExportDetector_UnexportedIgnored(t *testing.T) {
 }
 
 func TestUntestedExportDetector_NoCodeUnits(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: []models.TestFile{
 			{Path: "test/a.test.js"},

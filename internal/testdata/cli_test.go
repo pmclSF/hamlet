@@ -8,6 +8,7 @@ import (
 
 // TestCLI_BuildSucceeds verifies the binary compiles.
 func TestCLI_BuildSucceeds(t *testing.T) {
+	t.Parallel()
 	cmd := exec.Command("go", "build", "-o", "/dev/null", "./cmd/hamlet/")
 	cmd.Dir = "../.."
 	out, err := cmd.CombinedOutput()
@@ -18,6 +19,7 @@ func TestCLI_BuildSucceeds(t *testing.T) {
 
 // TestCLI_HelpExitCode verifies --help exits cleanly.
 func TestCLI_HelpExitCode(t *testing.T) {
+	t.Parallel()
 	cmd := exec.Command("go", "run", "./cmd/hamlet/", "--help")
 	cmd.Dir = "../.."
 	out, err := cmd.CombinedOutput()
@@ -35,6 +37,7 @@ func TestCLI_HelpExitCode(t *testing.T) {
 
 // TestCLI_HelpContainsAllCommands verifies help text lists all commands.
 func TestCLI_HelpContainsAllCommands(t *testing.T) {
+	t.Parallel()
 	cmd := exec.Command("go", "run", "./cmd/hamlet/", "--help")
 	cmd.Dir = "../.."
 	out, _ := cmd.CombinedOutput()
@@ -50,6 +53,7 @@ func TestCLI_HelpContainsAllCommands(t *testing.T) {
 
 // TestCLI_UnknownCommandExitCode verifies unknown commands exit non-zero.
 func TestCLI_UnknownCommandExitCode(t *testing.T) {
+	t.Parallel()
 	cmd := exec.Command("go", "run", "./cmd/hamlet/", "nonexistent")
 	cmd.Dir = "../.."
 	err := cmd.Run()
@@ -60,6 +64,7 @@ func TestCLI_UnknownCommandExitCode(t *testing.T) {
 
 // TestCLI_AnalyzeTestdata verifies analyze works on the test repo.
 func TestCLI_AnalyzeTestdata(t *testing.T) {
+	t.Parallel()
 	cmd := exec.Command("go", "run", "./cmd/hamlet/", "analyze", "--root", "internal/analysis/testdata/sample-repo")
 	cmd.Dir = "../.."
 	out, err := cmd.CombinedOutput()
@@ -78,6 +83,7 @@ func TestCLI_AnalyzeTestdata(t *testing.T) {
 
 // TestCLI_AnalyzeJSON verifies --json produces valid JSON.
 func TestCLI_AnalyzeJSON(t *testing.T) {
+	t.Parallel()
 	cmd := exec.Command("go", "run", "./cmd/hamlet/", "analyze", "--json", "--root", "internal/analysis/testdata/sample-repo")
 	cmd.Dir = "../.."
 	out, err := cmd.CombinedOutput()
@@ -92,6 +98,7 @@ func TestCLI_AnalyzeJSON(t *testing.T) {
 
 // TestCLI_PostureTestdata verifies posture command works.
 func TestCLI_PostureTestdata(t *testing.T) {
+	t.Parallel()
 	cmd := exec.Command("go", "run", "./cmd/hamlet/", "posture", "--root", "internal/analysis/testdata/sample-repo")
 	cmd.Dir = "../.."
 	out, err := cmd.CombinedOutput()
@@ -107,6 +114,7 @@ func TestCLI_PostureTestdata(t *testing.T) {
 
 // TestCLI_MetricsTestdata verifies metrics command works.
 func TestCLI_MetricsTestdata(t *testing.T) {
+	t.Parallel()
 	cmd := exec.Command("go", "run", "./cmd/hamlet/", "metrics", "--root", "internal/analysis/testdata/sample-repo")
 	cmd.Dir = "../.."
 	out, err := cmd.CombinedOutput()
@@ -122,6 +130,7 @@ func TestCLI_MetricsTestdata(t *testing.T) {
 
 // TestCLI_SummaryTestdata verifies summary command works.
 func TestCLI_SummaryTestdata(t *testing.T) {
+	t.Parallel()
 	cmd := exec.Command("go", "run", "./cmd/hamlet/", "summary", "--root", "internal/analysis/testdata/sample-repo")
 	cmd.Dir = "../.."
 	out, err := cmd.CombinedOutput()
@@ -137,6 +146,7 @@ func TestCLI_SummaryTestdata(t *testing.T) {
 
 // TestCLI_HelpContainsNewCommands verifies help lists impact and select-tests.
 func TestCLI_HelpContainsNewCommands(t *testing.T) {
+	t.Parallel()
 	cmd := exec.Command("go", "run", "./cmd/hamlet/", "--help")
 	cmd.Dir = "../.."
 	out, _ := cmd.CombinedOutput()
@@ -152,6 +162,7 @@ func TestCLI_HelpContainsNewCommands(t *testing.T) {
 
 // TestCLI_ExportBenchmarkTestdata verifies export benchmark command works.
 func TestCLI_ExportBenchmarkTestdata(t *testing.T) {
+	t.Parallel()
 	cmd := exec.Command("go", "run", "./cmd/hamlet/", "export", "benchmark", "--root", "internal/analysis/testdata/sample-repo")
 	cmd.Dir = "../.."
 	out, err := cmd.CombinedOutput()
@@ -167,6 +178,7 @@ func TestCLI_ExportBenchmarkTestdata(t *testing.T) {
 
 // TestCLI_AnalyzeOutputConsistency verifies analyze output structure.
 func TestCLI_AnalyzeOutputConsistency(t *testing.T) {
+	t.Parallel()
 	cmd := exec.Command("go", "run", "./cmd/hamlet/", "analyze", "--root", "internal/analysis/testdata/sample-repo")
 	cmd.Dir = "../.."
 	out, err := cmd.CombinedOutput()
@@ -186,6 +198,7 @@ func TestCLI_AnalyzeOutputConsistency(t *testing.T) {
 
 // TestCLI_MetricsJSON verifies metrics --json produces valid JSON.
 func TestCLI_MetricsJSON(t *testing.T) {
+	t.Parallel()
 	cmd := exec.Command("go", "run", "./cmd/hamlet/", "metrics", "--json", "--root", "internal/analysis/testdata/sample-repo")
 	cmd.Dir = "../.."
 	out, err := cmd.CombinedOutput()

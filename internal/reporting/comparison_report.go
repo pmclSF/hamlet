@@ -25,6 +25,34 @@ func RenderComparisonReport(w io.Writer, comp *comparison.SnapshotComparison) {
 	line("  to:   %s", comp.ToTime)
 	blank()
 
+	// Methodology compatibility
+	line("Methodology Compatibility")
+	line(strings.Repeat("-", 40))
+	status := "compatible"
+	if !comp.MethodologyCompatible {
+		status = "incompatible"
+	}
+	line("  Status: %s", strings.ToUpper(status))
+	for _, note := range comp.MethodologyNotes {
+		line("  Note: %s", note)
+	}
+	blank()
+
+	if !comp.MethodologyCompatible {
+		line("Recommended Next Steps")
+		line(strings.Repeat("-", 40))
+		line("  1. Re-run `hamlet analyze --write-snapshot` for baseline and current states with the same Hamlet version.")
+		line("  2. Keep policy/runtime/coverage inputs consistent between both snapshots.")
+		line("  3. Compare the regenerated snapshots to unlock risk, posture, and measurement deltas.")
+		blank()
+	} else if len(comp.MethodologyNotes) > 0 {
+		line("Recommended Next Steps")
+		line(strings.Repeat("-", 40))
+		line("  1. Regenerate snapshots with the current Hamlet version to persist methodology fingerprints.")
+		line("  2. Continue using consistent policy/runtime/coverage inputs for trend comparisons.")
+		blank()
+	}
+
 	if !comp.HasMeaningfulChanges() {
 		line("No meaningful changes detected.")
 		blank()

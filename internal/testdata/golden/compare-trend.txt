@@ -5,6 +5,16 @@ Compared
   from: 2025-01-15 12:00:00 UTC
   to:   2025-01-15 12:00:00 UTC
 
+Methodology Compatibility
+----------------------------------------
+  Status: COMPATIBLE
+  Note: methodology fingerprint missing on one or both snapshots; compatibility assumed for backward compatibility
+
+Recommended Next Steps
+----------------------------------------
+  1. Regenerate snapshots with the current Hamlet version to persist methodology fingerprints.
+  2. Continue using consistent policy/runtime/coverage inputs for trend comparisons.
+
 Test Files: +1
 
 Framework Changes

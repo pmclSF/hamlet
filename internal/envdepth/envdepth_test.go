@@ -7,6 +7,7 @@ import (
 )
 
 func TestAssess_HeavyMocking(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: []models.TestFile{
 			{
@@ -40,6 +41,7 @@ func TestAssess_HeavyMocking(t *testing.T) {
 }
 
 func TestAssess_HeavyMocking_HighAbsoluteCount(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: []models.TestFile{
 			{
@@ -60,6 +62,7 @@ func TestAssess_HeavyMocking_HighAbsoluteCount(t *testing.T) {
 }
 
 func TestAssess_ModerateMocking(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: []models.TestFile{
 			{
@@ -83,10 +86,12 @@ func TestAssess_ModerateMocking(t *testing.T) {
 }
 
 func TestAssess_BrowserRuntime(t *testing.T) {
+	t.Parallel()
 	frameworks := []string{"cypress", "playwright", "puppeteer", "testcafe", "webdriverio", "selenium"}
 
 	for _, fw := range frameworks {
 		t.Run(fw, func(t *testing.T) {
+			t.Parallel()
 			snap := &models.TestSuiteSnapshot{
 				TestFiles: []models.TestFile{
 					{
@@ -122,6 +127,7 @@ func TestAssess_BrowserRuntime(t *testing.T) {
 }
 
 func TestAssess_RealDependency(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		Frameworks: []models.Framework{
 			{Name: "supertest", Type: models.FrameworkTypeIntegration},
@@ -145,6 +151,7 @@ func TestAssess_RealDependency(t *testing.T) {
 }
 
 func TestAssess_RealDependency_E2EFrameworkType(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		Frameworks: []models.Framework{
 			{Name: "customfw", Type: models.FrameworkTypeE2E},
@@ -168,6 +175,7 @@ func TestAssess_RealDependency_E2EFrameworkType(t *testing.T) {
 }
 
 func TestAssess_Unknown(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: []models.TestFile{
 			{
@@ -188,6 +196,7 @@ func TestAssess_Unknown(t *testing.T) {
 }
 
 func TestAssess_MixedFiles(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: []models.TestFile{
 			{
@@ -236,6 +245,7 @@ func TestAssess_MixedFiles(t *testing.T) {
 }
 
 func TestAssess_EmptySnapshot(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{}
 
 	result := Assess(snap)
@@ -248,6 +258,7 @@ func TestAssess_EmptySnapshot(t *testing.T) {
 }
 
 func TestAssess_NilSnapshot(t *testing.T) {
+	t.Parallel()
 	result := Assess(nil)
 	if result == nil {
 		t.Fatal("expected non-nil result for nil snapshot")
@@ -261,6 +272,7 @@ func TestAssess_NilSnapshot(t *testing.T) {
 }
 
 func TestAssess_OverallDepth_MajorityWins(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: []models.TestFile{
 			{Path: "a.test.js", Framework: "cypress", TestCount: 1, AssertionCount: 1},
@@ -276,6 +288,7 @@ func TestAssess_OverallDepth_MajorityWins(t *testing.T) {
 }
 
 func TestAssess_MockRatioComputation(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: []models.TestFile{
 			{
@@ -298,6 +311,7 @@ func TestAssess_MockRatioComputation(t *testing.T) {
 }
 
 func TestAssess_BrowserWithMocksStillBrowser(t *testing.T) {
+	t.Parallel()
 	// Browser framework takes precedence even if mocks are present.
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: []models.TestFile{

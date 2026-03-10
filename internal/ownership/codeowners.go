@@ -3,6 +3,7 @@ package ownership
 import (
 	"bufio"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 )
@@ -78,12 +79,10 @@ func ParseCodeownersFile(absPath, repoRelPath string) *CodeownersFile {
 		}
 
 		pattern := fields[0]
-
-		// Check for unsupported patterns.
-		if containsUnsupportedGlob(pattern) {
+		if reason := unsupportedGlobReason(pattern); reason != "" {
 			cf.Diagnostics = append(cf.Diagnostics, Diagnostic{
-				Level:   "info",
-				Message: "pattern uses advanced glob syntax not fully supported: " + pattern,
+				Level:   "warning",
+				Message: "CODEOWNERS pattern uses unsupported or malformed glob syntax; matching will use best-effort fallback (" + reason + ")",
 				Source:  repoRelPath,
 				Line:    lineNum,
 			})
@@ -150,99 +149,225 @@ func MatchCodeowners(rules []CodeownersRule, relPath string) (CodeownersRule, bo
 
 // matchesCodeownersPattern checks if a file path matches a CODEOWNERS pattern.
 //
-// Supported patterns:
-//   - Exact file: "path/to/file.js"
-//   - Directory prefix: "src/auth/" or "/src/auth/"
-//   - Wildcard extension: "*.js"
-//   - Single-level wildcard: "docs/*"
-//   - Double-star directory: "**/test/"
-//   - Root-anchored: "/src/" (only matches from repo root)
+// Supported glob features:
+//   - `*` and `**`
+//   - `?`
+//   - character classes like `[ab]`
+//   - brace expansion like `{api,ui}`
+//
+// Directory patterns ending with `/` match files under that directory.
 func matchesCodeownersPattern(pattern, filePath string) bool {
-	// Normalize pattern.
-	p := filepath.ToSlash(pattern)
-
-	// Bare "*" matches everything.
-	if p == "*" {
-		return true
-	}
-
-	// Handle wildcard extension patterns: "*.js"
-	if strings.HasPrefix(p, "*.") {
-		ext := p[1:] // ".js"
-		return strings.HasSuffix(filePath, ext)
-	}
-
-	// Handle double-star patterns: "**/test/"
-	if strings.HasPrefix(p, "**/") {
-		suffix := strings.TrimPrefix(p, "**/")
-		suffix = strings.TrimSuffix(suffix, "/")
-		// Match if any path segment matches.
-		parts := strings.Split(filePath, "/")
-		for i, part := range parts {
-			if part == suffix {
-				_ = i
-				return true
-			}
-			// Also match as a prefix of remaining path.
-			remaining := strings.Join(parts[i:], "/")
-			if strings.HasPrefix(remaining, suffix+"/") || remaining == suffix {
-				return true
-			}
-		}
+	p := filepath.ToSlash(strings.TrimSpace(pattern))
+	fp := filepath.ToSlash(strings.TrimPrefix(filePath, "./"))
+	if p == "" || fp == "" {
 		return false
 	}
 
-	// Strip leading slash for root-anchored patterns.
-	isRootAnchored := strings.HasPrefix(p, "/")
-	p = strings.TrimPrefix(p, "/")
-
-	// Handle single-level wildcard: "docs/*"
-	if strings.HasSuffix(p, "/*") {
-		dir := strings.TrimSuffix(p, "/*")
-		if strings.HasPrefix(filePath, dir+"/") {
-			// Only match one level deep.
-			rest := strings.TrimPrefix(filePath, dir+"/")
-			return !strings.Contains(rest, "/")
-		}
-		return false
-	}
-
-	// Directory prefix: pattern ends with "/"
-	cleanPattern := strings.TrimSuffix(p, "/")
-
-	// Check prefix match.
-	if strings.HasPrefix(filePath, cleanPattern+"/") {
-		return true
-	}
-
-	// Exact match.
-	if filePath == cleanPattern {
-		return true
-	}
-
-	// Non-root-anchored patterns also match as a path component anywhere.
-	if !isRootAnchored && !strings.Contains(p, "/") {
-		// Bare name matches as directory component.
-		parts := strings.Split(filePath, "/")
-		for _, part := range parts {
-			if part == cleanPattern {
-				return true
-			}
+	expanded := expandBracePatterns(p, 32)
+	for _, candidate := range expanded {
+		if matchExpandedCodeownersPattern(candidate, fp) {
+			return true
 		}
 	}
-
 	return false
 }
 
-// containsUnsupportedGlob checks for glob patterns we don't fully handle.
-func containsUnsupportedGlob(pattern string) bool {
-	// We support *, **, and *.ext but not complex patterns like [abc] or {a,b}.
-	if strings.ContainsAny(pattern, "[]{},?") {
+func matchExpandedCodeownersPattern(pattern, filePath string) bool {
+	p := pattern
+	if strings.HasPrefix(p, "/") {
+		p = strings.TrimPrefix(p, "/")
+	}
+
+	dirOnly := strings.HasSuffix(p, "/")
+	p = strings.TrimSuffix(p, "/")
+	if p == "" {
 		return true
 	}
-	// Patterns with * in the middle of a name segment (not *.ext or */)
-	// are partially supported.
+
+	if !strings.Contains(p, "/") {
+		parts := strings.Split(filePath, "/")
+		limit := len(parts)
+		if dirOnly && limit > 0 {
+			limit--
+		}
+		for i := 0; i < limit; i++ {
+			if matchSegmentGlob(p, parts[i]) {
+				return true
+			}
+		}
+		return false
+	}
+
+	if !dirOnly {
+		return matchPathGlob(p, filePath)
+	}
+
+	// Directory rule: match any directory prefix in the path.
+	parts := strings.Split(filePath, "/")
+	for i := 1; i < len(parts); i++ {
+		dir := strings.Join(parts[:i], "/")
+		if matchPathGlob(p, dir) {
+			return true
+		}
+	}
 	return false
+}
+
+func matchPathGlob(pattern, target string) bool {
+	patternSegments := splitPathSegments(pattern)
+	targetSegments := splitPathSegments(target)
+	return matchPathSegments(patternSegments, targetSegments)
+}
+
+func matchPathSegments(patternSegments, targetSegments []string) bool {
+	if len(patternSegments) == 0 {
+		return len(targetSegments) == 0
+	}
+	if patternSegments[0] == "**" {
+		for len(patternSegments) > 1 && patternSegments[1] == "**" {
+			patternSegments = patternSegments[1:]
+		}
+		if len(patternSegments) == 1 {
+			return true
+		}
+		for i := 0; i <= len(targetSegments); i++ {
+			if matchPathSegments(patternSegments[1:], targetSegments[i:]) {
+				return true
+			}
+		}
+		return false
+	}
+	if len(targetSegments) == 0 {
+		return false
+	}
+	if !matchSegmentGlob(patternSegments[0], targetSegments[0]) {
+		return false
+	}
+	return matchPathSegments(patternSegments[1:], targetSegments[1:])
+}
+
+func matchSegmentGlob(pattern, segment string) bool {
+	ok, err := path.Match(pattern, segment)
+	if err != nil {
+		return pattern == segment
+	}
+	return ok
+}
+
+func splitPathSegments(v string) []string {
+	if v == "" {
+		return nil
+	}
+	raw := strings.Split(v, "/")
+	segments := make([]string, 0, len(raw))
+	for _, part := range raw {
+		if part == "" {
+			continue
+		}
+		segments = append(segments, part)
+	}
+	return segments
+}
+
+func unsupportedGlobReason(pattern string) string {
+	p := strings.TrimSpace(pattern)
+	if p == "" {
+		return ""
+	}
+	if containsUnsupportedExtGlob(p) {
+		return "extglob tokens (@(, +(, ?(, !(, *()) are not supported"
+	}
+	if strings.Count(p, "{") != strings.Count(p, "}") {
+		return "unbalanced brace expansion"
+	}
+
+	expanded := expandBracePatterns(filepath.ToSlash(p), 32)
+	for _, candidate := range expanded {
+		for _, seg := range splitPathSegments(strings.TrimPrefix(candidate, "/")) {
+			if seg == "**" {
+				continue
+			}
+			if _, err := path.Match(seg, "x"); err != nil {
+				return "invalid glob segment " + seg + ": " + err.Error()
+			}
+		}
+	}
+	return ""
+}
+
+func containsUnsupportedExtGlob(pattern string) bool {
+	for _, marker := range []string{"@(", "+(", "?(", "!(", "*("} {
+		if strings.Contains(pattern, marker) {
+			return true
+		}
+	}
+	return false
+}
+
+func expandBracePatterns(pattern string, maxVariants int) []string {
+	if maxVariants <= 0 {
+		maxVariants = 1
+	}
+
+	current := []string{pattern}
+	for {
+		changed := false
+		next := make([]string, 0, len(current))
+		for _, p := range current {
+			start, end, options, ok := findBraceGroup(p)
+			if !ok {
+				next = append(next, p)
+				continue
+			}
+			changed = true
+			prefix := p[:start]
+			suffix := p[end+1:]
+			for _, opt := range options {
+				next = append(next, prefix+opt+suffix)
+				if len(next) >= maxVariants {
+					return next
+				}
+			}
+		}
+		current = next
+		if !changed {
+			return current
+		}
+	}
+}
+
+func findBraceGroup(pattern string) (start int, end int, options []string, ok bool) {
+	depth := 0
+	groupStart := -1
+	var optionStart int
+	var opts []string
+
+	for i, r := range pattern {
+		switch r {
+		case '{':
+			if depth == 0 {
+				groupStart = i
+				optionStart = i + 1
+			}
+			depth++
+		case '}':
+			if depth == 0 {
+				return 0, 0, nil, false
+			}
+			depth--
+			if depth == 0 && groupStart >= 0 {
+				opts = append(opts, pattern[optionStart:i])
+				return groupStart, i, opts, true
+			}
+		case ',':
+			if depth == 1 {
+				opts = append(opts, pattern[optionStart:i])
+				optionStart = i + 1
+			}
+		}
+	}
+
+	return 0, 0, nil, false
 }
 
 // ToAssignment converts a matched CODEOWNERS rule into an OwnershipAssignment.

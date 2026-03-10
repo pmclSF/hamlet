@@ -32,19 +32,15 @@ type CoverageThresholdDetector struct {
 // istanbulSummary represents the Istanbul coverage-summary.json format.
 type istanbulSummary struct {
 	Total struct {
-		Lines struct {
-			Pct float64 `json:"pct"`
-		} `json:"lines"`
-		Branches struct {
-			Pct float64 `json:"pct"`
-		} `json:"branches"`
-		Functions struct {
-			Pct float64 `json:"pct"`
-		} `json:"functions"`
-		Statements struct {
-			Pct float64 `json:"pct"`
-		} `json:"statements"`
+		Lines      *istanbulMetric `json:"lines"`
+		Branches   *istanbulMetric `json:"branches"`
+		Functions  *istanbulMetric `json:"functions"`
+		Statements *istanbulMetric `json:"statements"`
 	} `json:"total"`
+}
+
+type istanbulMetric struct {
+	Pct float64 `json:"pct"`
 }
 
 // Detect looks for coverage data and checks against threshold.
@@ -85,19 +81,23 @@ func (d *CoverageThresholdDetector) checkThreshold(summary istanbulSummary, thre
 	var signals []models.Signal
 
 	type metric struct {
-		name string
-		pct  float64
+		name    string
+		pct     float64
+		present bool
 	}
 
 	metrics := []metric{
-		{"lines", summary.Total.Lines.Pct},
-		{"branches", summary.Total.Branches.Pct},
-		{"functions", summary.Total.Functions.Pct},
-		{"statements", summary.Total.Statements.Pct},
+		{"lines", metricPct(summary.Total.Lines), summary.Total.Lines != nil},
+		{"branches", metricPct(summary.Total.Branches), summary.Total.Branches != nil},
+		{"functions", metricPct(summary.Total.Functions), summary.Total.Functions != nil},
+		{"statements", metricPct(summary.Total.Statements), summary.Total.Statements != nil},
 	}
 
 	for _, m := range metrics {
-		if m.pct > 0 && m.pct < threshold {
+		if !m.present {
+			continue
+		}
+		if m.pct < threshold {
 			sev := models.SeverityMedium
 			if m.pct < threshold-20 {
 				sev = models.SeverityHigh
@@ -124,6 +124,13 @@ func (d *CoverageThresholdDetector) checkThreshold(summary istanbulSummary, thre
 	}
 
 	return signals
+}
+
+func metricPct(m *istanbulMetric) float64 {
+	if m == nil {
+		return 0
+	}
+	return m.Pct
 }
 
 func formatPct(v float64) string {

@@ -21,6 +21,7 @@ func runPipelineSteps(t *testing.T, snap *models.TestSuiteSnapshot) {
 }
 
 func TestPipeline_MixedFrameworks(t *testing.T) {
+	t.Parallel()
 	snap := testdata.MixedFrameworkSnapshot()
 	runPipelineSteps(t, snap)
 
@@ -33,6 +34,7 @@ func TestPipeline_MixedFrameworks(t *testing.T) {
 }
 
 func TestPipeline_ZeroSignals(t *testing.T) {
+	t.Parallel()
 	snap := testdata.ZeroSignalSnapshot()
 	runPipelineSteps(t, snap)
 
@@ -44,6 +46,7 @@ func TestPipeline_ZeroSignals(t *testing.T) {
 }
 
 func TestPipeline_AllSignalTypes(t *testing.T) {
+	t.Parallel()
 	snap := testdata.AllSignalTypesSnapshot()
 	runPipelineSteps(t, snap)
 
@@ -59,6 +62,7 @@ func TestPipeline_AllSignalTypes(t *testing.T) {
 }
 
 func TestPipeline_DeepNesting(t *testing.T) {
+	t.Parallel()
 	snap := testdata.DeepNestingSnapshot()
 	runPipelineSteps(t, snap)
 
@@ -68,6 +72,7 @@ func TestPipeline_DeepNesting(t *testing.T) {
 }
 
 func TestPipeline_VeryLargeScale(t *testing.T) {
+	t.Parallel()
 	snap := testdata.VeryLargeSnapshot()
 	runPipelineSteps(t, snap)
 
@@ -80,6 +85,7 @@ func TestPipeline_VeryLargeScale(t *testing.T) {
 }
 
 func TestPipeline_EmptyFrameworks(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		SnapshotMeta: models.SnapshotMeta{SchemaVersion: models.SnapshotSchemaVersion},
 		Repository:   models.RepositoryMetadata{Name: "no-frameworks"},
@@ -93,6 +99,7 @@ func TestPipeline_EmptyFrameworks(t *testing.T) {
 }
 
 func TestPipeline_ValidationAfterRun(t *testing.T) {
+	t.Parallel()
 	snap := testdata.HealthyBalancedSnapshot()
 	snap.SnapshotMeta = models.SnapshotMeta{SchemaVersion: models.SnapshotSchemaVersion}
 	runPipelineSteps(t, snap)

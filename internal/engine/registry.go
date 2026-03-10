@@ -37,7 +37,7 @@ func DefaultRegistry(cfg Config) *signals.DetectorRegistry {
 			Domain:       signals.DomainQuality,
 			EvidenceType: signals.EvidenceStructuralPattern,
 			Description:  "Detect test files with weak or missing assertions.",
-			SignalTypes:   []models.SignalType{signals.SignalWeakAssertion},
+			SignalTypes:  []models.SignalType{signals.SignalWeakAssertion},
 		},
 		Detector: &quality.WeakAssertionDetector{},
 	})
@@ -47,9 +47,19 @@ func DefaultRegistry(cfg Config) *signals.DetectorRegistry {
 			Domain:       signals.DomainQuality,
 			EvidenceType: signals.EvidenceStructuralPattern,
 			Description:  "Detect test files with excessive mock usage.",
-			SignalTypes:   []models.SignalType{signals.SignalMockHeavyTest},
+			SignalTypes:  []models.SignalType{signals.SignalMockHeavyTest},
 		},
 		Detector: &quality.MockHeavyDetector{},
+	})
+	r.Register(signals.DetectorRegistration{
+		Meta: signals.DetectorMeta{
+			ID:           "quality.snapshot-heavy",
+			Domain:       signals.DomainQuality,
+			EvidenceType: signals.EvidenceStructuralPattern,
+			Description:  "Detect test files that over-rely on snapshot assertions.",
+			SignalTypes:  []models.SignalType{signals.SignalSnapshotHeavyTest},
+		},
+		Detector: &quality.SnapshotHeavyDetector{},
 	})
 	r.Register(signals.DetectorRegistration{
 		Meta: signals.DetectorMeta{
@@ -57,63 +67,73 @@ func DefaultRegistry(cfg Config) *signals.DetectorRegistry {
 			Domain:       signals.DomainQuality,
 			EvidenceType: signals.EvidencePathName,
 			Description:  "Detect exported code units without matching test files.",
-			SignalTypes:   []models.SignalType{signals.SignalUntestedExport},
+			SignalTypes:  []models.SignalType{signals.SignalUntestedExport},
 		},
 		Detector: &quality.UntestedExportDetector{},
 	})
 	r.Register(signals.DetectorRegistration{
 		Meta: signals.DetectorMeta{
-			ID:           "quality.coverage-threshold",
-			Domain:       signals.DomainCoverage,
-			EvidenceType: signals.EvidenceCoverage,
-			Description:  "Detect coverage below configured thresholds.",
-			SignalTypes:   []models.SignalType{signals.SignalCoverageThresholdBreak},
+			ID:             "quality.coverage-threshold",
+			Domain:         signals.DomainCoverage,
+			EvidenceType:   signals.EvidenceCoverage,
+			Description:    "Detect coverage below configured thresholds.",
+			SignalTypes:    []models.SignalType{signals.SignalCoverageThresholdBreak},
 			RequiresFileIO: true,
 		},
 		Detector: &quality.CoverageThresholdDetector{},
+	})
+	r.Register(signals.DetectorRegistration{
+		Meta: signals.DetectorMeta{
+			ID:           "coverage.blind-spot",
+			Domain:       signals.DomainCoverage,
+			EvidenceType: signals.EvidenceCoverage,
+			Description:  "Detect coverage lineage blind spots across discovered code units.",
+			SignalTypes:  []models.SignalType{signals.SignalCoverageBlindSpot},
+		},
+		Detector: &quality.CoverageBlindSpotDetector{},
 	})
 
 	// Migration detectors (no dependencies on other signals).
 	r.Register(signals.DetectorRegistration{
 		Meta: signals.DetectorMeta{
-			ID:           "migration.deprecated-pattern",
-			Domain:       signals.DomainMigration,
-			EvidenceType: signals.EvidenceStructuralPattern,
-			Description:  "Detect deprecated test patterns that block migration.",
-			SignalTypes:   []models.SignalType{signals.SignalDeprecatedTestPattern},
+			ID:             "migration.deprecated-pattern",
+			Domain:         signals.DomainMigration,
+			EvidenceType:   signals.EvidenceStructuralPattern,
+			Description:    "Detect deprecated test patterns that block migration.",
+			SignalTypes:    []models.SignalType{signals.SignalDeprecatedTestPattern},
 			RequiresFileIO: true,
 		},
 		Detector: &migration.DeprecatedPatternDetector{RepoRoot: cfg.RepoRoot},
 	})
 	r.Register(signals.DetectorRegistration{
 		Meta: signals.DetectorMeta{
-			ID:           "migration.dynamic-test-generation",
-			Domain:       signals.DomainMigration,
-			EvidenceType: signals.EvidenceStructuralPattern,
-			Description:  "Detect dynamic test generation patterns.",
-			SignalTypes:   []models.SignalType{signals.SignalDynamicTestGeneration},
+			ID:             "migration.dynamic-test-generation",
+			Domain:         signals.DomainMigration,
+			EvidenceType:   signals.EvidenceStructuralPattern,
+			Description:    "Detect dynamic test generation patterns.",
+			SignalTypes:    []models.SignalType{signals.SignalDynamicTestGeneration},
 			RequiresFileIO: true,
 		},
 		Detector: &migration.DynamicTestGenerationDetector{RepoRoot: cfg.RepoRoot},
 	})
 	r.Register(signals.DetectorRegistration{
 		Meta: signals.DetectorMeta{
-			ID:           "migration.custom-matcher",
-			Domain:       signals.DomainMigration,
-			EvidenceType: signals.EvidenceStructuralPattern,
-			Description:  "Detect custom matchers that complicate migration.",
-			SignalTypes:   []models.SignalType{signals.SignalCustomMatcherRisk},
+			ID:             "migration.custom-matcher",
+			Domain:         signals.DomainMigration,
+			EvidenceType:   signals.EvidenceStructuralPattern,
+			Description:    "Detect custom matchers that complicate migration.",
+			SignalTypes:    []models.SignalType{signals.SignalCustomMatcherRisk},
 			RequiresFileIO: true,
 		},
 		Detector: &migration.CustomMatcherDetector{RepoRoot: cfg.RepoRoot},
 	})
 	r.Register(signals.DetectorRegistration{
 		Meta: signals.DetectorMeta{
-			ID:           "migration.unsupported-setup",
-			Domain:       signals.DomainMigration,
-			EvidenceType: signals.EvidenceStructuralPattern,
-			Description:  "Detect framework-specific setup/fixture patterns.",
-			SignalTypes:   []models.SignalType{signals.SignalUnsupportedSetup},
+			ID:             "migration.unsupported-setup",
+			Domain:         signals.DomainMigration,
+			EvidenceType:   signals.EvidenceStructuralPattern,
+			Description:    "Detect framework-specific setup/fixture patterns.",
+			SignalTypes:    []models.SignalType{signals.SignalUnsupportedSetup},
 			RequiresFileIO: true,
 		},
 		Detector: &migration.UnsupportedSetupDetector{RepoRoot: cfg.RepoRoot},
@@ -124,7 +144,7 @@ func DefaultRegistry(cfg Config) *signals.DetectorRegistry {
 			Domain:       signals.DomainMigration,
 			EvidenceType: signals.EvidenceStructuralPattern,
 			Description:  "Detect multi-framework repos suitable for migration.",
-			SignalTypes:   []models.SignalType{signals.SignalFrameworkMigration},
+			SignalTypes:  []models.SignalType{signals.SignalFrameworkMigration},
 		},
 		Detector: &migration.FrameworkMigrationDetector{},
 	})
@@ -137,7 +157,7 @@ func DefaultRegistry(cfg Config) *signals.DetectorRegistry {
 				Domain:           signals.DomainGovernance,
 				EvidenceType:     signals.EvidencePolicy,
 				Description:      "Evaluate repository state against local policy rules.",
-				SignalTypes:       []models.SignalType{signals.SignalPolicyViolation, signals.SignalLegacyFrameworkUsage, signals.SignalRuntimeBudgetExceeded},
+				SignalTypes:      []models.SignalType{signals.SignalPolicyViolation, signals.SignalLegacyFrameworkUsage, signals.SignalRuntimeBudgetExceeded},
 				DependsOnSignals: true,
 			},
 			Detector: &GovernanceDetector{Config: cfg.PolicyConfig},

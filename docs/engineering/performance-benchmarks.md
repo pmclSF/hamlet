@@ -106,6 +106,18 @@ To detect regressions:
 `benchstat` reports the percentage change and statistical significance. A
 regression of >20% in ns/op or >30% in allocs/op warrants investigation.
 
+### CI Benchmark Comparison
+
+For pull requests, CI runs a benchmark comparison job that:
+
+1. Runs core Go benchmarks on the PR head.
+2. Checks out the PR base commit and reruns the same benchmarks.
+3. Compares results with `benchstat`.
+4. Publishes the comparison in the GitHub Actions step summary.
+
+This gives an immediate signal when performance drifts between base and head,
+without requiring manual baseline capture for every PR.
+
 ## Adding New Benchmarks
 
 When adding a benchmark:

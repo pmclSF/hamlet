@@ -3,6 +3,7 @@ package ownership
 import "testing"
 
 func TestNormalizeOwnerID(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		input string
 		want  string
@@ -24,6 +25,7 @@ func TestNormalizeOwnerID(t *testing.T) {
 }
 
 func TestOwnershipAssignment_IsUnowned(t *testing.T) {
+	t.Parallel()
 	a := OwnershipAssignment{}
 	if !a.IsUnowned() {
 		t.Error("empty assignment should be unowned")
@@ -36,6 +38,7 @@ func TestOwnershipAssignment_IsUnowned(t *testing.T) {
 }
 
 func TestOwnershipAssignment_PrimaryOwner(t *testing.T) {
+	t.Parallel()
 	a := OwnershipAssignment{}
 	if a.PrimaryOwnerID() != "unknown" {
 		t.Errorf("unowned primary = %q, want %q", a.PrimaryOwnerID(), "unknown")
@@ -48,6 +51,7 @@ func TestOwnershipAssignment_PrimaryOwner(t *testing.T) {
 }
 
 func TestOwnershipAssignment_HasOwner(t *testing.T) {
+	t.Parallel()
 	a := OwnershipAssignment{
 		Owners: []Owner{{ID: "team-a"}, {ID: "team-b"}},
 	}
@@ -63,6 +67,7 @@ func TestOwnershipAssignment_HasOwner(t *testing.T) {
 }
 
 func TestSourceConfidence(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		source SourceType
 		want   Confidence

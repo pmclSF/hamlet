@@ -10,6 +10,7 @@ import (
 )
 
 func TestDetectCollisions_NoCollisions(t *testing.T) {
+	t.Parallel()
 	cases := []models.TestCase{
 		{TestID: "a", CanonicalIdentity: "path::suite::test1"},
 		{TestID: "b", CanonicalIdentity: "path::suite::test2"},
@@ -24,6 +25,7 @@ func TestDetectCollisions_NoCollisions(t *testing.T) {
 }
 
 func TestDetectCollisions_WithCollision(t *testing.T) {
+	t.Parallel()
 	cases := []models.TestCase{
 		{TestID: "a", CanonicalIdentity: "path::suite::test", Line: 10},
 		{TestID: "a", CanonicalIdentity: "path::suite::test", Line: 20},
@@ -54,6 +56,7 @@ func TestDetectCollisions_WithCollision(t *testing.T) {
 }
 
 func TestDetectCollisions_Deterministic(t *testing.T) {
+	t.Parallel()
 	cases := []models.TestCase{
 		{TestID: "x", CanonicalIdentity: "path::suite::dup", Line: 30},
 		{TestID: "x", CanonicalIdentity: "path::suite::dup", Line: 10},
@@ -73,6 +76,7 @@ func TestDetectCollisions_Deterministic(t *testing.T) {
 }
 
 func TestDuplicateNamesInDifferentSuites(t *testing.T) {
+	t.Parallel()
 	src := `
 describe('Suite A', () => {
   it('works', () => {});
@@ -98,6 +102,7 @@ describe('Suite A', () => {
 }
 
 func TestDuplicateNamesInSameFile_SameSuite(t *testing.T) {
+	t.Parallel()
 	// This is a real-world antipattern: two tests with identical name in same suite.
 	src := `
 describe('Suite', () => {
@@ -131,6 +136,7 @@ describe('Suite', () => {
 }
 
 func TestDynamicTestGeneration(t *testing.T) {
+	t.Parallel()
 	src := `
 const cases = [1, 2, 3];
 cases.forEach(n => {

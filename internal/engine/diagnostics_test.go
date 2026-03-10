@@ -7,6 +7,7 @@ import (
 )
 
 func TestPipelineDiagnostics_Enabled(t *testing.T) {
+	t.Parallel()
 	result, err := RunPipeline("../analysis/testdata/sample-repo", PipelineOptions{
 		CollectDiagnostics: true,
 	})
@@ -40,6 +41,7 @@ func TestPipelineDiagnostics_Enabled(t *testing.T) {
 }
 
 func TestPipelineDiagnostics_Disabled(t *testing.T) {
+	t.Parallel()
 	result, err := RunPipeline("../analysis/testdata/sample-repo")
 	if err != nil {
 		t.Fatalf("RunPipeline failed: %v", err)
@@ -51,6 +53,7 @@ func TestPipelineDiagnostics_Disabled(t *testing.T) {
 }
 
 func TestPipelineDiagnostics_Render(t *testing.T) {
+	t.Parallel()
 	result, err := RunPipeline("../analysis/testdata/sample-repo", PipelineOptions{
 		CollectDiagnostics: true,
 	})

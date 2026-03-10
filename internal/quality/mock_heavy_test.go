@@ -7,6 +7,7 @@ import (
 )
 
 func TestMockHeavyDetector_HighMockRatio(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: []models.TestFile{
 			{Path: "test/a.test.js", TestCount: 2, AssertionCount: 1, MockCount: 5},
@@ -25,6 +26,7 @@ func TestMockHeavyDetector_HighMockRatio(t *testing.T) {
 }
 
 func TestMockHeavyDetector_LowMockCount(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: []models.TestFile{
 			{Path: "test/b.test.js", TestCount: 3, AssertionCount: 5, MockCount: 2},
@@ -40,6 +42,7 @@ func TestMockHeavyDetector_LowMockCount(t *testing.T) {
 }
 
 func TestMockHeavyDetector_ZeroMocks(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: []models.TestFile{
 			{Path: "test/c.test.js", TestCount: 5, AssertionCount: 10, MockCount: 0},
@@ -55,6 +58,7 @@ func TestMockHeavyDetector_ZeroMocks(t *testing.T) {
 }
 
 func TestMockHeavyDetector_NoAssertions(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: []models.TestFile{
 			{Path: "test/d.test.js", TestCount: 2, AssertionCount: 0, MockCount: 4},

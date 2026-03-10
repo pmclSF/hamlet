@@ -109,6 +109,8 @@ func ValidateSignal(s Signal) error {
 func ValidateSignalInto(s Signal, idx int, ve *ValidationError) {
 	if s.Type == "" {
 		ve.addf("signals[%d] has empty Type", idx)
+	} else if !IsKnownSignalType(s.Type) {
+		ve.addf("signals[%d] has unknown type %q", idx, s.Type)
 	}
 	if s.Category == "" {
 		ve.addf("signals[%d] has empty Category", idx)

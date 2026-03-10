@@ -1,6 +1,9 @@
 package coverage
 
 import (
+	"sort"
+	"strconv"
+
 	"github.com/pmclSF/hamlet/internal/models"
 )
 
@@ -40,6 +43,7 @@ type UnitCoverage struct {
 // AttributeToCodeUnits maps coverage records onto code units.
 func AttributeToCodeUnits(merged *MergedCoverage, units []models.CodeUnit) []UnitCoverage {
 	var result []UnitCoverage
+	implicitEndByUnit := buildImplicitEndLines(units)
 
 	for _, cu := range units {
 		rec, ok := merged.ByFile[cu.Path]
@@ -85,8 +89,14 @@ func AttributeToCodeUnits(merged *MergedCoverage, units []models.CodeUnit) []Uni
 		if cu.StartLine > 0 && len(rec.LineHits) > 0 {
 			endLine := cu.EndLine
 			if endLine == 0 {
-				// Estimate: scan forward until next function or 50 lines.
-				endLine = cu.StartLine + 50
+				if inferredEnd, ok := implicitEndByUnit[coverageUnitKey(cu)]; ok && inferredEnd >= cu.StartLine {
+					endLine = inferredEnd
+				} else {
+					endLine = maxInstrumentedLine(rec.LineHits)
+				}
+			}
+			if endLine < cu.StartLine {
+				endLine = cu.StartLine
 			}
 			covered, total := countLineCoverage(rec.LineHits, cu.StartLine, endLine)
 			if total > 0 {
@@ -124,4 +134,52 @@ func countLineCoverage(lineHits map[int]int, start, end int) (covered, total int
 		}
 	}
 	return
+}
+
+func buildImplicitEndLines(units []models.CodeUnit) map[string]int {
+	byPath := map[string][]models.CodeUnit{}
+	for _, cu := range units {
+		if cu.StartLine <= 0 || cu.EndLine > 0 {
+			continue
+		}
+		byPath[cu.Path] = append(byPath[cu.Path], cu)
+	}
+
+	endByUnit := map[string]int{}
+	for _, fileUnits := range byPath {
+		sort.Slice(fileUnits, func(i, j int) bool {
+			if fileUnits[i].StartLine != fileUnits[j].StartLine {
+				return fileUnits[i].StartLine < fileUnits[j].StartLine
+			}
+			return fileUnits[i].Name < fileUnits[j].Name
+		})
+		for i := range fileUnits {
+			cur := fileUnits[i]
+			if i+1 < len(fileUnits) {
+				next := fileUnits[i+1]
+				if next.StartLine > cur.StartLine {
+					endByUnit[coverageUnitKey(cur)] = next.StartLine - 1
+				}
+			}
+		}
+	}
+
+	return endByUnit
+}
+
+func coverageUnitKey(cu models.CodeUnit) string {
+	if cu.UnitID != "" {
+		return cu.UnitID
+	}
+	return cu.Path + ":" + cu.Name + ":" + strconv.Itoa(cu.StartLine)
+}
+
+func maxInstrumentedLine(lineHits map[int]int) int {
+	max := 0
+	for line := range lineHits {
+		if line > max {
+			max = line
+		}
+	}
+	return max
 }

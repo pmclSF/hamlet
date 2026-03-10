@@ -7,6 +7,7 @@ import (
 )
 
 func TestPreviewFile_SimpleJestFile(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	writeTestFile(t, dir, "test/simple.test.js", `
 		import { sum } from '../src/math';
@@ -54,6 +55,7 @@ func TestPreviewFile_SimpleJestFile(t *testing.T) {
 }
 
 func TestPreviewFile_WithBlockers(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	writeTestFile(t, dir, "test/complex.test.js", `
 		expect.extend({
@@ -93,6 +95,7 @@ func TestPreviewFile_WithBlockers(t *testing.T) {
 }
 
 func TestPreviewFile_NotInSnapshot(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: []models.TestFile{},
 	}
@@ -108,6 +111,7 @@ func TestPreviewFile_NotInSnapshot(t *testing.T) {
 }
 
 func TestPreviewFile_NonJSFramework(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: []models.TestFile{
 			{Path: "test_main.go", Framework: "go-testing"},
@@ -125,6 +129,7 @@ func TestPreviewFile_NonJSFramework(t *testing.T) {
 }
 
 func TestPreviewFile_InferTarget_Cypress(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	writeTestFile(t, dir, "e2e/login.cy.js", `
 		describe('Login', () => {
@@ -152,6 +157,7 @@ func TestPreviewFile_InferTarget_Cypress(t *testing.T) {
 }
 
 func TestPreviewScope_MixedDifficulty(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	writeTestFile(t, dir, "test/easy.test.js", `
 		test('simple', () => {
@@ -190,6 +196,7 @@ func TestPreviewScope_MixedDifficulty(t *testing.T) {
 }
 
 func TestClassifyDifficulty(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		blockers []PreviewBlocker
@@ -212,6 +219,7 @@ func TestClassifyDifficulty(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := classifyDifficulty(tt.blockers, &models.TestFile{})
 			if got != tt.want {
 				t.Errorf("classifyDifficulty() = %q, want %q", got, tt.want)

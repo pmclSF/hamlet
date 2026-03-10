@@ -7,6 +7,7 @@ import (
 )
 
 func TestAssess_StrongTargeted(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: []models.TestFile{
 			{
@@ -43,6 +44,7 @@ func TestAssess_StrongTargeted(t *testing.T) {
 }
 
 func TestAssess_SnapshotOnly(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: []models.TestFile{
 			{
@@ -67,6 +69,7 @@ func TestAssess_SnapshotOnly(t *testing.T) {
 }
 
 func TestAssess_StatusCodeOnly(t *testing.T) {
+	t.Parallel()
 	// E2E framework with low density — should still be moderate.
 	snap := &models.TestSuiteSnapshot{
 		Frameworks: []models.Framework{
@@ -93,6 +96,7 @@ func TestAssess_StatusCodeOnly(t *testing.T) {
 }
 
 func TestAssess_NoAssertions(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: []models.TestFile{
 			{
@@ -117,6 +121,7 @@ func TestAssess_NoAssertions(t *testing.T) {
 }
 
 func TestAssess_MockHeavy(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: []models.TestFile{
 			{
@@ -141,6 +146,7 @@ func TestAssess_MockHeavy(t *testing.T) {
 }
 
 func TestAssess_MixedFiles(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: []models.TestFile{
 			{
@@ -197,6 +203,7 @@ func TestAssess_MixedFiles(t *testing.T) {
 }
 
 func TestAssess_EmptySnapshot(t *testing.T) {
+	t.Parallel()
 	result := Assess(nil)
 	if result.OverallStrength != StrengthUnclear {
 		t.Errorf("overall = %s, want unclear for nil snapshot", result.OverallStrength)
@@ -212,6 +219,7 @@ func TestAssess_EmptySnapshot(t *testing.T) {
 }
 
 func TestAssess_E2EStrongDensity(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		Frameworks: []models.Framework{
 			{Name: "playwright", Type: models.FrameworkTypeE2E},
@@ -237,6 +245,7 @@ func TestAssess_E2EStrongDensity(t *testing.T) {
 }
 
 func TestAssess_E2ELowDensity(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: []models.TestFile{
 			{
@@ -259,6 +268,7 @@ func TestAssess_E2ELowDensity(t *testing.T) {
 }
 
 func TestAssess_NoTestsInFile(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: []models.TestFile{
 			{
@@ -278,6 +288,7 @@ func TestAssess_NoTestsInFile(t *testing.T) {
 }
 
 func TestAssess_AverageDensity(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: []models.TestFile{
 			{
@@ -303,6 +314,7 @@ func TestAssess_AverageDensity(t *testing.T) {
 }
 
 func TestAssess_ByStrengthCounts(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: []models.TestFile{
 			{Path: "a.js", Framework: "jest", TestCount: 10, AssertionCount: 40},
@@ -321,6 +333,7 @@ func TestAssess_ByStrengthCounts(t *testing.T) {
 }
 
 func TestAssess_HighMockRatioWithHighDensity(t *testing.T) {
+	t.Parallel()
 	// High density but mock ratio >= 0.5 should not be strong.
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: []models.TestFile{

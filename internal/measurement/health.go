@@ -93,7 +93,20 @@ func computeSkipDensity(snap *models.TestSuiteSnapshot) Result {
 		}
 	}
 
-	count := countSignals(snap, signals.SignalSkippedTest)
+	fileSet := map[string]bool{}
+	for _, s := range snap.Signals {
+		if s.Type != signals.SignalSkippedTest {
+			continue
+		}
+		if s.Location.File != "" {
+			fileSet[s.Location.File] = true
+		}
+	}
+	count := len(fileSet)
+	if count == 0 {
+		// Backward compatibility for snapshots that only contain repo-level skipped signals.
+		count = countSignals(snap, signals.SignalSkippedTest)
+	}
 	ratio := float64(count) / float64(total)
 	band := ratioToBand(ratio, 0.05, 0.15, 0.30)
 

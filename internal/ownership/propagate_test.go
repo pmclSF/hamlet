@@ -9,6 +9,7 @@ import (
 )
 
 func TestPropagate_BasicInheritance(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	githubDir := filepath.Join(dir, ".github")
 	if err := os.MkdirAll(githubDir, 0755); err != nil {
@@ -97,6 +98,7 @@ func TestPropagate_BasicInheritance(t *testing.T) {
 }
 
 func TestPropagate_DirectAssignmentPreserved(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	resolver := NewResolver(dir)
 
@@ -121,6 +123,7 @@ func TestPropagate_DirectAssignmentPreserved(t *testing.T) {
 }
 
 func TestPropagate_UnownedTracking(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	resolver := NewResolver(dir)
 
@@ -144,6 +147,7 @@ func TestPropagate_UnownedTracking(t *testing.T) {
 }
 
 func TestPropagate_OwnerAggregates(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	githubDir := filepath.Join(dir, ".github")
 	if err := os.MkdirAll(githubDir, 0755); err != nil {
@@ -206,6 +210,7 @@ func TestPropagate_OwnerAggregates(t *testing.T) {
 }
 
 func TestDeriveCoveragePosture(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		total, owned int
 		want         string

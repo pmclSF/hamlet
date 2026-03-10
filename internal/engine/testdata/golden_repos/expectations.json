@@ -1,0 +1,46 @@
+{
+  "minimal-js": {
+    "testFiles": 1,
+    "codeUnits": 1,
+    "signals": 0,
+    "riskSurfaces": 0,
+    "maxRiskScore": 0,
+    "sourceAvailable": true,
+    "coverageStatus": "unavailable",
+    "runtimeStatus": "unavailable",
+    "coverageSummary": false
+  },
+  "go-with-runtime-and-coverage": {
+    "testFiles": 1,
+    "codeUnits": 1,
+    "signals": 0,
+    "riskSurfaces": 0,
+    "maxRiskScore": 0,
+    "sourceAvailable": true,
+    "coverageStatus": "available",
+    "runtimeStatus": "available",
+    "coverageSummary": true
+  },
+  "empty": {
+    "testFiles": 0,
+    "codeUnits": 0,
+    "signals": 0,
+    "riskSurfaces": 0,
+    "maxRiskScore": 0,
+    "sourceAvailable": false,
+    "coverageStatus": "unavailable",
+    "runtimeStatus": "unavailable",
+    "coverageSummary": false
+  },
+  "degraded-data": {
+    "testFiles": 1,
+    "codeUnits": 1,
+    "signals": 0,
+    "riskSurfaces": 0,
+    "maxRiskScore": 0,
+    "sourceAvailable": true,
+    "coverageStatus": "error",
+    "runtimeStatus": "error",
+    "coverageSummary": false
+  }
+}

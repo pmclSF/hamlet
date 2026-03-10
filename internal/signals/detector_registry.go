@@ -1,6 +1,11 @@
 package signals
 
-import "github.com/pmclSF/hamlet/internal/models"
+import (
+	"sort"
+	"sync"
+
+	"github.com/pmclSF/hamlet/internal/models"
+)
 
 // Domain classifies a detector's area of concern.
 type Domain string
@@ -71,6 +76,13 @@ func NewRegistry() *DetectorRegistry {
 
 // Register adds a detector to the registry.
 func (r *DetectorRegistry) Register(reg DetectorRegistration) {
+	if !reg.Meta.DependsOnSignals {
+		for _, existing := range r.registrations {
+			if existing.Meta.DependsOnSignals {
+				panic("signals: cannot register a detector with DependsOnSignals=false after a dependent detector")
+			}
+		}
+	}
 	r.registrations = append(r.registrations, reg)
 }
 
@@ -104,7 +116,51 @@ func (r *DetectorRegistry) Detectors() []Detector {
 // Run executes all registered detectors against the snapshot in
 // registration order, appending signals to snap.Signals.
 func (r *DetectorRegistry) Run(snap *models.TestSuiteSnapshot) {
-	RunDetectors(snap, r.Detectors()...)
+	if snap == nil || len(r.registrations) == 0 {
+		return
+	}
+
+	type result struct {
+		idx     int
+		signals []models.Signal
+	}
+
+	var (
+		wg         sync.WaitGroup
+		mu         sync.Mutex
+		results    []result
+		dependents []DetectorRegistration
+	)
+
+	for idx, reg := range r.registrations {
+		if reg.Meta.DependsOnSignals {
+			dependents = append(dependents, reg)
+			continue
+		}
+
+		wg.Add(1)
+		go func(idx int, reg DetectorRegistration) {
+			defer wg.Done()
+			found := reg.Detector.Detect(snap)
+			mu.Lock()
+			results = append(results, result{idx: idx, signals: found})
+			mu.Unlock()
+		}(idx, reg)
+	}
+	wg.Wait()
+
+	sort.Slice(results, func(i, j int) bool {
+		return results[i].idx < results[j].idx
+	})
+	for _, res := range results {
+		snap.Signals = append(snap.Signals, res.signals...)
+	}
+
+	// Dependent detectors run after independent outputs are available.
+	for _, reg := range dependents {
+		found := reg.Detector.Detect(snap)
+		snap.Signals = append(snap.Signals, found...)
+	}
 }
 
 // RunDomain executes only detectors matching the given domain.

@@ -30,6 +30,12 @@ func RenderExecutiveSummary(w io.Writer, es *summary.ExecutiveSummary) {
 	}
 	if len(es.Posture.Dimensions) == 0 {
 		line("  (no risk surfaces computed)")
+	} else {
+		line("  Dimension meaning:")
+		line("    reliability: runtime stability and determinism")
+		line("    change: test confidence for safe refactoring and delivery")
+		line("    speed: execution efficiency and feedback-loop latency")
+		line("    governance: policy adherence and operational control")
 	}
 	blank()
 
@@ -75,8 +81,10 @@ func RenderExecutiveSummary(w io.Writer, es *summary.ExecutiveSummary) {
 	} else if !es.HasTrendData {
 		line("Trend Highlights")
 		line(strings.Repeat("-", 50))
-		line("  No prior snapshots available.")
-		line("  Run `hamlet analyze --write-snapshot` to begin tracking trends.")
+		line("  This is the first analysis — it establishes your baseline.")
+		line("  Save it and re-run later to see trends:")
+		line("    hamlet analyze --write-snapshot    save this as baseline")
+		line("  On subsequent runs, Hamlet will show changes in risk, signals, and posture.")
 		blank()
 	}
 

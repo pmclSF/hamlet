@@ -4,10 +4,13 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
+	"strings"
 	"testing"
 )
 
 func TestExtractJS_Basic(t *testing.T) {
+	t.Parallel()
 	src := `
 describe('AuthService', () => {
   describe('login', () => {
@@ -65,6 +68,7 @@ describe('AuthService', () => {
 }
 
 func TestExtractJS_StableIDs(t *testing.T) {
+	t.Parallel()
 	src := `
 describe('Math', () => {
   it('adds', () => {});
@@ -95,6 +99,7 @@ describe('Math', () => {
 }
 
 func TestExtractJS_ReorderedExtraction_SameIDs(t *testing.T) {
+	t.Parallel()
 	// Identity should not depend on traversal order.
 	src := `
 describe('Suite', () => {
@@ -121,7 +126,142 @@ describe('Suite', () => {
 	}
 }
 
+func TestExtractJS_IgnoresBracesInStringsAndComments(t *testing.T) {
+	t.Parallel()
+	src := `
+describe('outer', () => {
+  it('includes { brace in title }', () => {
+    const msg = "{not-a-scope}";
+    const tpl = ` + "`template {still not scope}`" + `;
+    // comment with }
+    expect(msg).toBeDefined();
+  });
+
+  it('second test remains in same suite', () => {
+    expect(true).toBe(true);
+  });
+});
+`
+	dir := t.TempDir()
+	path := filepath.Join(dir, "brace.test.js")
+	mustWriteFile(t, path, []byte(src))
+
+	cases := Extract(dir, "brace.test.js", "jest")
+	if len(cases) != 2 {
+		t.Fatalf("expected 2 test cases, got %d", len(cases))
+	}
+
+	for _, tc := range cases {
+		if len(tc.SuiteHierarchy) != 1 || tc.SuiteHierarchy[0] != "outer" {
+			t.Fatalf("unexpected suite hierarchy for %q: %v", tc.TestName, tc.SuiteHierarchy)
+		}
+	}
+}
+
+func TestExtractJS_EscapedQuotesInNames(t *testing.T) {
+	t.Parallel()
+	src := `
+describe('can\'t fail', () => {
+  it("handles \"quoted\" values", () => {
+    expect(true).toBe(true);
+  });
+});
+`
+	dir := t.TempDir()
+	path := filepath.Join(dir, "quotes.test.js")
+	mustWriteFile(t, path, []byte(src))
+
+	cases := Extract(dir, "quotes.test.js", "jest")
+	if len(cases) != 1 {
+		t.Fatalf("expected 1 test case, got %d", len(cases))
+	}
+	if cases[0].TestName != `handles "quoted" values` {
+		t.Fatalf("test name = %q, want %q", cases[0].TestName, `handles "quoted" values`)
+	}
+	if len(cases[0].SuiteHierarchy) != 1 || cases[0].SuiteHierarchy[0] != `can't fail` {
+		t.Fatalf("suite hierarchy = %v, want [can't fail]", cases[0].SuiteHierarchy)
+	}
+}
+
+func TestExtractJS_TemplateExpressionBracesDoNotBreakScopes(t *testing.T) {
+	t.Parallel()
+	src := `
+describe(` + "`outer ${config({a: 1})}`" + `, () => {
+  describe('inner', () => {
+    it('first', () => {
+      expect(true).toBe(true);
+    });
+  });
+
+  it('second', () => {
+    expect(true).toBe(true);
+  });
+});
+`
+	dir := t.TempDir()
+	path := filepath.Join(dir, "template-scope.test.js")
+	mustWriteFile(t, path, []byte(src))
+
+	cases := Extract(dir, "template-scope.test.js", "jest")
+	if len(cases) != 2 {
+		t.Fatalf("expected 2 test cases, got %d", len(cases))
+	}
+	sort.Slice(cases, func(i, j int) bool { return cases[i].Line < cases[j].Line })
+
+	if cases[0].TestName != "first" {
+		t.Fatalf("case 0 name = %q, want first", cases[0].TestName)
+	}
+	if len(cases[0].SuiteHierarchy) != 2 || cases[0].SuiteHierarchy[1] != "inner" {
+		t.Fatalf("case 0 hierarchy = %v, expected outer + inner", cases[0].SuiteHierarchy)
+	}
+	if cases[1].TestName != "second" {
+		t.Fatalf("case 1 name = %q, want second", cases[1].TestName)
+	}
+	if len(cases[1].SuiteHierarchy) != 1 {
+		t.Fatalf("case 1 hierarchy = %v, want only outer suite", cases[1].SuiteHierarchy)
+	}
+}
+
+func TestExtractJS_TestEachEnumeratesInlineArrayInstances(t *testing.T) {
+	t.Parallel()
+	src := `
+describe('calc', () => {
+  test.each([
+    [1, 2, 3],
+    [2, 2, 4],
+    [3, 2, 5]
+  ])('adds numbers', (a, b, expected) => {
+    expect(a + b).toBe(expected);
+  });
+});
+`
+	dir := t.TempDir()
+	path := filepath.Join(dir, "calc.test.js")
+	mustWriteFile(t, path, []byte(src))
+
+	cases := Extract(dir, "calc.test.js", "jest")
+	if len(cases) != 3 {
+		t.Fatalf("expected 3 enumerated cases, got %d", len(cases))
+	}
+
+	for i, tc := range cases {
+		if tc.TestName != "adds numbers" {
+			t.Fatalf("case %d name = %q, want adds numbers", i, tc.TestName)
+		}
+		if tc.Parameterized == nil || tc.Parameterized.IsTemplate {
+			t.Fatalf("case %d should be a concrete parameterized instance", i)
+		}
+		if tc.Parameterized.EstimatedInstances != 3 {
+			t.Fatalf("case %d estimatedInstances = %d, want 3", i, tc.Parameterized.EstimatedInstances)
+		}
+		if tc.Parameterized.ParamSignature == "" {
+			t.Fatalf("case %d missing param signature", i)
+		}
+	}
+}
+
 func TestExtractJS_LineMovement_SameID(t *testing.T) {
+	t.Parallel()
 	// Adding blank lines should not change the test ID.
 	src1 := `describe('X', () => {
   it('works', () => {});
@@ -159,6 +299,7 @@ describe('X', () => {
 }
 
 func TestExtractJS_Rename_NewID(t *testing.T) {
+	t.Parallel()
 	src1 := `describe('X', () => { it('old name', () => {}); });`
 	src2 := `describe('X', () => { it('new name', () => {}); });`
 
@@ -181,15 +322,19 @@ func TestExtractJS_Rename_NewID(t *testing.T) {
 }
 
 func TestExtractGo(t *testing.T) {
+	t.Parallel()
 	src := `package foo
 
 func TestAdd(t *testing.T) {
+	t.Parallel()
 	t.Run("positive numbers", func(t *testing.T) {
+		t.Parallel()
 		if add(1, 2) != 3 {
 			t.Error("wrong")
 		}
 	})
 	t.Run("negative numbers", func(t *testing.T) {
+		t.Parallel()
 		if add(-1, -2) != -3 {
 			t.Error("wrong")
 		}
@@ -197,6 +342,7 @@ func TestAdd(t *testing.T) {
 }
 
 func TestSubtract(t *testing.T) {
+	t.Parallel()
 	if sub(5, 3) != 2 {
 		t.Error("wrong")
 	}
@@ -226,7 +372,30 @@ func TestSubtract(t *testing.T) {
 	}
 }
 
+func TestExtractGo_SubtestEscapedQuotes(t *testing.T) {
+	t.Parallel()
+	src := `package foo
+
+func TestEscaped(t *testing.T) {
+	t.Run("can \"quote\" names", func(t *testing.T) {
+		t.Parallel()
+	})
+}`
+	dir := t.TempDir()
+	mustWriteFile(t, filepath.Join(dir, "escaped_test.go"), []byte(src))
+
+	cases := Extract(dir, "escaped_test.go", "go-testing")
+	if len(cases) != 2 {
+		t.Fatalf("expected 2 test cases, got %d", len(cases))
+	}
+	if cases[1].TestName != `can "quote" names` {
+		t.Fatalf("subtest name = %q, want %q", cases[1].TestName, `can "quote" names`)
+	}
+}
+
 func TestExtractPython(t *testing.T) {
+	t.Parallel()
+
 	src := `import pytest
 
 class TestCalculator:
@@ -244,8 +413,8 @@ def test_standalone():
 	mustWriteFile(t, filepath.Join(dir, "test_calc.py"), []byte(src))
 
 	cases := Extract(dir, "test_calc.py", "pytest")
-	if len(cases) != 3 {
-		t.Fatalf("expected 3 test cases, got %d", len(cases))
+	if len(cases) != 4 {
+		t.Fatalf("expected 4 test cases, got %d", len(cases))
 	}
 
 	sort.Slice(cases, func(i, j int) bool { return cases[i].Line < cases[j].Line })
@@ -257,22 +426,35 @@ def test_standalone():
 		t.Errorf("case 0 hierarchy = %v", cases[0].SuiteHierarchy)
 	}
 
-	if cases[1].TestName != "test_multiply" {
-		t.Errorf("case 1 name = %q", cases[1].TestName)
+	multiplyCount := 0
+	for _, tc := range cases {
+		if tc.TestName != "test_multiply" {
+			continue
+		}
+		multiplyCount++
+		if tc.ExtractionKind != ExtractionStatic {
+			t.Errorf("test_multiply kind = %q, want static for enumerated param cases", tc.ExtractionKind)
+		}
+		if tc.Parameterized == nil || tc.Parameterized.IsTemplate {
+			t.Errorf("test_multiply expected concrete parameterization, got %#v", tc.Parameterized)
+			continue
+		}
 	}
-	if cases[1].ExtractionKind != ExtractionParameterizedTemplate {
-		t.Errorf("case 1 kind = %q, want parameterized_template", cases[1].ExtractionKind)
+	if multiplyCount != 2 {
+		t.Fatalf("expected 2 parameterized test_multiply instances, got %d", multiplyCount)
 	}
 
-	if cases[2].TestName != "test_standalone" {
-		t.Errorf("case 2 name = %q", cases[2].TestName)
+	last := cases[len(cases)-1]
+	if last.TestName != "test_standalone" {
+		t.Errorf("last case name = %q", last.TestName)
 	}
-	if len(cases[2].SuiteHierarchy) != 0 {
-		t.Errorf("case 2 should have no hierarchy, got %v", cases[2].SuiteHierarchy)
+	if len(last.SuiteHierarchy) != 0 {
+		t.Errorf("test_standalone should have no hierarchy, got %v", last.SuiteHierarchy)
 	}
 }
 
 func TestExtractJava(t *testing.T) {
+	t.Parallel()
 	src := `import org.junit.jupiter.api.Test;
 
 class UserServiceTest {
@@ -305,9 +487,35 @@ class UserServiceTest {
 	}
 }
 
-func mustWriteFile(t *testing.T, path string, content []byte) {
-	t.Helper()
+func BenchmarkExtractJS_LargeSuite(b *testing.B) {
+	var src strings.Builder
+	src.WriteString("describe('BenchmarkSuite', () => {\n")
+	for i := 0; i < 300; i++ {
+		src.WriteString("  describe('feature ")
+		src.WriteString(strconv.Itoa(i))
+		src.WriteString("', () => {\n")
+		for j := 0; j < 5; j++ {
+			src.WriteString("    it('case ")
+			src.WriteString(strconv.Itoa(j))
+			src.WriteString("', () => { expect(true).toBe(true) })\n")
+		}
+		src.WriteString("  })\n")
+	}
+	src.WriteString("})\n")
+
+	dir := b.TempDir()
+	mustWriteFile(b, filepath.Join(dir, "bench.test.js"), []byte(src.String()))
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = Extract(dir, "bench.test.js", "jest")
+	}
+}
+
+func mustWriteFile(tb testing.TB, path string, content []byte) {
+	tb.Helper()
 	if err := os.WriteFile(path, content, 0o644); err != nil {
-		t.Fatalf("write %q: %v", path, err)
+		tb.Fatalf("write %q: %v", path, err)
 	}
 }

@@ -16,6 +16,8 @@ type FrameworkResult struct {
 	Source     string // "import", "config", "fallback"
 }
 
+const frameworkProbeBytes = 64 * 1024
+
 // detectFrameworkWithContext detects framework with optional project-level context.
 // When projectCtx is provided and per-file detection yields "unknown", the project
 // default is used as a fallback.
@@ -77,7 +79,7 @@ func isJSExt(ext string) bool {
 
 // detectJSFrameworkResult returns a full FrameworkResult with confidence and source.
 func detectJSFrameworkResult(absPath string) FrameworkResult {
-	content := readHead(absPath, 4096)
+	content := readHead(absPath, frameworkProbeBytes)
 	if content == "" {
 		return FrameworkResult{Framework: "unknown", Confidence: 0, Source: ""}
 	}
@@ -160,7 +162,7 @@ func hasMochaIndicators(content string) bool {
 
 // detectPythonFrameworkResult returns a full FrameworkResult.
 func detectPythonFrameworkResult(absPath string) FrameworkResult {
-	content := readHead(absPath, 4096)
+	content := readHead(absPath, frameworkProbeBytes)
 	if content == "" {
 		return FrameworkResult{Framework: "unknown", Confidence: 0, Source: ""}
 	}
@@ -179,7 +181,7 @@ func detectPythonFrameworkResult(absPath string) FrameworkResult {
 
 // detectJavaFrameworkResult returns a full FrameworkResult.
 func detectJavaFrameworkResult(absPath string) FrameworkResult {
-	content := readHead(absPath, 4096)
+	content := readHead(absPath, frameworkProbeBytes)
 	if content == "" {
 		return FrameworkResult{Framework: "unknown", Confidence: 0, Source: ""}
 	}

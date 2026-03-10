@@ -8,6 +8,7 @@ import (
 )
 
 func TestResolver_ExplicitConfig(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	hamletDir := filepath.Join(dir, ".hamlet")
 	mustMkdirAll(t, hamletDir)
@@ -44,6 +45,7 @@ func TestResolver_ExplicitConfig(t *testing.T) {
 }
 
 func TestResolver_ExplicitConfig_PathBoundary(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	hamletDir := filepath.Join(dir, ".hamlet")
 	mustMkdirAll(t, hamletDir)
@@ -69,6 +71,7 @@ func TestResolver_ExplicitConfig_PathBoundary(t *testing.T) {
 }
 
 func TestResolver_CODEOWNERS(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	githubDir := filepath.Join(dir, ".github")
 	mustMkdirAll(t, githubDir)
@@ -100,6 +103,7 @@ src/ui/ @frontend-team
 }
 
 func TestResolver_DirectoryFallback(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	r := NewResolver(dir)
 
@@ -110,6 +114,7 @@ func TestResolver_DirectoryFallback(t *testing.T) {
 }
 
 func TestResolver_Unknown(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	r := NewResolver(dir)
 
@@ -120,6 +125,7 @@ func TestResolver_Unknown(t *testing.T) {
 }
 
 func TestResolver_Precedence(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 
 	// Set up both CODEOWNERS and explicit config
@@ -146,6 +152,7 @@ func TestResolver_Precedence(t *testing.T) {
 }
 
 func TestResolver_NoConfigFiles(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	r := NewResolver(dir)
 
@@ -157,6 +164,7 @@ func TestResolver_NoConfigFiles(t *testing.T) {
 }
 
 func TestResolver_ResolveAssignment_Provenance(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	hamletDir := filepath.Join(dir, ".hamlet")
 	mustMkdirAll(t, hamletDir)
@@ -189,6 +197,7 @@ func TestResolver_ResolveAssignment_Provenance(t *testing.T) {
 }
 
 func TestResolver_ResolveAssignment_CodeownersProvenance(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	githubDir := filepath.Join(dir, ".github")
 	mustMkdirAll(t, githubDir)
@@ -216,6 +225,7 @@ func TestResolver_ResolveAssignment_CodeownersProvenance(t *testing.T) {
 }
 
 func TestResolver_ResolveAssignment_DirectoryFallback(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	r := NewResolver(dir)
 
@@ -229,6 +239,7 @@ func TestResolver_ResolveAssignment_DirectoryFallback(t *testing.T) {
 }
 
 func TestResolver_ResolveAssignment_Unknown(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	r := NewResolver(dir)
 
@@ -245,6 +256,7 @@ func TestResolver_ResolveAssignment_Unknown(t *testing.T) {
 }
 
 func TestResolver_PathMappings(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	hamletDir := filepath.Join(dir, ".hamlet")
 	mustMkdirAll(t, hamletDir)
@@ -277,6 +289,7 @@ func TestResolver_PathMappings(t *testing.T) {
 }
 
 func TestResolver_PathMappings_PathBoundary(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	hamletDir := filepath.Join(dir, ".hamlet")
 	mustMkdirAll(t, hamletDir)
@@ -303,6 +316,7 @@ func TestResolver_PathMappings_PathBoundary(t *testing.T) {
 }
 
 func TestResolver_InheritFrom(t *testing.T) {
+	t.Parallel()
 	parent := OwnershipAssignment{
 		Owners:      []Owner{{ID: "team-auth"}},
 		Source:      SourceCodeowners,
@@ -325,6 +339,7 @@ func TestResolver_InheritFrom(t *testing.T) {
 }
 
 func TestResolver_SourcesUsed(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 
 	// Set up CODEOWNERS.
@@ -354,6 +369,7 @@ func TestResolver_SourcesUsed(t *testing.T) {
 }
 
 func TestResolver_ResolveAll(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	r := NewResolver(dir)
 
@@ -370,6 +386,7 @@ func TestResolver_ResolveAll(t *testing.T) {
 }
 
 func TestResolver_GitHistoryFallback(t *testing.T) {
+	t.Parallel()
 	requireGit(t)
 
 	dir := t.TempDir()
@@ -404,6 +421,7 @@ func TestResolver_GitHistoryFallback(t *testing.T) {
 }
 
 func TestResolver_GitHistoryAutoFallbackWhenNoCodeowners(t *testing.T) {
+	t.Parallel()
 	requireGit(t)
 
 	dir := t.TempDir()
@@ -421,6 +439,7 @@ func TestResolver_GitHistoryAutoFallbackWhenNoCodeowners(t *testing.T) {
 }
 
 func TestResolver_GitHistoryAutoDisabledUsesDirectoryFallback(t *testing.T) {
+	t.Parallel()
 	requireGit(t)
 
 	dir := t.TempDir()
@@ -450,6 +469,7 @@ func TestResolver_GitHistoryAutoDisabledUsesDirectoryFallback(t *testing.T) {
 }
 
 func TestResolver_GitHistoryPrecedence(t *testing.T) {
+	t.Parallel()
 	requireGit(t)
 
 	dir := t.TempDir()
@@ -510,6 +530,7 @@ func TestResolver_GitHistoryPrecedence(t *testing.T) {
 }
 
 func TestResolver_GitHistorySourceReported(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	hamletDir := filepath.Join(dir, ".hamlet")
 	if err := os.MkdirAll(hamletDir, 0o755); err != nil {
@@ -531,6 +552,7 @@ func TestResolver_GitHistorySourceReported(t *testing.T) {
 }
 
 func TestResolver_GitHistoryDiagnosticsWhenNotRepo(t *testing.T) {
+	t.Parallel()
 	requireGit(t)
 
 	dir := t.TempDir()

@@ -77,3 +77,74 @@ func pathSimilarity(a, b string) float64 {
 	// Weight filename more heavily than directory.
 	return 0.4*dirSim + 0.6*fileSim
 }
+
+func tokenSimilarity(a, b string) float64 {
+	aSet := tokenSet(a)
+	bSet := tokenSet(b)
+	if len(aSet) == 0 || len(bSet) == 0 {
+		return 0.0
+	}
+
+	intersection := 0
+	for tok := range aSet {
+		if bSet[tok] {
+			intersection++
+		}
+	}
+
+	union := len(aSet)
+	for tok := range bSet {
+		if !aSet[tok] {
+			union++
+		}
+	}
+	if union == 0 {
+		return 0.0
+	}
+	return float64(intersection) / float64(union)
+}
+
+var lifecycleStopTokens = map[string]bool{
+	"test":   true,
+	"tests":  true,
+	"should": true,
+	"it":     true,
+	"when":   true,
+	"then":   true,
+	"and":    true,
+	"the":    true,
+	"a":      true,
+	"an":     true,
+}
+
+func tokenSet(v string) map[string]bool {
+	if v == "" {
+		return nil
+	}
+	v = strings.ToLower(v)
+	replacer := strings.NewReplacer(
+		"-", " ",
+		"_", " ",
+		".", " ",
+		":", " ",
+		"/", " ",
+		"(", " ",
+		")", " ",
+		"[", " ",
+		"]", " ",
+		"{", " ",
+		"}", " ",
+		",", " ",
+	)
+	v = replacer.Replace(v)
+
+	out := map[string]bool{}
+	for _, token := range strings.Fields(v) {
+		token = strings.TrimSpace(token)
+		if len(token) < 2 || lifecycleStopTokens[token] {
+			continue
+		}
+		out[token] = true
+	}
+	return out
+}

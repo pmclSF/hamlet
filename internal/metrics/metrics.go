@@ -9,10 +9,11 @@
 //   - future-safe for hosted benchmarking aggregation
 //
 // Privacy boundary:
-//   The metrics artifact intentionally excludes raw file paths, symbol names,
-//   source code snippets, and user identity information. It contains only
-//   aggregate counts, ratios, and qualitative bands. This makes it safe
-//   for future anonymous aggregation without exposing proprietary code.
+//
+//	The metrics artifact intentionally excludes raw file paths, symbol names,
+//	source code snippets, and user identity information. It contains only
+//	aggregate counts, ratios, and qualitative bands. This makes it safe
+//	for future anonymous aggregation without exposing proprietary code.
 package metrics
 
 import (
@@ -48,11 +49,11 @@ type Snapshot struct {
 
 // StructureMetrics captures the shape of the test ecosystem.
 type StructureMetrics struct {
-	TotalTestFiles             int      `json:"totalTestFiles"`
-	Frameworks                 []string `json:"frameworks"`
-	FrameworkCount             int      `json:"frameworkCount"`
-	FrameworkFragmentationRatio float64 `json:"frameworkFragmentationRatio"`
-	Languages                  []string `json:"languages"`
+	TotalTestFiles              int      `json:"totalTestFiles"`
+	Frameworks                  []string `json:"frameworks"`
+	FrameworkCount              int      `json:"frameworkCount"`
+	FrameworkFragmentationRatio float64  `json:"frameworkFragmentationRatio"`
+	Languages                   []string `json:"languages"`
 }
 
 // HealthMetrics captures reliability and runtime behavior.
@@ -68,13 +69,13 @@ type HealthMetrics struct {
 
 // QualityMetrics captures test quality characteristics.
 type QualityMetrics struct {
-	WeakAssertionCount         int     `json:"weakAssertionCount"`
-	WeakAssertionRatio         float64 `json:"weakAssertionRatio"`
-	MockHeavyTestCount         int     `json:"mockHeavyTestCount"`
-	MockHeavyTestRatio         float64 `json:"mockHeavyTestRatio"`
-	UntestedExportCount        int     `json:"untestedExportCount"`
-	CoverageThresholdBreakCount int    `json:"coverageThresholdBreakCount"`
-	SnapshotHeavyCount         int     `json:"snapshotHeavyCount"`
+	WeakAssertionCount          int     `json:"weakAssertionCount"`
+	WeakAssertionRatio          float64 `json:"weakAssertionRatio"`
+	MockHeavyTestCount          int     `json:"mockHeavyTestCount"`
+	MockHeavyTestRatio          float64 `json:"mockHeavyTestRatio"`
+	UntestedExportCount         int     `json:"untestedExportCount"`
+	CoverageThresholdBreakCount int     `json:"coverageThresholdBreakCount"`
+	SnapshotHeavyCount          int     `json:"snapshotHeavyCount"`
 
 	// QualityPostureBand summarizes overall test quality as a band.
 	// Derived from the proportion of files with quality issues.
@@ -84,11 +85,11 @@ type QualityMetrics struct {
 
 // ChangeMetrics captures migration/modernization readiness.
 type ChangeMetrics struct {
-	MigrationBlockerCount     int            `json:"migrationBlockerCount"`
-	DeprecatedPatternCount    int            `json:"deprecatedPatternCount"`
-	DynamicGenerationCount    int            `json:"dynamicGenerationCount"`
-	CustomMatcherRiskCount    int            `json:"customMatcherRiskCount"`
-	BlockerCountByType        map[string]int `json:"blockerCountByType,omitempty"`
+	MigrationBlockerCount  int            `json:"migrationBlockerCount"`
+	DeprecatedPatternCount int            `json:"deprecatedPatternCount"`
+	DynamicGenerationCount int            `json:"dynamicGenerationCount"`
+	CustomMatcherRiskCount int            `json:"customMatcherRiskCount"`
+	BlockerCountByType     map[string]int `json:"blockerCountByType,omitempty"`
 
 	// MigrationReadinessBand is the aggregate migration readiness level.
 	// Values: "high", "medium", "low", "unknown".
@@ -115,11 +116,12 @@ type GovernanceMetrics struct {
 
 // RiskMetrics captures the risk posture.
 type RiskMetrics struct {
-	ReliabilityBand     string `json:"reliabilityBand,omitempty"`
-	ChangeBand          string `json:"changeBand,omitempty"`
-	SpeedBand           string `json:"speedBand,omitempty"`
-	HighRiskAreaCount   int    `json:"highRiskAreaCount"`
-	CriticalFindingCount int   `json:"criticalFindingCount"`
+	ReliabilityBand      string `json:"reliabilityBand,omitempty"`
+	ChangeBand           string `json:"changeBand,omitempty"`
+	SpeedBand            string `json:"speedBand,omitempty"`
+	GovernanceBand       string `json:"governanceBand,omitempty"`
+	HighRiskAreaCount    int    `json:"highRiskAreaCount"`
+	CriticalFindingCount int    `json:"criticalFindingCount"`
 }
 
 // Derive computes a metrics Snapshot from a TestSuiteSnapshot.
@@ -132,6 +134,14 @@ type RiskMetrics struct {
 func Derive(snap *models.TestSuiteSnapshot) *Snapshot {
 	totalFiles := len(snap.TestFiles)
 	signalCounts := countSignalsByType(snap.Signals)
+	signalFileCounts := countSignalFilesByType(snap.Signals)
+
+	healthCount := func(signalType string) int {
+		if c := signalFileCounts[signalType]; c > 0 {
+			return c
+		}
+		return signalCounts[signalType]
+	}
 
 	ms := &Snapshot{
 		GeneratedAt:     time.Now().UTC(),
@@ -144,36 +154,40 @@ func Derive(snap *models.TestSuiteSnapshot) *Snapshot {
 		frameworks[i] = fw.Name
 	}
 	ms.Structure = StructureMetrics{
-		TotalTestFiles:             totalFiles,
-		Frameworks:                 frameworks,
-		FrameworkCount:             len(snap.Frameworks),
+		TotalTestFiles:              totalFiles,
+		Frameworks:                  frameworks,
+		FrameworkCount:              len(snap.Frameworks),
 		FrameworkFragmentationRatio: safeRatio(len(snap.Frameworks), totalFiles),
-		Languages:                  snap.Repository.Languages,
+		Languages:                   snap.Repository.Languages,
 	}
 
 	// Health
+	slowCount := healthCount("slowTest")
+	flakyCount := healthCount("flakyTest")
+	skippedCount := healthCount("skippedTest")
+	deadCount := healthCount("deadTest")
 	ms.Health = HealthMetrics{
-		SlowTestCount:    signalCounts["slowTest"],
-		SlowTestRatio:    safeRatio(signalCounts["slowTest"], totalFiles),
-		FlakyTestCount:   signalCounts["flakyTest"],
-		FlakyTestRatio:   safeRatio(signalCounts["flakyTest"], totalFiles),
-		SkippedTestCount: signalCounts["skippedTest"],
-		SkippedTestRatio: safeRatio(signalCounts["skippedTest"], totalFiles),
-		DeadTestCount:    signalCounts["deadTest"],
+		SlowTestCount:    slowCount,
+		SlowTestRatio:    safeRatio(slowCount, totalFiles),
+		FlakyTestCount:   flakyCount,
+		FlakyTestRatio:   safeRatio(flakyCount, totalFiles),
+		SkippedTestCount: skippedCount,
+		SkippedTestRatio: safeRatio(skippedCount, totalFiles),
+		DeadTestCount:    deadCount,
 	}
 
 	// Quality
 	qualityIssueCount := signalCounts["weakAssertion"] + signalCounts["mockHeavyTest"] +
 		signalCounts["untestedExport"] + signalCounts["coverageThresholdBreak"]
 	ms.Quality = QualityMetrics{
-		WeakAssertionCount:         signalCounts["weakAssertion"],
-		WeakAssertionRatio:         safeRatio(signalCounts["weakAssertion"], totalFiles),
-		MockHeavyTestCount:         signalCounts["mockHeavyTest"],
-		MockHeavyTestRatio:         safeRatio(signalCounts["mockHeavyTest"], totalFiles),
-		UntestedExportCount:        signalCounts["untestedExport"],
+		WeakAssertionCount:          signalCounts["weakAssertion"],
+		WeakAssertionRatio:          safeRatio(signalCounts["weakAssertion"], totalFiles),
+		MockHeavyTestCount:          signalCounts["mockHeavyTest"],
+		MockHeavyTestRatio:          safeRatio(signalCounts["mockHeavyTest"], totalFiles),
+		UntestedExportCount:         signalCounts["untestedExport"],
 		CoverageThresholdBreakCount: signalCounts["coverageThresholdBreak"],
-		SnapshotHeavyCount:         signalCounts["snapshotHeavyTest"],
-		QualityPostureBand:         deriveQualityPosture(qualityIssueCount, totalFiles),
+		SnapshotHeavyCount:          signalCounts["snapshotHeavyTest"],
+		QualityPostureBand:          deriveQualityPosture(qualityIssueCount, totalFiles),
 	}
 
 	// Change readiness
@@ -237,6 +251,8 @@ func deriveRiskMetrics(snap *models.TestSuiteSnapshot) RiskMetrics {
 				rm.ChangeBand = string(r.Band)
 			case "speed":
 				rm.SpeedBand = string(r.Band)
+			case "governance":
+				rm.GovernanceBand = string(r.Band)
 			}
 		}
 		if r.Band == models.RiskBandHigh || r.Band == models.RiskBandCritical {
@@ -255,6 +271,25 @@ func countSignalsByType(signals []models.Signal) map[string]int {
 	counts := map[string]int{}
 	for _, s := range signals {
 		counts[string(s.Type)]++
+	}
+	return counts
+}
+
+func countSignalFilesByType(signals []models.Signal) map[string]int {
+	byType := map[string]map[string]bool{}
+	for _, s := range signals {
+		if s.Location.File == "" {
+			continue
+		}
+		t := string(s.Type)
+		if byType[t] == nil {
+			byType[t] = map[string]bool{}
+		}
+		byType[t][s.Location.File] = true
+	}
+	counts := map[string]int{}
+	for t, files := range byType {
+		counts[t] = len(files)
 	}
 	return counts
 }

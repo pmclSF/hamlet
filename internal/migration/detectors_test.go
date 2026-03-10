@@ -19,6 +19,7 @@ func writeTestFile(t *testing.T, dir, name, content string) {
 }
 
 func TestDeprecatedPatternDetector_DoneCallback(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	writeTestFile(t, dir, "test/old.test.js", `
 		it('does something', function(done) {
@@ -46,7 +47,30 @@ func TestDeprecatedPatternDetector_DoneCallback(t *testing.T) {
 	}
 }
 
+func TestDeprecatedPatternDetector_DoneCallbackArrowFunction(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	writeTestFile(t, dir, "test/old-arrow.test.js", `
+		it('does something', (done) => {
+			setImmediate(() => done());
+		});
+	`)
+
+	snap := &models.TestSuiteSnapshot{
+		TestFiles: []models.TestFile{
+			{Path: "test/old-arrow.test.js", Framework: "jest"},
+		},
+	}
+
+	d := &DeprecatedPatternDetector{RepoRoot: dir}
+	signals := d.Detect(snap)
+	if len(signals) == 0 {
+		t.Fatal("expected done-callback signal for arrow function syntax")
+	}
+}
+
 func TestDeprecatedPatternDetector_NoDeprecated(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	writeTestFile(t, dir, "test/modern.test.js", `
 		it('does something', async () => {
@@ -69,7 +93,32 @@ func TestDeprecatedPatternDetector_NoDeprecated(t *testing.T) {
 	}
 }
 
+func TestDeprecatedPatternDetector_IgnoresCommentsAndStrings(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	writeTestFile(t, dir, "test/noise.test.js", `
+		// it('fake', function(done) { done(); });
+		const txt = "it('fake', (done) => done())";
+		test('real', async () => {
+			expect(txt).toContain('done');
+		});
+	`)
+
+	snap := &models.TestSuiteSnapshot{
+		TestFiles: []models.TestFile{
+			{Path: "test/noise.test.js", Framework: "jest"},
+		},
+	}
+
+	d := &DeprecatedPatternDetector{RepoRoot: dir}
+	signals := d.Detect(snap)
+	if len(signals) != 0 {
+		t.Fatalf("expected 0 signals for comment/string-only deprecated patterns, got %d", len(signals))
+	}
+}
+
 func TestDynamicTestGenerationDetector(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	writeTestFile(t, dir, "test/dynamic.test.js", `
 		const cases = [1, 2, 3];
@@ -96,6 +145,7 @@ func TestDynamicTestGenerationDetector(t *testing.T) {
 }
 
 func TestDynamicTestGenerationDetector_NoDynamic(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	writeTestFile(t, dir, "test/static.test.js", `
 		test('works', () => {
@@ -117,7 +167,32 @@ func TestDynamicTestGenerationDetector_NoDynamic(t *testing.T) {
 	}
 }
 
+func TestDynamicTestGenerationDetector_IgnoresCommentsAndStrings(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	writeTestFile(t, dir, "test/noise-dynamic.test.js", `
+		// test.each([1,2])('fake', () => {});
+		const note = "cases.forEach(() => test('fake', () => {}))";
+		test('real', () => {
+			expect(note).toContain('each');
+		});
+	`)
+
+	snap := &models.TestSuiteSnapshot{
+		TestFiles: []models.TestFile{
+			{Path: "test/noise-dynamic.test.js", Framework: "jest"},
+		},
+	}
+
+	d := &DynamicTestGenerationDetector{RepoRoot: dir}
+	signals := d.Detect(snap)
+	if len(signals) != 0 {
+		t.Fatalf("expected 0 dynamic-generation signals for comment/string-only patterns, got %d", len(signals))
+	}
+}
+
 func TestCustomMatcherDetector(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	writeTestFile(t, dir, "test/custom.test.js", `
 		expect.extend({
@@ -146,6 +221,7 @@ func TestCustomMatcherDetector(t *testing.T) {
 }
 
 func TestCustomMatcherDetector_NoCustom(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	writeTestFile(t, dir, "test/plain.test.js", `
 		test('works', () => {
@@ -167,7 +243,32 @@ func TestCustomMatcherDetector_NoCustom(t *testing.T) {
 	}
 }
 
+func TestCustomMatcherDetector_IgnoresCommentsAndStrings(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	writeTestFile(t, dir, "test/noise-custom.test.js", `
+		/* expect.extend({ toBeFoo() {} }) */
+		const note = "chai.use(plugin)";
+		test('real', () => {
+			expect(note).toContain('plugin');
+		});
+	`)
+
+	snap := &models.TestSuiteSnapshot{
+		TestFiles: []models.TestFile{
+			{Path: "test/noise-custom.test.js", Framework: "jest"},
+		},
+	}
+
+	d := &CustomMatcherDetector{RepoRoot: dir}
+	signals := d.Detect(snap)
+	if len(signals) != 0 {
+		t.Fatalf("expected 0 custom-matcher signals for comment/string-only patterns, got %d", len(signals))
+	}
+}
+
 func TestFrameworkMigrationDetector_MultipleUnitFrameworks(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		Repository: models.RepositoryMetadata{Name: "test-repo"},
 		Frameworks: []models.Framework{
@@ -188,6 +289,7 @@ func TestFrameworkMigrationDetector_MultipleUnitFrameworks(t *testing.T) {
 }
 
 func TestFrameworkMigrationDetector_SingleFramework(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		Frameworks: []models.Framework{
 			{Name: "jest", Type: models.FrameworkTypeUnit, FileCount: 50},
@@ -203,6 +305,7 @@ func TestFrameworkMigrationDetector_SingleFramework(t *testing.T) {
 }
 
 func TestUnsupportedSetupDetector_CypressCommands(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	writeTestFile(t, dir, "test/support/commands.js", `
 		Cypress.Commands.add('login', (user, pass) => {
@@ -222,15 +325,21 @@ func TestUnsupportedSetupDetector_CypressCommands(t *testing.T) {
 	d := &UnsupportedSetupDetector{RepoRoot: dir}
 	signals := d.Detect(snap)
 
-	if len(signals) != 1 {
-		t.Fatalf("expected 1 signal, got %d", len(signals))
+	// Cypress custom commands is a hard blocker, so we expect both
+	// an unsupportedSetup signal and a migrationBlocker signal.
+	if len(signals) != 2 {
+		t.Fatalf("expected 2 signals (unsupportedSetup + migrationBlocker), got %d", len(signals))
 	}
 	if signals[0].Type != "unsupportedSetup" {
-		t.Errorf("type = %q, want unsupportedSetup", signals[0].Type)
+		t.Errorf("signals[0].Type = %q, want unsupportedSetup", signals[0].Type)
+	}
+	if signals[1].Type != "migrationBlocker" {
+		t.Errorf("signals[1].Type = %q, want migrationBlocker", signals[1].Type)
 	}
 }
 
 func TestUnsupportedSetupDetector_FrameworkTestContext(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	writeTestFile(t, dir, "test/slow.test.js", `
 		describe('slow suite', function() {
@@ -258,7 +367,33 @@ func TestUnsupportedSetupDetector_FrameworkTestContext(t *testing.T) {
 	}
 }
 
+func TestUnsupportedSetupDetector_FrameworkTestContext_NotFlaggedOutsideMocha(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	writeTestFile(t, dir, "test/slow.test.js", `
+		describe('suite', () => {
+			const helper = "this.timeout(5000)";
+			it('works', () => {
+				expect(helper).toContain('timeout');
+			});
+		});
+	`)
+
+	snap := &models.TestSuiteSnapshot{
+		TestFiles: []models.TestFile{
+			{Path: "test/slow.test.js", Framework: "jest"},
+		},
+	}
+
+	d := &UnsupportedSetupDetector{RepoRoot: dir}
+	signals := d.Detect(snap)
+	if len(signals) != 0 {
+		t.Fatalf("expected 0 signals for non-mocha framework context text, got %d", len(signals))
+	}
+}
+
 func TestUnsupportedSetupDetector_NoUnsupported(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	writeTestFile(t, dir, "test/clean.test.js", `
 		describe('clean suite', () => {
@@ -285,7 +420,34 @@ func TestUnsupportedSetupDetector_NoUnsupported(t *testing.T) {
 	}
 }
 
+func TestUnsupportedSetupDetector_IgnoresCommentsAndStrings(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	writeTestFile(t, dir, "test/support/noise.js", `
+		// Cypress.Commands.add('fake', () => {});
+		const note = "Cypress.on('task', () => {})";
+		describe('suite', () => {
+			it('works', () => {
+				expect(note).toContain('Cypress');
+			});
+		});
+	`)
+
+	snap := &models.TestSuiteSnapshot{
+		TestFiles: []models.TestFile{
+			{Path: "test/support/noise.js", Framework: "cypress"},
+		},
+	}
+
+	d := &UnsupportedSetupDetector{RepoRoot: dir}
+	signals := d.Detect(snap)
+	if len(signals) != 0 {
+		t.Fatalf("expected 0 unsupported-setup signals for comment/string-only patterns, got %d", len(signals))
+	}
+}
+
 func TestFrameworkMigrationDetector_UnitPlusE2E(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		Frameworks: []models.Framework{
 			{Name: "jest", Type: models.FrameworkTypeUnit, FileCount: 50},

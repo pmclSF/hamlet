@@ -8,6 +8,7 @@ import (
 )
 
 func TestCompare_SignalDeltas(t *testing.T) {
+	t.Parallel()
 	from := &models.TestSuiteSnapshot{
 		GeneratedAt: time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC),
 		Signals: []models.Signal{
@@ -44,6 +45,7 @@ func TestCompare_SignalDeltas(t *testing.T) {
 }
 
 func TestCompare_RiskDeltas(t *testing.T) {
+	t.Parallel()
 	from := &models.TestSuiteSnapshot{
 		GeneratedAt: time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC),
 		Risk: []models.RiskSurface{
@@ -86,6 +88,7 @@ func TestCompare_RiskDeltas(t *testing.T) {
 }
 
 func TestCompare_NoChanges(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		GeneratedAt: time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC),
 		Signals: []models.Signal{
@@ -99,7 +102,78 @@ func TestCompare_NoChanges(t *testing.T) {
 	}
 }
 
+func TestCompare_MethodologyMismatchSuppressesMethodologySensitiveDeltas(t *testing.T) {
+	t.Parallel()
+	from := &models.TestSuiteSnapshot{
+		GeneratedAt: time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC),
+		SnapshotMeta: models.SnapshotMeta{
+			SchemaVersion:          models.SnapshotSchemaVersion,
+			MethodologyFingerprint: "aaa",
+		},
+		Risk: []models.RiskSurface{
+			{Type: "change", Scope: "repository", ScopeName: "repo", Band: models.RiskBandLow},
+		},
+		Measurements: &models.MeasurementSnapshot{
+			Posture: []models.DimensionPostureResult{
+				{Dimension: "health", Band: "strong"},
+			},
+			Measurements: []models.MeasurementResult{
+				{ID: "health.flaky_share", Dimension: "health", Value: 0.01, Band: "strong"},
+			},
+		},
+	}
+	to := &models.TestSuiteSnapshot{
+		GeneratedAt: time.Date(2026, 3, 6, 0, 0, 0, 0, time.UTC),
+		SnapshotMeta: models.SnapshotMeta{
+			SchemaVersion:          models.SnapshotSchemaVersion,
+			MethodologyFingerprint: "bbb",
+		},
+		Risk: []models.RiskSurface{
+			{Type: "change", Scope: "repository", ScopeName: "repo", Band: models.RiskBandHigh},
+		},
+		Measurements: &models.MeasurementSnapshot{
+			Posture: []models.DimensionPostureResult{
+				{Dimension: "health", Band: "weak"},
+			},
+			Measurements: []models.MeasurementResult{
+				{ID: "health.flaky_share", Dimension: "health", Value: 0.30, Band: "weak"},
+			},
+		},
+	}
+
+	comp := Compare(from, to)
+	if comp.MethodologyCompatible {
+		t.Fatal("expected methodology mismatch to mark comparison as incompatible")
+	}
+	if len(comp.MethodologyNotes) == 0 {
+		t.Fatal("expected methodology notes when incompatible")
+	}
+	if len(comp.RiskDeltas) != 0 || len(comp.PostureDeltas) != 0 || len(comp.MeasurementDeltas) != 0 {
+		t.Fatalf("expected methodology-sensitive deltas to be suppressed, got risk=%d posture=%d measurements=%d",
+			len(comp.RiskDeltas), len(comp.PostureDeltas), len(comp.MeasurementDeltas))
+	}
+}
+
+func TestCompare_MissingMethodologyFingerprintBackCompat(t *testing.T) {
+	t.Parallel()
+	from := &models.TestSuiteSnapshot{
+		GeneratedAt: time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC),
+	}
+	to := &models.TestSuiteSnapshot{
+		GeneratedAt: time.Date(2026, 3, 6, 0, 0, 0, 0, time.UTC),
+	}
+
+	comp := Compare(from, to)
+	if !comp.MethodologyCompatible {
+		t.Fatal("expected compatibility to be assumed when fingerprints are missing")
+	}
+	if len(comp.MethodologyNotes) == 0 {
+		t.Fatal("expected note about missing fingerprint")
+	}
+}
+
 func TestCompare_TestFileCountDelta(t *testing.T) {
+	t.Parallel()
 	from := &models.TestSuiteSnapshot{
 		GeneratedAt: time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC),
 		TestFiles:   make([]models.TestFile, 10),
@@ -116,6 +190,7 @@ func TestCompare_TestFileCountDelta(t *testing.T) {
 }
 
 func TestCompare_FrameworkChanges(t *testing.T) {
+	t.Parallel()
 	from := &models.TestSuiteSnapshot{
 		GeneratedAt: time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC),
 		Frameworks: []models.Framework{
@@ -154,6 +229,7 @@ func TestCompare_FrameworkChanges(t *testing.T) {
 }
 
 func TestCompare_RepresentativeExamples(t *testing.T) {
+	t.Parallel()
 	from := &models.TestSuiteSnapshot{
 		GeneratedAt: time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC),
 		Signals: []models.Signal{
@@ -176,7 +252,35 @@ func TestCompare_RepresentativeExamples(t *testing.T) {
 	}
 }
 
+func TestCompare_RepresentativeExamples_RepoLevelPrecision(t *testing.T) {
+	t.Parallel()
+	from := &models.TestSuiteSnapshot{
+		GeneratedAt: time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC),
+	}
+	to := &models.TestSuiteSnapshot{
+		GeneratedAt: time.Date(2026, 3, 6, 0, 0, 0, 0, time.UTC),
+		Signals: []models.Signal{
+			{
+				Type:        "policyViolation",
+				Location:    models.SignalLocation{Repository: "repo"},
+				Explanation: "Policy A exceeded threshold",
+			},
+			{
+				Type:        "policyViolation",
+				Location:    models.SignalLocation{Repository: "repo"},
+				Explanation: "Policy B exceeded threshold",
+			},
+		},
+	}
+
+	comp := Compare(from, to)
+	if len(comp.NewSignalExamples) != 2 {
+		t.Fatalf("expected 2 distinct repo-level new examples, got %d", len(comp.NewSignalExamples))
+	}
+}
+
 func TestCompare_TestCaseDeltas(t *testing.T) {
+	t.Parallel()
 	from := &models.TestSuiteSnapshot{
 		GeneratedAt: time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC),
 		TestCases: []models.TestCase{
@@ -215,6 +319,7 @@ func TestCompare_TestCaseDeltas(t *testing.T) {
 }
 
 func TestCompare_TestCaseDeltas_Empty(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		GeneratedAt: time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC),
 	}
@@ -225,6 +330,7 @@ func TestCompare_TestCaseDeltas_Empty(t *testing.T) {
 }
 
 func TestCompare_CoverageDelta(t *testing.T) {
+	t.Parallel()
 	from := &models.TestSuiteSnapshot{
 		GeneratedAt: time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC),
 		CoverageSummary: &models.CoverageSummary{
@@ -262,6 +368,7 @@ func TestCompare_CoverageDelta(t *testing.T) {
 }
 
 func TestCompare_CoverageDelta_NilBoth(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		GeneratedAt: time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC),
 	}
@@ -272,6 +379,7 @@ func TestCompare_CoverageDelta_NilBoth(t *testing.T) {
 }
 
 func TestCompare_PostureDeltas(t *testing.T) {
+	t.Parallel()
 	from := &models.TestSuiteSnapshot{
 		GeneratedAt: time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC),
 		Measurements: &models.MeasurementSnapshot{
@@ -334,6 +442,7 @@ func TestCompare_PostureDeltas(t *testing.T) {
 }
 
 func TestCompare_PostureDeltas_NilMeasurements(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		GeneratedAt: time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC),
 	}
@@ -347,6 +456,7 @@ func TestCompare_PostureDeltas_NilMeasurements(t *testing.T) {
 }
 
 func TestCompare_HasMeaningfulChanges_TestCases(t *testing.T) {
+	t.Parallel()
 	from := &models.TestSuiteSnapshot{
 		GeneratedAt: time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC),
 		TestCases:   []models.TestCase{{TestID: "aaa", TestName: "test_a"}},
@@ -358,5 +468,40 @@ func TestCompare_HasMeaningfulChanges_TestCases(t *testing.T) {
 	comp := Compare(from, to)
 	if !comp.HasMeaningfulChanges() {
 		t.Error("expected meaningful changes when test cases differ")
+	}
+}
+
+func TestCompare_NilSnapshots(t *testing.T) {
+	t.Parallel()
+	comp := Compare(nil, nil)
+	if comp == nil {
+		t.Fatal("expected non-nil comparison result for nil inputs")
+	}
+	if comp.MethodologyCompatible {
+		t.Fatal("expected nil-input comparison to be incompatible")
+	}
+	if len(comp.MethodologyNotes) == 0 {
+		t.Fatal("expected methodology notes for nil-input comparison")
+	}
+}
+
+func TestCompare_BackfillsLegacySnapshotTimes(t *testing.T) {
+	t.Parallel()
+	from := &models.TestSuiteSnapshot{
+		Repository: models.RepositoryMetadata{
+			Name:              "repo",
+			SnapshotTimestamp: time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC),
+		},
+	}
+	to := &models.TestSuiteSnapshot{
+		Repository: models.RepositoryMetadata{
+			Name:              "repo",
+			SnapshotTimestamp: time.Date(2026, 3, 6, 0, 0, 0, 0, time.UTC),
+		},
+	}
+
+	comp := Compare(from, to)
+	if comp.FromTime == "unknown" || comp.ToTime == "unknown" {
+		t.Fatalf("expected migrated snapshot times, got from=%q to=%q", comp.FromTime, comp.ToTime)
 	}
 }

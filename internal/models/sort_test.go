@@ -6,17 +6,23 @@ import (
 )
 
 func TestSortSnapshot_Nil(t *testing.T) {
+	t.Parallel()
+
 	// Must not panic on nil.
 	SortSnapshot(nil)
 }
 
 func TestSortSnapshot_Empty(t *testing.T) {
+	t.Parallel()
+
 	snap := &TestSuiteSnapshot{}
 	SortSnapshot(snap)
 	// No fields to check, just verify no panic.
 }
 
 func TestSortSnapshot_SignalOrder(t *testing.T) {
+	t.Parallel()
+
 	snap := &TestSuiteSnapshot{
 		Signals: []Signal{
 			{Category: CategoryMigration, Type: "migration.deprecated-pattern", Location: SignalLocation{File: "b.js", Line: 10}},
@@ -52,6 +58,8 @@ func TestSortSnapshot_SignalOrder(t *testing.T) {
 }
 
 func TestSortSnapshot_TestFileOrder(t *testing.T) {
+	t.Parallel()
+
 	snap := &TestSuiteSnapshot{
 		TestFiles: []TestFile{
 			{Path: "z/test.go"},
@@ -71,6 +79,8 @@ func TestSortSnapshot_TestFileOrder(t *testing.T) {
 }
 
 func TestSortSnapshot_CodeUnitOrder(t *testing.T) {
+	t.Parallel()
+
 	snap := &TestSuiteSnapshot{
 		CodeUnits: []CodeUnit{
 			{UnitID: "b:foo", Path: "b.js", Name: "foo"},
@@ -91,6 +101,8 @@ func TestSortSnapshot_CodeUnitOrder(t *testing.T) {
 }
 
 func TestSortSnapshot_FrameworkOrder(t *testing.T) {
+	t.Parallel()
+
 	snap := &TestSuiteSnapshot{
 		Frameworks: []Framework{
 			{Name: "vitest"},
@@ -107,6 +119,8 @@ func TestSortSnapshot_FrameworkOrder(t *testing.T) {
 }
 
 func TestSortSnapshot_Idempotent(t *testing.T) {
+	t.Parallel()
+
 	snap := &TestSuiteSnapshot{
 		Signals: []Signal{
 			{Category: CategoryQuality, Type: "quality.weak-assertion", Location: SignalLocation{File: "a.js"}},
@@ -129,5 +143,52 @@ func TestSortSnapshot_Idempotent(t *testing.T) {
 	}
 	if snap.TestFiles[0].Path != firstFile {
 		t.Error("sort is not idempotent for test files")
+	}
+}
+
+func TestSortSnapshot_NormalizesOwnershipAndPolicyArrays(t *testing.T) {
+	t.Parallel()
+
+	snap := &TestSuiteSnapshot{
+		Ownership: map[string][]string{
+			"src/a.test.js": {"team-z", "team-a", "team-a"},
+		},
+		Policies: map[string]any{
+			"rules": map[string]any{
+				"disallow_frameworks": []string{"mocha", "jest"},
+			},
+		},
+	}
+
+	SortSnapshot(snap)
+
+	owners := snap.Ownership["src/a.test.js"]
+	if len(owners) != 2 || owners[0] != "team-a" || owners[1] != "team-z" {
+		t.Fatalf("owners normalized = %v, want [team-a team-z]", owners)
+	}
+
+	rules := snap.Policies["rules"].(map[string]any)
+	frameworks := rules["disallow_frameworks"].([]string)
+	if len(frameworks) != 2 || frameworks[0] != "jest" || frameworks[1] != "mocha" {
+		t.Fatalf("frameworks normalized = %v, want [jest mocha]", frameworks)
+	}
+}
+
+func TestSortSnapshot_BackfillsCodeUnitIDs(t *testing.T) {
+	t.Parallel()
+
+	snap := &TestSuiteSnapshot{
+		CodeUnits: []CodeUnit{
+			{Path: "src/a.go", Name: "Handler", ParentName: "Server"},
+			{Path: "src/b.go", Name: "Build"},
+		},
+	}
+	SortSnapshot(snap)
+
+	if got := snap.CodeUnits[0].UnitID; got == "" {
+		t.Fatal("expected first code unit UnitID to be backfilled")
+	}
+	if got := snap.CodeUnits[1].UnitID; got == "" {
+		t.Fatal("expected second code unit UnitID to be backfilled")
 	}
 }

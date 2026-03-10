@@ -11,6 +11,7 @@ import (
 )
 
 func TestRenderExecutiveSummary_AllSections(t *testing.T) {
+	t.Parallel()
 	es := &summary.ExecutiveSummary{
 		Posture: summary.PostureSummary{
 			OverallBand:      models.RiskBandHigh,
@@ -27,8 +28,8 @@ func TestRenderExecutiveSummary_AllSections(t *testing.T) {
 			{Description: "weakAssertion findings decreased (-3)", Direction: "improved"},
 			{Description: "flakyTest findings increased (+2)", Direction: "worsened"},
 		},
-		HasTrendData:    true,
-		DominantDrivers: []string{"weakAssertion", "mockHeavyTest"},
+		HasTrendData:     true,
+		DominantDrivers:  []string{"weakAssertion", "mockHeavyTest"},
 		RecommendedFocus: "Address quality risk in src/auth; reduce weakAssertion findings.",
 		BenchmarkReadiness: summary.BenchmarkReadinessSummary{
 			ReadyDimensions: []string{"test structure", "quality metrics"},
@@ -82,6 +83,7 @@ func TestRenderExecutiveSummary_AllSections(t *testing.T) {
 }
 
 func TestRenderExecutiveSummary_NoTrendData(t *testing.T) {
+	t.Parallel()
 	es := &summary.ExecutiveSummary{
 		Posture: summary.PostureSummary{
 			OverallBand:      models.RiskBandLow,
@@ -98,8 +100,8 @@ func TestRenderExecutiveSummary_NoTrendData(t *testing.T) {
 	RenderExecutiveSummary(&buf, es)
 	output := buf.String()
 
-	if !strings.Contains(output, "No prior snapshots available") {
-		t.Error("expected no-trend-data message")
+	if !strings.Contains(output, "first analysis") {
+		t.Error("expected first-analysis baseline message")
 	}
 	if !strings.Contains(output, "write-snapshot") {
 		t.Error("expected hint about write-snapshot")
@@ -107,6 +109,7 @@ func TestRenderExecutiveSummary_NoTrendData(t *testing.T) {
 }
 
 func TestRenderExecutiveSummary_Empty(t *testing.T) {
+	t.Parallel()
 	es := &summary.ExecutiveSummary{
 		Posture: summary.PostureSummary{
 			OverallBand:      models.RiskBandLow,
@@ -131,6 +134,7 @@ func TestRenderExecutiveSummary_Empty(t *testing.T) {
 }
 
 func TestRenderExecutiveSummary_TrendDirectionIcons(t *testing.T) {
+	t.Parallel()
 	es := &summary.ExecutiveSummary{
 		Posture: summary.PostureSummary{
 			OverallBand:      models.RiskBandMedium,
@@ -159,6 +163,7 @@ func TestRenderExecutiveSummary_TrendDirectionIcons(t *testing.T) {
 }
 
 func TestRenderExecutiveSummary_Recommendations(t *testing.T) {
+	t.Parallel()
 	es := &summary.ExecutiveSummary{
 		Posture: summary.PostureSummary{
 			OverallBand:      models.RiskBandMedium,
@@ -206,6 +211,7 @@ func TestRenderExecutiveSummary_Recommendations(t *testing.T) {
 }
 
 func TestRenderExecutiveSummary_BlindSpots(t *testing.T) {
+	t.Parallel()
 	es := &summary.ExecutiveSummary{
 		Posture: summary.PostureSummary{
 			OverallBand:      models.RiskBandLow,

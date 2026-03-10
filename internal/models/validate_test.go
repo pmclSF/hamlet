@@ -6,6 +6,7 @@ import (
 )
 
 func TestValidateSnapshot_Nil(t *testing.T) {
+	t.Parallel()
 	err := ValidateSnapshot(nil)
 	if err == nil {
 		t.Error("expected error for nil snapshot")
@@ -13,12 +14,13 @@ func TestValidateSnapshot_Nil(t *testing.T) {
 }
 
 func TestValidateSnapshot_Valid(t *testing.T) {
+	t.Parallel()
 	snap := &TestSuiteSnapshot{
 		SnapshotMeta: SnapshotMeta{SchemaVersion: "1.0.0"},
 		Repository:   RepositoryMetadata{Name: "test-repo"},
 		TestFiles:    []TestFile{{Path: "a.test.js"}},
 		Signals: []Signal{{
-			Type:        "quality.weak-assertion",
+			Type:        "weakAssertion",
 			Category:    CategoryQuality,
 			Severity:    SeverityMedium,
 			Explanation: "test has no assertions",
@@ -32,6 +34,7 @@ func TestValidateSnapshot_Valid(t *testing.T) {
 }
 
 func TestValidateSnapshot_MissingRepoName(t *testing.T) {
+	t.Parallel()
 	snap := &TestSuiteSnapshot{
 		SnapshotMeta: SnapshotMeta{SchemaVersion: "1.0.0"},
 		GeneratedAt:  time.Now(),
@@ -47,6 +50,7 @@ func TestValidateSnapshot_MissingRepoName(t *testing.T) {
 }
 
 func TestValidateSnapshot_EmptyTestFilePath(t *testing.T) {
+	t.Parallel()
 	snap := &TestSuiteSnapshot{
 		SnapshotMeta: SnapshotMeta{SchemaVersion: "1.0.0"},
 		Repository:   RepositoryMetadata{Name: "test-repo"},
@@ -60,8 +64,9 @@ func TestValidateSnapshot_EmptyTestFilePath(t *testing.T) {
 }
 
 func TestValidateSignal_Valid(t *testing.T) {
+	t.Parallel()
 	s := Signal{
-		Type:        "quality.weak-assertion",
+		Type:        "weakAssertion",
 		Category:    CategoryQuality,
 		Severity:    SeverityMedium,
 		Explanation: "no assertions found",
@@ -73,6 +78,7 @@ func TestValidateSignal_Valid(t *testing.T) {
 }
 
 func TestValidateSignal_EmptyType(t *testing.T) {
+	t.Parallel()
 	s := Signal{
 		Category:    CategoryQuality,
 		Severity:    SeverityMedium,
@@ -84,8 +90,9 @@ func TestValidateSignal_EmptyType(t *testing.T) {
 }
 
 func TestValidateSignal_InvalidConfidence(t *testing.T) {
+	t.Parallel()
 	s := Signal{
-		Type:        "quality.weak-assertion",
+		Type:        "weakAssertion",
 		Category:    CategoryQuality,
 		Severity:    SeverityMedium,
 		Explanation: "test",
@@ -97,8 +104,9 @@ func TestValidateSignal_InvalidConfidence(t *testing.T) {
 }
 
 func TestValidateSignal_InvalidSeverity(t *testing.T) {
+	t.Parallel()
 	s := Signal{
-		Type:        "quality.weak-assertion",
+		Type:        "weakAssertion",
 		Category:    CategoryQuality,
 		Severity:    "extreme",
 		Explanation: "test",
@@ -109,8 +117,9 @@ func TestValidateSignal_InvalidSeverity(t *testing.T) {
 }
 
 func TestValidateSignal_InvalidCategory(t *testing.T) {
+	t.Parallel()
 	s := Signal{
-		Type:        "quality.weak-assertion",
+		Type:        "weakAssertion",
 		Category:    "unknown",
 		Severity:    SeverityMedium,
 		Explanation: "test",
@@ -120,7 +129,21 @@ func TestValidateSignal_InvalidCategory(t *testing.T) {
 	}
 }
 
+func TestValidateSignal_UnknownType(t *testing.T) {
+	t.Parallel()
+	s := Signal{
+		Type:        "totallyUnknownSignalType",
+		Category:    CategoryQuality,
+		Severity:    SeverityMedium,
+		Explanation: "test",
+	}
+	if err := ValidateSignal(s); err == nil {
+		t.Error("expected error for unknown signal type")
+	}
+}
+
 func TestValidateSnapshot_MultipleErrors(t *testing.T) {
+	t.Parallel()
 	snap := &TestSuiteSnapshot{
 		// Missing: repo name, schema version, generatedAt
 		Signals: []Signal{

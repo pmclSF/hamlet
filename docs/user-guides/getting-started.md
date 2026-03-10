@@ -67,4 +67,4 @@ Create `.hamlet/policy.yaml` to define rules, then:
 hamlet policy check
 ```
 
-Returns exit code 1 if violations are found — useful in CI gates.
+Returns exit code 2 if violations are found — useful in CI gates.

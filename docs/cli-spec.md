@@ -21,6 +21,14 @@ Output: `hamlet <version> (commit <sha>, built <date>)`
 
 ## Core commands
 
+### `hamlet init`
+Purpose:
+Inspect a repository for common coverage/runtime artifacts and print a
+ready-to-run `hamlet analyze` command with detected paths.
+
+Flags:
+- `--root PATH` — repository root to inspect (default: current directory)
+
 ### `hamlet analyze`
 Primary command.
 
@@ -139,8 +147,8 @@ Flags:
 
 Exit codes:
 - `0` — no policy file found, or policy exists with no violations
-- `1` — violations found, policy file malformed, or evaluation error
-- `2` — usage error
+- `1` — policy file malformed or evaluation/runtime error
+- `2` — policy violations found (CI gate signal)
 
 Policy file:
 - Loaded from `.hamlet/policy.yaml` in the analyzed repository root

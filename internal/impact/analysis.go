@@ -181,7 +181,7 @@ func findImpactedTests(scope *ChangeScope, snap *models.TestSuiteSnapshot, units
 		// Directory proximity heuristic.
 		testDir := filepath.Dir(tf.Path)
 		for dir := range changedDirs {
-			if strings.HasPrefix(testDir, dir) || strings.HasPrefix(dir, testDir) {
+			if pathTreesOverlap(testDir, dir) {
 				tests = append(tests, ImpactedTest{
 					Path:             tf.Path,
 					Framework:        tf.Framework,
@@ -203,6 +203,19 @@ func findImpactedTests(scope *ChangeScope, snap *models.TestSuiteSnapshot, units
 	})
 
 	return tests
+}
+
+func pathTreesOverlap(a, b string) bool {
+	a = filepath.ToSlash(filepath.Clean(a))
+	b = filepath.ToSlash(filepath.Clean(b))
+
+	if a == "." || a == "" || b == "." || b == "" {
+		return a == b
+	}
+	if a == b {
+		return true
+	}
+	return strings.HasPrefix(a, b+"/") || strings.HasPrefix(b, a+"/")
 }
 
 // findProtectionGaps identifies where changed code lacks adequate coverage.

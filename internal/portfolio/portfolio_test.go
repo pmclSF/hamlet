@@ -36,6 +36,7 @@ func withCodeUnits(units ...models.CodeUnit) func(*models.TestSuiteSnapshot) {
 // --- BuildAssets tests ---
 
 func TestBuildAssets_Empty(t *testing.T) {
+	t.Parallel()
 	snap := makeSnap()
 	assets := BuildAssets(snap)
 	if len(assets) != 0 {
@@ -44,6 +45,7 @@ func TestBuildAssets_Empty(t *testing.T) {
 }
 
 func TestBuildAssets_Basic(t *testing.T) {
+	t.Parallel()
 	snap := makeSnap(
 		withTestFiles(
 			models.TestFile{Path: "test/a.test.js", Framework: "jest", TestCount: 3},
@@ -68,6 +70,7 @@ func TestBuildAssets_Basic(t *testing.T) {
 }
 
 func TestBuildAssets_WithRuntime(t *testing.T) {
+	t.Parallel()
 	snap := makeSnap(
 		withTestFiles(
 			models.TestFile{
@@ -99,6 +102,7 @@ func TestBuildAssets_WithRuntime(t *testing.T) {
 }
 
 func TestBuildAssets_WithCoverage(t *testing.T) {
+	t.Parallel()
 	snap := makeSnap(
 		withTestFiles(
 			models.TestFile{
@@ -133,53 +137,105 @@ func TestBuildAssets_WithCoverage(t *testing.T) {
 	}
 }
 
+func TestBuildAssets_DuplicateCodeUnitNamesDoNotOverwrite(t *testing.T) {
+	t.Parallel()
+	snap := makeSnap(
+		withTestFiles(
+			models.TestFile{
+				Path:      "test/auth.test.js",
+				Framework: "jest",
+				TestCount: 2,
+				LinkedCodeUnits: []string{
+					"src/auth/v1/service.js:authenticate",
+					"src/auth/v2/service.js:authenticate",
+				},
+			},
+		),
+		withCodeUnits(
+			models.CodeUnit{
+				UnitID:   "src/auth/v1/service.js:authenticate",
+				Name:     "authenticate",
+				Path:     "src/auth/v1/service.js",
+				Exported: true,
+			},
+			models.CodeUnit{
+				UnitID:   "src/auth/v2/service.js:authenticate",
+				Name:     "authenticate",
+				Path:     "src/auth/v2/service.js",
+				Exported: true,
+			},
+		),
+	)
+
+	assets := BuildAssets(snap)
+	if len(assets) != 1 {
+		t.Fatalf("expected 1 asset, got %d", len(assets))
+	}
+	a := assets[0]
+	if a.CoveredUnitCount != 2 {
+		t.Fatalf("covered unit count = %d, want 2", a.CoveredUnitCount)
+	}
+	if a.ExportedUnitsCovered != 2 {
+		t.Fatalf("exported units covered = %d, want 2", a.ExportedUnitsCovered)
+	}
+}
+
 // --- classifyCost tests ---
 
-func TestClassifyCost_HighRuntime(t *testing.T) {
-	a := TestAsset{HasRuntimeData: true, RuntimeMs: 12000}
-	if got := classifyCost(a); got != CostHigh {
-		t.Errorf("expected high, got %s", got)
+func TestClassifyCost(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name  string
+		asset TestAsset
+		want  CostClass
+	}{
+		{
+			name:  "high runtime",
+			asset: TestAsset{HasRuntimeData: true, RuntimeMs: 12000},
+			want:  CostHigh,
+		},
+		{
+			name:  "moderate runtime",
+			asset: TestAsset{HasRuntimeData: true, RuntimeMs: 5000},
+			want:  CostModerate,
+		},
+		{
+			name:  "low runtime",
+			asset: TestAsset{HasRuntimeData: true, RuntimeMs: 500},
+			want:  CostLow,
+		},
+		{
+			name:  "high retry rate",
+			asset: TestAsset{HasRuntimeData: true, RuntimeMs: 100, RetryRate: 0.35},
+			want:  CostHigh,
+		},
+		{
+			name:  "no runtime e2e",
+			asset: TestAsset{TestType: "e2e"},
+			want:  CostModerate,
+		},
+		{
+			name:  "no runtime unit",
+			asset: TestAsset{TestType: "unit"},
+			want:  CostUnknown,
+		},
 	}
-}
 
-func TestClassifyCost_ModerateRuntime(t *testing.T) {
-	a := TestAsset{HasRuntimeData: true, RuntimeMs: 5000}
-	if got := classifyCost(a); got != CostModerate {
-		t.Errorf("expected moderate, got %s", got)
-	}
-}
-
-func TestClassifyCost_LowRuntime(t *testing.T) {
-	a := TestAsset{HasRuntimeData: true, RuntimeMs: 500}
-	if got := classifyCost(a); got != CostLow {
-		t.Errorf("expected low, got %s", got)
-	}
-}
-
-func TestClassifyCost_HighRetryRate(t *testing.T) {
-	a := TestAsset{HasRuntimeData: true, RuntimeMs: 100, RetryRate: 0.35}
-	if got := classifyCost(a); got != CostHigh {
-		t.Errorf("expected high, got %s", got)
-	}
-}
-
-func TestClassifyCost_NoRuntime_E2E(t *testing.T) {
-	a := TestAsset{TestType: "e2e"}
-	if got := classifyCost(a); got != CostHigh {
-		t.Errorf("expected high for e2e without runtime, got %s", got)
-	}
-}
-
-func TestClassifyCost_NoRuntime_Unit(t *testing.T) {
-	a := TestAsset{TestType: "unit"}
-	if got := classifyCost(a); got != CostUnknown {
-		t.Errorf("expected unknown for unit without runtime, got %s", got)
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			if got := classifyCost(tt.asset); got != tt.want {
+				t.Errorf("classifyCost(%+v) = %s, want %s", tt.asset, got, tt.want)
+			}
+		})
 	}
 }
 
 // --- Redundancy detection tests ---
 
 func TestDetectRedundancy_NoOverlap(t *testing.T) {
+	t.Parallel()
 	assets := []TestAsset{
 		{Path: "a.test.js", HasCoverageData: true, CoveredUnitCount: 2, CoveredModules: []string{"mod1"}},
 		{Path: "b.test.js", HasCoverageData: true, CoveredUnitCount: 2, CoveredModules: []string{"mod2"}},
@@ -191,6 +247,7 @@ func TestDetectRedundancy_NoOverlap(t *testing.T) {
 }
 
 func TestDetectRedundancy_HighOverlap(t *testing.T) {
+	t.Parallel()
 	assets := []TestAsset{
 		{Path: "a.test.js", HasCoverageData: true, CoveredUnitCount: 3, CoveredModules: []string{"mod1", "mod2", "mod3"}},
 		{Path: "b.test.js", HasCoverageData: true, CoveredUnitCount: 3, CoveredModules: []string{"mod1", "mod2", "mod3"}},
@@ -207,7 +264,44 @@ func TestDetectRedundancy_HighOverlap(t *testing.T) {
 	}
 }
 
+func TestDetectRedundancy_ThresholdBoundary(t *testing.T) {
+	t.Parallel()
+	assets := []TestAsset{
+		{Path: "a.test.js", HasCoverageData: true, CoveredUnitCount: 10, CoveredModules: []string{"m1", "m2", "m3", "m4", "m5", "m6", "m7", "m8", "m9", "m10"}},
+		{Path: "b.test.js", HasCoverageData: true, CoveredUnitCount: 10, CoveredModules: []string{"m1", "m2", "m3", "m4", "m5", "m6", "m7", "x1", "x2", "x3"}},
+	}
+	findings := detectRedundancy(assets)
+	if len(findings) != 1 {
+		t.Fatalf("expected redundancy finding at 70%% overlap boundary, got %d", len(findings))
+	}
+}
+
+func TestTrimRedundancyCandidates_RespectsPairLimit(t *testing.T) {
+	t.Parallel()
+	covered := make([]redundancyAssetUnits, 0, 900)
+	assets := make([]TestAsset, 0, 900)
+	for i := 0; i < 900; i++ {
+		assets = append(assets, TestAsset{Path: "test/" + string(rune('a'+(i%26))) + ".test.js"})
+		covered = append(covered, redundancyAssetUnits{
+			idx: i,
+			units: map[string]bool{
+				"module-" + string(rune('a'+(i%26))): true,
+			},
+		})
+	}
+
+	trimmed := trimRedundancyCandidates(covered, assets)
+	if len(trimmed) >= len(covered) {
+		t.Fatalf("expected trimming for large candidate sets, got %d (input %d)", len(trimmed), len(covered))
+	}
+	pairs := (len(trimmed) * (len(trimmed) - 1)) / 2
+	if pairs > redundancyPairComparisonLimit {
+		t.Fatalf("trimmed pairs = %d, exceeds limit %d", pairs, redundancyPairComparisonLimit)
+	}
+}
+
 func TestDetectRedundancy_NoCoverageData(t *testing.T) {
+	t.Parallel()
 	assets := []TestAsset{
 		{Path: "a.test.js", HasCoverageData: false},
 		{Path: "b.test.js", HasCoverageData: false},
@@ -221,6 +315,7 @@ func TestDetectRedundancy_NoCoverageData(t *testing.T) {
 // --- Overbroad detection tests ---
 
 func TestDetectOverbroad_NotBroad(t *testing.T) {
+	t.Parallel()
 	assets := []TestAsset{
 		{Path: "a.test.js", HasCoverageData: true, BreadthClass: BreadthNarrow, CoveredModules: []string{"mod1"}},
 	}
@@ -231,13 +326,14 @@ func TestDetectOverbroad_NotBroad(t *testing.T) {
 }
 
 func TestDetectOverbroad_BroadMultiModule(t *testing.T) {
+	t.Parallel()
 	assets := []TestAsset{
 		{
-			Path:           "a.test.js",
+			Path:            "a.test.js",
 			HasCoverageData: true,
-			BreadthClass:   BreadthBroad,
-			CoveredModules: []string{"mod1", "mod2", "mod3", "mod4", "mod5"},
-			OwnersCovered:  []string{"team-a", "team-b", "team-c"},
+			BreadthClass:    BreadthBroad,
+			CoveredModules:  []string{"mod1", "mod2", "mod3", "mod4", "mod5"},
+			OwnersCovered:   []string{"team-a", "team-b", "team-c"},
 		},
 	}
 	findings := detectOverbroad(assets)
@@ -252,6 +348,7 @@ func TestDetectOverbroad_BroadMultiModule(t *testing.T) {
 // --- Low-value-high-cost detection tests ---
 
 func TestDetectLowValueHighCost_SlowAndNarrow(t *testing.T) {
+	t.Parallel()
 	assets := []TestAsset{
 		{
 			Path:             "slow.test.js",
@@ -274,6 +371,7 @@ func TestDetectLowValueHighCost_SlowAndNarrow(t *testing.T) {
 }
 
 func TestDetectLowValueHighCost_NotTriggered(t *testing.T) {
+	t.Parallel()
 	assets := []TestAsset{
 		{
 			Path:             "good.test.js",
@@ -293,6 +391,7 @@ func TestDetectLowValueHighCost_NotTriggered(t *testing.T) {
 // --- High-leverage detection tests ---
 
 func TestDetectHighLeverage_Efficient(t *testing.T) {
+	t.Parallel()
 	assets := []TestAsset{
 		{
 			Path:                 "efficient.test.js",
@@ -315,6 +414,7 @@ func TestDetectHighLeverage_Efficient(t *testing.T) {
 }
 
 func TestDetectHighLeverage_HighCostExcluded(t *testing.T) {
+	t.Parallel()
 	assets := []TestAsset{
 		{
 			Path:                 "expensive.test.js",
@@ -331,6 +431,7 @@ func TestDetectHighLeverage_HighCostExcluded(t *testing.T) {
 }
 
 func TestDetectHighLeverage_TooFewExports(t *testing.T) {
+	t.Parallel()
 	assets := []TestAsset{
 		{
 			Path:                 "small.test.js",
@@ -349,6 +450,7 @@ func TestDetectHighLeverage_TooFewExports(t *testing.T) {
 // --- Analyze integration tests ---
 
 func TestAnalyze_Empty(t *testing.T) {
+	t.Parallel()
 	snap := makeSnap()
 	summary := Analyze(snap)
 	if summary.Aggregates.TotalAssets != 0 {
@@ -360,6 +462,7 @@ func TestAnalyze_Empty(t *testing.T) {
 }
 
 func TestAnalyze_Nil(t *testing.T) {
+	t.Parallel()
 	summary := Analyze(nil)
 	if summary == nil {
 		t.Fatal("expected non-nil summary for nil snapshot")
@@ -367,6 +470,7 @@ func TestAnalyze_Nil(t *testing.T) {
 }
 
 func TestAnalyze_WithAssets(t *testing.T) {
+	t.Parallel()
 	snap := makeSnap(
 		withTestFiles(
 			models.TestFile{Path: "test/a.test.js", Framework: "jest", TestCount: 3},
@@ -380,6 +484,7 @@ func TestAnalyze_WithAssets(t *testing.T) {
 }
 
 func TestAnalyze_FindingsSorted(t *testing.T) {
+	t.Parallel()
 	snap := makeSnap(
 		withTestFiles(
 			models.TestFile{
@@ -411,6 +516,7 @@ func TestAnalyze_FindingsSorted(t *testing.T) {
 // --- Aggregates tests ---
 
 func TestComputeAggregates_RuntimeConcentration(t *testing.T) {
+	t.Parallel()
 	assets := make([]TestAsset, 10)
 	for i := range assets {
 		assets[i] = TestAsset{
@@ -434,6 +540,7 @@ func TestComputeAggregates_RuntimeConcentration(t *testing.T) {
 }
 
 func TestComputeAggregates_FindingCounts(t *testing.T) {
+	t.Parallel()
 	findings := []Finding{
 		{Type: FindingRedundancyCandidate},
 		{Type: FindingRedundancyCandidate},
@@ -461,6 +568,7 @@ func TestComputeAggregates_FindingCounts(t *testing.T) {
 // --- Owner aggregation tests ---
 
 func TestComputeOwnerAggregates(t *testing.T) {
+	t.Parallel()
 	assets := []TestAsset{
 		{Path: "a.test.js", Owner: "team-a", RuntimeMs: 100},
 		{Path: "b.test.js", Owner: "team-a", RuntimeMs: 200},
@@ -492,6 +600,7 @@ func TestComputeOwnerAggregates(t *testing.T) {
 // --- ToModel conversion tests ---
 
 func TestToModel_Nil(t *testing.T) {
+	t.Parallel()
 	var s *PortfolioSummary
 	if s.ToModel() != nil {
 		t.Error("expected nil model for nil summary")
@@ -499,6 +608,7 @@ func TestToModel_Nil(t *testing.T) {
 }
 
 func TestToModel_Basic(t *testing.T) {
+	t.Parallel()
 	summary := &PortfolioSummary{
 		Assets: []TestAsset{
 			{Path: "a.test.js", CostClass: CostLow, BreadthClass: BreadthNarrow},
@@ -529,12 +639,14 @@ func TestToModel_Basic(t *testing.T) {
 // --- Benchmark aggregate tests ---
 
 func TestBuildBenchmarkAggregate_Nil(t *testing.T) {
+	t.Parallel()
 	if BuildBenchmarkAggregate(nil) != nil {
 		t.Error("expected nil for nil summary")
 	}
 }
 
 func TestBuildBenchmarkAggregate_Empty(t *testing.T) {
+	t.Parallel()
 	s := &PortfolioSummary{}
 	if BuildBenchmarkAggregate(s) != nil {
 		t.Error("expected nil for zero assets")
@@ -542,6 +654,7 @@ func TestBuildBenchmarkAggregate_Empty(t *testing.T) {
 }
 
 func TestBuildBenchmarkAggregate_Basic(t *testing.T) {
+	t.Parallel()
 	s := &PortfolioSummary{
 		Aggregates: PortfolioAggregates{
 			TotalAssets:              100,
@@ -570,6 +683,7 @@ func TestBuildBenchmarkAggregate_Basic(t *testing.T) {
 // --- Portfolio posture tests ---
 
 func TestComputePortfolioPosture_Strong(t *testing.T) {
+	t.Parallel()
 	s := &PortfolioSummary{
 		Aggregates: PortfolioAggregates{
 			TotalAssets:              100,
@@ -584,6 +698,7 @@ func TestComputePortfolioPosture_Strong(t *testing.T) {
 }
 
 func TestComputePortfolioPosture_Critical(t *testing.T) {
+	t.Parallel()
 	s := &PortfolioSummary{
 		Aggregates: PortfolioAggregates{
 			TotalAssets:              10,
@@ -600,6 +715,7 @@ func TestComputePortfolioPosture_Critical(t *testing.T) {
 // --- Band helper tests ---
 
 func TestConcentrationBand(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		ratio float64
 		want  string
@@ -619,6 +735,7 @@ func TestConcentrationBand(t *testing.T) {
 }
 
 func TestShareBand(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		ratio float64
 		want  string
@@ -639,6 +756,7 @@ func TestShareBand(t *testing.T) {
 // --- Owner resolution tests ---
 
 func TestResolveOwner_FromTestFile(t *testing.T) {
+	t.Parallel()
 	tf := models.TestFile{Path: "test.js", Owner: "team-direct"}
 	got := resolveOwner(tf, map[string]string{"test.js": "team-fallback"})
 	if got != "team-direct" {
@@ -647,6 +765,7 @@ func TestResolveOwner_FromTestFile(t *testing.T) {
 }
 
 func TestResolveOwner_FromOwnership(t *testing.T) {
+	t.Parallel()
 	tf := models.TestFile{Path: "test.js"}
 	got := resolveOwner(tf, map[string]string{"test.js": "team-ownership"})
 	if got != "team-ownership" {
@@ -655,6 +774,7 @@ func TestResolveOwner_FromOwnership(t *testing.T) {
 }
 
 func TestResolveOwner_Unknown(t *testing.T) {
+	t.Parallel()
 	tf := models.TestFile{Path: "test.js"}
 	got := resolveOwner(tf, map[string]string{})
 	if got != "unknown" {
@@ -665,10 +785,11 @@ func TestResolveOwner_Unknown(t *testing.T) {
 // --- inferTestType tests ---
 
 func TestInferTestType(t *testing.T) {
+	t.Parallel()
 	fwTypes := map[string]models.FrameworkType{
-		"jest":       models.FrameworkTypeUnit,
-		"cypress":    models.FrameworkTypeE2E,
-		"supertest":  models.FrameworkTypeIntegration,
+		"jest":      models.FrameworkTypeUnit,
+		"cypress":   models.FrameworkTypeE2E,
+		"supertest": models.FrameworkTypeIntegration,
 	}
 	tests := []struct {
 		framework string

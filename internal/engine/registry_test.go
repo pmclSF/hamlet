@@ -8,21 +8,22 @@ import (
 )
 
 func TestDefaultRegistry_WithoutPolicy(t *testing.T) {
+	t.Parallel()
 	r := DefaultRegistry(Config{RepoRoot: "."})
 
-	// Should have 9 detectors (4 quality + 5 migration, no governance).
-	if r.Len() != 9 {
-		t.Errorf("DefaultRegistry without policy: Len() = %d, want 9", r.Len())
+	// Should have 11 detectors (4 quality + 2 coverage + 5 migration, no governance).
+	if r.Len() != 11 {
+		t.Errorf("DefaultRegistry without policy: Len() = %d, want 11", r.Len())
 	}
 
 	quality := r.ByDomain(signals.DomainQuality)
-	if len(quality) != 3 {
-		t.Errorf("quality detectors = %d, want 3", len(quality))
+	if len(quality) != 4 {
+		t.Errorf("quality detectors = %d, want 4", len(quality))
 	}
 
 	coverage := r.ByDomain(signals.DomainCoverage)
-	if len(coverage) != 1 {
-		t.Errorf("coverage detectors = %d, want 1", len(coverage))
+	if len(coverage) != 2 {
+		t.Errorf("coverage detectors = %d, want 2", len(coverage))
 	}
 
 	migration := r.ByDomain(signals.DomainMigration)
@@ -37,6 +38,7 @@ func TestDefaultRegistry_WithoutPolicy(t *testing.T) {
 }
 
 func TestDefaultRegistry_WithPolicy(t *testing.T) {
+	t.Parallel()
 	boolTrue := true
 	cfg := Config{
 		RepoRoot: ".",
@@ -48,9 +50,9 @@ func TestDefaultRegistry_WithPolicy(t *testing.T) {
 	}
 	r := DefaultRegistry(cfg)
 
-	// Should have 10 detectors (4 quality + 5 migration + 1 governance).
-	if r.Len() != 10 {
-		t.Errorf("DefaultRegistry with policy: Len() = %d, want 10", r.Len())
+	// Should have 12 detectors (4 quality + 2 coverage + 5 migration + 1 governance).
+	if r.Len() != 12 {
+		t.Errorf("DefaultRegistry with policy: Len() = %d, want 12", r.Len())
 	}
 
 	governance := r.ByDomain(signals.DomainGovernance)
@@ -60,13 +62,16 @@ func TestDefaultRegistry_WithPolicy(t *testing.T) {
 }
 
 func TestDefaultRegistry_DetectorIDs(t *testing.T) {
+	t.Parallel()
 	r := DefaultRegistry(Config{RepoRoot: "."})
 
 	expectedIDs := []string{
 		"quality.weak-assertion",
 		"quality.mock-heavy",
+		"quality.snapshot-heavy",
 		"quality.untested-export",
 		"quality.coverage-threshold",
+		"coverage.blind-spot",
 		"migration.deprecated-pattern",
 		"migration.dynamic-test-generation",
 		"migration.custom-matcher",
@@ -87,6 +92,7 @@ func TestDefaultRegistry_DetectorIDs(t *testing.T) {
 }
 
 func TestDefaultRegistry_GovernanceIsLast(t *testing.T) {
+	t.Parallel()
 	boolTrue := true
 	cfg := Config{
 		RepoRoot: ".",
@@ -109,10 +115,12 @@ func TestDefaultRegistry_GovernanceIsLast(t *testing.T) {
 }
 
 func TestGovernanceDetector_ImplementsInterface(t *testing.T) {
+	t.Parallel()
 	var _ signals.Detector = &GovernanceDetector{}
 }
 
 func TestDefaultRegistry_DetectorMetaFields(t *testing.T) {
+	t.Parallel()
 	r := DefaultRegistry(Config{RepoRoot: "."})
 
 	for _, reg := range r.All() {
@@ -135,6 +143,7 @@ func TestDefaultRegistry_DetectorMetaFields(t *testing.T) {
 }
 
 func TestDefaultRegistry_EmptyPolicy(t *testing.T) {
+	t.Parallel()
 	// An empty policy config should NOT register governance detector.
 	cfg := Config{
 		RepoRoot:     ".",

@@ -7,6 +7,7 @@ import (
 )
 
 func TestLoad_ValidFile(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	hamletDir := filepath.Join(dir, ".hamlet")
 	if err := os.MkdirAll(hamletDir, 0o755); err != nil {
@@ -58,6 +59,7 @@ func TestLoad_ValidFile(t *testing.T) {
 }
 
 func TestLoad_PartialFile(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	hamletDir := filepath.Join(dir, ".hamlet")
 	if err := os.MkdirAll(hamletDir, 0o755); err != nil {
@@ -91,6 +93,7 @@ func TestLoad_PartialFile(t *testing.T) {
 }
 
 func TestLoad_MissingFile(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 
 	result, err := Load(dir)
@@ -106,6 +109,7 @@ func TestLoad_MissingFile(t *testing.T) {
 }
 
 func TestLoad_MalformedFile(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	hamletDir := filepath.Join(dir, ".hamlet")
 	if err := os.MkdirAll(hamletDir, 0o755); err != nil {
@@ -126,6 +130,7 @@ func TestLoad_MalformedFile(t *testing.T) {
 }
 
 func TestConfig_IsEmpty(t *testing.T) {
+	t.Parallel()
 	cfg := &Config{}
 	if !cfg.IsEmpty() {
 		t.Error("empty config should report IsEmpty=true")

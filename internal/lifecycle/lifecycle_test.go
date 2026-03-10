@@ -19,6 +19,7 @@ func makeTestCase(path, suite, name string) models.TestCase {
 }
 
 func TestInferContinuity_ExactMatch(t *testing.T) {
+	t.Parallel()
 	tc1 := makeTestCase("src/auth.test.js", "AuthService", "should login")
 	tc2 := makeTestCase("src/auth.test.js", "AuthService", "should logout")
 
@@ -47,6 +48,7 @@ func TestInferContinuity_ExactMatch(t *testing.T) {
 }
 
 func TestInferContinuity_RenameOnly(t *testing.T) {
+	t.Parallel()
 	fromTC := makeTestCase("src/auth.test.js", "AuthService", "should login user")
 	toTC := makeTestCase("src/auth.test.js", "AuthService", "should login user successfully")
 
@@ -91,6 +93,7 @@ func TestInferContinuity_RenameOnly(t *testing.T) {
 }
 
 func TestInferContinuity_FileMoveOnly(t *testing.T) {
+	t.Parallel()
 	fromTC := makeTestCase("src/old/auth.test.js", "AuthService", "should login")
 	toTC := makeTestCase("src/new/auth.test.js", "AuthService", "should login")
 
@@ -120,6 +123,7 @@ func TestInferContinuity_FileMoveOnly(t *testing.T) {
 }
 
 func TestInferContinuity_SplitTest(t *testing.T) {
+	t.Parallel()
 	fromTC := makeTestCase("src/auth.test.js", "AuthService", "handles auth")
 
 	toTC1 := makeTestCase("src/auth.test.js", "AuthService", "handles auth login")
@@ -142,6 +146,7 @@ func TestInferContinuity_SplitTest(t *testing.T) {
 }
 
 func TestInferContinuity_MergeTests(t *testing.T) {
+	t.Parallel()
 	fromTC1 := makeTestCase("src/auth.test.js", "AuthService", "validates login")
 	fromTC2 := makeTestCase("src/auth.test.js", "AuthService", "validates logout")
 
@@ -163,7 +168,42 @@ func TestInferContinuity_MergeTests(t *testing.T) {
 	}
 }
 
+func TestInferContinuity_DoesNotSplitOnGenericPrefix(t *testing.T) {
+	t.Parallel()
+	fromTC := makeTestCase("src/auth.test.js", "AuthService", "should")
+	toTC1 := makeTestCase("src/auth.test.js", "AuthService", "should login")
+	toTC2 := makeTestCase("src/auth.test.js", "AuthService", "should logout")
+
+	from := &models.TestSuiteSnapshot{TestCases: []models.TestCase{fromTC}}
+	to := &models.TestSuiteSnapshot{TestCases: []models.TestCase{toTC1, toTC2}}
+
+	result := InferContinuity(from, to)
+	for _, m := range result.Mappings {
+		if m.Class == ContinuitySplit {
+			t.Fatalf("unexpected split mapping from generic prefix: %+v", m)
+		}
+	}
+}
+
+func TestInferContinuity_DoesNotMergeOnGenericPrefix(t *testing.T) {
+	t.Parallel()
+	fromTC1 := makeTestCase("src/auth.test.js", "AuthService", "should login")
+	fromTC2 := makeTestCase("src/auth.test.js", "AuthService", "should logout")
+	toTC := makeTestCase("src/auth.test.js", "AuthService", "should")
+
+	from := &models.TestSuiteSnapshot{TestCases: []models.TestCase{fromTC1, fromTC2}}
+	to := &models.TestSuiteSnapshot{TestCases: []models.TestCase{toTC}}
+
+	result := InferContinuity(from, to)
+	for _, m := range result.Mappings {
+		if m.Class == ContinuityMerge {
+			t.Fatalf("unexpected merge mapping from generic prefix: %+v", m)
+		}
+	}
+}
+
 func TestInferContinuity_AmbiguousContinuity(t *testing.T) {
+	t.Parallel()
 	fromTC := makeTestCase("src/utils.test.js", "UtilsSuite", "formats date")
 	toTC := makeTestCase("src/helpers.test.js", "HelpersSuite", "formats timestamp")
 
@@ -179,7 +219,64 @@ func TestInferContinuity_AmbiguousContinuity(t *testing.T) {
 	}
 }
 
+func TestInferContinuity_TransitiveLexicalRename(t *testing.T) {
+	t.Parallel()
+	fromTC := makeTestCase(
+		"src/legacy/auth_flow_v1.test.js",
+		"AuthFlow",
+		"signup rejects duplicate email address",
+	)
+	toTC := makeTestCase(
+		"tests/new/authentication/cases.test.js",
+		"AuthFlow",
+		"duplicate email validation blocks signup flow",
+	)
+
+	from := &models.TestSuiteSnapshot{TestCases: []models.TestCase{fromTC}}
+	to := &models.TestSuiteSnapshot{TestCases: []models.TestCase{toTC}}
+
+	result := InferContinuity(from, to)
+
+	for _, m := range result.Mappings {
+		if m.Class == ContinuityRename || m.Class == ContinuityMove {
+			return
+		}
+	}
+	t.Fatalf("expected transitive lexical rename/move mapping, got %+v", result.Mappings)
+}
+
+func TestTokenSimilarity_LexicalDrift(t *testing.T) {
+	t.Parallel()
+	a := "signup rejects duplicate email address"
+	b := "duplicate email validation blocks signup flow"
+	if sim := tokenSimilarity(a, b); sim < 0.30 {
+		t.Fatalf("token similarity too low for lexical drift case: %.2f", sim)
+	}
+}
+
+func TestCalibrateContinuityConfidence_AmbiguousIsCapped(t *testing.T) {
+	t.Parallel()
+	got := calibrateContinuityConfidence(0.9, []EvidenceBasis{
+		EvidenceNameSimilar, EvidencePathSimilar, EvidenceCanonicalSimilar,
+	}, ContinuityAmbiguous)
+	if got > 0.75 {
+		t.Fatalf("ambiguous confidence should be capped at 0.75, got %.2f", got)
+	}
+}
+
+func TestCalibrateContinuityConfidence_RenameGetsEvidenceBoost(t *testing.T) {
+	t.Parallel()
+	base := calibrateContinuityConfidence(0.55, []EvidenceBasis{EvidenceNameSimilar}, ContinuityRename)
+	boosted := calibrateContinuityConfidence(0.55, []EvidenceBasis{
+		EvidenceNameSimilar, EvidenceSuiteHierarchy, EvidenceCanonicalSimilar,
+	}, ContinuityRename)
+	if boosted <= base {
+		t.Fatalf("expected more evidence to increase confidence: base=%.2f boosted=%.2f", base, boosted)
+	}
+}
+
 func TestInferContinuity_NilSnapshots(t *testing.T) {
+	t.Parallel()
 	tc := makeTestCase("src/auth.test.js", "Auth", "login")
 	to := &models.TestSuiteSnapshot{TestCases: []models.TestCase{tc}}
 
@@ -195,6 +292,7 @@ func TestInferContinuity_NilSnapshots(t *testing.T) {
 }
 
 func TestInferContinuity_MixedChanges(t *testing.T) {
+	t.Parallel()
 	// Simulate a realistic scenario:
 	// - tc1 stays the same (exact)
 	// - tc2 is renamed (heuristic)
@@ -224,6 +322,7 @@ func TestInferContinuity_MixedChanges(t *testing.T) {
 }
 
 func TestStringSimilarity(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		a, b string
 		min  float64
@@ -247,6 +346,7 @@ func TestStringSimilarity(t *testing.T) {
 }
 
 func TestPathSimilarity(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		a, b string
 		min  float64

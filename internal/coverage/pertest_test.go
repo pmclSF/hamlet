@@ -6,6 +6,7 @@ import (
 )
 
 func TestBuildPerTestCoverage_Basic(t *testing.T) {
+	t.Parallel()
 	records := []TestCoverageRecord{
 		{TestID: "test-1", FilePath: "src/math.go", CoveredLines: []int{10, 11, 12}},
 		{TestID: "test-1", FilePath: "src/utils.go", CoveredLines: []int{5, 6}},
@@ -58,6 +59,7 @@ func TestBuildPerTestCoverage_Basic(t *testing.T) {
 }
 
 func TestBuildPerTestCoverage_NoUnits(t *testing.T) {
+	t.Parallel()
 	records := []TestCoverageRecord{
 		{TestID: "test-1", FilePath: "src/orphan.go", CoveredLines: []int{1, 2, 3}},
 	}
@@ -75,6 +77,7 @@ func TestBuildPerTestCoverage_NoUnits(t *testing.T) {
 }
 
 func TestBuildPerTestCoverage_Empty(t *testing.T) {
+	t.Parallel()
 	result := BuildPerTestCoverage(nil, nil)
 	if len(result) != 0 {
 		t.Errorf("expected empty result, got %d", len(result))
@@ -82,6 +85,7 @@ func TestBuildPerTestCoverage_Empty(t *testing.T) {
 }
 
 func TestLinesOverlap(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name  string
 		lines []int
@@ -99,6 +103,7 @@ func TestLinesOverlap(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := linesOverlap(tt.lines, tt.start, tt.end)
 			if got != tt.want {
 				t.Errorf("linesOverlap(%v, %d, %d) = %v, want %v", tt.lines, tt.start, tt.end, got, tt.want)
@@ -108,6 +113,7 @@ func TestLinesOverlap(t *testing.T) {
 }
 
 func TestBuildUnitSpanIndex(t *testing.T) {
+	t.Parallel()
 	unitCovs := []UnitCoverage{
 		{UnitID: "a.go:Foo", Path: "a.go"},
 		{UnitID: "a.go:Bar", Path: "a.go"},

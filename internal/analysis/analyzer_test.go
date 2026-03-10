@@ -17,6 +17,7 @@ func fixtureRoot(t *testing.T) string {
 }
 
 func TestDiscoverTestFiles(t *testing.T) {
+	t.Parallel()
 	root := fixtureRoot(t)
 	files, err := discoverTestFiles(root)
 	if err != nil {
@@ -43,6 +44,7 @@ func TestDiscoverTestFiles(t *testing.T) {
 }
 
 func TestDiscoverTestFiles_SkipsDirs(t *testing.T) {
+	t.Parallel()
 	root := fixtureRoot(t)
 	files, err := discoverTestFiles(root)
 	if err != nil {
@@ -57,6 +59,7 @@ func TestDiscoverTestFiles_SkipsDirs(t *testing.T) {
 }
 
 func TestFrameworkDetection(t *testing.T) {
+	t.Parallel()
 	root := fixtureRoot(t)
 	files, err := discoverTestFiles(root)
 	if err != nil {
@@ -69,8 +72,8 @@ func TestFrameworkDetection(t *testing.T) {
 	}
 
 	tests := []struct {
-		file     string
-		wantFW   string
+		file   string
+		wantFW string
 	}{
 		{"auth.test.js", "jest"},
 		{"utils.spec.ts", "vitest"},
@@ -80,6 +83,7 @@ func TestFrameworkDetection(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.file, func(t *testing.T) {
+			t.Parallel()
 			got := fwByFile[tc.file]
 			if got != tc.wantFW {
 				t.Errorf("framework for %s = %q, want %q", tc.file, got, tc.wantFW)
@@ -89,6 +93,7 @@ func TestFrameworkDetection(t *testing.T) {
 }
 
 func TestBuildFrameworkInventory(t *testing.T) {
+	t.Parallel()
 	root := fixtureRoot(t)
 	files, err := discoverTestFiles(root)
 	if err != nil {
@@ -125,6 +130,7 @@ func TestBuildFrameworkInventory(t *testing.T) {
 }
 
 func TestAnalyzerProducesSnapshot(t *testing.T) {
+	t.Parallel()
 	root := fixtureRoot(t)
 	a := New(root)
 	snap, err := a.Analyze()
@@ -154,5 +160,17 @@ func TestAnalyzerProducesSnapshot(t *testing.T) {
 	}
 	if !pmFound {
 		t.Errorf("expected npm in package managers, got %v", snap.Repository.PackageManagers)
+	}
+
+	// Linked code units should be populated from import graph for tests that
+	// directly import source modules with exported units.
+	var linkedCount int
+	for _, tf := range snap.TestFiles {
+		if len(tf.LinkedCodeUnits) > 0 {
+			linkedCount++
+		}
+	}
+	if linkedCount == 0 {
+		t.Error("expected at least one test file with linked code units")
 	}
 }

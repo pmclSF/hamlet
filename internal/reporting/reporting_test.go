@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/pmclSF/hamlet/internal/comparison"
 	"github.com/pmclSF/hamlet/internal/heatmap"
@@ -11,11 +12,13 @@ import (
 	"github.com/pmclSF/hamlet/internal/measurement"
 	"github.com/pmclSF/hamlet/internal/metrics"
 	"github.com/pmclSF/hamlet/internal/migration"
+	"github.com/pmclSF/hamlet/internal/models"
 	"github.com/pmclSF/hamlet/internal/scoring"
 	"github.com/pmclSF/hamlet/internal/testdata"
 )
 
 func TestRenderSummaryReport_HealthyBalanced(t *testing.T) {
+	t.Parallel()
 	snap := testdata.HealthyBalancedSnapshot()
 	snap.Risk = scoring.ComputeRisk(snap)
 	measReg := measurement.DefaultRegistry()
@@ -35,6 +38,7 @@ func TestRenderSummaryReport_HealthyBalanced(t *testing.T) {
 }
 
 func TestRenderMetricsReport_Minimal(t *testing.T) {
+	t.Parallel()
 	snap := testdata.MinimalSnapshot()
 	ms := metrics.Derive(snap)
 
@@ -51,6 +55,7 @@ func TestRenderMetricsReport_Minimal(t *testing.T) {
 }
 
 func TestRenderPostureReport_Healthy(t *testing.T) {
+	t.Parallel()
 	snap := testdata.HealthyBalancedSnapshot()
 	measReg := measurement.DefaultRegistry()
 	snap.Measurements = measReg.ComputeSnapshot(snap).ToModel()
@@ -68,6 +73,7 @@ func TestRenderPostureReport_Healthy(t *testing.T) {
 }
 
 func TestRenderComparisonReport(t *testing.T) {
+	t.Parallel()
 	from := testdata.MinimalSnapshot()
 	to := testdata.HealthyBalancedSnapshot()
 	comp := comparison.Compare(from, to)
@@ -79,9 +85,52 @@ func TestRenderComparisonReport(t *testing.T) {
 	if !strings.Contains(output, "Hamlet Snapshot Comparison") {
 		t.Error("comparison report missing header")
 	}
+	if !strings.Contains(output, "Methodology Compatibility") {
+		t.Error("comparison report missing methodology section")
+	}
+	if !strings.Contains(output, "Status: COMPATIBLE") {
+		t.Error("comparison report missing compatible status")
+	}
+}
+
+func TestRenderComparisonReport_MethodologyIncompatibilityVisibleWithoutDeltas(t *testing.T) {
+	t.Parallel()
+	from := &models.TestSuiteSnapshot{
+		GeneratedAt: time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC),
+		SnapshotMeta: models.SnapshotMeta{
+			SchemaVersion:          models.SnapshotSchemaVersion,
+			MethodologyFingerprint: "aaa",
+		},
+	}
+	to := &models.TestSuiteSnapshot{
+		GeneratedAt: time.Date(2026, 3, 2, 0, 0, 0, 0, time.UTC),
+		SnapshotMeta: models.SnapshotMeta{
+			SchemaVersion:          models.SnapshotSchemaVersion,
+			MethodologyFingerprint: "bbb",
+		},
+	}
+	comp := comparison.Compare(from, to)
+
+	var buf bytes.Buffer
+	RenderComparisonReport(&buf, comp)
+	output := buf.String()
+
+	if !strings.Contains(output, "Methodology Compatibility") {
+		t.Error("comparison report missing methodology section")
+	}
+	if !strings.Contains(output, "Status: INCOMPATIBLE") {
+		t.Error("comparison report missing incompatible status")
+	}
+	if !strings.Contains(output, "Recommended Next Steps") {
+		t.Error("comparison report missing recommended next steps for incompatible methodology")
+	}
+	if !strings.Contains(output, "No meaningful changes detected.") {
+		t.Error("comparison report should still show no-delta summary")
+	}
 }
 
 func TestRenderImpactReport_WithGaps(t *testing.T) {
+	t.Parallel()
 	result := &impact.ImpactResult{
 		Scope: impact.ChangeScope{
 			ChangedFiles: []impact.ChangedFile{
@@ -125,6 +174,7 @@ func TestRenderImpactReport_WithGaps(t *testing.T) {
 }
 
 func TestRenderImpactDrilldown_Units(t *testing.T) {
+	t.Parallel()
 	result := &impact.ImpactResult{
 		ImpactedUnits: []impact.ImpactedCodeUnit{
 			{Name: "Foo", Path: "src/foo.js", ChangeKind: impact.ChangeModified, Exported: true, ProtectionStatus: impact.ProtectionStrong, ImpactConfidence: impact.ConfidenceExact, CoveringTests: []string{"test/foo.test.js"}},
@@ -144,6 +194,7 @@ func TestRenderImpactDrilldown_Units(t *testing.T) {
 }
 
 func TestRenderImpactDrilldown_Gaps(t *testing.T) {
+	t.Parallel()
 	result := &impact.ImpactResult{
 		ProtectionGaps: []impact.ProtectionGap{
 			{GapType: "no_coverage", Severity: "medium", Explanation: "No tests.", Path: "src/bar.js", SuggestedAction: "Add tests."},
@@ -167,6 +218,7 @@ func TestRenderImpactDrilldown_Gaps(t *testing.T) {
 }
 
 func TestRenderImpactDrilldown_Tests(t *testing.T) {
+	t.Parallel()
 	result := &impact.ImpactResult{
 		ImpactedTests: []impact.ImpactedTest{
 			{Path: "test/a.test.js", ImpactConfidence: impact.ConfidenceExact, Relevance: "covers unit", CoversUnits: []string{"Foo"}},
@@ -193,6 +245,7 @@ func TestRenderImpactDrilldown_Tests(t *testing.T) {
 }
 
 func TestRenderImpactDrilldown_Owners(t *testing.T) {
+	t.Parallel()
 	result := &impact.ImpactResult{
 		ImpactedUnits: []impact.ImpactedCodeUnit{
 			{Name: "Foo", Owner: "team-a", ProtectionStatus: impact.ProtectionStrong, ChangeKind: impact.ChangeModified},
@@ -218,6 +271,7 @@ func TestRenderImpactDrilldown_Owners(t *testing.T) {
 }
 
 func TestRenderImpactDrilldown_EmptyResults(t *testing.T) {
+	t.Parallel()
 	result := &impact.ImpactResult{}
 
 	var buf bytes.Buffer
@@ -247,6 +301,7 @@ func TestRenderImpactDrilldown_EmptyResults(t *testing.T) {
 }
 
 func TestRenderMigrationReport(t *testing.T) {
+	t.Parallel()
 	snap := testdata.MigrationRiskSnapshot()
 	readiness := migration.ComputeReadiness(snap)
 

@@ -7,6 +7,7 @@ import (
 )
 
 func TestDetect_NilSnapshot(t *testing.T) {
+	t.Parallel()
 	result := Detect(nil)
 	if result == nil {
 		t.Fatal("expected non-nil result for nil snapshot")
@@ -20,6 +21,7 @@ func TestDetect_NilSnapshot(t *testing.T) {
 }
 
 func TestDetect_EmptySnapshot(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{}
 	result := Detect(snap)
 	if len(result.Suppressions) != 0 {
@@ -28,6 +30,7 @@ func TestDetect_EmptySnapshot(t *testing.T) {
 }
 
 func TestDetect_QuarantinedNamingConvention(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: []models.TestFile{
 			{Path: "tests/quarantine/login_test.go"},
@@ -55,6 +58,7 @@ func TestDetect_QuarantinedNamingConvention(t *testing.T) {
 }
 
 func TestDetect_SkipNamingConvention(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: []models.TestFile{
 			{Path: "tests/login.skip.test.js"},
@@ -80,6 +84,7 @@ func TestDetect_SkipNamingConvention(t *testing.T) {
 }
 
 func TestDetect_SkippedTestSignal(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		Signals: []models.Signal{
 			{
@@ -114,6 +119,7 @@ func TestDetect_SkippedTestSignal(t *testing.T) {
 }
 
 func TestDetect_RetryWrapper(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: []models.TestFile{
 			{
@@ -163,6 +169,7 @@ func TestDetect_RetryWrapper(t *testing.T) {
 }
 
 func TestDetect_ExpectedFailure(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: []models.TestFile{
 			{
@@ -194,6 +201,7 @@ func TestDetect_ExpectedFailure(t *testing.T) {
 }
 
 func TestDetect_ExpectedFailure_ZeroPassRateExcluded(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: []models.TestFile{
 			{
@@ -213,6 +221,7 @@ func TestDetect_ExpectedFailure_ZeroPassRateExcluded(t *testing.T) {
 }
 
 func TestDetect_MixedSuppressions(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: []models.TestFile{
 			{Path: "tests/quarantine/old_test.go"},
@@ -259,6 +268,7 @@ func TestDetect_MixedSuppressions(t *testing.T) {
 }
 
 func TestDetect_IntentClassification(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: []models.TestFile{
 			// Retry rate >= 0.5 => chronic
@@ -297,6 +307,7 @@ func TestDetect_IntentClassification(t *testing.T) {
 }
 
 func TestDetect_Deduplication(t *testing.T) {
+	t.Parallel()
 	// A file that matches both naming and signal should only appear once per kind.
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: []models.TestFile{
@@ -323,6 +334,7 @@ func TestDetect_Deduplication(t *testing.T) {
 }
 
 func TestDetect_SortOrder(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: []models.TestFile{
 			{Path: "tests/quarantine/z_test.go"},
@@ -352,6 +364,7 @@ func TestDetect_SortOrder(t *testing.T) {
 }
 
 func TestDetect_NoRuntimeStats(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: []models.TestFile{
 			{Path: "tests/normal_test.go"},
@@ -370,6 +383,7 @@ func TestDetect_NoRuntimeStats(t *testing.T) {
 }
 
 func TestDetect_RetryBelowThreshold(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: []models.TestFile{
 			{
@@ -390,6 +404,7 @@ func TestDetect_RetryBelowThreshold(t *testing.T) {
 }
 
 func TestDetect_PassRateAtBoundary(t *testing.T) {
+	t.Parallel()
 	snap := &models.TestSuiteSnapshot{
 		TestFiles: []models.TestFile{
 			{
@@ -409,6 +424,7 @@ func TestDetect_PassRateAtBoundary(t *testing.T) {
 }
 
 func TestBuildResult_CountsMatch(t *testing.T) {
+	t.Parallel()
 	suppressions := []Suppression{
 		{Kind: KindQuarantined, Intent: IntentChronic, TestFilePath: "a.go"},
 		{Kind: KindQuarantined, Intent: IntentChronic, TestFilePath: "b.go"},

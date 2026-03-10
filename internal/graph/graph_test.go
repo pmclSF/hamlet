@@ -47,6 +47,7 @@ func testSnapshot() *models.TestSuiteSnapshot {
 }
 
 func TestBuild(t *testing.T) {
+	t.Parallel()
 	g := Build(testSnapshot())
 
 	if len(g.TestByID) != 6 {
@@ -58,6 +59,7 @@ func TestBuild(t *testing.T) {
 }
 
 func TestTestsByFile(t *testing.T) {
+	t.Parallel()
 	g := Build(testSnapshot())
 
 	authTests := g.TestsByFile["src/auth/auth.test.js"]
@@ -67,6 +69,7 @@ func TestTestsByFile(t *testing.T) {
 }
 
 func TestTestsByType(t *testing.T) {
+	t.Parallel()
 	g := Build(testSnapshot())
 
 	unitTests := g.TestsByType["unit"]
@@ -81,6 +84,7 @@ func TestTestsByType(t *testing.T) {
 }
 
 func TestTestsByOwner(t *testing.T) {
+	t.Parallel()
 	g := Build(testSnapshot())
 
 	authTests := g.TestsByOwner["@team-auth"]
@@ -95,6 +99,7 @@ func TestTestsByOwner(t *testing.T) {
 }
 
 func TestCodeUnitIndexes(t *testing.T) {
+	t.Parallel()
 	g := Build(testSnapshot())
 
 	if len(g.UnitByID) != 5 {
@@ -109,6 +114,7 @@ func TestCodeUnitIndexes(t *testing.T) {
 }
 
 func TestHealthSignalsByTestID(t *testing.T) {
+	t.Parallel()
 	g := Build(testSnapshot())
 
 	if len(g.HealthSignalsByTestID) != 2 {
@@ -122,6 +128,7 @@ func TestHealthSignalsByTestID(t *testing.T) {
 }
 
 func TestE2EOnlyUnits(t *testing.T) {
+	t.Parallel()
 	g := Build(testSnapshot())
 
 	if len(g.E2EOnlyUnits) != 1 {
@@ -133,6 +140,7 @@ func TestE2EOnlyUnits(t *testing.T) {
 }
 
 func TestTopFailingTestIDs(t *testing.T) {
+	t.Parallel()
 	g := Build(testSnapshot())
 
 	top := g.TopFailingTestIDs(5)
@@ -142,6 +150,7 @@ func TestTopFailingTestIDs(t *testing.T) {
 }
 
 func TestOwnerRiskSummaries(t *testing.T) {
+	t.Parallel()
 	g := Build(testSnapshot())
 
 	summaries := g.OwnerRiskSummaries()
@@ -179,6 +188,7 @@ func TestOwnerRiskSummaries(t *testing.T) {
 }
 
 func TestTestsInModule(t *testing.T) {
+	t.Parallel()
 	g := Build(testSnapshot())
 
 	authTests := g.TestsInModule("src/auth")
@@ -188,6 +198,7 @@ func TestTestsInModule(t *testing.T) {
 }
 
 func TestModuleCoverageSummaries(t *testing.T) {
+	t.Parallel()
 	g := Build(testSnapshot())
 
 	summaries := g.ModuleCoverageSummaries()
@@ -197,6 +208,7 @@ func TestModuleCoverageSummaries(t *testing.T) {
 }
 
 func TestUncoveredExportedForOwner(t *testing.T) {
+	t.Parallel()
 	g := Build(testSnapshot())
 
 	authUncovered := g.UncoveredExportedForOwner("@team-auth")
@@ -211,6 +223,7 @@ func TestUncoveredExportedForOwner(t *testing.T) {
 }
 
 func TestEmptySnapshot(t *testing.T) {
+	t.Parallel()
 	g := Build(&models.TestSuiteSnapshot{})
 
 	if len(g.TestByID) != 0 {
