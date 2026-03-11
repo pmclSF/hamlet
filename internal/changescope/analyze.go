@@ -24,9 +24,11 @@ func AnalyzePR(scope *impact.ChangeScope, snap *models.TestSuiteSnapshot) *PRAna
 		pr.ChangedFileCount++
 		if cf.IsTestFile {
 			pr.ChangedTestCount++
-		} else {
+		} else if impact.IsAnalyzableSourceFile(cf.Path) {
 			pr.ChangedSourceCount++
 		}
+		// Non-analyzable, non-test files (docs, config, CI) are counted
+		// in ChangedFileCount but not in source or test counts.
 	}
 
 	pr.ImpactedUnitCount = len(result.ImpactedUnits)
@@ -98,34 +100,37 @@ func buildChangeScopedFindings(result *impact.ImpactResult, snap *models.TestSui
 		})
 	}
 
-	// Check for signals on changed files.
+	// Check for signals on changed files, but skip signals that duplicate
+	// protection gaps already surfaced above (e.g., untestedExport signals
+	// overlap with untested_export protection gaps for the same path).
+	gapPaths := map[string]bool{}
+	for _, gap := range result.ProtectionGaps {
+		gapPaths[gap.Path] = true
+	}
+
 	changedPaths := map[string]bool{}
 	for _, cf := range result.Scope.ChangedFiles {
 		changedPaths[cf.Path] = true
 	}
 	for _, sig := range snap.Signals {
-		if changedPaths[sig.Location.File] {
-			findings = append(findings, ChangeScopedFinding{
-				Type:        "existing_signal",
-				Path:        sig.Location.File,
-				Severity:    string(sig.Severity),
-				Explanation: fmt.Sprintf("[%s] %s", sig.Type, sig.Explanation),
-			})
+		if !changedPaths[sig.Location.File] {
+			continue
 		}
+		// Skip untestedExport signals when a protection gap already covers this path.
+		if sig.Type == "untestedExport" && gapPaths[sig.Location.File] {
+			continue
+		}
+		findings = append(findings, ChangeScopedFinding{
+			Type:        "existing_signal",
+			Path:        sig.Location.File,
+			Severity:    string(sig.Severity),
+			Explanation: fmt.Sprintf("[%s] %s", sig.Type, sig.Explanation),
+		})
 	}
 
-	// Check for untested exported units in changed area.
-	for _, iu := range result.ImpactedUnits {
-		if iu.Exported && iu.ProtectionStatus == impact.ProtectionNone {
-			findings = append(findings, ChangeScopedFinding{
-				Type:            "untested_export_in_change",
-				Path:            iu.Path,
-				Severity:        "high",
-				Explanation:     fmt.Sprintf("Exported %s has no test coverage.", iu.Name),
-				SuggestedAction: fmt.Sprintf("Add unit tests for %s before merging.", iu.Name),
-			})
-		}
-	}
+	// Note: untested exported units are already surfaced via protection gaps
+	// (gapType "untested_export" with severity "high"). We don't duplicate
+	// them here to avoid showing the same issue twice in PR comments.
 
 	return findings
 }

@@ -68,6 +68,11 @@ func mapChangedUnits(scope *ChangeScope, snap *models.TestSuiteSnapshot) []Impac
 
 		units, found := unitsByFile[cf.Path]
 		if !found {
+			// Skip non-analyzable files (docs, config, etc.) — they should
+			// not create phantom impacted units or protection gaps.
+			if !IsAnalyzableSourceFile(cf.Path) {
+				continue
+			}
 			// File changed but no known code units — file-level impact.
 			impacted = append(impacted, ImpactedCodeUnit{
 				UnitID:           cf.Path,
@@ -799,4 +804,20 @@ func findCoverageDiversityGaps(units []ImpactedCodeUnit) []ProtectionGap {
 	}
 
 	return gaps
+}
+
+// IsAnalyzableSourceFile returns true if the file is a source code file that
+// should be tracked for impact analysis. Non-code files (documentation, config,
+// CI workflows, etc.) are excluded — they cannot meaningfully have unit test
+// coverage and should not generate protection gaps or inflate posture metrics.
+func IsAnalyzableSourceFile(path string) bool {
+	ext := strings.ToLower(filepath.Ext(path))
+	switch ext {
+	case ".go", ".js", ".jsx", ".ts", ".tsx", ".mjs", ".mts",
+		".py", ".java", ".rb", ".rs", ".c", ".cpp", ".h", ".hpp",
+		".cs", ".swift", ".kt", ".scala", ".php":
+		return true
+	default:
+		return false
+	}
 }

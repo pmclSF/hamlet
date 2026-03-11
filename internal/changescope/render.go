@@ -63,17 +63,11 @@ func RenderPRSummaryMarkdown(w io.Writer, pr *PRAnalysis) {
 		if len(pr.TestSelections) < limit {
 			limit = len(pr.TestSelections)
 		}
+		reasons := formatTestReasons(pr.TestSelections)
 		line("| Test | Confidence | Why |")
 		line("|------|------------|-----|")
 		for _, t := range pr.TestSelections[:limit] {
-			why := t.Relevance
-			if len(t.Reasons) > 0 {
-				why = deduplicateReasons(t.Reasons)
-			}
-			if len(t.CoversUnits) > 0 {
-				why += fmt.Sprintf(" (covers %d unit(s))", len(t.CoversUnits))
-			}
-			line("| `%s` | %s | %s |", t.Path, t.Confidence, why)
+			line("| `%s` | %s | %s |", t.Path, t.Confidence, reasons[t.Path])
 		}
 		if len(pr.TestSelections) > limit {
 			line("")
@@ -201,13 +195,10 @@ func RenderChangeScopedReport(w io.Writer, pr *PRAnalysis) {
 			line("  Strategy: %s", pr.SelectionExplanation)
 			blank()
 		}
+		reasons := formatTestReasons(pr.TestSelections)
 		for _, t := range pr.TestSelections {
-			why := t.Relevance
-			if len(t.Reasons) > 0 {
-				why = deduplicateReasons(t.Reasons)
-			}
 			line("  [%s] %s", t.Confidence, t.Path)
-			line("         %s", why)
+			line("         %s", reasons[t.Path])
 		}
 		blank()
 	} else if len(pr.RecommendedTests) > 0 {
@@ -244,6 +235,8 @@ func postureBadge(band string) string {
 		return "[RISK]"
 	case "high_risk":
 		return "[FAIL]"
+	case "evidence_limited":
+		return "[INFO]"
 	default:
 		return "[????]"
 	}
@@ -267,6 +260,126 @@ func deduplicateReasons(reasons []string) string {
 		}
 	}
 	return strings.Join(parts, "; ")
+}
+
+// formatTestReasons builds per-test "Why" strings for all selections.
+// When multiple tests cover the same units, it highlights what's unique
+// to each test so reviewers can tell them apart.
+func formatTestReasons(selections []TestSelection) map[string]string {
+	reasons := map[string]string{}
+
+	// Count how many tests cover each unit ID.
+	unitTestCount := map[string]int{}
+	for _, t := range selections {
+		for _, uid := range t.CoversUnits {
+			unitTestCount[uid]++
+		}
+	}
+	totalTests := len(selections)
+
+	for _, t := range selections {
+		reasons[t.Path] = formatSingleTestReason(t, unitTestCount, totalTests)
+	}
+	return reasons
+}
+
+// formatSingleTestReason builds a reason string for one test, preferring
+// unique units (covered only by this test) over shared ones.
+func formatSingleTestReason(t TestSelection, unitTestCount map[string]int, totalTests int) string {
+	unitNames := extractUnitNames(t.CoversUnits)
+
+	if len(unitNames) == 0 {
+		if len(t.Reasons) > 0 {
+			return deduplicateReasons(t.Reasons)
+		}
+		return t.Relevance
+	}
+
+	// Split into unique (only this test covers it) and shared units.
+	var unique, shared []string
+	for _, uid := range t.CoversUnits {
+		name := uid
+		if idx := strings.LastIndex(uid, ":"); idx >= 0 {
+			name = uid[idx+1:]
+		}
+		if unitTestCount[uid] == 1 {
+			unique = append(unique, name)
+		} else {
+			shared = append(shared, name)
+		}
+	}
+	// Deduplicate names (different paths can have same name).
+	unique = deduplicateStrings(unique)
+	shared = deduplicateStrings(shared)
+
+	label := "covers"
+	if t.Confidence == "exact" {
+		label = "exact coverage of"
+	}
+
+	const maxDisplay = 4
+
+	// If there are unique units, lead with those — they're the differentiator.
+	if len(unique) > 0 {
+		var why string
+		if len(unique) <= maxDisplay {
+			why = fmt.Sprintf("%s `%s`", label, strings.Join(unique, "`, `"))
+		} else {
+			why = fmt.Sprintf("%s `%s` + %d more", label, strings.Join(unique[:maxDisplay], "`, `"), len(unique)-maxDisplay)
+		}
+		if len(shared) > 0 {
+			why += fmt.Sprintf(" (+ %d shared)", len(shared))
+		}
+		return why
+	}
+
+	// All units are shared — show names but note they're shared across tests.
+	if len(unitNames) <= maxDisplay {
+		why := fmt.Sprintf("%s `%s`", label, strings.Join(unitNames, "`, `"))
+		if totalTests > 1 {
+			why += fmt.Sprintf(" (shared across %d tests)", unitTestCount[t.CoversUnits[0]])
+		}
+		return why
+	}
+	shown := strings.Join(unitNames[:maxDisplay], "`, `")
+	why := fmt.Sprintf("%s `%s` + %d more", label, shown, len(unitNames)-maxDisplay)
+	if totalTests > 1 {
+		why += fmt.Sprintf(" (shared across %d tests)", unitTestCount[t.CoversUnits[0]])
+	}
+	return why
+}
+
+func deduplicateStrings(ss []string) []string {
+	seen := map[string]bool{}
+	var out []string
+	for _, s := range ss {
+		if !seen[s] {
+			seen[s] = true
+			out = append(out, s)
+		}
+	}
+	return out
+}
+
+// extractUnitNames extracts human-readable names from code unit IDs.
+// Unit IDs have the format "path:Name" — we extract just the Name part.
+func extractUnitNames(unitIDs []string) []string {
+	if len(unitIDs) == 0 {
+		return nil
+	}
+	seen := map[string]bool{}
+	var names []string
+	for _, id := range unitIDs {
+		name := id
+		if idx := strings.LastIndex(id, ":"); idx >= 0 {
+			name = id[idx+1:]
+		}
+		if name != "" && !seen[name] {
+			seen[name] = true
+			names = append(names, name)
+		}
+	}
+	return names
 }
 
 func severityIcon(severity string) string {

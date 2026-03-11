@@ -368,9 +368,11 @@ func TestIsTestFilePath(t *testing.T) {
 		{"src/auth/service.js", false},
 		{"src/__tests__/auth.test.js", true},
 		{"test/foo.test.js", true},
+		{"test/res.type.js", true},            // top-level test/ dir, no .test. in name
+		{"tests/integration/api.js", true},    // top-level tests/ dir
 		{"src/foo.spec.js", true},
 		{"internal/auth/auth_test.go", true},
-		{"e2e/login.spec.js", true},
+		{"e2e/login.spec.js", true},           // top-level e2e/ dir
 		{"src/utils/helpers.js", false},
 		{"cypress/e2e/flow.cy.js", true},
 	}
@@ -1128,5 +1130,86 @@ func TestImpactSummary_ContainsPosture(t *testing.T) {
 
 	if !strings.Contains(result.Summary, "Posture:") {
 		t.Error("expected summary to contain posture band")
+	}
+}
+
+// --- non-testable file filtering tests ---
+
+func TestAnalyze_NonTestableFilesExcluded(t *testing.T) {
+	t.Parallel()
+	snap := &models.TestSuiteSnapshot{
+		TestFiles: []models.TestFile{
+			{Path: "test/auth.test.js", Framework: "jest", LinkedCodeUnits: []string{"AuthService"}},
+		},
+		CodeUnits: []models.CodeUnit{
+			{Name: "AuthService", Path: "src/auth.js", Kind: "class", Exported: true},
+		},
+		Frameworks: []models.Framework{
+			{Name: "jest", Type: models.FrameworkTypeUnit, FileCount: 1},
+		},
+	}
+
+	scope := &ChangeScope{
+		ChangedFiles: []ChangedFile{
+			{Path: "src/auth.js", ChangeKind: ChangeModified},
+			{Path: "README.md", ChangeKind: ChangeModified},
+			{Path: ".github/workflows/ci.yml", ChangeKind: ChangeModified},
+			{Path: "CLAUDE.md", ChangeKind: ChangeModified},
+			{Path: "Makefile", ChangeKind: ChangeModified},
+			{Path: ".goreleaser.yaml", ChangeKind: ChangeModified},
+			{Path: "package.json", ChangeKind: ChangeModified},
+		},
+	}
+
+	result := Analyze(scope, snap)
+
+	// Only src/auth.js should produce impacted units — all non-code files filtered.
+	if len(result.ImpactedUnits) != 1 {
+		t.Errorf("expected 1 impacted unit (AuthService only), got %d", len(result.ImpactedUnits))
+		for _, iu := range result.ImpactedUnits {
+			t.Logf("  unit: %s (%s)", iu.Name, iu.Path)
+		}
+	}
+
+	// No protection gaps for non-code files.
+	for _, gap := range result.ProtectionGaps {
+		for _, ext := range []string{".md", ".yml", ".yaml", ".json"} {
+			if strings.HasSuffix(gap.Path, ext) {
+				t.Errorf("unexpected protection gap for non-code file: %s", gap.Path)
+			}
+		}
+	}
+}
+
+func TestIsAnalyzableSourceFile_Exported(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		path string
+		want bool
+	}{
+		{"src/auth.js", true},
+		{"internal/foo/bar.go", true},
+		{"src/app.tsx", true},
+		{"src/utils.mjs", true},
+		{"lib/core.py", true},
+		{"Main.java", true},
+		{"README.md", false},
+		{".github/workflows/ci.yml", false},
+		{"config.yaml", false},
+		{"package.json", false},
+		{"Makefile", false},
+		{".goreleaser.yaml", false},
+		{"docs/guide.md", false},
+		{"tsconfig.json", false},
+		{".eslintrc.json", false},
+		{"Dockerfile", false},
+		{"LICENSE", false},
+	}
+
+	for _, tt := range tests {
+		got := IsAnalyzableSourceFile(tt.path)
+		if got != tt.want {
+			t.Errorf("IsAnalyzableSourceFile(%q) = %v, want %v", tt.path, got, tt.want)
+		}
 	}
 }
