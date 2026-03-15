@@ -1,0 +1,205 @@
+name: 'Terrain Impact Analysis'
+description: 'Run Terrain impact analysis using the Go CLI, generate CI artifacts, and post a PR comment with results.'
+
+inputs:
+  go-version-file:
+    description: 'Path to go.mod for Go version detection'
+    required: false
+    default: 'go.mod'
+  base-sha:
+    description: 'Base commit SHA for impact diff'
+    required: false
+    default: ''
+  head-sha:
+    description: 'Head commit SHA for impact diff'
+    required: false
+    default: ''
+  comment-header:
+    description: 'Unique header for PR comment (used to find/update existing comment)'
+    required: false
+    default: '<!-- terrain-impact -->'
+  post-comment:
+    description: 'Whether to post/update a PR comment'
+    required: false
+    default: 'true'
+
+outputs:
+  artifact-path:
+    description: 'Path to the generated terrain-impact.json artifact'
+    value: ${{ steps.impact.outputs.artifact_path }}
+  test-count:
+    description: 'Number of impacted tests'
+    value: ${{ steps.parse.outputs.test_count }}
+  risk-level:
+    description: 'Overall PR risk level (high, medium, low, none)'
+    value: ${{ steps.parse.outputs.risk_level }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup Go
+      uses: actions/setup-go@v5
+      with:
+        go-version-file: ${{ inputs.go-version-file }}
+
+    - name: Build terrain binary
+      shell: bash
+      run: go build -o /tmp/terrain-impact-bin ./cmd/terrain
+
+    - name: Resolve SHAs
+      id: shas
+      shell: bash
+      run: |
+        if [ -n "${{ inputs.base-sha }}" ]; then
+          echo "base=${{ inputs.base-sha }}" >> "$GITHUB_OUTPUT"
+        elif [ "${{ github.event_name }}" = "pull_request" ]; then
+          echo "base=${{ github.event.pull_request.base.sha }}" >> "$GITHUB_OUTPUT"
+        else
+          echo "base=${{ github.event.before }}" >> "$GITHUB_OUTPUT"
+        fi
+
+        if [ -n "${{ inputs.head-sha }}" ]; then
+          echo "head=${{ inputs.head-sha }}" >> "$GITHUB_OUTPUT"
+        else
+          echo "head=${{ github.sha }}" >> "$GITHUB_OUTPUT"
+        fi
+
+    - name: Run impact analysis
+      id: impact
+      shell: bash
+      run: |
+        /tmp/terrain-impact-bin impact \
+          --base "${{ steps.shas.outputs.base }}" \
+          --json > /tmp/terrain-impact-output.json
+
+        mkdir -p .terrain/artifacts
+        cp /tmp/terrain-impact-output.json .terrain/artifacts/terrain-impact.json
+        echo "artifact_path=$(pwd)/.terrain/artifacts/terrain-impact.json" >> "$GITHUB_OUTPUT"
+
+    - name: Parse impact results
+      id: parse
+      shell: bash
+      run: |
+        ARTIFACT=".terrain/artifacts/terrain-impact.json"
+
+        if [ ! -f "$ARTIFACT" ]; then
+          echo "test_count=0" >> "$GITHUB_OUTPUT"
+          echo "risk_level=none" >> "$GITHUB_OUTPUT"
+          echo "high=0" >> "$GITHUB_OUTPUT"
+          echo "medium=0" >> "$GITHUB_OUTPUT"
+          echo "low=0" >> "$GITHUB_OUTPUT"
+          echo "changed_files=0" >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+
+        TEST_COUNT=$(jq '.impactedTests | length' "$ARTIFACT" 2>/dev/null || echo 0)
+        CHANGED=$(jq '.scope.changedFiles | length' "$ARTIFACT" 2>/dev/null || echo 0)
+        CONFIDENCE=$(jq -r '.coverageConfidence // "low"' "$ARTIFACT" 2>/dev/null || echo "low")
+
+        # Determine overall risk level from posture band.
+        POSTURE=$(jq -r '.posture.band // "unknown"' "$ARTIFACT" 2>/dev/null || echo "unknown")
+        case "$POSTURE" in
+          unprotected|high_risk) RISK="high" ;;
+          partially_protected)   RISK="medium" ;;
+          well_protected)        RISK="low" ;;
+          *)                     RISK="none" ;;
+        esac
+
+        echo "test_count=$TEST_COUNT" >> "$GITHUB_OUTPUT"
+        echo "risk_level=$RISK" >> "$GITHUB_OUTPUT"
+        echo "changed_files=$CHANGED" >> "$GITHUB_OUTPUT"
+        echo "confidence=$CONFIDENCE" >> "$GITHUB_OUTPUT"
+
+    - name: Generate PR comment body
+      if: inputs.post-comment == 'true' && github.event_name == 'pull_request'
+      id: comment
+      shell: bash
+      run: |
+        RISK="${{ steps.parse.outputs.risk_level }}"
+        TEST_COUNT="${{ steps.parse.outputs.test_count }}"
+        CHANGED="${{ steps.parse.outputs.changed_files }}"
+        CONFIDENCE="${{ steps.parse.outputs.confidence }}"
+
+        case "$RISK" in
+          high)   RISK_ICON="🔴" ;;
+          medium) RISK_ICON="🟡" ;;
+          low)    RISK_ICON="🟢" ;;
+          none)   RISK_ICON="⚪" ;;
+        esac
+
+        {
+          echo 'body<<TERRAIN_EOF'
+          echo "${{ inputs.comment-header }}"
+          echo "## Terrain Impact Analysis"
+          echo ""
+          echo "| Metric | Value |"
+          echo "|--------|-------|"
+          echo "| PR Risk | ${RISK_ICON} **${RISK}** |"
+          echo "| Changed Files | ${CHANGED} |"
+          echo "| Impacted Tests | ${TEST_COUNT} |"
+          echo "| Coverage Confidence | ${CONFIDENCE} |"
+          echo ""
+
+          if [ "$TEST_COUNT" -gt 0 ] 2>/dev/null; then
+            echo "<details>"
+            echo "<summary>Impacted Tests (top ${TEST_COUNT})</summary>"
+            echo ""
+            jq -r '.impactedTests[:15][] | "- \(.testFile // .path) (\(.confidence // "n/a"))"' \
+              .terrain/artifacts/terrain-impact.json 2>/dev/null || true
+            if [ "$TEST_COUNT" -gt 15 ] 2>/dev/null; then
+              echo ""
+              echo "_... and $(( TEST_COUNT - 15 )) more_"
+            fi
+            echo ""
+            echo "</details>"
+          else
+            echo "_No impacted tests detected._"
+          fi
+          echo ""
+          echo "---"
+          echo "<sub>Generated by Terrain</sub>"
+          echo 'TERRAIN_EOF'
+        } >> "$GITHUB_OUTPUT"
+
+    - name: Find existing PR comment
+      if: inputs.post-comment == 'true' && github.event_name == 'pull_request'
+      id: find-comment
+      uses: peter-evans/find-comment@v3
+      with:
+        issue-number: ${{ github.event.pull_request.number }}
+        body-includes: ${{ inputs.comment-header }}
+
+    - name: Create or update PR comment
+      if: inputs.post-comment == 'true' && github.event_name == 'pull_request'
+      uses: peter-evans/create-or-update-comment@v4
+      with:
+        comment-id: ${{ steps.find-comment.outputs.comment-id }}
+        issue-number: ${{ github.event.pull_request.number }}
+        body: ${{ steps.comment.outputs.body }}
+        edit-mode: replace
+
+    - name: Upload artifact
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: terrain-impact
+        path: .terrain/artifacts/terrain-impact.json
+        if-no-files-found: warn
+
+    - name: Write job summary
+      if: always()
+      shell: bash
+      run: |
+        RISK="${{ steps.parse.outputs.risk_level }}"
+        TEST_COUNT="${{ steps.parse.outputs.test_count }}"
+        CHANGED="${{ steps.parse.outputs.changed_files }}"
+
+        {
+          echo "### Terrain Impact Analysis"
+          echo ""
+          echo "| Metric | Value |"
+          echo "|--------|-------|"
+          echo "| PR Risk | **${RISK}** |"
+          echo "| Changed Files | ${CHANGED} |"
+          echo "| Impacted Tests | ${TEST_COUNT} |"
+        } >> "$GITHUB_STEP_SUMMARY"

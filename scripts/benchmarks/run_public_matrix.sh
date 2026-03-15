@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Run Hamlet benchmark matrix against public repos.
+# Run Terrain benchmark matrix against public repos.
 #
 # Usage:
 #   ./scripts/benchmarks/run_public_matrix.sh smoke           # smoke tier
@@ -14,7 +14,7 @@ ROOT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 MANIFEST="$ROOT_DIR/benchmarks/public-repos.yaml"
 REPOS_DIR="$ROOT_DIR/benchmarks/repos"
 ARTIFACTS_DIR="$ROOT_DIR/artifacts/public-benchmarks"
-HAMLET_BIN="$ROOT_DIR/hamlet-bench"
+TERRAIN_BIN="$ROOT_DIR/terrain-bench"
 
 # Defaults
 MODE="${1:-smoke}"
@@ -42,19 +42,19 @@ case "$MODE" in
         ;;
 esac
 
-# ── Step 1: Build Hamlet ─────────────────────────────────────
+# ── Step 1: Build Terrain ─────────────────────────────────────
 
-echo "=== Hamlet Public Benchmark Matrix ==="
+echo "=== Terrain Public Benchmark Matrix ==="
 echo "  Mode: $MODE"
 echo "  Tiers: $TIERS"
 echo ""
 
-echo "Building Hamlet..."
-if ! go build -o "$HAMLET_BIN" ./cmd/hamlet/ 2>&1; then
+echo "Building Terrain..."
+if ! go build -o "$TERRAIN_BIN" ./cmd/terrain/ 2>&1; then
     echo "FATAL: Build failed" >&2
     exit 1
 fi
-echo "  Built: $HAMLET_BIN"
+echo "  Built: $TERRAIN_BIN"
 echo ""
 
 # ── Step 2: Parse manifest ───────────────────────────────────
@@ -80,6 +80,8 @@ SKIP=0
 COMMANDS=(
     "analyze_json:analyze --json"
     "analyze_text:analyze"
+    "insights_json:insights --json"
+    "insights_text:insights"
     "summary:summary"
     "posture:posture"
     "posture_json:posture --json"
@@ -110,7 +112,7 @@ run_command() {
 
     local exit_code=0
     # shellcheck disable=SC2086
-    "$HAMLET_BIN" $cmd_args --root "$repo_dir" >"$stdout_file" 2>"$stderr_file" || exit_code=$?
+    "$TERRAIN_BIN" $cmd_args --root "$repo_dir" >"$stdout_file" 2>"$stderr_file" || exit_code=$?
 
     local end_ns
     end_ns=$(python3 -c "import time; print(int(time.time()*1000))")
@@ -165,6 +167,7 @@ run_determinism_check() {
     # Commands to check for determinism (all produce JSON).
     local det_commands=(
         "analyze:analyze --json"
+        "insights:insights --json"
         "metrics:metrics --json"
         "portfolio:portfolio --json"
         "posture:posture --json"
@@ -182,9 +185,9 @@ run_determinism_check() {
         local run2="$out_dir/determinism_${det_name}_run2.json"
 
         # shellcheck disable=SC2086
-        "$HAMLET_BIN" $det_args --root "$repo_dir" >"$run1" 2>/dev/null || true
+        "$TERRAIN_BIN" $det_args --root "$repo_dir" >"$run1" 2>/dev/null || true
         # shellcheck disable=SC2086
-        "$HAMLET_BIN" $det_args --root "$repo_dir" >"$run2" 2>/dev/null || true
+        "$TERRAIN_BIN" $det_args --root "$repo_dir" >"$run2" 2>/dev/null || true
 
         local norm1 norm2
         norm1=$(normalize_json "$run1")
@@ -373,7 +376,7 @@ done < <(parse_manifest)
 
 # ── Cleanup ──────────────────────────────────────────────────
 
-rm -f "$HAMLET_BIN"
+rm -f "$TERRAIN_BIN"
 
 echo "=== Benchmark Matrix Complete ==="
 echo "  Mode: $MODE"

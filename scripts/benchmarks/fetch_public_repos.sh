@@ -65,7 +65,7 @@ SUCCESS=0
 SKIPPED=0
 FAILED=0
 
-echo "=== Hamlet Benchmark: Fetch Public Repos ==="
+echo "=== Terrain Benchmark: Fetch Public Repos ==="
 echo "  Repos dir: $REPOS_DIR"
 echo "  Tier filter: ${TIER_FILTER:-all}"
 echo "  ID filter: ${ID_FILTER:-all}"

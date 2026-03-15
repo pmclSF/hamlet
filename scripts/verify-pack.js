@@ -51,7 +51,7 @@ try {
 
   // Install in temp dir and verify imports
   console.log('\nInstalling in temp directory...');
-  tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'hamlet-verify-'));
+  tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'terrain-verify-'));
   execFileSync('npm', ['init', '-y'], { cwd: tmpDir, encoding: 'utf8' });
   execFileSync('npm', ['install', tarball], { cwd: tmpDir, encoding: 'utf8' });
 
@@ -62,8 +62,8 @@ try {
       '--input-type=module',
       '-e',
       `
-      import { VERSION, convertFile, convertRepository, BatchProcessor, ConversionReporter } from 'hamlet-testframework';
-      const pkg = JSON.parse(await import('fs/promises').then(f => f.default.readFile('node_modules/hamlet-testframework/package.json', 'utf8')));
+      import { VERSION, convertFile, convertRepository, BatchProcessor, ConversionReporter } from 'terrain-testframework';
+      const pkg = JSON.parse(await import('fs/promises').then(f => f.default.readFile('node_modules/terrain-testframework/package.json', 'utf8')));
       const errors = [];
       if (VERSION !== pkg.version) errors.push('VERSION ' + VERSION + ' !== package.json ' + pkg.version);
       if (typeof convertFile !== 'function') errors.push('convertFile is not a function');
@@ -84,19 +84,19 @@ try {
 
   // CLI smoke tests
   console.log('CLI smoke tests...');
-  const hamletBin = path.join(
+  const terrainBin = path.join(
     tmpDir,
     'node_modules',
     '.bin',
-    'hamlet'
+    'terrain'
   );
 
-  const versionOut = execFileSync(hamletBin, ['--version'], {
+  const versionOut = execFileSync(terrainBin, ['--version'], {
     encoding: 'utf8',
   }).trim();
   const pkgVersion = JSON.parse(
     await fs.readFile(
-      path.join(tmpDir, 'node_modules', 'hamlet-testframework', 'package.json'),
+      path.join(tmpDir, 'node_modules', 'terrain-testframework', 'package.json'),
       'utf8'
     )
   ).version;
@@ -106,9 +106,9 @@ try {
     );
     process.exit(1);
   }
-  console.log(`  hamlet --version: ${versionOut}`);
+  console.log(`  terrain --version: ${versionOut}`);
 
-  const helpOut = execFileSync(hamletBin, ['--help'], {
+  const helpOut = execFileSync(terrainBin, ['--help'], {
     encoding: 'utf8',
   });
   const requiredHelpTokens = ['convert', 'detect', 'doctor'];
@@ -118,7 +118,7 @@ try {
       process.exit(1);
     }
   }
-  console.log('  hamlet --help: ok (contains convert, detect, doctor)');
+  console.log('  terrain --help: ok (contains convert, detect, doctor)');
 
   // Conversion smoke test: jest → vitest on a tiny inline fixture
   console.log('\nConversion smoke test...');
@@ -136,7 +136,7 @@ try {
   );
 
   execFileSync(
-    hamletBin,
+    terrainBin,
     ['convert', fixtureDir, '--from', 'jest', '--to', 'vitest', '-o', outDir],
     { encoding: 'utf8' }
   );

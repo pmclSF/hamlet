@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Summarize Hamlet public benchmark matrix results.
+"""Summarize Terrain public benchmark matrix results.
 
 Reads artifacts from artifacts/public-benchmarks/<repo-id>/ and produces:
   - artifacts/public-benchmarks/summary.md   (human-readable)
@@ -245,7 +245,7 @@ def main():
 
     # Print stdout summary.
     print(f"\n{'='*70}")
-    print("  Hamlet Public Benchmark Summary")
+    print("  Terrain Public Benchmark Summary")
     print(f"{'='*70}\n")
 
     total_pass = sum(1 for r in results if r["overall"] == "pass")

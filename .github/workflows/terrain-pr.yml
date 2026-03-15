@@ -1,0 +1,146 @@
+name: Terrain PR Analysis
+
+on:
+  pull_request:
+    branches: [main, develop]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+          cache: npm
+
+      - name: Install JS dependencies
+        run: npm ci
+
+      - name: Build Terrain
+        run: go build -o terrain ./cmd/terrain
+
+      - name: Run Terrain PR analysis (JSON)
+        id: terrain-json
+        run: |
+          ./terrain pr --base "${{ github.event.pull_request.base.sha }}" --json > /tmp/terrain-pr.json
+
+      - name: Extract selected tests
+        id: tests
+        run: |
+          # Extract Go test packages (internal/foo/bar_test.go → ./internal/foo/...)
+          GO_PKGS=$(jq -r '.testSelections[]?.path // empty' /tmp/terrain-pr.json \
+            | grep '_test\.go$' \
+            | sed 's|/[^/]*_test\.go$||' \
+            | sort -u \
+            | sed 's|^|./|' \
+            | tr '\n' ' ')
+          echo "go_packages=$GO_PKGS" >> "$GITHUB_OUTPUT"
+
+          # Extract JS test files
+          JS_TESTS=$(jq -r '.testSelections[]?.path // empty' /tmp/terrain-pr.json \
+            | grep '\.test\.js$' \
+            | tr '\n' ' ')
+          echo "js_tests=$JS_TESTS" >> "$GITHUB_OUTPUT"
+
+          # Count totals
+          TOTAL=$(jq '.testSelections | length' /tmp/terrain-pr.json)
+          echo "total_selected=$TOTAL" >> "$GITHUB_OUTPUT"
+
+          # Posture band
+          POSTURE=$(jq -r '.postureBand' /tmp/terrain-pr.json)
+          echo "posture=$POSTURE" >> "$GITHUB_OUTPUT"
+
+      - name: Run selected Go tests
+        id: go-tests
+        if: steps.tests.outputs.go_packages != ''
+        continue-on-error: true
+        run: |
+          echo "::group::Terrain-selected Go tests"
+          echo "Running: go test ${{ steps.tests.outputs.go_packages }} -count=1 -race"
+          go test ${{ steps.tests.outputs.go_packages }} -count=1 -race -v 2>&1 | tee /tmp/go-test-output.txt
+          echo "::endgroup::"
+
+      - name: Run selected JS tests
+        id: js-tests
+        if: steps.tests.outputs.js_tests != ''
+        continue-on-error: true
+        run: |
+          echo "::group::Terrain-selected JS tests"
+          echo "Running: npx jest ${{ steps.tests.outputs.js_tests }}"
+          NODE_OPTIONS='--experimental-vm-modules' npx jest ${{ steps.tests.outputs.js_tests }} 2>&1 | tee /tmp/js-test-output.txt
+          echo "::endgroup::"
+
+      - name: Generate PR comment
+        id: terrain-comment
+        run: |
+          {
+            echo 'body<<TERRAIN_EOF'
+            ./terrain pr --base "${{ github.event.pull_request.base.sha }}" --format markdown
+            echo ''
+            echo '### Targeted Test Results'
+            echo ''
+            TOTAL="${{ steps.tests.outputs.total_selected }}"
+            if [ "$TOTAL" = "0" ] || [ -z "$TOTAL" ]; then
+              echo 'No tests selected — change affects only non-code files.'
+            else
+              echo "Terrain selected **${TOTAL} test(s)** instead of the full suite."
+              echo ''
+              # Go results
+              if [ -n "${{ steps.tests.outputs.go_packages }}" ]; then
+                if [ "${{ steps.go-tests.outcome }}" = "success" ]; then
+                  echo '- Go tests: **passed**'
+                else
+                  echo '- Go tests: **failed** (see logs)'
+                fi
+              fi
+              # JS results
+              if [ -n "${{ steps.tests.outputs.js_tests }}" ]; then
+                if [ "${{ steps.js-tests.outcome }}" = "success" ]; then
+                  echo '- JS tests: **passed**'
+                else
+                  echo '- JS tests: **failed** (see logs)'
+                fi
+              fi
+            fi
+            echo 'TERRAIN_EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Find existing Terrain comment
+        uses: peter-evans/find-comment@v3
+        id: find-comment
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          comment-author: 'github-actions[bot]'
+          body-includes: '<!-- terrain-pr-analysis -->'
+
+      - name: Post or update PR comment
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          comment-id: ${{ steps.find-comment.outputs.comment-id }}
+          edit-mode: replace
+          body: |
+            <!-- terrain-pr-analysis -->
+            ${{ steps.terrain-comment.outputs.body }}
+
+      - name: Fail if selected tests failed
+        if: steps.go-tests.outcome == 'failure' || steps.js-tests.outcome == 'failure'
+        run: |
+          echo "::error::Terrain-selected tests failed. See above for details."
+          exit 1

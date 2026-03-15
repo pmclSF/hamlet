@@ -1,0 +1,118 @@
+{
+  "repos": [
+    {
+      "name": "terrain",
+      "path": ".",
+      "type": "real",
+      "description": "Terrain itself — signal-first test intelligence platform"
+    },
+    {
+      "name": "express",
+      "path": "benchmarks/repos/express",
+      "type": "real",
+      "description": "Node.js HTTP framework, mocha tests, CommonJS"
+    },
+    {
+      "name": "fastify",
+      "path": "benchmarks/repos/fastify",
+      "type": "real",
+      "description": "Node.js web framework, node:test, CommonJS"
+    },
+    {
+      "name": "flask",
+      "path": "benchmarks/repos/flask",
+      "type": "real",
+      "description": "Python micro web framework, pytest"
+    },
+    {
+      "name": "vue",
+      "path": "benchmarks/repos/vue",
+      "type": "real",
+      "description": "Vue.js 3 core, vitest, TypeScript monorepo"
+    },
+    {
+      "name": "jest",
+      "path": "benchmarks/repos/jest",
+      "type": "real",
+      "description": "JavaScript testing framework, self-hosted tests"
+    },
+    {
+      "name": "playwright",
+      "path": "benchmarks/repos/playwright",
+      "type": "real",
+      "description": "Browser automation, Jest + Playwright, TypeScript"
+    },
+    {
+      "name": "storybook",
+      "path": "benchmarks/repos/storybook",
+      "type": "real",
+      "description": "UI component workshop, Jest + Vitest, massive monorepo"
+    },
+    {
+      "name": "next.js",
+      "path": "benchmarks/repos/next.js",
+      "type": "real",
+      "description": "Vercel React framework, Jest + Playwright, very large monorepo"
+    },
+    {
+      "name": "fixture:frontend-react",
+      "path": "tests/fixtures/frontend-react",
+      "type": "fixture",
+      "description": "Snapshot-heavy React components, Jest + Playwright + Enzyme"
+    },
+    {
+      "name": "fixture:backend-api",
+      "path": "tests/fixtures/backend-api",
+      "type": "fixture",
+      "description": "Go backend with coverage and runtime artifacts"
+    },
+    {
+      "name": "fixture:mobile-cross-platform",
+      "path": "tests/fixtures/mobile-cross-platform",
+      "type": "fixture",
+      "description": "Device-conditional tests, platform-specific skips"
+    },
+    {
+      "name": "fixture:qa-manual-overlay",
+      "path": "tests/fixtures/qa-manual-overlay",
+      "type": "fixture",
+      "description": "Manual coverage overlay, CODEOWNERS, policy evaluation"
+    },
+    {
+      "name": "fixture:ai-eval-suite",
+      "path": "tests/fixtures/ai-eval-suite",
+      "type": "fixture",
+      "description": "Python ML evaluation tests, pytest, accuracy thresholds"
+    },
+    {
+      "name": "fixture:high-fanout",
+      "path": "tests/fixtures/high-fanout",
+      "type": "fixture",
+      "description": "Shared database utility with 12+ test dependents"
+    },
+    {
+      "name": "fixture:duplicate-heavy",
+      "path": "tests/fixtures/duplicate-heavy",
+      "type": "fixture",
+      "description": "Structurally similar tests, shared fixtures and helpers"
+    },
+    {
+      "name": "fixture:weak-coverage",
+      "path": "tests/fixtures/weak-coverage",
+      "type": "fixture",
+      "description": "Many untested exports, LCOV showing 0% on 5 of 6 modules"
+    },
+    {
+      "name": "fixture:skipped-tests",
+      "path": "tests/fixtures/skipped-tests",
+      "type": "fixture",
+      "description": "59% skip rate across auth modules"
+    },
+    {
+      "name": "fixture:legacy-mixed",
+      "path": "tests/fixtures/legacy-mixed",
+      "type": "fixture",
+      "description": "Jest + Mocha + Cypress + Enzyme, migration blockers"
+    }
+  ]
+}

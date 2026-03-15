@@ -35,7 +35,7 @@ for repo in data.get('repos', []):
 "
 }
 
-echo "=== Hamlet Benchmark: Update Public Repos ==="
+echo "=== Terrain Benchmark: Update Public Repos ==="
 
 UPDATED=0
 MISSING=0

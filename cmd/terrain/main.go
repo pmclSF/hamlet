@@ -42,21 +42,25 @@ import (
 	"strings"
 
 	"github.com/pmclSF/terrain/internal/analysis"
+	"github.com/pmclSF/terrain/internal/analyze"
 	"github.com/pmclSF/terrain/internal/benchmark"
 	"github.com/pmclSF/terrain/internal/changescope"
 	"github.com/pmclSF/terrain/internal/comparison"
 	"github.com/pmclSF/terrain/internal/depgraph"
 	"github.com/pmclSF/terrain/internal/engine"
 	"github.com/pmclSF/terrain/internal/explain"
+	"github.com/pmclSF/terrain/internal/insights"
 	"github.com/pmclSF/terrain/internal/governance"
 	"github.com/pmclSF/terrain/internal/graph"
 	"github.com/pmclSF/terrain/internal/heatmap"
 	"github.com/pmclSF/terrain/internal/impact"
+	"github.com/pmclSF/terrain/internal/matrix"
 	"github.com/pmclSF/terrain/internal/metrics"
 	"github.com/pmclSF/terrain/internal/migration"
 	"github.com/pmclSF/terrain/internal/models"
 	"github.com/pmclSF/terrain/internal/policy"
 	"github.com/pmclSF/terrain/internal/reporting"
+	"github.com/pmclSF/terrain/internal/stability"
 	"github.com/pmclSF/terrain/internal/summary"
 )
 
@@ -570,15 +574,26 @@ func runAnalyze(root string, jsonOutput bool, format string, verbose bool, write
 		return fmt.Errorf("analysis failed: %w", err)
 	}
 
+	// Build the structured analyze report (includes depgraph analysis).
+	report := analyze.Build(&analyze.BuildInput{
+		Snapshot:  result.Snapshot,
+		HasPolicy: result.HasPolicy,
+	})
+
 	if jsonOutput {
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
-		return enc.Encode(result.Snapshot)
+		return enc.Encode(report)
 	}
 
-	reporting.RenderAnalyzeReport(os.Stdout, result.Snapshot, reporting.AnalyzeReportOptions{
-		Verbose: verbose,
-	})
+	if verbose {
+		// Verbose mode: use legacy renderer with full signal detail.
+		reporting.RenderAnalyzeReport(os.Stdout, result.Snapshot, reporting.AnalyzeReportOptions{
+			Verbose: true,
+		})
+	} else {
+		reporting.RenderAnalyzeReportV2(os.Stdout, report)
+	}
 
 	if writeSnap {
 		return persistSnapshot(result.Snapshot, root)
@@ -726,6 +741,32 @@ func runImpact(root, baseRef string, jsonOutput bool, show, ownerFilter string) 
 	}
 
 	impactResult := impact.AnalyzeChangeSet(cs, result.Snapshot)
+
+	// Apply edge-case policy to adjust confidence and add warnings.
+	snapshot := result.Snapshot
+	dg := depgraph.Build(snapshot)
+	dgCov := depgraph.AnalyzeCoverage(dg)
+	dgDupes := depgraph.DetectDuplicates(dg)
+	dgFanout := depgraph.AnalyzeFanout(dg, depgraph.DefaultFanoutThreshold)
+	ms := metrics.Derive(snapshot)
+	pi := depgraph.ProfileInsights{
+		Coverage:   &dgCov,
+		Duplicates: &dgDupes,
+		Fanout:     &dgFanout,
+		Snapshot:   analyze.BuildSnapshotProfileData(snapshot),
+	}
+	dgProfile := depgraph.AnalyzeProfile(dg, pi)
+	depgraph.EnrichProfileWithHealthRatios(&dgProfile, ms.Health.SkippedTestRatio, ms.Health.FlakyTestRatio)
+	dgEdgeCases := depgraph.DetectEdgeCases(dgProfile, dg, pi)
+	if len(dgEdgeCases) > 0 {
+		dgPolicy := depgraph.ApplyEdgeCasePolicy(dgEdgeCases, dgProfile)
+		impactResult.ApplyEdgeCasePolicy(dgPolicy.ConfidenceAdjustment, dgPolicy.RiskElevated, dgPolicy.Recommendations)
+	}
+
+	// Apply manual coverage overlay to annotate protection gaps.
+	if len(snapshot.ManualCoverage) > 0 {
+		impactResult.ApplyManualCoverageOverlay(snapshot.ManualCoverage)
+	}
 
 	// Apply owner filter if specified.
 	if ownerFilter != "" {
@@ -970,51 +1011,37 @@ func runInsights(root string, jsonOutput bool) error {
 	}
 	snapshot := result.Snapshot
 
-	// Build graph, heatmap, metrics (same as summary).
-	g := graph.Build(snapshot)
-	h := heatmap.BuildWithGraph(snapshot, g)
+	// Derive metrics for health ratios.
 	ms := metrics.Derive(snapshot)
-	seg := &benchmark.BuildExport(snapshot, ms, result.HasPolicy).Segment
-
-	es := summary.Build(&summary.BuildInput{
-		Snapshot:  snapshot,
-		Heatmap:   h,
-		Metrics:   ms,
-		Segment:   seg,
-		HasPolicy: result.HasPolicy,
-	})
 
 	// Build depgraph insights with a preflight guard for very large repos.
 	const maxInsightsGraphNodes = 150000
 	estimatedGraphNodes := len(snapshot.TestCases) + len(snapshot.CodeUnits) + len(snapshot.TestFiles)
-	depgraphSkipped := false
-	depgraphSkipReason := ""
-	dgCov := depgraph.CoverageResult{BandCounts: map[depgraph.CoverageBand]int{}}
-	dgDupes := depgraph.DuplicateResult{}
-	dgFanout := depgraph.FanoutResult{Threshold: depgraph.DefaultFanoutThreshold}
-	dgProfile := depgraph.RepoProfile{}
-	dgEdgeCases := []depgraph.EdgeCase{}
-	var dgPolicy depgraph.Policy
+
+	input := &insights.BuildInput{
+		Snapshot:  snapshot,
+		HasPolicy: result.HasPolicy,
+	}
 
 	if estimatedGraphNodes > maxInsightsGraphNodes {
-		depgraphSkipped = true
-		depgraphSkipReason = fmt.Sprintf(
+		input.DepgraphSkipped = true
+		input.DepgraphSkipReason = fmt.Sprintf(
 			"depgraph analysis skipped for estimated graph size %d (limit %d)",
 			estimatedGraphNodes, maxInsightsGraphNodes,
 		)
-		dgDupes = depgraph.DuplicateResult{
+		input.Duplicates = depgraph.DuplicateResult{
 			Skipped:       true,
-			SkipReason:    depgraphSkipReason,
+			SkipReason:    input.DepgraphSkipReason,
 			TestsAnalyzed: len(snapshot.TestCases),
 		}
-		dgFanout = depgraph.FanoutResult{
+		input.Fanout = depgraph.FanoutResult{
 			Skipped:      true,
-			SkipReason:   depgraphSkipReason,
+			SkipReason:   input.DepgraphSkipReason,
 			NodeCount:    estimatedGraphNodes,
 			Threshold:    depgraph.DefaultFanoutThreshold,
 			FlaggedCount: 0,
 		}
-		dgProfile = depgraph.RepoProfile{
+		input.Profile = depgraph.RepoProfile{
 			TestVolume:         "large",
 			CIPressure:         "high",
 			CoverageConfidence: "low",
@@ -1023,7 +1050,7 @@ func runInsights(root string, jsonOutput bool) error {
 			SkipBurden:         "low",
 			FlakeBurden:        "low",
 		}
-		dgPolicy = depgraph.Policy{
+		input.Policy = depgraph.Policy{
 			FallbackLevel:        depgraph.FallbackSmokeRegression,
 			ConfidenceAdjustment: 0.6,
 			RiskElevated:         true,
@@ -1031,142 +1058,47 @@ func runInsights(root string, jsonOutput bool) error {
 				"Depgraph analysis skipped due to repository scale; narrow scope for full dependency insights.",
 			},
 		}
-		dgEdgeCases = append(dgEdgeCases, depgraph.EdgeCase{
+		input.EdgeCases = []depgraph.EdgeCase{{
 			Type:        depgraph.EdgeCaseLowGraphVisibility,
 			Severity:    "warning",
-			Description: depgraphSkipReason,
-		})
+			Description: input.DepgraphSkipReason,
+		}}
+		input.Coverage = depgraph.CoverageResult{BandCounts: map[depgraph.CoverageBand]int{}}
 	} else {
 		dg := depgraph.Build(snapshot)
-		dgCov = depgraph.AnalyzeCoverage(dg)
-		dgDupes = depgraph.DetectDuplicates(dg)
-		dgFanout = depgraph.AnalyzeFanout(dg, depgraph.DefaultFanoutThreshold)
+		input.Coverage = depgraph.AnalyzeCoverage(dg)
+		input.Duplicates = depgraph.DetectDuplicates(dg)
+		input.Fanout = depgraph.AnalyzeFanout(dg, depgraph.DefaultFanoutThreshold)
 		dgInsights := depgraph.ProfileInsights{
-			Coverage:   &dgCov,
-			Duplicates: &dgDupes,
-			Fanout:     &dgFanout,
+			Coverage:   &input.Coverage,
+			Duplicates: &input.Duplicates,
+			Fanout:     &input.Fanout,
+			Snapshot:   analyze.BuildSnapshotProfileData(snapshot),
 		}
-		dgProfile = depgraph.AnalyzeProfile(dg, dgInsights)
-		depgraph.EnrichProfileWithHealthRatios(&dgProfile, ms.Health.SkippedTestRatio, ms.Health.FlakyTestRatio)
-		dgEdgeCases = depgraph.DetectEdgeCases(dgProfile, dg, dgInsights)
-		dgPolicy = depgraph.ApplyEdgeCasePolicy(dgEdgeCases, dgProfile)
+		input.Profile = depgraph.AnalyzeProfile(dg, dgInsights)
+		depgraph.EnrichProfileWithHealthRatios(&input.Profile, ms.Health.SkippedTestRatio, ms.Health.FlakyTestRatio)
+		input.EdgeCases = depgraph.DetectEdgeCases(input.Profile, dg, dgInsights)
+		input.Policy = depgraph.ApplyEdgeCasePolicy(input.EdgeCases, input.Profile)
+		dgRedundancy := depgraph.AnalyzeRedundancy(dg)
+		if len(dgRedundancy.Clusters) > 0 {
+			input.BehaviorRedundancy = &dgRedundancy
+		}
+		input.StabilityClusters = stability.DetectClusters(dg, snapshot.Signals)
+		matrixResult := matrix.Analyze(dg)
+		if len(matrixResult.Classes) > 0 {
+			input.MatrixCoverage = matrixResult
+		}
 	}
+
+	report := insights.Build(input)
 
 	if jsonOutput {
-		out := map[string]any{
-			"posture":            es.Posture,
-			"topRiskAreas":       es.TopRiskAreas,
-			"recommendations":    es.Recommendations,
-			"blindSpots":         es.BlindSpots,
-			"keyNumbers":         es.KeyNumbers,
-			"duplicateClusters":  len(dgDupes.Clusters),
-			"duplicateCount":     dgDupes.DuplicateCount,
-			"highFanoutNodes":    dgFanout.FlaggedCount,
-			"weakCoverageCount":  dgCov.BandCounts[depgraph.CoverageBandLow],
-			"repoProfile":        dgProfile,
-			"edgeCases":          dgEdgeCases,
-			"policy":             dgPolicy,
-			"depgraphSkipped":    depgraphSkipped,
-			"depgraphSkipReason": depgraphSkipReason,
-		}
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
-		return enc.Encode(out)
+		return enc.Encode(report)
 	}
 
-	// Human-readable output.
-	fmt.Println("Terrain Insights")
-	fmt.Println(strings.Repeat("─", 50))
-	fmt.Println()
-	if depgraphSkipped {
-		fmt.Printf("Depgraph analysis:      skipped (%s)\n\n", depgraphSkipReason)
-	}
-
-	// Duplicate clusters.
-	fmt.Printf("Duplicate clusters:      %d (%d redundant tests)\n", len(dgDupes.Clusters), dgDupes.DuplicateCount)
-	if dgDupes.Skipped {
-		fmt.Printf("  Note: %s\n", dgDupes.SkipReason)
-	}
-	if len(dgDupes.Clusters) > 0 {
-		top := dgDupes.Clusters[0]
-		fmt.Printf("  Top cluster: %d tests, similarity %.2f\n", len(top.Tests), top.Similarity)
-	}
-	fmt.Println()
-
-	// High-fanout fixtures.
-	fmt.Printf("High-fanout nodes:       %d (threshold: %d)\n", dgFanout.FlaggedCount, dgFanout.Threshold)
-	if dgFanout.Skipped {
-		fmt.Printf("  Note: %s\n", dgFanout.SkipReason)
-	}
-	if len(dgFanout.Entries) > 0 && dgFanout.Entries[0].Flagged {
-		top := dgFanout.Entries[0]
-		fmt.Printf("  Highest: %s (transitive: %d)\n", top.Path, top.TransitiveFanout)
-	}
-	fmt.Println()
-
-	// Weak coverage areas.
-	lowCov := dgCov.BandCounts[depgraph.CoverageBandLow]
-	totalSrc := dgCov.SourceCount
-	fmt.Printf("Weak coverage areas:     %d / %d source files\n", lowCov, totalSrc)
-	// Show top weak areas.
-	shown := 0
-	for _, src := range dgCov.Sources {
-		if src.Band == depgraph.CoverageBandLow && shown < 5 {
-			fmt.Printf("  %s (0 tests)\n", src.Path)
-			shown++
-		}
-	}
-	fmt.Println()
-
-	// Skipped test burden.
-	skippedCount := 0
-	for _, sig := range snapshot.Signals {
-		if sig.Type == "skippedTest" || sig.Type == "conditionallySkippedTest" {
-			skippedCount++
-		}
-	}
-	if skippedCount > 0 {
-		fmt.Printf("Skipped tests:           %d\n\n", skippedCount)
-	}
-
-	// Top recommendations.
-	if len(es.Recommendations) > 0 {
-		fmt.Println("Top improvement opportunities:")
-		limit := 5
-		if len(es.Recommendations) < limit {
-			limit = len(es.Recommendations)
-		}
-		for i, r := range es.Recommendations[:limit] {
-			fmt.Printf("  %d. %s\n", i+1, r.What)
-			if r.Why != "" {
-				fmt.Printf("     why: %s\n", r.Why)
-			}
-			if r.Where != "" {
-				fmt.Printf("     where: %s\n", r.Where)
-			}
-		}
-		fmt.Println()
-	}
-
-	// Edge case warnings.
-	if len(dgEdgeCases) > 0 {
-		fmt.Println("Edge cases:")
-		for _, ec := range dgEdgeCases {
-			fmt.Printf("  [%s] %s\n", ec.Severity, ec.Description)
-		}
-		fmt.Println()
-	}
-
-	// Policy recommendation.
-	if len(dgPolicy.Recommendations) > 0 {
-		fmt.Println("Policy recommendations:")
-		for _, r := range dgPolicy.Recommendations {
-			fmt.Printf("  • %s\n", r)
-		}
-		fmt.Println()
-	}
-
-	fmt.Println("Next: terrain explain <target>   understand why Terrain flagged something")
+	reporting.RenderInsightsReport(os.Stdout, report)
 	return nil
 }
 

@@ -106,7 +106,7 @@ function calculateStructuralFidelity(original, roundtripped) {
 const dryRun = process.argv.includes('--dry-run');
 
 async function main() {
-  console.log('=== Hamlet Baseline Generator ===');
+  console.log('=== Terrain Baseline Generator ===');
   console.log(`Mode: ${dryRun ? 'dry-run (no write)' : 'write'}`);
   console.log('');
 

@@ -1,0 +1,202 @@
+[
+  {
+    "repo": {
+      "name": "terrain",
+      "type": "real",
+      "absPath": "/Users/pzachary/terrain",
+      "isGitRepo": true,
+      "languages": [
+        "javascript",
+        "typescript"
+      ],
+      "description": "Terrain itself — signal-first test intelligence platform"
+    },
+    "assessments": [
+      {
+        "repo": "terrain",
+        "command": "analyze",
+        "success": true,
+        "runtimeMs": 50882,
+        "outputNonEmpty": true,
+        "parsedJson": true,
+        "expectedSections": [
+          "tests detected",
+          "repo profile",
+          "coverage confidence",
+          "duplicates",
+          "fanout",
+          "weak coverage"
+        ],
+        "missingSections": null,
+        "warningFlags": null,
+        "credibilityScore": 100,
+        "notes": [
+          "command succeeded",
+          "tests detected present",
+          "repo profile present",
+          "coverage confidence present",
+          "duplicates present",
+          "fanout present",
+          "weak coverage present"
+        ]
+      },
+      {
+        "repo": "terrain",
+        "command": "impact",
+        "success": true,
+        "runtimeMs": 48013,
+        "outputNonEmpty": true,
+        "parsedJson": true,
+        "expectedSections": [
+          "changed files",
+          "impacted tests",
+          "coverage confidence",
+          "risk signal",
+          "dependency reasoning"
+        ],
+        "missingSections": null,
+        "warningFlags": null,
+        "credibilityScore": 90,
+        "notes": [
+          "command succeeded",
+          "changed files present",
+          "impacted tests present",
+          "coverage confidence present",
+          "risk signal present",
+          "dependency reasoning present"
+        ]
+      },
+      {
+        "repo": "terrain",
+        "command": "insights",
+        "success": true,
+        "runtimeMs": 53451,
+        "outputNonEmpty": true,
+        "parsedJson": true,
+        "expectedSections": [
+          "duplicate clusters",
+          "high-fanout nodes",
+          "weak coverage",
+          "recommendations"
+        ],
+        "missingSections": null,
+        "warningFlags": null,
+        "credibilityScore": 80,
+        "notes": [
+          "command succeeded",
+          "duplicate clusters present",
+          "high-fanout nodes present",
+          "weak coverage present",
+          "recommendations present"
+        ]
+      },
+      {
+        "repo": "terrain",
+        "command": "explain",
+        "success": true,
+        "runtimeMs": 116014,
+        "outputNonEmpty": true,
+        "parsedJson": true,
+        "expectedSections": [
+          "test identifier",
+          "test location",
+          "confidence",
+          "framework"
+        ],
+        "missingSections": null,
+        "warningFlags": null,
+        "credibilityScore": 80,
+        "notes": [
+          "command succeeded",
+          "test identifier present",
+          "test location present",
+          "confidence present",
+          "framework present"
+        ]
+      },
+      {
+        "repo": "terrain",
+        "command": "debug:graph",
+        "success": true,
+        "runtimeMs": 65082,
+        "outputNonEmpty": true,
+        "parsedJson": true,
+        "expectedSections": [
+          "node count",
+          "edge count",
+          "graph density"
+        ],
+        "missingSections": null,
+        "warningFlags": null,
+        "credibilityScore": 70,
+        "notes": [
+          "command succeeded",
+          "node count present",
+          "edge count present",
+          "graph density present"
+        ]
+      },
+      {
+        "repo": "terrain",
+        "command": "debug:coverage",
+        "success": true,
+        "runtimeMs": 56460,
+        "outputNonEmpty": true,
+        "parsedJson": true,
+        "expectedSections": [
+          "coverage sources",
+          "coverage bands"
+        ],
+        "missingSections": null,
+        "warningFlags": null,
+        "credibilityScore": 60,
+        "notes": [
+          "command succeeded",
+          "coverage sources present",
+          "coverage bands present"
+        ]
+      },
+      {
+        "repo": "terrain",
+        "command": "debug:fanout",
+        "success": true,
+        "runtimeMs": 54641,
+        "outputNonEmpty": true,
+        "parsedJson": true,
+        "expectedSections": [
+          "fanout entries",
+          "fanout threshold"
+        ],
+        "missingSections": null,
+        "warningFlags": null,
+        "credibilityScore": 60,
+        "notes": [
+          "command succeeded",
+          "fanout entries present",
+          "fanout threshold present"
+        ]
+      },
+      {
+        "repo": "terrain",
+        "command": "debug:duplicates",
+        "success": true,
+        "runtimeMs": 54091,
+        "outputNonEmpty": true,
+        "parsedJson": true,
+        "expectedSections": [
+          "duplicate clusters",
+          "tests analyzed"
+        ],
+        "missingSections": null,
+        "warningFlags": null,
+        "credibilityScore": 60,
+        "notes": [
+          "command succeeded",
+          "duplicate clusters present",
+          "tests analyzed present"
+        ]
+      }
+    ],
+    "overallScore": 75
+  }
+]
