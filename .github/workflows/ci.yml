@@ -100,7 +100,7 @@ jobs:
           go-version-file: go.mod
 
       - name: Install benchstat
-        run: go install golang.org/x/perf/cmd/benchstat@v0.0.0-20250210140337-3e1195310e7b
+        run: GOTOOLCHAIN=auto go install golang.org/x/perf/cmd/benchstat@latest
 
       - name: Benchmark current HEAD
         run: |
