@@ -38,7 +38,7 @@ runs:
   using: 'composite'
   steps:
     - name: Setup Go
-      uses: actions/setup-go@v5
+      uses: actions/setup-go@v6
       with:
         go-version-file: ${{ inputs.go-version-file }}
 
@@ -164,14 +164,14 @@ runs:
     - name: Find existing PR comment
       if: inputs.post-comment == 'true' && github.event_name == 'pull_request'
       id: find-comment
-      uses: peter-evans/find-comment@v3
+      uses: peter-evans/find-comment@v4
       with:
         issue-number: ${{ github.event.pull_request.number }}
         body-includes: ${{ inputs.comment-header }}
 
     - name: Create or update PR comment
       if: inputs.post-comment == 'true' && github.event_name == 'pull_request'
-      uses: peter-evans/create-or-update-comment@v4
+      uses: peter-evans/create-or-update-comment@v5
       with:
         comment-id: ${{ steps.find-comment.outputs.comment-id }}
         issue-number: ${{ github.event.pull_request.number }}
