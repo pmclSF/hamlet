@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pmclSF/hamlet/internal/models"
+	"github.com/pmclSF/terrain/internal/models"
 )
 
 func TestFindRecentSnapshots_SingleArchivePlusLatest(t *testing.T) {

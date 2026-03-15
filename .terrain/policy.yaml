@@ -1,7 +1,7 @@
-# Hamlet local policy configuration.
+# Terrain local policy configuration.
 #
 # This file defines constraints that the repository's test suite should satisfy.
-# Run `hamlet policy check` to evaluate the repository against this policy.
+# Run `terrain policy check` to evaluate the repository against this policy.
 #
 # All rules are optional. Only explicitly set rules are enforced.
 # Remove or comment out any rule you do not want to enforce.

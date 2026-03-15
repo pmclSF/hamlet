@@ -10,13 +10,13 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/pmclSF/hamlet/internal/benchmark"
-	"github.com/pmclSF/hamlet/internal/depgraph"
-	"github.com/pmclSF/hamlet/internal/engine"
-	"github.com/pmclSF/hamlet/internal/graph"
-	"github.com/pmclSF/hamlet/internal/heatmap"
-	"github.com/pmclSF/hamlet/internal/metrics"
-	"github.com/pmclSF/hamlet/internal/summary"
+	"github.com/pmclSF/terrain/internal/benchmark"
+	"github.com/pmclSF/terrain/internal/depgraph"
+	"github.com/pmclSF/terrain/internal/engine"
+	"github.com/pmclSF/terrain/internal/graph"
+	"github.com/pmclSF/terrain/internal/heatmap"
+	"github.com/pmclSF/terrain/internal/metrics"
+	"github.com/pmclSF/terrain/internal/summary"
 )
 
 var updateGolden = flag.Bool("update-golden", false, "update golden snapshot files")
@@ -43,12 +43,12 @@ func runAnalyzePipeline(t *testing.T, root string) map[string]any {
 	snap := result.Snapshot
 
 	return map[string]any{
-		"testFileCount":   len(snap.TestFiles),
-		"testCaseCount":   len(snap.TestCases),
-		"codeUnitCount":   len(snap.CodeUnits),
-		"signalCount":     len(snap.Signals),
-		"frameworkCount":  len(snap.Frameworks),
-		"hasImportGraph":  snap.ImportGraph != nil && len(snap.ImportGraph) > 0,
+		"testFileCount":  len(snap.TestFiles),
+		"testCaseCount":  len(snap.TestCases),
+		"codeUnitCount":  len(snap.CodeUnits),
+		"signalCount":    len(snap.Signals),
+		"frameworkCount": len(snap.Frameworks),
+		"hasImportGraph": len(snap.ImportGraph) > 0,
 	}
 }
 
@@ -128,6 +128,7 @@ func compareSnapshot(t *testing.T, name string, data map[string]any) {
 }
 
 func TestSnapshot_Analyze(t *testing.T) {
+	t.Parallel()
 	root := fixtureRoot(t)
 	if _, err := os.Stat(root); os.IsNotExist(err) {
 		t.Skipf("fixture not found: %s", root)
@@ -147,6 +148,7 @@ func TestSnapshot_Analyze(t *testing.T) {
 }
 
 func TestSnapshot_Insights(t *testing.T) {
+	t.Parallel()
 	root := fixtureRoot(t)
 	if _, err := os.Stat(root); os.IsNotExist(err) {
 		t.Skipf("fixture not found: %s", root)
@@ -167,6 +169,7 @@ func TestSnapshot_Insights(t *testing.T) {
 }
 
 func TestSnapshot_Explain(t *testing.T) {
+	t.Parallel()
 	root := fixtureRoot(t)
 	if _, err := os.Stat(root); os.IsNotExist(err) {
 		t.Skipf("fixture not found: %s", root)
