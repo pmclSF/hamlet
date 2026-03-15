@@ -1,6 +1,6 @@
 # E2E Scenario Testing
 
-Hamlet's end-to-end tests exercise full pipeline flows from analysis through
+Terrain's end-to-end tests exercise full pipeline flows from analysis through
 rendering, validating that the system produces correct outputs for real-world
 workflows. These tests live in `internal/testdata/e2e_test.go`.
 

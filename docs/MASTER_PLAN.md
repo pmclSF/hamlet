@@ -1,10 +1,10 @@
-# Hamlet Master Plan
+# Terrain Master Plan
 
 ## Status
 
 This document is the primary source of truth for the current refactor.
 
-Hamlet's current engine is a strategic evolution from a framework migration tool into:
+Terrain's current engine is a strategic evolution from a framework migration tool into:
 
 **Observability and intelligence for test suites**
 
@@ -23,9 +23,9 @@ This file defines the product direction, implementation boundaries, architectura
 
 ## Product Definition
 
-Hamlet is the control plane for test suite intelligence.
+Terrain is the control plane for test suite intelligence.
 
-Hamlet does not run tests.
+Terrain does not run tests.
 
 Instead, it observes and interprets signals from:
 
@@ -37,7 +37,7 @@ Instead, it observes and interprets signals from:
 - ownership metadata
 - local policy/configuration
 
-Hamlet helps teams answer:
+Terrain helps teams answer:
 
 - What tests do we have?
 - Which parts of the test system are fragile?
@@ -104,10 +104,10 @@ Includes:
 1. Signals are the primary abstraction.
 2. Analysis comes before automation.
 3. Risk must be explainable.
-4. Hamlet must remain repo-native and useful without SaaS.
+4. Terrain must remain repo-native and useful without SaaS.
 5. Open source should include the core signals and local experience.
 6. Paid value should come from aggregation, history, benchmarking, and governance.
-7. Hamlet measures system health, not individual developer productivity.
+7. Terrain measures system health, not individual developer productivity.
 
 ---
 
@@ -139,7 +139,7 @@ Refactor the engine around clean layers:
 - reporting
 
 ### Goal 3
-Introduce a stable `hamlet analyze` command as the primary entry point.
+Introduce a stable `terrain analyze` command as the primary entry point.
 
 ### Goal 4
 Make risk a first-class product output.

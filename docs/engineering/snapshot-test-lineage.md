@@ -1,6 +1,6 @@
 # Snapshot Test Lineage
 
-Hamlet persists test identities and coverage lineage in snapshots, enabling longitudinal tracking and structural regression detection.
+Terrain persists test identities and coverage lineage in snapshots, enabling longitudinal tracking and structural regression detection.
 
 ## Snapshot Schema
 

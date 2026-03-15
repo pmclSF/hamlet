@@ -2,9 +2,9 @@
 
 ## Overview
 
-Ownership is a **routing layer** in Hamlet, not a blame layer. It connects technical findings (risk, health, quality, migration) to the people and teams who can act on them.
+Ownership is a **routing layer** in Terrain, not a blame layer. It connects technical findings (risk, health, quality, migration) to the people and teams who can act on them.
 
-The ownership subsystem makes Hamlet's output more actionable by answering: *who should look at this?*
+The ownership subsystem makes Terrain's output more actionable by answering: *who should look at this?*
 
 ## Core Principles
 
@@ -34,10 +34,10 @@ The ownership subsystem makes Hamlet's output more actionable by answering: *who
 
 Resolution evaluates sources in this order (highest to lowest):
 
-1. **Explicit config** (`.hamlet/ownership.yaml` rules) — `ConfidenceHigh`
+1. **Explicit config** (`.terrain/ownership.yaml` rules) — `ConfidenceHigh`
 2. **CODEOWNERS** (standard GitHub locations) — `ConfidenceHigh`
-3. **Path mappings** (`.hamlet/ownership.yaml` path_mappings) — `ConfidenceMedium`
-4. **Git history fallback** (`.hamlet/ownership.yaml` git_history, or auto when CODEOWNERS is absent) — `ConfidenceLow`
+3. **Path mappings** (`.terrain/ownership.yaml` path_mappings) — `ConfidenceMedium`
+4. **Git history fallback** (`.terrain/ownership.yaml` git_history, or auto when CODEOWNERS is absent) — `ConfidenceLow`
 5. **Directory fallback** (top-level directory name) — `ConfidenceLow`
 6. **Unknown** — `ConfidenceNone`
 
@@ -60,7 +60,7 @@ Direct assignments always override inherited ones.
 ┌─────────────────────────────┐
 │  Ownership Sources          │
 │  ┌─────────────────────┐    │
-│  │ .hamlet/ownership.yaml│   │
+│  │ .terrain/ownership.yaml│   │
 │  │ CODEOWNERS            │   │
 │  │ Path mappings         │   │
 │  │ Git history fallback  │   │
@@ -165,7 +165,7 @@ Unsupported patterns generate diagnostics (not silent failures):
 
 ## Configuration
 
-### `.hamlet/ownership.yaml`
+### `.terrain/ownership.yaml`
 
 ```yaml
 ownership:

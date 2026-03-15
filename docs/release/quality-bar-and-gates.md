@@ -1,6 +1,6 @@
 # Quality Bar and Release Gates
 
-Hamlet enforces a tiered gating system to catch defects at the earliest
+Terrain enforces a tiered gating system to catch defects at the earliest
 possible stage. Each tier builds on the previous one, with faster checks
 running first.
 
@@ -13,7 +13,7 @@ complete in under 2 minutes.
 |------|---------|-----------------|
 | `go vet` | `go vet ./...` | Static analysis: unused variables, formatting errors, suspicious constructs |
 | `go test` | `go test ./...` | Unit test failures, integration test failures |
-| `go build` | `go build ./cmd/hamlet` | Compilation errors, missing dependencies |
+| `go build` | `go build ./cmd/terrain` | Compilation errors, missing dependencies |
 | Golden tests | `go test ./... -run TestGolden` | Output regressions against checked-in golden files |
 
 **Makefile targets:**

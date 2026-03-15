@@ -1,4 +1,4 @@
-# Hamlet Documentation
+# Terrain Documentation
 
 **Signal-first test intelligence for engineering teams**
 
@@ -6,21 +6,25 @@
 
 - **Legacy** was conversion-led: a multi-framework test converter (JS/Java/Python, 25 directions).
 - **The current engine** is signal-led: a test intelligence platform that surfaces risk, quality, migration readiness, and governance from static and runtime analysis.
-- **Migration remains the acquisition wedge** — the pain of framework migration is what brings teams to Hamlet. The current engine turns that pain into broader test intelligence.
+- **Migration remains the acquisition wedge** — the pain of framework migration is what brings teams to Terrain. The current engine turns that pain into broader test intelligence.
 
 The legacy converter engine is preserved and functional. See [legacy/](legacy/) for historical architecture docs.
 
 ## Start Here
 
-- [Demo Walkthrough](demo.md) — try Hamlet in a few minutes
+- [Product Overview](product/terrain-overview.md) — what Terrain is, how it works, current state
+- [Demo Walkthrough](demo.md) — try Terrain in a few minutes
 - [Canonical User Journeys](product/canonical-user-journeys.md) — primary workflows and expected outcomes
 - [CLI Specification](cli-spec.md) — full command and flag reference
-- [Architecture](architecture.md) — how Hamlet works internally
+- [Architecture](architecture.md) — how Terrain works internally
 
 ## Product
 
-- [Vision](vision.md) — why Hamlet exists
-- [Product Concept](product-concept.md) — what Hamlet does
+- [Product Overview](product/terrain-overview.md) — what Terrain is, how it works, current state
+- [Vision](vision.md) — why Terrain exists
+- [Product Concept](product-concept.md) — what Terrain does
+- [Persona Journeys](architecture/17-persona-journeys.md) — how each persona uses Terrain
+- [Feature Matrix](product/feature-matrix.md) — capabilities mapped to personas with support levels
 - [Master Plan](MASTER_PLAN.md) — strategic direction
 - [Paid Product](paid-product.md) — future commercial direction
 - [UX Blueprint](ux-blueprint.md) — user experience design
@@ -69,9 +73,9 @@ Historical documentation for the JavaScript converter engine:
 
 - [Converter Architecture (legacy)](legacy/converter-architecture-legacy.md)
 - [Legacy Notes](legacy/legacy-notes.md)
-- [Getting Started (legacy)](legacy/v2-getting-started.md)
-- [Migration Guide (legacy)](legacy/v2-migration-guide.md)
-- [CLI Reference (legacy)](legacy/v2-cli-reference.md)
-- [Configuration (legacy)](legacy/v2-configuration.md)
-- [Conversion Process (legacy)](legacy/v2-conversion-process.md)
+- [Getting Started (legacy)](legacy/getting-started-legacy.md)
+- [Migration Guide (legacy)](legacy/migration-guide-legacy.md)
+- [CLI Reference (legacy)](legacy/cli-reference-legacy.md)
+- [Configuration (legacy)](legacy/configuration-legacy.md)
+- [Conversion Process (legacy)](legacy/conversion-process-legacy.md)
 - [Jest ESM Strategy](adr/004-jest-esm-strategy.md)

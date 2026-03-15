@@ -1,34 +1,34 @@
 # Advanced Test Intelligence Demo Flow
 
-This document walks through an end-to-end story using Hamlet's advanced assessment and workflow features. It demonstrates how a developer or tech lead would use the CLI to understand test quality, investigate specific areas, and integrate Hamlet into a PR workflow.
+This document walks through an end-to-end story using Terrain's advanced assessment and workflow features. It demonstrates how a developer or tech lead would use the CLI to understand test quality, investigate specific areas, and integrate Terrain into a PR workflow.
 
 ## Prerequisites
 
-Build the Hamlet CLI:
+Build the Terrain CLI:
 
 ```bash
-cd hamlet
-go build -o hamlet ./cmd/hamlet
+cd terrain
+go build -o terrain ./cmd/terrain
 ```
 
 For the richest output, prepare a repository with:
 - Mixed test quality (some well-tested modules, some gaps)
 - Runtime artifacts (JUnit XML or Jest JSON) for stability and failure data
 - A CODEOWNERS file for ownership attribution
-- At least one prior snapshot (from `hamlet analyze --write-snapshot`) for trend tracking
+- At least one prior snapshot (from `terrain analyze --write-snapshot`) for trend tracking
 
 ## Step 1: Analyze a Repository with Mixed Quality
 
 Start with a full analysis to see the lay of the land:
 
 ```bash
-hamlet analyze --root /path/to/your-repo
+terrain analyze --root /path/to/your-repo
 ```
 
 Expected output (abbreviated):
 
 ```
-Hamlet — Test Suite Analysis
+Terrain — Test Suite Analysis
 ========================================
 
 Repository: your-repo
@@ -53,7 +53,7 @@ This gives a top-level view. Signals are sorted by severity and cover the full s
 To enrich the analysis with runtime data:
 
 ```bash
-hamlet analyze --root /path/to/your-repo \
+terrain analyze --root /path/to/your-repo \
   --runtime test-results/junit.xml \
   --coverage coverage/lcov.info
 ```
@@ -65,13 +65,13 @@ Runtime artifacts enable higher-confidence signals for flaky tests, slow tests, 
 Switch to a feature branch and see what your changes mean for test quality:
 
 ```bash
-hamlet pr --base origin/main
+terrain pr --base origin/main
 ```
 
 Expected output:
 
 ```
-Hamlet -- Change-Scoped Analysis
+Terrain -- Change-Scoped Analysis
 ========================================
 
 Posture:   PARTIALLY_PROTECTED
@@ -105,7 +105,7 @@ The PR analysis tells you:
 Investigate what team-platform owns and what signals affect them:
 
 ```bash
-hamlet show owner team-platform
+terrain show owner team-platform
 ```
 
 Expected output:
@@ -129,7 +129,7 @@ Top signals:
   [MEDIUM] mockHeavy -- src/__tests__/platform/session.test.js
   [MEDIUM] flakyTest -- src/__tests__/platform/config.test.js
 
-Next: hamlet show test <path>   drill into a specific test file
+Next: terrain show test <path>   drill into a specific test file
 ```
 
 This shows the team's test quality portfolio at a glance: 34 owned files, 18 test files, and 12 signals to address. The "Next:" hint guides the user toward deeper investigation.
@@ -139,7 +139,7 @@ This shows the team's test quality portfolio at a glance: 34 owned files, 18 tes
 Follow the drill-down hint to inspect a test file:
 
 ```bash
-hamlet show test src/__tests__/auth.test.js
+terrain show test src/__tests__/auth.test.js
 ```
 
 Expected output:
@@ -156,7 +156,7 @@ Covers: src/platform/auth.js:validateToken, src/platform/auth.js:createSession
 Signals (1):
   [LOW] weakAssertion: moderate assertion density (3.0/test)
 
-Next: hamlet impact --show tests   see impact analysis
+Next: terrain impact --show tests   see impact analysis
 ```
 
 This gives the full picture for a single test file: what it covers, how it performs at runtime, and what signals affect it. The assertion density of 3.0/test is on the border of moderate, which is why it triggered a low-severity signal.
@@ -166,7 +166,7 @@ This gives the full picture for a single test file: what it covers, how it perfo
 Check coverage for a specific code unit:
 
 ```bash
-hamlet show unit AuthService
+terrain show unit AuthService
 ```
 
 Expected output:
@@ -182,7 +182,7 @@ Covering tests (2):
   src/__tests__/platform/auth.test.js
   src/__tests__/integration/auth-flow.test.js
 
-Next: hamlet show test <path>   drill into a covering test
+Next: terrain show test <path>   drill into a covering test
 ```
 
 This confirms the code unit is covered by two test files. If no covering tests were detected, the output would say "No covering tests detected." -- a clear signal that tests need to be added.
@@ -191,7 +191,7 @@ This confirms the code unit is covered by two test files. If no covering tests w
 
 The advanced assessment subsystems (lifecycle, stability, assertion, clustering, suppression, failure taxonomy, environment depth) produce insights that surface across multiple commands. Here is how each would appear in enriched outputs:
 
-### Lifecycle continuity (in `hamlet compare`)
+### Lifecycle continuity (in `terrain compare`)
 
 When comparing snapshots, lifecycle analysis tracks tests across renames and moves:
 
@@ -206,7 +206,7 @@ Lifecycle Continuity
   Removed: 2
 ```
 
-### Stability classes (in `hamlet compare`, `hamlet summary`)
+### Stability classes (in `terrain compare`, `terrain summary`)
 
 With 3+ snapshots, stability classification identifies problem patterns:
 
@@ -221,7 +221,7 @@ Stability Classification (depth: 5 snapshots)
   Data insufficient: 16
 ```
 
-### Assertion strength (in `hamlet posture`, `hamlet show test`)
+### Assertion strength (in `terrain posture`, `terrain show test`)
 
 Assertion assessment reveals which test files have meaningful verification:
 
@@ -234,7 +234,7 @@ Assertion Strength
   Average density: 2.8 assertions/test
 ```
 
-### Common-cause clustering (in `hamlet portfolio`)
+### Common-cause clustering (in `terrain portfolio`)
 
 Clustering identifies shared root causes for broad problems:
 
@@ -248,7 +248,7 @@ Common-Cause Clusters
     Confidence: 0.65
 ```
 
-### Suppression detection (in `hamlet analyze`, `hamlet posture`)
+### Suppression detection (in `terrain analyze`, `terrain posture`)
 
 Suppression detection identifies tests that are quarantined, skipped, or masked by retry wrappers:
 
@@ -260,7 +260,7 @@ Suppression Detection
   Expected failure: 1 (chronic)
 ```
 
-### Environment depth (in `hamlet posture`)
+### Environment depth (in `terrain posture`)
 
 Environment depth classifies how realistic each test's execution environment is:
 
@@ -278,13 +278,13 @@ Environment Depth
 For CI integration, generate a markdown-formatted PR comment:
 
 ```bash
-hamlet pr --base origin/main --format markdown
+terrain pr --base origin/main --format markdown
 ```
 
 This produces output suitable for posting as a GitHub PR comment:
 
 ```markdown
-## Hamlet -- Change Analysis
+## Terrain -- Change Analysis
 
 **Posture:** [WARN] PARTIALLY_PROTECTED
 
@@ -314,7 +314,7 @@ This produces output suitable for posting as a GitHub PR comment:
 - team-platform
 
 ---
-*Generated by [Hamlet](https://github.com/pmclSF/hamlet) -- signal-first test intelligence*
+*Generated by [Terrain](https://github.com/pmclSF/terrain) -- signal-first test intelligence*
 ```
 
 ### Other output formats
@@ -322,7 +322,7 @@ This produces output suitable for posting as a GitHub PR comment:
 For CI annotations (GitHub Actions `::error`/`::warning` format):
 
 ```bash
-hamlet pr --base origin/main --format annotation
+terrain pr --base origin/main --format annotation
 ```
 
 Output:
@@ -335,13 +335,13 @@ Output:
 For a concise one-liner:
 
 ```bash
-hamlet pr --base origin/main --format comment
+terrain pr --base origin/main --format comment
 ```
 
 Output:
 
 ```
-[WARN] **Hamlet:** 8 file(s) changed, 12 unit(s) impacted, 2 gap(s), 3 test(s) recommended. Posture: partially_protected.
+[WARN] **Terrain:** 8 file(s) changed, 12 unit(s) impacted, 2 gap(s), 3 test(s) recommended. Posture: partially_protected.
   - 1 high-severity finding(s) require attention
   - Run: src/__tests__/services/payment.test.js, src/__tests__/api/orders.test.js, src/__tests__/integration/checkout.test.js
 ```
@@ -349,37 +349,37 @@ Output:
 For JSON (programmatic consumption):
 
 ```bash
-hamlet pr --base origin/main --json
+terrain pr --base origin/main --json
 ```
 
 ## CI Integration Example
 
-Add Hamlet to your GitHub Actions workflow:
+Add Terrain to your GitHub Actions workflow:
 
 ```yaml
-name: Hamlet PR Analysis
+name: Terrain PR Analysis
 on: [pull_request]
 
 jobs:
-  hamlet:
+  terrain:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0  # Full history needed for git diff
 
-      - name: Build Hamlet
-        run: go build -o hamlet ./cmd/hamlet
+      - name: Build Terrain
+        run: go build -o terrain ./cmd/terrain
 
-      - name: Hamlet CI Annotations
-        run: ./hamlet pr --base origin/${{ github.base_ref }} --format annotation
+      - name: Terrain CI Annotations
+        run: ./terrain pr --base origin/${{ github.base_ref }} --format annotation
         continue-on-error: true
 
-      - name: Hamlet PR Comment
+      - name: Terrain PR Comment
         if: github.event_name == 'pull_request'
         run: |
-          ./hamlet pr --base origin/${{ github.base_ref }} --format markdown > /tmp/hamlet-comment.md
-          gh pr comment ${{ github.event.number }} --body-file /tmp/hamlet-comment.md
+          ./terrain pr --base origin/${{ github.base_ref }} --format markdown > /tmp/terrain-comment.md
+          gh pr comment ${{ github.event.number }} --body-file /tmp/terrain-comment.md
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
@@ -388,21 +388,21 @@ jobs:
 
 | Command | Purpose |
 |---------|---------|
-| `hamlet analyze` | Full test suite analysis |
-| `hamlet pr --base REF` | PR/change-scoped analysis |
-| `hamlet pr --format markdown` | PR comment in markdown |
-| `hamlet pr --format annotation` | CI annotation output |
-| `hamlet pr --format comment` | Concise one-line summary |
-| `hamlet show test <path>` | Drill into a test file |
-| `hamlet show unit <name>` | Drill into a code unit |
-| `hamlet show owner <name>` | Drill into an owner's portfolio |
-| `hamlet show finding <type>` | Drill into a finding |
-| `hamlet impact --show units` | Impact: impacted code units |
-| `hamlet impact --show gaps` | Impact: protection gaps |
-| `hamlet impact --show tests` | Impact: recommended tests |
-| `hamlet impact --show owners` | Impact: affected owners |
-| `hamlet impact --owner NAME` | Impact: filter by owner |
-| `hamlet summary` | Executive summary with trends |
-| `hamlet posture` | Detailed posture with evidence |
-| `hamlet portfolio` | Cost, leverage, redundancy analysis |
-| `hamlet compare` | Snapshot comparison with trends |
+| `terrain analyze` | Full test suite analysis |
+| `terrain pr --base REF` | PR/change-scoped analysis |
+| `terrain pr --format markdown` | PR comment in markdown |
+| `terrain pr --format annotation` | CI annotation output |
+| `terrain pr --format comment` | Concise one-line summary |
+| `terrain show test <path>` | Drill into a test file |
+| `terrain show unit <name>` | Drill into a code unit |
+| `terrain show owner <name>` | Drill into an owner's portfolio |
+| `terrain show finding <type>` | Drill into a finding |
+| `terrain impact --show units` | Impact: impacted code units |
+| `terrain impact --show gaps` | Impact: protection gaps |
+| `terrain impact --show tests` | Impact: recommended tests |
+| `terrain impact --show owners` | Impact: affected owners |
+| `terrain impact --owner NAME` | Impact: filter by owner |
+| `terrain summary` | Executive summary with trends |
+| `terrain posture` | Detailed posture with evidence |
+| `terrain portfolio` | Cost, leverage, redundancy analysis |
+| `terrain compare` | Snapshot comparison with trends |

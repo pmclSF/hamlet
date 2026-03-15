@@ -1,6 +1,6 @@
 # Output Modes
 
-Hamlet supports multiple output modes across all commands.
+Terrain supports multiple output modes across all commands.
 
 ## Human-readable (default)
 
@@ -11,10 +11,10 @@ All commands produce formatted terminal output by default. This output is:
 - Includes "next steps" hints
 
 ```bash
-hamlet analyze
-hamlet summary
-hamlet posture
-hamlet portfolio
+terrain analyze
+terrain summary
+terrain posture
+terrain portfolio
 ```
 
 ## JSON (--json)
@@ -22,12 +22,12 @@ hamlet portfolio
 All commands support `--json` for machine-readable output:
 
 ```bash
-hamlet analyze --json     # Full TestSuiteSnapshot
-hamlet summary --json     # ExecutiveSummary object
-hamlet posture --json     # MeasurementSnapshot object
-hamlet metrics --json     # Metrics Snapshot
-hamlet portfolio --json   # PortfolioSnapshot object
-hamlet compare --json     # SnapshotComparison object
+terrain analyze --json     # Full TestSuiteSnapshot
+terrain summary --json     # ExecutiveSummary object
+terrain posture --json     # MeasurementSnapshot object
+terrain metrics --json     # Metrics Snapshot
+terrain portfolio --json   # PortfolioSnapshot object
+terrain compare --json     # SnapshotComparison object
 ```
 
 JSON output is stable and suitable for:
@@ -39,7 +39,7 @@ JSON output is stable and suitable for:
 ## Privacy-safe export
 
 ```bash
-hamlet export benchmark
+terrain export benchmark
 ```
 
 Produces a benchmark-safe JSON artifact with only:

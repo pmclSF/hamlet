@@ -1,6 +1,6 @@
-# Hamlet JSON Schemas
+# Terrain JSON Schemas
 
-Hamlet emits structured JSON for all top-level commands. This document is the
+Terrain emits structured JSON for all top-level commands. This document is the
 canonical reference for field-level semantics.
 
 ## Stability
@@ -9,7 +9,7 @@ canonical reference for field-level semantics.
 - Unknown fields should be ignored by consumers for forward compatibility.
 - Optional fields are omitted when no evidence is available.
 
-## `hamlet analyze --json`
+## `terrain analyze --json`
 
 Top-level type: `models.TestSuiteSnapshot`.
 
@@ -32,7 +32,7 @@ Key fields:
 - `dataSources`: runtime/coverage/policy availability and impacts.
 - `generatedAt`: snapshot generation timestamp.
 
-## `hamlet compare --json`
+## `terrain compare --json`
 
 Top-level type: `comparison.SnapshotComparison`.
 
@@ -47,7 +47,7 @@ Key fields:
 - `postureDeltas`, `measurementDeltas`.
 - `lifecycleContinuity`.
 
-## `hamlet metrics --json`
+## `terrain metrics --json`
 
 Top-level type: `metrics.Snapshot`.
 
@@ -61,7 +61,7 @@ Sections:
 - `risk`
 - `notes`
 
-## `hamlet policy check --json`
+## `terrain policy check --json`
 
 Top-level object:
 
@@ -70,7 +70,7 @@ Top-level object:
 - `violations`: `[]models.Signal`.
 - `message`: human-readable policy status.
 
-## `hamlet impact --json`
+## `terrain impact --json`
 
 Top-level type: `impact.ImpactResult`.
 

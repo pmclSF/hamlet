@@ -2,7 +2,7 @@
 
 ## Overview
 
-The `internal/stability/` package classifies each test's historical stability pattern by analyzing longitudinal observations across multiple snapshots. This enables Hamlet to distinguish between tests that are reliably stable, recently broken, chronically flaky, or improving over time.
+The `internal/stability/` package classifies each test's historical stability pattern by analyzing longitudinal observations across multiple snapshots. This enables Terrain to distinguish between tests that are reliably stable, recently broken, chronically flaky, or improving over time.
 
 ## The 7 Stability Classes
 

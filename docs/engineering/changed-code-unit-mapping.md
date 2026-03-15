@@ -4,7 +4,7 @@ Stage 123 -- How changed files map to impacted code units.
 
 ## Overview
 
-When a file changes, Hamlet needs to determine which code units inside that file are affected. The `mapChangedUnits()` function in `internal/impact/analysis.go` performs this mapping by joining `ChangeScope.ChangedFiles` against the snapshot's `CodeUnit` inventory using file path matching.
+When a file changes, Terrain needs to determine which code units inside that file are affected. The `mapChangedUnits()` function in `internal/impact/analysis.go` performs this mapping by joining `ChangeScope.ChangedFiles` against the snapshot's `CodeUnit` inventory using file path matching.
 
 ## Mapping Strategy
 

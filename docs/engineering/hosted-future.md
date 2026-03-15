@@ -6,7 +6,7 @@ shipped and to guide future architecture decisions.
 
 ## What Ships Today (Local-Only)
 
-Everything Hamlet does today runs on a single machine against a single repo:
+Everything Terrain does today runs on a single machine against a single repo:
 
 - Static analysis and signal detection
 - Runtime and coverage artifact ingestion
@@ -33,7 +33,7 @@ aggregation, but no aggregation service exists.
 
 ### Hosted Benchmark Comparison
 
-`hamlet export benchmark` produces a privacy-safe artifact. Today it is
+`terrain export benchmark` produces a privacy-safe artifact. Today it is
 a local file. Future comparison requires:
 
 **What would be needed:**
@@ -44,7 +44,7 @@ a local file. Future comparison requires:
 
 ### Auth / Accounts / Teams
 
-Hamlet has no identity layer.
+Terrain has no identity layer.
 
 **What would be needed:**
 - Authentication (OAuth, SSO)
@@ -74,7 +74,7 @@ would aggregate this across repos.
 
 ### CI Annotation Service
 
-`hamlet policy check` returns exit codes for CI. A hosted service could
+`terrain policy check` returns exit codes for CI. A hosted service could
 provide richer PR annotations.
 
 **What would be needed:**
@@ -88,6 +88,6 @@ provide richer PR annotations.
 
 2. **Privacy boundary holds**: Aggregate services must never store raw file paths or source code. The benchmark export schema enforces this.
 
-3. **Local value must not degrade**: Hosted features are additive. Hamlet must remain fully useful without network access, accounts, or SaaS.
+3. **Local value must not degrade**: Hosted features are additive. Terrain must remain fully useful without network access, accounts, or SaaS.
 
 4. **Extension stays thin**: If a dashboard exists, the extension should link to it — not reimplement it.

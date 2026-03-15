@@ -1,6 +1,6 @@
 # Launch Assets Guide
 
-This document lists the demo fixtures, sample workflows, and screenshot recommendations for the Hamlet launch.
+This document lists the demo fixtures, sample workflows, and screenshot recommendations for the Terrain launch.
 
 ## Demo Fixtures
 
@@ -20,7 +20,7 @@ Each fixture contains a full snapshot-compatible JSON structure with repository 
 ### 1. First-Run Analysis
 
 ```bash
-hamlet analyze --root fixtures/demos/healthy-balanced
+terrain analyze --root fixtures/demos/healthy-balanced
 ```
 
 **What to capture:** The full output showing framework detection, signal summary, posture dimensions at a glance, and portfolio summary. This is the "5 seconds to insight" moment.
@@ -28,7 +28,7 @@ hamlet analyze --root fixtures/demos/healthy-balanced
 ### 2. Executive Summary
 
 ```bash
-hamlet summary --root fixtures/demos/flaky-concentrated
+terrain summary --root fixtures/demos/flaky-concentrated
 ```
 
 **What to capture:** Overall posture, key numbers, top risk areas, prioritized recommendations, blind spots, and benchmark readiness. This is the "paste into your team update" view.
@@ -36,7 +36,7 @@ hamlet summary --root fixtures/demos/flaky-concentrated
 ### 3. Posture Drill-Down
 
 ```bash
-hamlet posture --root fixtures/demos/e2e-heavy-shallow
+terrain posture --root fixtures/demos/e2e-heavy-shallow
 ```
 
 **What to capture:** The health and coverage diversity dimensions with their measurements, evidence strength annotations, explanations, and limitations. This is the "show me the evidence" view.
@@ -44,7 +44,7 @@ hamlet posture --root fixtures/demos/e2e-heavy-shallow
 ### 4. Portfolio Intelligence
 
 ```bash
-hamlet portfolio --root fixtures/demos/fragmented-migration-risk
+terrain portfolio --root fixtures/demos/fragmented-migration-risk
 ```
 
 **What to capture:** The overview (asset count, portfolio posture), findings (high-leverage, redundancy, overbroad, low-value), top findings with explanations and suggested actions, and evidence notes.
@@ -52,7 +52,7 @@ hamlet portfolio --root fixtures/demos/fragmented-migration-risk
 ### 5. Migration Assessment
 
 ```bash
-hamlet migration readiness --root fixtures/demos/fragmented-migration-risk
+terrain migration readiness --root fixtures/demos/fragmented-migration-risk
 ```
 
 **What to capture:** Per-area assessments, blocker counts by type, quality cross-references, and actionable guidance.
@@ -61,8 +61,8 @@ hamlet migration readiness --root fixtures/demos/fragmented-migration-risk
 
 ```bash
 # In a repo with recent changes:
-hamlet impact --base HEAD~3
-hamlet impact --show gaps
+terrain impact --base HEAD~3
+terrain impact --show gaps
 ```
 
 **What to capture:** Changed files, test coverage of changes, identified gaps, and per-owner breakdown.
@@ -73,7 +73,7 @@ When selecting which output to screenshot, prioritize frames that show:
 
 1. **Posture dimensions with mixed bands** -- not all-green, not all-red. The flaky-concentrated and e2e-heavy-shallow fixtures produce moderate/weak bands that demonstrate nuance.
 
-2. **Evidence transparency** -- measurement lines that show evidence strength (strong, partial, weak) and limitations. This differentiates Hamlet from tools that just emit scores.
+2. **Evidence transparency** -- measurement lines that show evidence strength (strong, partial, weak) and limitations. This differentiates Terrain from tools that just emit scores.
 
 3. **Actionable recommendations** -- the prioritized recommendations section with what/why/where/evidence fields.
 
@@ -87,16 +87,16 @@ When selecting which output to screenshot, prioritize frames that show:
 - Use a dark terminal theme with high contrast. The output is plain text (no ANSI color codes), so legibility depends on font size and contrast.
 - Record the progressive drill-down flow: `analyze` then `summary` then `posture` then `portfolio`. This demonstrates the information architecture.
 - Keep recordings under 60 seconds. Each command produces output in under 2 seconds on typical repositories.
-- If recording `hamlet compare`, run two `hamlet analyze --write-snapshot` commands with a file change between them to show trend detection.
+- If recording `terrain compare`, run two `terrain analyze --write-snapshot` commands with a file change between them to show trend detection.
 
 ## README Screenshot Suggestions
 
 For the project README, consider these three screenshots:
 
-1. **`hamlet summary` output** on the flaky-concentrated fixture -- shows posture bands, key numbers, risk areas, and recommendations in a single compact view.
+1. **`terrain summary` output** on the flaky-concentrated fixture -- shows posture bands, key numbers, risk areas, and recommendations in a single compact view.
 
-2. **`hamlet posture` output** on the e2e-heavy-shallow fixture (coverage diversity dimension only) -- shows measurements with evidence and limitations, demonstrating transparency.
+2. **`terrain posture` output** on the e2e-heavy-shallow fixture (coverage diversity dimension only) -- shows measurements with evidence and limitations, demonstrating transparency.
 
-3. **`hamlet portfolio` output** on the fragmented-migration-risk fixture -- shows findings with explanations and suggested actions, demonstrating the portfolio intelligence concept.
+3. **`terrain portfolio` output** on the fragmented-migration-risk fixture -- shows findings with explanations and suggested actions, demonstrating the portfolio intelligence concept.
 
 Crop screenshots to focus on the most information-dense sections. Full output screenshots tend to be too tall for README readability.

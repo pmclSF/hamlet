@@ -2,7 +2,7 @@
 
 ## Overview
 
-Hamlet's protective test selection recommends a focused set of tests for a change, explaining why each test was included and identifying coverage gaps in the selected set. This powers `hamlet select-tests` and the recommended tests section in `hamlet impact` and `hamlet pr`.
+Terrain's protective test selection recommends a focused set of tests for a change, explaining why each test was included and identifying coverage gaps in the selected set. This powers `terrain select-tests` and the recommended tests section in `terrain impact` and `terrain pr`.
 
 ## ProtectiveTestSet Model
 
@@ -62,8 +62,8 @@ When `UncoveredUnitCount > 0`, the explanation notes the gap explicitly.
 ## CLI Usage
 
 ```bash
-hamlet select-tests --base main         # human-readable output
-hamlet select-tests --base main --json  # JSON ProtectiveTestSet
+terrain select-tests --base main         # human-readable output
+terrain select-tests --base main --json  # JSON ProtectiveTestSet
 ```
 
-The `hamlet impact --show selected` drill-down also renders the protective set.
+The `terrain impact --show selected` drill-down also renders the protective set.

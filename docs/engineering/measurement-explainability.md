@@ -2,7 +2,7 @@
 
 ## Overview
 
-Hamlet's measurement and posture model is designed to be inspectable and debuggable. Every measurement carries explanation metadata, and every posture band can be traced to specific driving measurements.
+Terrain's measurement and posture model is designed to be inspectable and debuggable. Every measurement carries explanation metadata, and every posture band can be traced to specific driving measurements.
 
 ## Explainability Structures
 
@@ -55,9 +55,9 @@ Example:
 
 ## CLI Access
 
-### hamlet posture
+### terrain posture
 
-The `hamlet posture` command renders a full posture breakdown with measurement evidence:
+The `terrain posture` command renders a full posture breakdown with measurement evidence:
 
 ```
 HEALTH
@@ -75,11 +75,11 @@ HEALTH
       ...
 ```
 
-### hamlet posture --json
+### terrain posture --json
 
 Returns the full `MeasurementSnapshot` as JSON, suitable for programmatic consumption.
 
-### hamlet compare
+### terrain compare
 
 Shows posture and measurement changes across snapshots:
 
@@ -101,13 +101,13 @@ Users can inspect the driving measurements to understand what to fix:
 1. Look at `drivingMeasurements` — these are the measurements pulling the band down
 2. Read each measurement's `explanation` — it says what was measured
 3. Check `inputs` — these are the signal types to investigate
-4. Use `hamlet analyze` to find specific instances of those signals
+4. Use `terrain analyze` to find specific instances of those signals
 
 Example flow:
 - "Health is weak" → driven by `health.flaky_share`
 - `health.flaky_share` = 25% → 5 of 20 files flagged as flaky
 - Input signals: `flakyTest`, `unstableSuite`
-- `hamlet analyze --json | jq '.signals[] | select(.type == "flakyTest")'` → see specific files
+- `terrain analyze --json | jq '.signals[] | select(.type == "flakyTest")'` → see specific files
 
 ## Missing Data Transparency
 

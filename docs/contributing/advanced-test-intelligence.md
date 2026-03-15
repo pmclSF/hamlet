@@ -1,6 +1,6 @@
 # Contributing: Advanced Test Intelligence Subsystems
 
-This guide covers how to extend the advanced assessment and workflow subsystems in Hamlet's current engine. It describes how to add new assessment dimensions, new CLI drill-down entities, new output formats, and how to follow the conventions that keep these subsystems consistent and cautious.
+This guide covers how to extend the advanced assessment and workflow subsystems in Terrain's current engine. It describes how to add new assessment dimensions, new CLI drill-down entities, new output formats, and how to follow the conventions that keep these subsystems consistent and cautious.
 
 ## Package Conventions
 
@@ -91,7 +91,7 @@ package newdim
 
 import (
     "sort"
-    "github.com/pmclSF/hamlet/internal/models"
+    "github.com/pmclSF/terrain/internal/models"
 )
 
 // Assess evaluates <dimension> across all test files in the snapshot.
@@ -135,7 +135,7 @@ package newdim
 
 import (
     "testing"
-    "github.com/pmclSF/hamlet/internal/models"
+    "github.com/pmclSF/terrain/internal/models"
 )
 
 func TestAssess_NilSnapshot(t *testing.T) {
@@ -217,17 +217,17 @@ Integration depends on where the new dimension should surface:
 **In portfolio findings** (e.g., surfacing actionable insights):
 - Add detection logic to the portfolio builder that consumes your assessment result.
 
-**In the `hamlet show` command** (entity drill-down):
+**In the `terrain show` command** (entity drill-down):
 - See "How to Add a New CLI Drill-Down Entity" below.
 
-**In `hamlet pr` output** (change-scoped analysis):
+**In `terrain pr` output** (change-scoped analysis):
 - Add finding generation in `changescope.buildChangeScopedFindings()`.
 
 ## How to Add a New CLI Drill-Down Entity
 
-The `hamlet show` command supports entity types: `test`, `unit`, `owner`, `finding`. To add a new entity:
+The `terrain show` command supports entity types: `test`, `unit`, `owner`, `finding`. To add a new entity:
 
-### Step 1: Add the case in `cmd/hamlet/main.go`
+### Step 1: Add the case in `cmd/terrain/main.go`
 
 In the `runShow` function, add a new case to the switch:
 
@@ -254,7 +254,7 @@ func showNewEntity(id string, snap *models.TestSuiteSnapshot, jsonOutput bool) e
     fmt.Printf("... details ...\n")
 
     // Always suggest a next step.
-    fmt.Println("\nNext: hamlet show test <path>   drill into a related test")
+    fmt.Println("\nNext: terrain show test <path>   drill into a related test")
     return nil
 }
 ```
@@ -281,7 +281,7 @@ return fmt.Errorf("unknown entity type: %q (valid: test, unit, owner, finding, n
 
 ## How to Add a New Output Format
 
-The `hamlet pr` command supports output formats via `--format`. To add a new format:
+The `terrain pr` command supports output formats via `--format`. To add a new format:
 
 ### Step 1: Add a renderer in `internal/changescope/render.go`
 
@@ -301,7 +301,7 @@ Rules:
 - Limit output lists (findings, recommended tests) to a reasonable cap (10-20 items) with a "... and N more" overflow.
 - Include limitations in a collapsible section or footer.
 
-### Step 2: Wire it in `cmd/hamlet/main.go`
+### Step 2: Wire it in `cmd/terrain/main.go`
 
 In `runPR`, add the format case:
 
@@ -320,7 +320,7 @@ fmt.Fprintln(os.Stderr, "  --format FORMAT          output: markdown, comment, a
 
 ## How to Keep Assessments Cautious
 
-Hamlet's assessments are designed to be honest about their limitations. Follow these principles:
+Terrain's assessments are designed to be honest about their limitations. Follow these principles:
 
 ### Always include an unknown/unclear state
 

@@ -1,11 +1,11 @@
 # Stage 118 -- UI History, Trends, and Snapshot Browser
 
-Design specification for the Hamlet extension UI's longitudinal views.
+Design specification for the Terrain extension UI's longitudinal views.
 This document describes views and data access patterns, not implementation.
 
 ## Overview
 
-Hamlet snapshots (`TestSuiteSnapshot`) are point-in-time artifacts. The history
+Terrain snapshots (`TestSuiteSnapshot`) are point-in-time artifacts. The history
 UI lets users browse saved snapshots, compare posture across time, and surface
 trends such as newly unstable tests, lost coverage, and portfolio drift. All
 trend computation happens in the engine or at snapshot-diff time -- the UI
@@ -16,7 +16,7 @@ renders pre-computed or cheaply derivable comparisons.
 ### Snapshot list
 
 The snapshot browser presents a chronological list of saved snapshots from the
-local `.hamlet/snapshots/` directory. Each entry shows:
+local `.terrain/snapshots/` directory. Each entry shows:
 
 - `GeneratedAt` timestamp
 - `SnapshotMeta.EngineVersion`
@@ -113,7 +113,7 @@ The UI must handle several data-gap scenarios gracefully:
 ### No prior snapshots
 
 When only one snapshot exists, trend views are hidden. The snapshot browser
-shows the single snapshot with a message: "Run `hamlet analyze` again to
+shows the single snapshot with a message: "Run `terrain analyze` again to
 begin tracking trends."
 
 ### Snapshots with different detector sets
@@ -157,7 +157,7 @@ serializes to roughly 1-3 MB of JSON. The UI should:
 
 ### Index file
 
-An optional `.hamlet/snapshots/index.json` file can cache lightweight metadata
+An optional `.terrain/snapshots/index.json` file can cache lightweight metadata
 (timestamp, posture bands, signal counts) for each snapshot, allowing the
 snapshot browser to render the list without parsing full snapshot files.
 

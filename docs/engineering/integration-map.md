@@ -1,6 +1,6 @@
 # Integration Map: Signals, Quality, and Migration
 
-How Hamlet's signal types flow through major subsystems.
+How Terrain's signal types flow through major subsystems.
 
 ## Canonical Signal Type Sets
 

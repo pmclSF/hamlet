@@ -2,17 +2,17 @@
 
 ## Purpose
 
-This benchmark matrix runs Hamlet against real-world public repositories to verify:
+This benchmark matrix runs Terrain against real-world public repositories to verify:
 
-1. **Functional correctness** — All Hamlet commands produce meaningful output on diverse codebases
+1. **Functional correctness** — All Terrain commands produce meaningful output on diverse codebases
 2. **Determinism** — Identical inputs produce identical structured outputs across all JSON commands
 3. **Performance** — Analysis completes in reasonable time at scale
-4. **Degradation** — Hamlet degrades gracefully on unsupported or edge-case repos
+4. **Degradation** — Terrain degrades gracefully on unsupported or edge-case repos
 5. **Feature coverage** — Portfolio, migration, posture, and metrics all work on real codebases
 
 ## Repo selection criteria
 
-Each repo was chosen to exercise specific Hamlet capabilities:
+Each repo was chosen to exercise specific Terrain capabilities:
 
 | Repo | Category | Why chosen | Key exercises |
 |------|----------|-----------|---------------|
@@ -48,20 +48,20 @@ Each repo was chosen to exercise specific Hamlet capabilities:
 
 | Command | Purpose | Output captured |
 |---------|---------|----------------|
-| `hamlet analyze --json` | Core analysis | JSON snapshot, exit code, timing |
-| `hamlet analyze` | Human-readable output | Text output, exit code |
-| `hamlet summary` | Executive summary | Text output, exit code |
-| `hamlet posture` | Posture breakdown | Text output, exit code |
-| `hamlet posture --json` | Machine-readable posture | JSON posture, exit code |
-| `hamlet portfolio` | Portfolio intelligence | Text output, exit code |
-| `hamlet portfolio --json` | Machine-readable portfolio | JSON portfolio, exit code |
-| `hamlet metrics` | Metrics scorecard | Text output, exit code |
-| `hamlet metrics --json` | Machine-readable metrics | JSON metrics, exit code |
-| `hamlet migration readiness` | Migration assessment | Text output, exit code |
-| `hamlet migration readiness --json` | Machine-readable migration | JSON migration, exit code |
-| `hamlet migration blockers` | Migration blocker list | Text output, exit code |
-| `hamlet policy check` | Policy evaluation | Text output, exit code |
-| `hamlet export benchmark` | Privacy-safe export | JSON export, exit code |
+| `terrain analyze --json` | Core analysis | JSON snapshot, exit code, timing |
+| `terrain analyze` | Human-readable output | Text output, exit code |
+| `terrain summary` | Executive summary | Text output, exit code |
+| `terrain posture` | Posture breakdown | Text output, exit code |
+| `terrain posture --json` | Machine-readable posture | JSON posture, exit code |
+| `terrain portfolio` | Portfolio intelligence | Text output, exit code |
+| `terrain portfolio --json` | Machine-readable portfolio | JSON portfolio, exit code |
+| `terrain metrics` | Metrics scorecard | Text output, exit code |
+| `terrain metrics --json` | Machine-readable metrics | JSON metrics, exit code |
+| `terrain migration readiness` | Migration assessment | Text output, exit code |
+| `terrain migration readiness --json` | Machine-readable migration | JSON migration, exit code |
+| `terrain migration blockers` | Migration blocker list | Text output, exit code |
+| `terrain policy check` | Policy evaluation | Text output, exit code |
+| `terrain export benchmark` | Privacy-safe export | JSON export, exit code |
 
 ### Determinism checks (6 per repo)
 
@@ -98,16 +98,16 @@ These catch obvious regressions without hardcoding exact outputs.
 
 | Failure type | Meaning | Action |
 |-------------|---------|--------|
-| Command exit non-zero | Hamlet crashed or errored | Investigate — likely a bug |
-| Expectation miss | Fewer tests/units than expected | Check if repo changed or Hamlet regressed |
+| Command exit non-zero | Terrain crashed or errored | Investigate — likely a bug |
+| Expectation miss | Fewer tests/units than expected | Check if repo changed or Terrain regressed |
 | Determinism mismatch | Non-deterministic output | Investigate — timestamps, map ordering, etc. |
 | Timeout | Analysis too slow | Check for performance regression or mark as stress |
 | Clone failure | Network or repo issue | Retry; if persistent, mark repo as flaky |
-| Policy "no file" | Repo has no `.hamlet/policy.yaml` | Expected for public repos — not a failure |
+| Policy "no file" | Repo has no `.terrain/policy.yaml` | Expected for public repos — not a failure |
 
 ## Total invocations per run
 
-Per repo: 14 commands + 12 determinism runs (6 commands x 2) = 26 Hamlet invocations
+Per repo: 14 commands + 12 determinism runs (6 commands x 2) = 26 Terrain invocations
 
 | Tier | Repos | Invocations | Estimated time |
 |------|-------|-------------|----------------|

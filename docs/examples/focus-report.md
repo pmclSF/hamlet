@@ -1,11 +1,11 @@
-# Example: `hamlet posture` Output
+# Example: `terrain posture` Output
 
-This document shows representative output from `hamlet posture` (the detailed posture breakdown with measurement evidence) run against a repository with E2E-heavy test distribution and limited unit test coverage.
+This document shows representative output from `terrain posture` (the detailed posture breakdown with measurement evidence) run against a repository with E2E-heavy test distribution and limited unit test coverage.
 
 ## Terminal Output
 
 ```
-Hamlet Posture Report
+Terrain Posture Report
 ============================================================
 
 HEALTH
@@ -116,9 +116,9 @@ OPERATIONAL RISK
 ------------------------------------------------------------
 
 Next steps:
-  hamlet summary       leadership-ready overview
-  hamlet metrics       aggregate scorecard
-  hamlet posture --json   machine-readable posture data
+  terrain summary       leadership-ready overview
+  terrain metrics       aggregate scorecard
+  terrain posture --json   machine-readable posture data
 ```
 
 ## Section Annotations
@@ -148,4 +148,4 @@ Structural risk and operational risk are both STRONG with strong evidence across
 
 ### Unknown Bands
 
-Coverage diversity shows two measurements with `[unknown]` bands and `none` evidence. These are coverage-by-type measurements that require labeled coverage artifacts to compute. Rather than guessing or omitting them, Hamlet shows them explicitly with a remediation hint. This transparency helps users understand what additional data would unlock.
+Coverage diversity shows two measurements with `[unknown]` bands and `none` evidence. These are coverage-by-type measurements that require labeled coverage artifacts to compute. Rather than guessing or omitting them, Terrain shows them explicitly with a remediation hint. This transparency helps users understand what additional data would unlock.

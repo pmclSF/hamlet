@@ -2,7 +2,7 @@
 
 ## Philosophy
 
-Hamlet is a measurement and intelligence tool. Its outputs directly inform engineering decisions about test quality, migration readiness, risk posture, and resource allocation. Incorrect outputs erode trust faster than missing features.
+Terrain is a measurement and intelligence tool. Its outputs directly inform engineering decisions about test quality, migration readiness, risk posture, and resource allocation. Incorrect outputs erode trust faster than missing features.
 
 The verification strategy prioritizes **confidence in critical invariants** over chasing a single global coverage number. Each subsystem has specific correctness properties, and each property is tested at the appropriate layer.
 
@@ -12,7 +12,7 @@ The verification strategy prioritizes **confidence in critical invariants** over
 
 2. **Schema contracts are versioned and tested.** Persisted artifacts (snapshots, exports, impact results) have explicit compatibility guarantees. Schema drift must be intentional and tested.
 
-3. **Degradation must be honest.** When data is missing, malformed, or ambiguous, Hamlet must produce reduced-confidence outputs — never silently wrong ones. Adversarial tests enforce this.
+3. **Degradation must be honest.** When data is missing, malformed, or ambiguous, Terrain must produce reduced-confidence outputs — never silently wrong ones. Adversarial tests enforce this.
 
 4. **Golden tests protect intentional behavior.** Machine-readable artifacts and user-facing outputs are snapshot-tested. Changes are reviewed, not accidental.
 
@@ -167,7 +167,7 @@ A release candidate must pass all of:
 
 1. `go vet ./cmd/... ./internal/...` — zero warnings
 2. `go test ./internal/... ./cmd/...` — all tests green
-3. `go build -o /dev/null ./cmd/hamlet/` — clean build
+3. `go build -o /dev/null ./cmd/terrain/` — clean build
 4. Golden file tests match — no unexpected output changes
 5. Determinism tests pass — 5-10 repeat runs identical
 6. Schema tests pass — round-trip and forward compatibility

@@ -1,6 +1,6 @@
 # Moat
 
-Hamlet's moat is not the CLI.
+Terrain's moat is not the CLI.
 
 The moat is the accumulated intelligence graph and the benchmark dataset built on top of snapshots and signals.
 
@@ -37,7 +37,7 @@ Enable:
 - migration success prediction
 
 ### 5. Workflow entrenchment
-Hamlet becomes sticky when it is:
+Terrain becomes sticky when it is:
 - in the CLI
 - in the IDE
 - in CI

@@ -2,16 +2,16 @@
 
 ## Purpose
 
-The extension makes Hamlet intelligence explorable inside the editor.
+The extension makes Terrain intelligence explorable inside the editor.
 
 It is not a separate engine.
 
 The extension should remain a thin client over CLI JSON output.
 
-## V1 / current-engine architecture
+## Current architecture
 
 Flow:
-1. extension invokes `hamlet analyze --json`
+1. extension invokes `terrain analyze --json`
 2. CLI returns a TestSuiteSnapshot
 3. extension renders structured views
 
@@ -45,7 +45,7 @@ Signals like:
 - blocker groups by directory with area assessments (safe/caution/risky)
 - blocker groups by owner
 - framework summary
-- preview affordance (file-level drill-down via `hamlet migration preview`)
+- preview affordance (file-level drill-down via `terrain migration preview`)
 - representative examples
 
 ### Review
@@ -78,10 +78,10 @@ Source files under `extension/vscode/src/`:
 
 | Command | Description |
 |---------|-------------|
-| `hamlet.refresh` | Re-run analysis and refresh all views |
-| `hamlet.openSummary` | Open executive summary in terminal |
-| `hamlet.openMigrationBlockers` | Open migration blockers in terminal |
-| `hamlet.revealFile` | Open file associated with a finding |
+| `terrain.refresh` | Re-run analysis and refresh all views |
+| `terrain.openSummary` | Open executive summary in terminal |
+| `terrain.openMigrationBlockers` | Open migration blockers in terminal |
+| `terrain.revealFile` | Open file associated with a finding |
 
 ### States
 

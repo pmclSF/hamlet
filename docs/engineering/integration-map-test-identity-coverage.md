@@ -1,6 +1,6 @@
 # Integration Map: Test Identity & Coverage-by-Type
 
-How stable test IDs and coverage-by-type flow through every Hamlet subsystem.
+How stable test IDs and coverage-by-type flow through every Terrain subsystem.
 
 ## Test Identity Flow
 

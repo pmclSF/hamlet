@@ -1,6 +1,6 @@
 # Release Checklist
 
-Status checklist for Hamlet release readiness.
+Status checklist for Terrain release readiness.
 
 ## Product
 
@@ -28,7 +28,7 @@ Status checklist for Hamlet release readiness.
 
 ## UX
 
-- [x] `hamlet --help` output is accurate and readable
+- [x] `terrain --help` output is accurate and readable
 - [x] Each subcommand has clear flag descriptions
 - [x] Summary command includes trend + benchmark readiness
 - [x] Graceful degradation when no snapshot history exists
@@ -53,7 +53,7 @@ Status checklist for Hamlet release readiness.
 - [x] Build-from-source instructions in README
 - [x] Makefile with build, test, demo, install targets
 - [x] goreleaser config for multi-platform binaries
-- [x] Version command with build metadata (`hamlet version`)
+- [x] Version command with build metadata (`terrain version`)
 - [x] Checksum generation in release artifacts
 - [ ] Homebrew formula (not yet created)
 

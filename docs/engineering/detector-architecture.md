@@ -2,7 +2,7 @@
 
 ## Overview
 
-Hamlet's signal detection uses a registry-based plugin architecture. Detectors are self-describing components that examine a `TestSuiteSnapshot` and emit structured `Signal` objects.
+Terrain's signal detection uses a registry-based plugin architecture. Detectors are self-describing components that examine a `TestSuiteSnapshot` and emit structured `Signal` objects.
 
 ## Core Abstractions
 

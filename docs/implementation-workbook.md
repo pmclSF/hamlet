@@ -37,12 +37,12 @@ Policy checks
 Implemented:
 - internal/policy: Config model + YAML loader
 - internal/governance: Evaluate() + governance signal construction
-- cmd/hamlet: `hamlet policy check` subcommand with exit codes
+- cmd/terrain: `terrain policy check` subcommand with exit codes
 - Governance signals: policyViolation, legacyFrameworkUsage, runtimeBudgetExceeded
 - Policy rules: disallow_skipped_tests, disallow_frameworks, max_test_runtime_ms,
   minimum_coverage_percent, max_weak_assertions, max_mock_heavy_tests
-- `hamlet analyze` includes governance signals when policy file is present
-- Example policy file at .hamlet/policy.yaml
+- `terrain analyze` includes governance signals when policy file is present
+- Example policy file at .terrain/policy.yaml
 - Tests for policy parsing, governance evaluation, risk engine
 
 ### Stage 8
@@ -67,7 +67,7 @@ Implemented:
   framework-helper, unsupported-setup)
 - ReadinessSummary model with readiness levels (high/medium/low/unknown)
 - Migration reporting (RenderMigrationReport)
-- Detectors integrated into `hamlet analyze` pipeline
+- Detectors integrated into `terrain analyze` pipeline
 - Tests for all detectors and readiness computation
 
 ### Stage 9.1
@@ -80,7 +80,7 @@ Implemented:
 - PreviewBlocker model: type, pattern, explanation, remediation
 - Blocker taxonomy: unsupported-setup detector now active (was defined but unimplemented)
 - internal/reporting: RenderMigrationPreview, RenderMigrationPreviewScope
-- CLI: `hamlet migration preview --file PATH --scope DIR --json`
+- CLI: `terrain migration preview --file PATH --scope DIR --json`
 - Extension: MigrationData now includes byDirectory, areaAssessments, previewAvailable
 - Extension: ReviewData now includes migrationBlockers as first-class grouping
 - Extension types: MigrationPreviewResult, MigrationReadiness types added
@@ -95,7 +95,7 @@ Implemented:
 - Timestamped snapshot archiving in persistSnapshot (latest.json + YYYY-MM-DDTHH-MM-SSZ.json)
 - internal/comparison: Compare(), SnapshotComparison, SignalDelta, RiskDelta,
   FrameworkChange, SignalExample
-- `hamlet compare` command with --from/--to/--root/--json flags
+- `terrain compare` command with --from/--to/--root/--json flags
 - internal/reporting/comparison_report.go: RenderComparisonReport
 - Auto-discovery of two most recent timestamped snapshots
 - Tests for signal deltas, risk deltas, framework changes, representative examples
@@ -106,7 +106,7 @@ Benchmark-ready metrics
 Implemented:
 - internal/metrics: Snapshot model with aggregate-only metrics (privacy boundary enforced)
 - metrics.Derive() extracts structure, health, quality, change, governance, risk metrics
-- `hamlet metrics` command with --root/--json flags
+- `terrain metrics` command with --root/--json flags
 - internal/reporting/metrics_report.go: RenderMetricsReport scorecard
 - Notes system for missing inputs (no test files, no runtime data)
 - Tests for all metric categories, safe ratio, runtime detection
@@ -120,7 +120,7 @@ Implemented:
 - Owner hotspots derived from signal ownership
 - Posture band (highest across all risk surfaces) and summary text
 - internal/reporting/summary_report.go: RenderSummaryReport
-- `hamlet summary` command with --root/--json flags
+- `terrain summary` command with --root/--json flags
 - Tests for hotspot building, sorting, posture computation, band mapping
 
 ### Stage 13
@@ -131,7 +131,7 @@ Implemented:
 - Segment primitives: primaryLanguage, primaryFramework, testFileBucket (small/medium/large),
   frameworkCount, hasCoverage, hasRuntimeData, hasPolicy
 - BuildExport() creates benchmark-safe artifact from snapshot + derived metrics
-- `hamlet export benchmark` command (JSON-only, --root flag)
+- `terrain export benchmark` command (JSON-only, --root flag)
 - Privacy boundary: no raw file paths, symbol names, or source code
 - Tests for export building, segmentation buckets, runtime/coverage detection
 
@@ -143,7 +143,7 @@ Implemented:
   TrendCallout, BenchmarkReadinessSummary, KeyNumbers
 - summary.Build() synthesizes heatmap + comparison + benchmark into one artifact
 - internal/reporting/executive_report.go: RenderExecutiveSummary
-- `hamlet summary` now integrates trend comparison (auto-loads prior snapshots)
+- `terrain summary` now integrates trend comparison (auto-loads prior snapshots)
   and benchmark readiness (segmentation + data completeness)
 - JSON output for executive summary (future UI contract candidate)
 - Graceful degradation when no snapshot history exists

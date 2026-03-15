@@ -1,20 +1,22 @@
 # Impact Analysis System Map
 
-Stage 132 architecture document for the Hamlet current-engine impact analysis subsystem.
+Stage 132 architecture document for Terrain's impact analysis subsystem.
 
 ## Subsystem Inventory
 
 | Package | File | Primary Function | Purpose |
 |---------|------|-----------------|---------|
-| `internal/impact` | `impact.go` | `Analyze` | Entry point; orchestrates the full impact pipeline and defines all domain types (`ChangeScope`, `ImpactResult`, `ImpactedCodeUnit`, `ProtectionGap`, `ChangeRiskPosture`) |
+| `internal/impact` | `impact.go` | `AnalyzeChangeSet`, `Analyze` | Entry points; `AnalyzeChangeSet` is preferred (starts from `models.ChangeSet`), `Analyze` is the legacy bridge (starts from `ChangeScope`). Defines domain types (`ChangeScope`, `ImpactResult`, `ImpactedCodeUnit`, `ProtectionGap`, `ChangeRiskPosture`) |
 | `internal/impact` | `analysis.go` | `mapChangedUnits`, `findImpactedTests`, `findProtectionGaps`, `selectProtectiveTests`, `buildProtectiveSet`, `computeChangeRiskPosture` | Core analysis logic: unit mapping, test selection, gap detection, risk dimensions, coverage diversity |
 | `internal/impact` | `graph.go` | `BuildImpactGraph` | Constructs a bidirectional impact graph connecting code units to tests via exact coverage, bucket coverage, structural links, and name conventions |
-| `internal/impact` | `changescope.go` | `ChangeScopeFromGitDiff`, `ChangeScopeFromPaths`, `ChangeScopeFromCIList`, `ChangeScopeFromComparison` | Adapters that produce a `ChangeScope` from git diffs, explicit paths, CI file lists, or snapshot comparisons |
+| `internal/impact` | `changeset_builder.go` | `ChangeSetFromGitDiff`, `ChangeSetFromPaths`, `ChangeSetFromCIList`, `ChangeSetFromComparison`, `ChangeSetToScope` | Builders that produce a `models.ChangeSet` from git diffs, explicit paths, CI file lists, or snapshot comparisons. Includes SHA resolution, shallow-clone detection, package/service/config inference. `ChangeSetToScope` bridges to legacy `ChangeScope` |
+| `internal/impact` | `changescope.go` | `ChangeScopeFromGitDiff`, `ChangeScopeFromPaths`, `ChangeScopeFromCIList`, `ChangeScopeFromComparison` | Legacy adapters that produce a `ChangeScope` (preserved for backward compatibility) |
+| `internal/models` | `changeset.go` | `ChangeSet` | Normalized, serializable representation of a code change: repo, SHAs, changed files/packages/services/configs, shallow-clone metadata |
 | `internal/impact` | `filter.go` | `FilterByOwner` | Filters an `ImpactResult` to a single owner's code units, tests, and gaps |
 | `internal/impact` | `aggregate.go` | `BuildAggregate` | Produces a privacy-safe `Aggregate` with counts and ratios; suppresses breakdowns below the privacy threshold (3) |
 | `internal/impact` | `impact_test.go` | Tests | Inline-fixture tests covering all public functions and edge cases |
 | `internal/changescope` | `model.go` | Types | `PRAnalysis`, `ChangeScopedFinding`, `PostureDelta` types for PR-level output |
-| `internal/changescope` | `analyze.go` | `AnalyzePR` | Wraps `impact.Analyze` with PR-specific findings, posture delta, and summary |
+| `internal/changescope` | `analyze.go` | `AnalyzePRFromChangeSet`, `AnalyzePR` | `AnalyzePRFromChangeSet` is preferred (starts from `models.ChangeSet`). `AnalyzePR` is the legacy path. Both wrap impact analysis with PR-specific findings, posture delta, and summary |
 | `internal/changescope` | `render.go` | `RenderPRSummaryMarkdown`, `RenderPRCommentConcise`, `RenderCIAnnotation`, `RenderChangeScopedReport` | Rendering functions for PR markdown, concise comments, CI annotations, and terminal reports |
 | `internal/reporting` | `impact_report.go` | `RenderImpactReport` | Full human-readable impact report for terminal output |
 | `internal/reporting` | `impact_drilldown.go` | `RenderImpactUnits`, `RenderImpactGaps`, `RenderImpactTests`, `RenderImpactGraph`, `RenderProtectiveSet`, `RenderImpactOwners` | Drill-down views for each `--show` subview |
@@ -22,7 +24,12 @@ Stage 132 architecture document for the Hamlet current-engine impact analysis su
 ## Data Flow
 
 ```
-ChangeScope (git-diff | explicit | ci-list | snapshot-compare)
+ChangeSet (git-diff | explicit | ci-list | snapshot-compare)
+    |  resolves SHAs, infers packages/services/configs,
+    |  detects shallow clones
+    |
+    v
+ChangeSetToScope(cs)             -- bridge to legacy ChangeScope
     |
     v
 BuildImpactGraph(snap)           -- bidirectional unit<->test graph
@@ -68,21 +75,21 @@ ImpactResult
 
 | Command | Flag | Handler | Renderer |
 |---------|------|---------|----------|
-| `hamlet impact` | (none) | `runImpact` | `RenderImpactReport` |
-| `hamlet impact` | `--show units` | `runImpact` | `RenderImpactUnits` |
-| `hamlet impact` | `--show gaps` | `runImpact` | `RenderImpactGaps` |
-| `hamlet impact` | `--show tests` | `runImpact` | `RenderImpactTests` |
-| `hamlet impact` | `--show owners` | `runImpact` | `RenderImpactOwners` |
-| `hamlet impact` | `--show graph` | `runImpact` | `RenderImpactGraph` |
-| `hamlet impact` | `--show selected` | `runImpact` | `RenderProtectiveSet` |
-| `hamlet impact` | `--owner NAME` | `runImpact` | Applies `FilterByOwner` before rendering |
-| `hamlet impact` | `--json` | `runImpact` | JSON-encoded `ImpactResult` |
-| `hamlet select-tests` | (none) | `runSelectTests` | `RenderProtectiveSet` |
-| `hamlet select-tests` | `--json` | `runSelectTests` | JSON-encoded `ProtectiveTestSet` |
-| `hamlet pr` | (none) | `runPR` | `RenderChangeScopedReport` |
-| `hamlet pr` | `--format markdown` | `runPR` | `RenderPRSummaryMarkdown` |
-| `hamlet pr` | `--format comment` | `runPR` | `RenderPRCommentConcise` |
-| `hamlet pr` | `--format annotation` | `runPR` | `RenderCIAnnotation` |
+| `terrain impact` | (none) | `runImpact` | `RenderImpactReport` |
+| `terrain impact` | `--show units` | `runImpact` | `RenderImpactUnits` |
+| `terrain impact` | `--show gaps` | `runImpact` | `RenderImpactGaps` |
+| `terrain impact` | `--show tests` | `runImpact` | `RenderImpactTests` |
+| `terrain impact` | `--show owners` | `runImpact` | `RenderImpactOwners` |
+| `terrain impact` | `--show graph` | `runImpact` | `RenderImpactGraph` |
+| `terrain impact` | `--show selected` | `runImpact` | `RenderProtectiveSet` |
+| `terrain impact` | `--owner NAME` | `runImpact` | Applies `FilterByOwner` before rendering |
+| `terrain impact` | `--json` | `runImpact` | JSON-encoded `ImpactResult` |
+| `terrain select-tests` | (none) | `runSelectTests` | `RenderProtectiveSet` |
+| `terrain select-tests` | `--json` | `runSelectTests` | JSON-encoded `ProtectiveTestSet` |
+| `terrain pr` | (none) | `runPR` | `RenderChangeScopedReport` |
+| `terrain pr` | `--format markdown` | `runPR` | `RenderPRSummaryMarkdown` |
+| `terrain pr` | `--format comment` | `runPR` | `RenderPRCommentConcise` |
+| `terrain pr` | `--format annotation` | `runPR` | `RenderCIAnnotation` |
 
 ## Rendering Layer
 

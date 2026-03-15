@@ -4,7 +4,7 @@
 
 ### Overview
 
-The `hamlet impact --show` flag provides six drill-down views into impact analysis results. Each view answers a different question about how a code change relates to the test suite.
+The `terrain impact --show` flag provides six drill-down views into impact analysis results. Each view answers a different question about how a code change relates to the test suite.
 
 ---
 
@@ -13,7 +13,7 @@ The `hamlet impact --show` flag provides six drill-down views into impact analys
 **Question:** What code units are affected by this change?
 
 ```bash
-hamlet impact --show units
+terrain impact --show units
 ```
 
 **Example output:**
@@ -45,7 +45,7 @@ Each unit shows its protection status and the number of mapped tests with their 
 **Question:** Where is the changed code unprotected?
 
 ```bash
-hamlet impact --show gaps
+terrain impact --show gaps
 ```
 
 **Example output:**
@@ -75,7 +75,7 @@ Gaps are the highest-priority items for review. The "nearest candidate" hint sug
 **Question:** Which tests exercise the changed code?
 
 ```bash
-hamlet impact --show tests
+terrain impact --show tests
 ```
 
 **Example output:**
@@ -113,7 +113,7 @@ Tests are sorted by confidence (exact first) and grouped by file. The "exercises
 **Question:** Which teams or owners are affected?
 
 ```bash
-hamlet impact --show owners
+terrain impact --show owners
 ```
 
 **Example output:**
@@ -140,10 +140,10 @@ Owner Impact:
     Posture: LOW
 ```
 
-Owner mappings come from `.hamlet/ownership.yaml`, CODEOWNERS, and optional git-history fallback. Use `--owner` to filter any view to a single owner:
+Owner mappings come from `.terrain/ownership.yaml`, CODEOWNERS, and optional git-history fallback. Use `--owner` to filter any view to a single owner:
 
 ```bash
-hamlet impact --show units --owner @backend-team
+terrain impact --show units --owner @backend-team
 ```
 
 ---
@@ -153,7 +153,7 @@ hamlet impact --show units --owner @backend-team
 **Question:** How do changes propagate to tests?
 
 ```bash
-hamlet impact --show graph
+terrain impact --show graph
 ```
 
 **Example output:**
@@ -184,7 +184,7 @@ The graph view shows the edges between changed code units and their tests. Units
 **Question:** What tests should I run?
 
 ```bash
-hamlet impact --show selected
+terrain impact --show selected
 ```
 
 **Example output:**
@@ -205,10 +205,10 @@ Selected Protective Test Set (11 tests):
   test/integration/api-auth.test.js
 
 Run with:
-  hamlet select-tests --format paths | xargs npx jest
+  terrain select-tests --format paths | xargs npx jest
 ```
 
-This is the same set produced by `hamlet select-tests`, presented with context about why each test was selected.
+This is the same set produced by `terrain select-tests`, presented with context about why each test was selected.
 
 ---
 
@@ -217,11 +217,11 @@ This is the same set produced by `hamlet select-tests`, presented with context a
 Use `--json` with any view to get structured output for scripting:
 
 ```bash
-hamlet impact --show gaps --json | jq '.gaps[] | .unit'
+terrain impact --show gaps --json | jq '.gaps[] | .unit'
 ```
 
 Use `--owner` with any view to scope results:
 
 ```bash
-hamlet impact --show tests --owner @backend-team
+terrain impact --show tests --owner @backend-team
 ```

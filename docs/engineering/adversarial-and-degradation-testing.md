@@ -1,6 +1,6 @@
 # Adversarial and Degradation Testing
 
-Adversarial tests verify that Hamlet degrades gracefully when given incomplete,
+Adversarial tests verify that Terrain degrades gracefully when given incomplete,
 malformed, or pathological input. The philosophy: real repositories are messy,
 and trust comes from honest degradation rather than silent failure.
 
@@ -8,7 +8,7 @@ and trust comes from honest degradation rather than silent failure.
 
 A test intelligence platform that panics on missing data or produces confident
 scores from garbage input is worse than useless. Adversarial tests encode the
-principle that Hamlet should always:
+principle that Terrain should always:
 
 - **Produce output.** Never panic, never return nil where a caller expects a value.
 - **Reduce confidence.** When data is missing or suspect, scores and posture bands
@@ -95,5 +95,5 @@ contract, not the wording.
 - **Schema tests** verify structural integrity of serialized data.
 - **Determinism tests** verify consistency; adversarial tests verify resilience.
 
-Adversarial tests are Hamlet's immune system. They ensure the platform remains
+Adversarial tests are Terrain's immune system. They ensure the platform remains
 trustworthy even when the input does not deserve trust.

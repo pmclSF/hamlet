@@ -1,6 +1,6 @@
 # Demo Fixtures
 
-Hamlet ships with canonical demo fixtures in `fixtures/demos/` that showcase its strongest insights in realistic, reproducible scenarios.
+Terrain ships with canonical demo fixtures in `fixtures/demos/` that showcase its strongest insights in realistic, reproducible scenarios.
 
 ## Fixtures
 
@@ -9,7 +9,7 @@ Hamlet ships with canonical demo fixtures in `fixtures/demos/` that showcase its
 **Scenario:** A JavaScript API project with Jest unit tests and Playwright E2E tests. Few issues, good assertion density, clean posture.
 
 **What it demonstrates:**
-- Hamlet produces useful output even on healthy repos
+- Terrain produces useful output even on healthy repos
 - Posture dimensions show "strong" with evidence
 - The report is concise, not overwhelming
 
@@ -63,12 +63,12 @@ Hamlet ships with canonical demo fixtures in `fixtures/demos/` that showcase its
 
 ## Using fixtures
 
-Run Hamlet against a fixture to see the demo output:
+Run Terrain against a fixture to see the demo output:
 
 ```bash
 # These are snapshot fixtures, not live repos.
 # Use them to test rendering and validate output.
-cat fixtures/demos/flaky-concentrated.json | hamlet analyze --json | hamlet summary --json
+cat fixtures/demos/flaky-concentrated.json | terrain analyze --json | terrain summary --json
 ```
 
 ## Adding new fixtures

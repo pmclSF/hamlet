@@ -1,6 +1,6 @@
 # Architecture
 
-Hamlet's current engine is built around a signal-first architecture.
+Terrain's current engine is built around a signal-first architecture.
 
 ## Core idea
 
@@ -95,10 +95,10 @@ Purpose:
 Evaluate repository state against declared local policy and emit governance signals.
 
 Responsibilities:
-- load `.hamlet/policy.yaml`
+- load `.terrain/policy.yaml`
 - evaluate policy rules against snapshot state
 - emit governance signals (policyViolation, legacyFrameworkUsage, runtimeBudgetExceeded)
-- support CI-friendly enforcement via `hamlet policy check`
+- support CI-friendly enforcement via `terrain policy check`
 
 Primary packages:
 - internal/policy (config model + loader)
@@ -110,7 +110,7 @@ Purpose:
 Resolve file ownership for grouping and visibility.
 
 Responsibilities:
-- load .hamlet/ownership.yaml (explicit config)
+- load .terrain/ownership.yaml (explicit config)
 - parse CODEOWNERS files
 - optional git-history fallback (commit author names)
 - directory-based fallback
@@ -134,14 +134,14 @@ Surfaces:
 
 Primary packages:
 - internal/reporting
-- cmd/hamlet
+- cmd/terrain
 
 ## Extension Architecture
 
 The extension is intentionally thin.
 
 Flow:
-1. extension executes `hamlet analyze --json`
+1. extension executes `terrain analyze --json`
 2. CLI returns a structured snapshot
 3. extension renders:
    - Overview
@@ -163,7 +163,7 @@ This snapshot is the boundary between:
 
 ## Why this architecture
 
-This architecture allows Hamlet to:
+This architecture allows Terrain to:
 - stay repo-native
 - support local OSS value
 - support future aggregation and benchmarking

@@ -1,6 +1,6 @@
 # Test Type Inference
 
-Hamlet classifies each test case by type with explicit evidence and confidence, enabling coverage-by-type analysis.
+Terrain classifies each test case by type with explicit evidence and confidence, enabling coverage-by-type analysis.
 
 ## Supported Types
 

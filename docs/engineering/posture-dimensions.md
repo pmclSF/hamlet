@@ -2,7 +2,7 @@
 
 ## Overview
 
-Hamlet reports posture across five core dimensions. Each dimension anchors a small set of measurements that can be summarized into a stable band (strong, moderate, weak, elevated, critical).
+Terrain reports posture across five core dimensions. Each dimension anchors a small set of measurements that can be summarized into a stable band (strong, moderate, weak, elevated, critical).
 
 The dimension set is intentionally small and maps directly to user action.
 

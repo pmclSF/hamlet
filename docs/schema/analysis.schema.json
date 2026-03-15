@@ -1,8 +1,8 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://hamlet.dev/schemas/analysis/v1",
-  "title": "Hamlet Analysis Report",
-  "description": "Output of `hamlet analyze`. Describes detected frameworks, file types, and supported conversion directions for a project.",
+  "$id": "https://terrain.dev/schemas/analysis/v1",
+  "title": "Terrain Analysis Report",
+  "description": "Output of `terrain analyze`. Describes detected frameworks, file types, and supported conversion directions for a project.",
   "type": "object",
   "required": ["schemaVersion", "meta", "summary", "files"],
   "additionalProperties": false,
@@ -14,12 +14,12 @@
     },
     "meta": {
       "type": "object",
-      "required": ["hamletVersion", "nodeVersion", "generatedAt", "root"],
+      "required": ["terrainVersion", "nodeVersion", "generatedAt", "root"],
       "additionalProperties": false,
       "properties": {
-        "hamletVersion": {
+        "terrainVersion": {
           "type": "string",
-          "description": "Hamlet CLI version that produced this report."
+          "description": "Terrain CLI version that produced this report."
         },
         "nodeVersion": {
           "type": "string",

@@ -6,7 +6,7 @@ Accepted (defer migration)
 
 ## Context
 
-Hamlet is an ES modules project (`"type": "module"`). Jest 29 does not natively
+Terrain is an ES modules project (`"type": "module"`). Jest 29 does not natively
 support ESM; it requires `NODE_OPTIONS='--experimental-vm-modules'` to load
 `.js` test files as ES modules via Node's VM module API.
 

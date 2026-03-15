@@ -1,6 +1,6 @@
 # Advanced Assessment and Workflow Architecture Map
 
-This document maps all advanced assessment and workflow subsystems introduced in Stages 11-16. Each subsystem adds a new analytical dimension to Hamlet's test intelligence, operating on snapshot data and surfacing results through CLI commands, reports, and portfolio findings.
+This document maps all advanced assessment and workflow subsystems introduced in Stages 11-16. Each subsystem adds a new analytical dimension to Terrain's test intelligence, operating on snapshot data and surfacing results through CLI commands, reports, and portfolio findings.
 
 ## Subsystem Inventory
 
@@ -13,14 +13,14 @@ This document maps all advanced assessment and workflow subsystems introduced in
 | Clustering | `internal/clustering` | Detect common-cause clusters where shared helpers, fixtures, or imports drive broad instability or slowness | `ClusterType`, `Cluster`, `ClusterResult` | Consumes `*models.TestSuiteSnapshot` with signals and linked code units; feeds portfolio and remediation prioritization |
 | Assertion | `internal/assertion` | Assess assertion strength per test file (density, categories, mock ratio) | `StrengthClass`, `AssertionCategory`, `Assessment`, `AssessmentResult` | Consumes `*models.TestSuiteSnapshot` test files; feeds coverage-depth measurements |
 | Envdepth | `internal/envdepth` | Classify test environment depth (heavy mocking vs. real dependency vs. browser runtime) | `DepthClass`, `EnvironmentIndicator`, `Assessment`, `AssessmentResult` | Consumes `*models.TestSuiteSnapshot` test files and framework metadata; feeds coverage-diversity measurements |
-| Changescope | `internal/changescope` | PR and change-scoped analysis workflows with multiple output formats | `PRAnalysis`, `ChangeScopedFinding`, `PostureDelta` | Consumes `*impact.ChangeScope` + `*models.TestSuiteSnapshot`; surfaces via `hamlet pr` command |
+| Changescope | `internal/changescope` | PR and change-scoped analysis workflows with multiple output formats | `PRAnalysis`, `ChangeScopedFinding`, `PostureDelta` | Consumes `*impact.ChangeScope` + `*models.TestSuiteSnapshot`; surfaces via `terrain pr` command |
 
 ## Dependency and Data-Flow Diagram
 
 ```
                               Snapshot Sources
                     +---------------------------------+
-                    |   hamlet analyze (pipeline)      |
+                    |   terrain analyze (pipeline)      |
                     |   --runtime JUnit/Jest JSON      |
                     |   --coverage LCOV/Istanbul        |
                     +---------+-----------------------+
@@ -72,9 +72,9 @@ This document maps all advanced assessment and workflow subsystems introduced in
                 |                    |
                 v                    v
         +--------------+    +------------------+
-        | reporting    |    | hamlet summary   |
-        | posture/     |    | hamlet portfolio |
-        | executive    |    | hamlet show      |
+        | reporting    |    | terrain summary   |
+        | posture/     |    | terrain portfolio |
+        | executive    |    | terrain show      |
         +--------------+    +------------------+
 
   Snapshot History (ordered list of snapshots)
@@ -97,7 +97,7 @@ This document maps all advanced assessment and workflow subsystems introduced in
            | trend reports|
            +--------------+
 
-  Git Diff (hamlet pr / hamlet impact)
+  Git Diff (terrain pr / terrain impact)
         |
         v
   +-------------------+
@@ -236,14 +236,14 @@ Four output renderers:
 
 | Subsystem | CLI Commands | Report Renderers | JSON Output |
 |-----------|-------------|------------------|-------------|
-| Lifecycle | `hamlet compare` | `reporting.RenderComparisonReport` | `hamlet compare --json` |
-| Stability | `hamlet compare`, `hamlet summary` | Trend sections in executive summary | `hamlet compare --json` |
-| Suppression | `hamlet analyze`, `hamlet posture` | Health dimension measurements | `hamlet analyze --json` (within signals/measurements) |
-| Failure | `hamlet analyze`, `hamlet show finding` | Analyze report signal sections | `hamlet analyze --json` (within signals) |
-| Clustering | `hamlet portfolio`, `hamlet summary` | Portfolio findings sections | `hamlet portfolio --json` |
-| Assertion | `hamlet posture`, `hamlet show test` | Coverage-depth measurements | `hamlet posture --json` |
-| Envdepth | `hamlet posture`, `hamlet show test` | Coverage-diversity measurements | `hamlet posture --json` |
-| Changescope | `hamlet pr` | 4 renderers: markdown, comment, annotation, plain | `hamlet pr --json` |
+| Lifecycle | `terrain compare` | `reporting.RenderComparisonReport` | `terrain compare --json` |
+| Stability | `terrain compare`, `terrain summary` | Trend sections in executive summary | `terrain compare --json` |
+| Suppression | `terrain analyze`, `terrain posture` | Health dimension measurements | `terrain analyze --json` (within signals/measurements) |
+| Failure | `terrain analyze`, `terrain show finding` | Analyze report signal sections | `terrain analyze --json` (within signals) |
+| Clustering | `terrain portfolio`, `terrain summary` | Portfolio findings sections | `terrain portfolio --json` |
+| Assertion | `terrain posture`, `terrain show test` | Coverage-depth measurements | `terrain posture --json` |
+| Envdepth | `terrain posture`, `terrain show test` | Coverage-diversity measurements | `terrain posture --json` |
+| Changescope | `terrain pr` | 4 renderers: markdown, comment, annotation, plain | `terrain pr --json` |
 
 ## Known Limitations and Language/Runner Gaps
 
@@ -307,7 +307,7 @@ Four output renderers:
 
 - Wire `EvidenceCoverageContinuity` by comparing coverage attribution across snapshots.
 - Add AST-level similarity for rename detection (language-specific plugins).
-- Support configurable similarity thresholds via `.hamlet/policy.yaml`.
+- Support configurable similarity thresholds via `.terrain/policy.yaml`.
 
 ### Stability
 

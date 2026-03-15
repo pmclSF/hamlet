@@ -1,27 +1,27 @@
 # PR and Change-Scoped Analysis
 
-Hamlet can analyze changes in the context of a PR or local diff, focusing on the affected area rather than the entire repo.
+Terrain can analyze changes in the context of a PR or local diff, focusing on the affected area rather than the entire repo.
 
 ## Quick Start
 
 ```bash
 # Analyze current changes against HEAD~1
-hamlet pr
+terrain pr
 
 # Analyze against a specific base branch
-hamlet pr --base origin/main
+terrain pr --base origin/main
 
 # Get markdown output for PR comments
-hamlet pr --format markdown
+terrain pr --format markdown
 
 # Get concise one-liner for inline comments
-hamlet pr --format comment
+terrain pr --format comment
 
 # Get CI annotation output (GitHub Actions compatible)
-hamlet pr --format annotation
+terrain pr --format annotation
 
 # JSON output for programmatic consumption
-hamlet pr --json
+terrain pr --json
 ```
 
 ## What PR Analysis Shows
@@ -38,7 +38,7 @@ hamlet pr --json
 ### Human-readable (default)
 
 ```
-Hamlet — Change-Scoped Analysis
+Terrain — Change-Scoped Analysis
 ========================================
 
 Posture:   PARTIALLY_PROTECTED
@@ -66,12 +66,12 @@ Produces a GitHub-compatible markdown summary suitable for PR comments.
 
 Produces `::error` and `::warning` lines compatible with GitHub Actions annotations.
 
-## Relationship to `hamlet impact`
+## Relationship to `terrain impact`
 
-- `hamlet impact` is the underlying analysis engine with detailed drill-down views
-- `hamlet pr` wraps impact analysis with PR-oriented formatting and recommendations
-- Use `hamlet impact --show gaps` for deep-diving into protection gaps
-- Use `hamlet pr --format markdown` for automated PR comments
+- `terrain impact` is the underlying analysis engine with detailed drill-down views
+- `terrain pr` wraps impact analysis with PR-oriented formatting and recommendations
+- Use `terrain impact --show gaps` for deep-diving into protection gaps
+- Use `terrain pr --format markdown` for automated PR comments
 
 ## Limitations
 

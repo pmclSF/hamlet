@@ -2,7 +2,7 @@
 
 ## Overview
 
-The test lifecycle model (`internal/lifecycle/`) provides formal classification of how tests evolve across snapshots. While Hamlet's identity system (`internal/identity/`) assigns deterministic IDs to tests based on their canonical identity (path, suite hierarchy, name), tests frequently change in ways that alter their identity — renames, file moves, splits, and merges. The lifecycle model bridges this gap by inferring continuity relationships between tests whose IDs differ across snapshots.
+The test lifecycle model (`internal/lifecycle/`) provides formal classification of how tests evolve across snapshots. While Terrain's identity system (`internal/identity/`) assigns deterministic IDs to tests based on their canonical identity (path, suite hierarchy, name), tests frequently change in ways that alter their identity — renames, file moves, splits, and merges. The lifecycle model bridges this gap by inferring continuity relationships between tests whose IDs differ across snapshots.
 
 ## Continuity Classes
 

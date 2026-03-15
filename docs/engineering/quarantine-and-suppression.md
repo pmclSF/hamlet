@@ -3,7 +3,7 @@
 ## Overview
 
 The `internal/suppression` package detects and models quarantined tests,
-expected failures, skip policies, and retry wrappers within a Hamlet snapshot.
+expected failures, skip policies, and retry wrappers within a Terrain snapshot.
 Its purpose is to surface hidden test debt that silently degrades suite
 reliability.
 
@@ -44,7 +44,7 @@ file. Each suppression carries:
 
 ### 1. Signal-Based Detection
 
-Scans existing Hamlet signals for `skippedTest` signal types. These are
+Scans existing Terrain signals for `skippedTest` signal types. These are
 high-confidence indicators (0.9) since they come from prior analysis.
 
 ### 2. Runtime Data Detection
@@ -82,7 +82,7 @@ counts by kind and intent, plus `TotalSuppressedTests` (unique file count).
 The suppression package is designed to be called after snapshot construction:
 
 ```go
-import "github.com/pmclSF/hamlet/internal/suppression"
+import "github.com/pmclSF/terrain/internal/suppression"
 
 result := suppression.Detect(snapshot)
 ```

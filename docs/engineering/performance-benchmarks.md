@@ -1,6 +1,6 @@
 # Performance Benchmarks
 
-Hamlet includes Go benchmarks for all major computation pipelines. These
+Terrain includes Go benchmarks for all major computation pipelines. These
 benchmarks track performance characteristics over time and guard against
 regressions as the codebase grows.
 
@@ -76,7 +76,7 @@ numbers depend on hardware, but relative relationships should hold:
 | Large scale (550 files) | BenchmarkMetrics_LargeScale | < 10 ms/op |
 | Very large (2000 files) | Planned full pipeline | < 100 ms/op |
 
-Allocations matter more than wall-clock time for Hamlet's use case (CLI tool,
+Allocations matter more than wall-clock time for Terrain's use case (CLI tool,
 CI integration). Excessive allocations cause GC pressure that manifests as
 latency spikes in real usage.
 

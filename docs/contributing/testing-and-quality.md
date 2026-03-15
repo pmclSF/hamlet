@@ -1,6 +1,6 @@
 # Testing and Quality: Contributor Guide
 
-This guide covers how to write tests for Hamlet's Go codebase, when to use
+This guide covers how to write tests for Terrain's Go codebase, when to use
 each test type, and how to work with fixtures and golden files.
 
 ## Decision Tree: Which Test to Write

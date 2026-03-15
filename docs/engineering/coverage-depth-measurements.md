@@ -112,7 +112,7 @@ Untested export signals: 20
 
 Coverage depth depends on:
 
-1. **Code unit discovery** — Hamlet's static analysis may not find all exported symbols, especially in dynamic languages.
+1. **Code unit discovery** — Terrain's static analysis may not find all exported symbols, especially in dynamic languages.
 2. **Test linkage** — The heuristic linking tests to code units may miss indirect coverage.
 3. **Coverage artifacts** — Providing `--coverage` improves breach detection accuracy.
 

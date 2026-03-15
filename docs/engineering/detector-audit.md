@@ -1,6 +1,6 @@
 # Detector Audit: Evidence Classification
 
-This document classifies every Hamlet signal detector by evidence strength,
+This document classifies every Terrain signal detector by evidence strength,
 source, and detection method. It serves as the canonical reference for
 understanding signal credibility.
 

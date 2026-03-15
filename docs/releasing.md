@@ -1,4 +1,4 @@
-# Releasing Hamlet
+# Releasing Terrain
 
 ## Release Flow
 
@@ -41,7 +41,7 @@ Binaries are stamped with version, commit, and build date via ldflags:
 
 Users can install via:
 ```bash
-go install github.com/pmclSF/hamlet/cmd/hamlet@latest
+go install github.com/pmclSF/terrain/cmd/terrain@latest
 ```
 Or download pre-built binaries from the GitHub Releases page.
 
@@ -96,7 +96,7 @@ npm pack --dry-run
 ```
 
 Confirm only expected files are included:
-- `bin/hamlet.js`
+- `bin/terrain.js`
 - `src/**/*.js`
 - `src/types/*.d.ts`
 - `README.md`
@@ -117,8 +117,8 @@ git push origin vX.Y.Z
 
 - [ ] GitHub Actions: `release.yml` completed successfully
 - [ ] GitHub Releases: new release exists with auto-generated notes
-- [ ] npm: `npm view hamlet-testframework version` shows the new version
-- [ ] Install test: `npx hamlet-testframework@latest --version` prints the new version
+- [ ] npm: `npm view terrain-testframework version` shows the new version
+- [ ] Install test: `npx terrain-testframework@latest --version` prints the new version
 
 ## Tag Naming Convention
 

@@ -307,7 +307,7 @@ Suggested remediation direction:
 Category: governance
 
 Description:
-Current repository state violates declared Hamlet policy.
+Current repository state violates declared Terrain policy.
 
 Why it matters:
 Policy violations indicate drift or unmanaged risk.

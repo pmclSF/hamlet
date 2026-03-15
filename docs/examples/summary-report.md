@@ -1,11 +1,11 @@
-# Example: `hamlet summary` Output
+# Example: `terrain summary` Output
 
-This document shows representative output from `hamlet summary` run against a mid-sized JavaScript repository with 2 frameworks (Jest + Cypress), 53 test files, and no prior snapshots.
+This document shows representative output from `terrain summary` run against a mid-sized JavaScript repository with 2 frameworks (Jest + Cypress), 53 test files, and no prior snapshots.
 
 ## Terminal Output
 
 ```
-Hamlet Executive Summary
+Terrain Executive Summary
 ==================================================
 
 Overall Posture
@@ -31,7 +31,7 @@ Top Risk Areas
 Trend Highlights
 --------------------------------------------------
   No prior snapshots available.
-  Run `hamlet analyze --write-snapshot` to begin tracking trends.
+  Run `terrain analyze --write-snapshot` to begin tracking trends.
 
 Dominant Drivers
 --------------------------------------------------
@@ -82,9 +82,9 @@ Benchmark Readiness
     Coverage Depth (no coverage artifacts provided)
 
 Next steps:
-  hamlet posture       evidence behind each dimension
-  hamlet analyze       full signal-level detail
-  hamlet export benchmark   privacy-safe export
+  terrain posture       evidence behind each dimension
+  terrain analyze       full signal-level detail
+  terrain export benchmark   privacy-safe export
 ```
 
 ## Section Annotations
@@ -103,7 +103,7 @@ The highest-concentration risk hotspots, identified by directory. `src/api/` has
 
 ### Trend Highlights
 
-Shows changes since the previous snapshot. In this example, no prior snapshots exist, so Hamlet prompts the user to begin tracking. When snapshots are available, this section shows movement like "Coverage depth improved from weak to moderate" or "3 new untested exports detected."
+Shows changes since the previous snapshot. In this example, no prior snapshots exist, so Terrain prompts the user to begin tracking. When snapshots are available, this section shows movement like "Coverage depth improved from weak to moderate" or "3 new untested exports detected."
 
 ### Dominant Drivers
 
@@ -119,8 +119,8 @@ Structured recommendations with what, why, where, and evidence strength. Each re
 
 ### Known Blind Spots
 
-Areas where Hamlet lacks data to make confident assessments. This section is critical for honesty -- it tells the user what the tool cannot see and how to provide additional data. In this example, runtime and coverage artifacts are missing, which limits flaky test detection and coverage precision.
+Areas where Terrain lacks data to make confident assessments. This section is critical for honesty -- it tells the user what the tool cannot see and how to provide additional data. In this example, runtime and coverage artifacts are missing, which limits flaky test detection and coverage precision.
 
 ### Benchmark Readiness
 
-Which posture dimensions have enough data for meaningful cross-repository comparison via `hamlet export benchmark`. Dimensions with limited data are flagged with the reason, so users know what to provide to improve benchmark quality.
+Which posture dimensions have enough data for meaningful cross-repository comparison via `terrain export benchmark`. Dimensions with limited data are flagged with the reason, so users know what to provide to improve benchmark quality.

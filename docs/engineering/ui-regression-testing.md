@@ -1,6 +1,6 @@
 # UI Regression Testing
 
-Hamlet's user interface is currently CLI-driven. Visual output is produced by
+Terrain's user interface is currently CLI-driven. Visual output is produced by
 view-model transformations that convert analysis data into formatted reports.
 UI regression tests validate these view-model functions to ensure reports
 render correctly across all data states.

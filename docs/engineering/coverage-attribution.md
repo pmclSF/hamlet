@@ -24,11 +24,11 @@ type UnitCoverage struct {
 
 ### 1. Function Hit Detection
 
-If the coverage record has function-level data (`FunctionHits` map), Hamlet looks up the code unit's name directly. This is the most precise attribution ("exact" evidence quality).
+If the coverage record has function-level data (`FunctionHits` map), Terrain looks up the code unit's name directly. This is the most precise attribution ("exact" evidence quality).
 
 ### 2. Line Coverage
 
-For code units with known `StartLine`/`EndLine`, Hamlet counts how many instrumented lines within that span were executed. If `EndLine` is unknown, a 50-line estimate is used.
+For code units with known `StartLine`/`EndLine`, Terrain counts how many instrumented lines within that span were executed. If `EndLine` is unknown, a 50-line estimate is used.
 
 ### 3. Branch Coverage
 
@@ -44,7 +44,7 @@ Branch coverage is currently file-level (not scoped to individual code units). T
 
 ## Conservative Attribution
 
-Hamlet prefers conservative attribution over inflated claims:
+Terrain prefers conservative attribution over inflated claims:
 - A unit is only marked `CoveredAny: true` if there is positive evidence of execution
 - Missing data produces `-1` indicators, not zero
 - Evidence quality is always explicit

@@ -58,7 +58,7 @@ This separation keeps the measurement package independent of the serialization m
 
 ## Snapshot Storage
 
-Snapshots are persisted to `.hamlet/snapshots/` when `--write-snapshot` is passed:
+Snapshots are persisted to `.terrain/snapshots/` when `--write-snapshot` is passed:
 
 - `latest.json` — most recent snapshot (overwritten)
 - `2026-03-08T12-00-00Z.json` — timestamped archive

@@ -2,7 +2,7 @@
 
 ## What Is Posture?
 
-When you run `hamlet summary` or `hamlet posture`, Hamlet reports the state of your test suite across five dimensions:
+When you run `terrain summary` or `terrain posture`, Terrain reports the state of your test suite across five dimensions:
 
 | Dimension | Question It Answers |
 |-----------|-------------------|
@@ -19,7 +19,7 @@ Each dimension gets a **band**: strong, moderate, weak, elevated, or critical.
 ### Quick View
 
 ```bash
-hamlet summary
+terrain summary
 ```
 
 Shows posture as part of the executive summary:
@@ -38,7 +38,7 @@ Posture Dimensions
 ### Detailed View
 
 ```bash
-hamlet posture
+terrain posture
 ```
 
 Shows full evidence for every measurement:
@@ -62,7 +62,7 @@ COVERAGE_DEPTH
 ### Machine-Readable
 
 ```bash
-hamlet posture --json
+terrain posture --json
 ```
 
 Returns the full `MeasurementSnapshot` as JSON.
@@ -81,19 +81,19 @@ Every measurement includes an **evidence** level:
 If you see `evidence: weak` with a limitation like "No runtime data available", you can improve the result by providing runtime artifacts:
 
 ```bash
-hamlet analyze --runtime path/to/junit.xml
+terrain analyze --runtime path/to/junit.xml
 ```
 
 ## Tracking Changes Over Time
 
 Save snapshots:
 ```bash
-hamlet analyze --write-snapshot
+terrain analyze --write-snapshot
 ```
 
 Compare them:
 ```bash
-hamlet compare
+terrain compare
 ```
 
 The comparison now includes posture and measurement changes:
@@ -143,7 +143,7 @@ Measurement Changes
 
 1. **Look at the driving measurements** — these are the specific measurements pulling the band down
 2. **Read the explanation** — it tells you what was measured and the result
-3. **Use `hamlet analyze`** to find specific instances of the underlying signals
+3. **Use `terrain analyze`** to find specific instances of the underlying signals
 4. **Fix the most concentrated issues first** — the posture report tells you which measurements have the most impact
 5. **Re-run and compare** — save a snapshot before and after to verify improvement
 
@@ -159,7 +159,7 @@ HEALTH
 ```
 
 Action plan:
-1. Run `hamlet analyze --json` and filter for `flakyTest` signals
+1. Run `terrain analyze --json` and filter for `flakyTest` signals
 2. Identify the 5 affected test files
 3. Fix flakiness (add retries, fix timing issues, mock external deps)
-4. Re-run `hamlet posture` to verify improvement
+4. Re-run `terrain posture` to verify improvement

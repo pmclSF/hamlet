@@ -1,23 +1,23 @@
 # Legacy Notes
 
-This file describes the relationship between the pre-V3 Hamlet codebase and the V3 architecture.
+This file describes the relationship between the legacy Terrain codebase and the current architecture.
 
 ## Intent
 
-V3 is a refactor, not a discard-and-rebuild effort.
+The current architecture is a refactor, not a discard-and-rebuild effort.
 
 Existing migration functionality should be preserved where possible and gradually mapped into:
 
 - internal/migration
 - internal/signals
 - internal/reporting
-- cmd/hamlet
+- cmd/terrain
 
 ## Migration strategy
 
 1. Freeze docs and architecture
 2. Introduce canonical models and signals
-3. Build `hamlet analyze`
+3. Build `terrain analyze`
 4. Preserve old behavior via adapters where necessary
 5. Move legacy migration logic behind the new architecture gradually
 

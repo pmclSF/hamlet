@@ -1,6 +1,6 @@
 # Contributing: Adding a Measurement
 
-This guide covers how to add a new measurement to Hamlet's measurement framework.
+This guide covers how to add a new measurement to Terrain's measurement framework.
 
 ## Prerequisites
 

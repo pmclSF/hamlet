@@ -1,10 +1,10 @@
 # Test Identity Model
 
-Hamlet assigns every discovered test case a **deterministic, stable, persistent test ID** suitable for snapshots, comparisons, trend analysis, flake tracking, and coverage attribution.
+Terrain assigns every discovered test case a **deterministic, stable, persistent test ID** suitable for snapshots, comparisons, trend analysis, flake tracking, and coverage attribution.
 
 ## Why Stable Identity Matters
 
-Without stable identity, Hamlet cannot:
+Without stable identity, Terrain cannot:
 - Track tests across snapshots (trend analysis)
 - Detect flaky tests over time
 - Attribute coverage to specific tests

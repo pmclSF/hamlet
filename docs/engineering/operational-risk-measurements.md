@@ -76,7 +76,7 @@ Governance and policy signals feed operational risk directly rather than existin
 
 ## Phrasing
 
-Operational risk reporting follows Hamlet's ownership-safe phrasing conventions:
+Operational risk reporting follows Terrain's ownership-safe phrasing conventions:
 
 | Do | Don't |
 |----|-------|

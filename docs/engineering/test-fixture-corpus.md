@@ -1,6 +1,6 @@
 # Test Fixture Corpus
 
-Hamlet's test suite uses code-based fixture factories rather than static JSON files.
+Terrain's test suite uses code-based fixture factories rather than static JSON files.
 All fixtures live in `internal/testdata/` across two source files: `fixtures.go`
 (core scenarios) and `adversarial.go` (edge-case and adversarial scenarios).
 
