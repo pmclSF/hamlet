@@ -6,22 +6,8 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/pmclSF/hamlet/internal/models"
+	"github.com/pmclSF/terrain/internal/models"
 )
-
-// analyzeTestFileContent reads a test file and populates counts for
-// tests, assertions, mocks, and snapshots.
-//
-// This is a heuristic content analyzer, not a parser. It uses regex
-// patterns to estimate counts. Limitations:
-//   - Cannot distinguish test helpers from real tests
-//   - May double-count in complex expressions
-//   - Language-specific patterns are approximate
-//
-// These heuristics are sufficient for the V3 nucleus detector stage.
-func analyzeTestFileContent(tf *models.TestFile, root string) {
-	analyzeTestFileContentCached(tf, root)
-}
 
 // analyzeTestFileContentCached reads a test file, populates analysis counts,
 // and returns the file content string for reuse by downstream stages.
@@ -150,14 +136,14 @@ var (
 	jsExportClassPattern        = regexp.MustCompile(`export\s+class\s+(\w+)`)
 	jsExportDefaultClassPattern = regexp.MustCompile(`export\s+default\s+class\s+(\w+)`)
 	jsExportConstPattern        = regexp.MustCompile(`export\s+(?:const|let|var)\s+(\w+)`)
-	jsNamedExportListPattern    = regexp.MustCompile(`export\s*\{\s*([^}]*)\s*\}(?:\s*from\s*['"][^'"]+['"])?`)
+	jsNamedExportListPattern    = regexp.MustCompile(`(?s)export\s*\{\s*([^}]*)\s*\}(?:\s*from\s*['"][^'"]+['"])?`)
 
 	// CJS export patterns
 	cjsNamedExportPattern  = regexp.MustCompile(`(?:module\.)?exports\.(\w+)\s*=`)
 	cjsModuleExportPattern = regexp.MustCompile(`module\.exports\s*=\s*(\w+)\s*;?$`)
 
 	goExportFuncPattern     = regexp.MustCompile(`^\s*func\s+([A-Z]\w*)\s*\(`)
-	goExportMethodPattern   = regexp.MustCompile(`^\s*func\s+\(\s*[^)]*\*?\s*([A-Z]\w*)\s*\)\s*([A-Z]\w*)\s*\(`)
+	goExportMethodPattern   = regexp.MustCompile(`^\s*func\s+\(\s*(?:[A-Za-z_]\w*\s+)?\*?\s*(?:[A-Za-z_]\w*\.)?([A-Za-z_]\w*)(?:\[[^\]]+\])?\s*\)\s*([A-Z]\w*)\s*\(`)
 	goExportTypePattern     = regexp.MustCompile(`^\s*type\s+([A-Z]\w*)\s+`)
 	goExportConstVarPattern = regexp.MustCompile(`^\s*(?:const|var)\s+([A-Z]\w*)\b`)
 	javaExportTypePattern   = regexp.MustCompile(`\bpublic\s+(?:abstract\s+|final\s+)?(?:class|interface|enum)\s+(\w+)`)
@@ -211,20 +197,28 @@ func extractJSExports(root, relPath string) []models.CodeUnit {
 		if m := jsExportConstPattern.FindStringSubmatch(line); m != nil {
 			addUnit(m[1], models.CodeUnitKindFunction, i+1)
 		}
-		if m := jsNamedExportListPattern.FindStringSubmatch(line); m != nil {
-			for _, item := range strings.Split(m[1], ",") {
-				exportName := parseJSNamedExport(item)
-				if exportName == "" {
-					continue
-				}
-				addUnit(exportName, models.CodeUnitKindFunction, i+1)
-			}
-		}
 		if m := cjsNamedExportPattern.FindStringSubmatch(line); m != nil {
 			addUnit(m[1], models.CodeUnitKindFunction, i+1)
 		}
 		if m := cjsModuleExportPattern.FindStringSubmatch(line); m != nil {
 			addUnit(m[1], models.CodeUnitKindFunction, i+1)
+		}
+	}
+
+	// Source-level matching for named export lists so multiline exports are
+	// recognized (for example `export { a,\n b } from './mod'`).
+	for _, m := range jsNamedExportListPattern.FindAllStringSubmatchIndex(src, -1) {
+		if len(m) < 4 {
+			continue
+		}
+		exportList := src[m[2]:m[3]]
+		lineNum := 1 + strings.Count(src[:m[0]], "\n")
+		for _, item := range strings.Split(exportList, ",") {
+			exportName := parseJSNamedExport(item)
+			if exportName == "" {
+				continue
+			}
+			addUnit(exportName, models.CodeUnitKindFunction, lineNum)
 		}
 	}
 

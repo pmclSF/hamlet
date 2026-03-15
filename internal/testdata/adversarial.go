@@ -3,7 +3,7 @@ package testdata
 import (
 	"fmt"
 
-	"github.com/pmclSF/hamlet/internal/models"
+	"github.com/pmclSF/terrain/internal/models"
 )
 
 // MixedFrameworkSnapshot returns a repo with 5+ frameworks — a common

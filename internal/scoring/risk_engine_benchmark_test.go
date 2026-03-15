@@ -3,7 +3,7 @@ package scoring
 import (
 	"testing"
 
-	"github.com/pmclSF/hamlet/internal/testdata"
+	"github.com/pmclSF/terrain/internal/testdata"
 )
 
 func BenchmarkRiskScore(b *testing.B) {

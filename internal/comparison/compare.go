@@ -10,8 +10,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/pmclSF/hamlet/internal/lifecycle"
-	"github.com/pmclSF/hamlet/internal/models"
+	"github.com/pmclSF/terrain/internal/lifecycle"
+	"github.com/pmclSF/terrain/internal/models"
 )
 
 // SnapshotComparison holds the result of comparing two snapshots.

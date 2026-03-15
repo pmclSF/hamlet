@@ -5,9 +5,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/pmclSF/hamlet/internal/benchmark"
-	"github.com/pmclSF/hamlet/internal/models"
-	"github.com/pmclSF/hamlet/internal/summary"
+	"github.com/pmclSF/terrain/internal/benchmark"
+	"github.com/pmclSF/terrain/internal/models"
+	"github.com/pmclSF/terrain/internal/summary"
 )
 
 func TestRenderExecutiveSummary_AllSections(t *testing.T) {
@@ -56,7 +56,7 @@ func TestRenderExecutiveSummary_AllSections(t *testing.T) {
 	output := buf.String()
 
 	expected := []string{
-		"Hamlet Executive Summary",
+		"Terrain Executive Summary",
 		"Overall Posture",
 		"reliability:",
 		"change:",
@@ -124,7 +124,7 @@ func TestRenderExecutiveSummary_Empty(t *testing.T) {
 	RenderExecutiveSummary(&buf, es)
 	output := buf.String()
 
-	if !strings.Contains(output, "Hamlet Executive Summary") {
+	if !strings.Contains(output, "Terrain Executive Summary") {
 		t.Error("expected header")
 	}
 	// Should not have empty sections crashing

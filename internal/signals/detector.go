@@ -1,8 +1,8 @@
 package signals
 
-import "github.com/pmclSF/hamlet/internal/models"
+import "github.com/pmclSF/terrain/internal/models"
 
-// Detector is the interface for all Hamlet signal detectors.
+// Detector is the interface for all Terrain signal detectors.
 //
 // A detector examines the snapshot and emits zero or more Signal values.
 // Detectors should be:

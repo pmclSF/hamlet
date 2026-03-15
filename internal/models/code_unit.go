@@ -13,7 +13,7 @@ const (
 
 // CodeUnit represents a source code element that may be covered by tests.
 //
-// Hamlet uses code units to connect source structure to test effectiveness.
+// Terrain uses code units to connect source structure to test effectiveness.
 // This enables signals like:
 //   - untested exports
 //   - coverage blind spots

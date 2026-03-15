@@ -3,8 +3,8 @@ package ownership
 import (
 	"testing"
 
-	"github.com/pmclSF/hamlet/internal/models"
-	"github.com/pmclSF/hamlet/internal/signals"
+	"github.com/pmclSF/terrain/internal/models"
+	"github.com/pmclSF/terrain/internal/signals"
 )
 
 func TestBuildHealthSummaries(t *testing.T) {

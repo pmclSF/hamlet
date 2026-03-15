@@ -9,15 +9,15 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/pmclSF/hamlet/internal/benchmark"
-	"github.com/pmclSF/hamlet/internal/comparison"
-	"github.com/pmclSF/hamlet/internal/heatmap"
-	"github.com/pmclSF/hamlet/internal/impact"
-	"github.com/pmclSF/hamlet/internal/measurement"
-	"github.com/pmclSF/hamlet/internal/metrics"
-	"github.com/pmclSF/hamlet/internal/portfolio"
-	"github.com/pmclSF/hamlet/internal/reporting"
-	"github.com/pmclSF/hamlet/internal/scoring"
+	"github.com/pmclSF/terrain/internal/benchmark"
+	"github.com/pmclSF/terrain/internal/comparison"
+	"github.com/pmclSF/terrain/internal/heatmap"
+	"github.com/pmclSF/terrain/internal/impact"
+	"github.com/pmclSF/terrain/internal/measurement"
+	"github.com/pmclSF/terrain/internal/metrics"
+	"github.com/pmclSF/terrain/internal/portfolio"
+	"github.com/pmclSF/terrain/internal/reporting"
+	"github.com/pmclSF/terrain/internal/scoring"
 )
 
 var update = flag.Bool("update", false, "update golden files")

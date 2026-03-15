@@ -3,7 +3,7 @@ package analysis
 import (
 	"regexp"
 
-	"github.com/pmclSF/hamlet/internal/models"
+	"github.com/pmclSF/terrain/internal/models"
 )
 
 // LanguageAnalyzer defines the interface for language-specific content analysis.

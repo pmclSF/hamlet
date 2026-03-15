@@ -1,7 +1,7 @@
 package quality
 
 import (
-	"github.com/pmclSF/hamlet/internal/models"
+	"github.com/pmclSF/terrain/internal/models"
 )
 
 // CoverageBlindSpotDetector translates coverage insights into canonical

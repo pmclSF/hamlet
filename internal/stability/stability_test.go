@@ -3,7 +3,7 @@ package stability
 import (
 	"testing"
 
-	"github.com/pmclSF/hamlet/internal/models"
+	"github.com/pmclSF/terrain/internal/models"
 )
 
 func stableHistory(id string, n int) TestHistory {

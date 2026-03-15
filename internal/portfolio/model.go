@@ -1,4 +1,4 @@
-// Package portfolio implements test portfolio intelligence for Hamlet.
+// Package portfolio implements test portfolio intelligence for Terrain.
 //
 // Portfolio intelligence treats the test suite as a portfolio of assets
 // with costs, protections, and strategic value. It sits above raw signals

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/pmclSF/hamlet/internal/models"
+	"github.com/pmclSF/terrain/internal/models"
 )
 
 // CoverageInsight represents an actionable finding from coverage analysis.

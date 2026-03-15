@@ -1,6 +1,6 @@
 package portfolio
 
-import "github.com/pmclSF/hamlet/internal/models"
+import "github.com/pmclSF/terrain/internal/models"
 
 // ToModel converts a PortfolioSummary to the serializable model type.
 func (s *PortfolioSummary) ToModel() *models.PortfolioSnapshot {

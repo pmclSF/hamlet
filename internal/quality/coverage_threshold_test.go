@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/pmclSF/hamlet/internal/models"
+	"github.com/pmclSF/terrain/internal/models"
 )
 
 func TestCoverageThresholdDetector_BelowThreshold(t *testing.T) {
@@ -149,5 +149,45 @@ func TestCoverageThresholdDetector_MissingMetricIsSkipped(t *testing.T) {
 	signals := (&CoverageThresholdDetector{Threshold: 80}).Detect(snap)
 	if len(signals) != 0 {
 		t.Fatalf("expected 0 signals when present metrics pass threshold, got %d", len(signals))
+	}
+}
+
+func TestCoverageThresholdDetector_UsesPipelineCoverageSummary(t *testing.T) {
+	t.Parallel()
+	snap := &models.TestSuiteSnapshot{
+		Repository: models.RepositoryMetadata{RootPath: t.TempDir()},
+		CoverageSummary: &models.CoverageSummary{
+			TotalCodeUnits:    10,
+			LineCoveragePct:   55.0,
+			BranchCoveragePct: 0.0,
+		},
+	}
+
+	signals := (&CoverageThresholdDetector{Threshold: 80}).Detect(snap)
+	if len(signals) != 1 {
+		t.Fatalf("expected 1 signal from line coverage summary, got %d", len(signals))
+	}
+	if got := signals[0].Metadata["metric"]; got != "lines" {
+		t.Fatalf("metric = %v, want lines", got)
+	}
+}
+
+func TestCoverageThresholdDetector_SnapshotSummaryZeroCoverageIsFlagged(t *testing.T) {
+	t.Parallel()
+	snap := &models.TestSuiteSnapshot{
+		Repository: models.RepositoryMetadata{RootPath: t.TempDir()},
+		CoverageSummary: &models.CoverageSummary{
+			TotalCodeUnits:    4,
+			LineCoveragePct:   0.0,
+			BranchCoveragePct: 0.0,
+		},
+	}
+
+	signals := (&CoverageThresholdDetector{Threshold: 80}).Detect(snap)
+	if len(signals) != 1 {
+		t.Fatalf("expected 1 signal for 0%% line coverage from snapshot summary, got %d", len(signals))
+	}
+	if signals[0].Severity != models.SeverityHigh {
+		t.Fatalf("severity = %q, want high", signals[0].Severity)
 	}
 }

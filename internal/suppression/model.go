@@ -27,7 +27,7 @@ const (
 	SourceConfig      DetectionSource = "config_file"       // CI/test config
 	SourceNaming      DetectionSource = "naming_convention"  // skip/quarantine in name
 	SourceRuntimeData DetectionSource = "runtime_data"      // Observed skip/retry patterns
-	SourceSignal      DetectionSource = "signal"            // Existing Hamlet signal
+	SourceSignal      DetectionSource = "signal"            // Existing Terrain signal
 )
 
 // Suppression represents a detected suppression mechanism on a test.

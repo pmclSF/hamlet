@@ -1,6 +1,6 @@
 package testcase
 
-import "github.com/pmclSF/hamlet/internal/models"
+import "github.com/pmclSF/terrain/internal/models"
 
 // ToModel converts a testcase.TestCase to models.TestCase for snapshot storage.
 func ToModel(tc *TestCase) models.TestCase {

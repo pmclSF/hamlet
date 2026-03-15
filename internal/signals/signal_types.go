@@ -1,6 +1,6 @@
 package signals
 
-import "github.com/pmclSF/hamlet/internal/models"
+import "github.com/pmclSF/terrain/internal/models"
 
 // Convenience aliases so callers can use signals.SignalSlowTest etc.
 // The underlying type is models.SignalType.
@@ -143,7 +143,7 @@ var typeInfoBySignal = map[models.SignalType]TypeInfo{
 		Remediation: "Refactor setup boundaries toward framework-agnostic patterns.",
 	},
 	SignalPolicyViolation: {
-		Description: "Repository state violates configured Hamlet policy rules.",
+		Description: "Repository state violates configured Terrain policy rules.",
 		Remediation: "Resolve violations or intentionally update policy thresholds.",
 	},
 	SignalLegacyFrameworkUsage: {

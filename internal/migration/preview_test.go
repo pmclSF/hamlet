@@ -3,7 +3,7 @@ package migration
 import (
 	"testing"
 
-	"github.com/pmclSF/hamlet/internal/models"
+	"github.com/pmclSF/terrain/internal/models"
 )
 
 func TestPreviewFile_SimpleJestFile(t *testing.T) {

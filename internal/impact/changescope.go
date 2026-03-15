@@ -7,7 +7,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/pmclSF/hamlet/internal/models"
+	"github.com/pmclSF/terrain/internal/models"
 )
 
 // ChangeScopeFromGitDiff creates a ChangeScope from git diff against a base ref.

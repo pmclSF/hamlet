@@ -1,0 +1,45 @@
+{
+  "changedAreas": [
+    {
+      "area": "core",
+      "surfaces": [
+        {
+          "surfaceId": "surface:src/core/engine.js:process",
+          "name": "process",
+          "path": "src/core/engine.js",
+          "kind": "function",
+          "changeKind": "modified"
+        },
+        {
+          "surfaceId": "surface:src/core/engine.js:validate",
+          "name": "validate",
+          "path": "src/core/engine.js",
+          "kind": "function",
+          "changeKind": "modified"
+        }
+      ]
+    }
+  ],
+  "impactedUnitCount": 2,
+  "impactedTestCount": 0,
+  "protectionGapCount": 2,
+  "selectedTestCount": 0,
+  "coverageConfidence": "low",
+  "reasonCategories": {
+    "directDependency": 0,
+    "fixtureDependency": 0,
+    "directlyChanged": 0,
+    "directoryProximity": 0
+  },
+  "fallback": {
+    "level": "all",
+    "reason": "no impacted tests identified; full suite fallback",
+    "additionalTests": 0
+  },
+  "postureBand": "high_risk",
+  "summary": "1 file(s) changed, 2 code unit(s) impacted, 2 protection gap(s). Posture: high_risk.",
+  "limitations": [
+    "No per-test coverage lineage available; test selection uses structural heuristics.",
+    "No ownership data available; coordination risk may be underestimated."
+  ]
+}

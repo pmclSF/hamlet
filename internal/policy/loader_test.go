@@ -9,9 +9,9 @@ import (
 func TestLoad_ValidFile(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
-	hamletDir := filepath.Join(dir, ".hamlet")
-	if err := os.MkdirAll(hamletDir, 0o755); err != nil {
-		t.Fatalf("mkdir .hamlet: %v", err)
+	terrainDir := filepath.Join(dir, ".terrain")
+	if err := os.MkdirAll(terrainDir, 0o755); err != nil {
+		t.Fatalf("mkdir .terrain: %v", err)
 	}
 
 	content := `rules:
@@ -24,7 +24,7 @@ func TestLoad_ValidFile(t *testing.T) {
   max_weak_assertions: 5
   max_mock_heavy_tests: 3
 `
-	if err := os.WriteFile(filepath.Join(hamletDir, "policy.yaml"), []byte(content), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(terrainDir, "policy.yaml"), []byte(content), 0o644); err != nil {
 		t.Fatalf("write policy.yaml: %v", err)
 	}
 
@@ -61,16 +61,16 @@ func TestLoad_ValidFile(t *testing.T) {
 func TestLoad_PartialFile(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
-	hamletDir := filepath.Join(dir, ".hamlet")
-	if err := os.MkdirAll(hamletDir, 0o755); err != nil {
-		t.Fatalf("mkdir .hamlet: %v", err)
+	terrainDir := filepath.Join(dir, ".terrain")
+	if err := os.MkdirAll(terrainDir, 0o755); err != nil {
+		t.Fatalf("mkdir .terrain: %v", err)
 	}
 
 	content := `rules:
   disallow_frameworks:
     - jest
 `
-	if err := os.WriteFile(filepath.Join(hamletDir, "policy.yaml"), []byte(content), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(terrainDir, "policy.yaml"), []byte(content), 0o644); err != nil {
 		t.Fatalf("write policy.yaml: %v", err)
 	}
 
@@ -111,15 +111,15 @@ func TestLoad_MissingFile(t *testing.T) {
 func TestLoad_MalformedFile(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
-	hamletDir := filepath.Join(dir, ".hamlet")
-	if err := os.MkdirAll(hamletDir, 0o755); err != nil {
-		t.Fatalf("mkdir .hamlet: %v", err)
+	terrainDir := filepath.Join(dir, ".terrain")
+	if err := os.MkdirAll(terrainDir, 0o755); err != nil {
+		t.Fatalf("mkdir .terrain: %v", err)
 	}
 
 	content := `rules:
   disallow_frameworks: [[[invalid yaml
 `
-	if err := os.WriteFile(filepath.Join(hamletDir, "policy.yaml"), []byte(content), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(terrainDir, "policy.yaml"), []byte(content), 0o644); err != nil {
 		t.Fatalf("write policy.yaml: %v", err)
 	}
 

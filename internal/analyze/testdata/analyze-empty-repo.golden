@@ -1,0 +1,53 @@
+{
+  "testsDetected": {
+    "testFileCount": 0,
+    "testCaseCount": 0,
+    "codeUnitCount": 0,
+    "frameworks": null
+  },
+  "repoProfile": {
+    "testVolume": "tiny",
+    "ciPressure": "low",
+    "coverageConfidence": "low",
+    "redundancyLevel": "low",
+    "fanoutBurden": "low",
+    "manualCoveragePresence": "none",
+    "graphDensity": 0
+  },
+  "coverageConfidence": {
+    "highCount": 0,
+    "mediumCount": 0,
+    "lowCount": 0,
+    "totalFiles": 0
+  },
+  "duplicateClusters": {
+    "clusterCount": 0,
+    "redundantTestCount": 0
+  },
+  "highFanout": {
+    "flaggedCount": 0,
+    "threshold": 10
+  },
+  "skippedTestBurden": {
+    "skippedCount": 0,
+    "totalTests": 0,
+    "skipRatio": 0
+  },
+  "weakAreaCount": 0,
+  "ciOptimization": {
+    "duplicateTestsRemovable": 0,
+    "skippedTestsReviewable": 0,
+    "highFanoutNodes": 0,
+    "recommendation": ""
+  },
+  "signalSummary": {
+    "total": 0,
+    "critical": 0,
+    "high": 0,
+    "medium": 0,
+    "low": 0,
+    "byCategory": {}
+  },
+  "hasTopInsight": true,
+  "riskDimensionCount": 0
+}

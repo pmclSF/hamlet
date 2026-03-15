@@ -3,7 +3,7 @@ package envdepth
 import (
 	"testing"
 
-	"github.com/pmclSF/hamlet/internal/models"
+	"github.com/pmclSF/terrain/internal/models"
 )
 
 func TestAssess_HeavyMocking(t *testing.T) {

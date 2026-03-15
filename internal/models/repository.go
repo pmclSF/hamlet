@@ -7,7 +7,7 @@ import "time"
 //
 // This is intentionally product-facing, not just implementation-facing.
 // The purpose of this model is to capture the basic identity and
-// environment of the codebase so Hamlet can:
+// environment of the codebase so Terrain can:
 //   - describe what it analyzed
 //   - serialize snapshots consistently
 //   - support future historical comparisons
@@ -16,7 +16,7 @@ type RepositoryMetadata struct {
 	// Name is the repository or project name.
 	Name string `json:"name"`
 
-	// RootPath is the filesystem root that Hamlet analyzed.
+	// RootPath is the filesystem root that Terrain analyzed.
 	RootPath string `json:"rootPath"`
 
 	// Languages lists the primary languages detected in the repository.

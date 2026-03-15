@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/pmclSF/hamlet/internal/migration"
-	"github.com/pmclSF/hamlet/internal/models"
+	"github.com/pmclSF/terrain/internal/migration"
+	"github.com/pmclSF/terrain/internal/models"
 )
 
 func TestRenderMigrationPreview_WithBlockers(t *testing.T) {

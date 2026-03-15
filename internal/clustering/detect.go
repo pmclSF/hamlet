@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 	"sort"
 
-	"github.com/pmclSF/hamlet/internal/models"
-	"github.com/pmclSF/hamlet/internal/signals"
+	"github.com/pmclSF/terrain/internal/models"
+	"github.com/pmclSF/terrain/internal/signals"
 )
 
 // minClusterSize is the minimum number of affected tests required to form a cluster.

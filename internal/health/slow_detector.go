@@ -10,8 +10,8 @@ package health
 import (
 	"fmt"
 
-	"github.com/pmclSF/hamlet/internal/models"
-	"github.com/pmclSF/hamlet/internal/runtime"
+	"github.com/pmclSF/terrain/internal/models"
+	"github.com/pmclSF/terrain/internal/runtime"
 )
 
 // DefaultSlowThresholdMs is the default threshold for slow test detection.

@@ -27,7 +27,7 @@ var KnownSignalTypes = map[SignalType]bool{
 	"runtimeBudgetExceeded":  true,
 }
 
-// IsKnownSignalType reports whether t is part of Hamlet's canonical catalog.
+// IsKnownSignalType reports whether t is part of Terrain's canonical catalog.
 func IsKnownSignalType(t SignalType) bool {
 	return KnownSignalTypes[t]
 }

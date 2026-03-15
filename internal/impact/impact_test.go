@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/pmclSF/hamlet/internal/models"
+	"github.com/pmclSF/terrain/internal/models"
 )
 
 func TestAnalyze_WellProtectedChange(t *testing.T) {
@@ -1210,6 +1210,87 @@ func TestIsAnalyzableSourceFile_Exported(t *testing.T) {
 		got := IsAnalyzableSourceFile(tt.path)
 		if got != tt.want {
 			t.Errorf("IsAnalyzableSourceFile(%q) = %v, want %v", tt.path, got, tt.want)
+		}
+	}
+}
+
+func TestApplyManualCoverageOverlay_AnnotatesGaps(t *testing.T) {
+	t.Parallel()
+	result := &ImpactResult{
+		ProtectionGaps: []ProtectionGap{
+			{Path: "billing-core/payment.go", GapType: "no_test_coverage", Severity: "high"},
+			{Path: "auth/login.go", GapType: "no_test_coverage", Severity: "medium"},
+		},
+	}
+
+	artifacts := []models.ManualCoverageArtifact{
+		{ArtifactID: "manual:testrail:abc", Name: "billing regression", Area: "billing-core", Source: "testrail", Criticality: "high"},
+	}
+
+	result.ApplyManualCoverageOverlay(artifacts)
+
+	if len(result.PolicyNotes) == 0 {
+		t.Error("expected policy notes for billing-core gap")
+	}
+	found := false
+	for _, note := range result.PolicyNotes {
+		if strings.Contains(note, "billing regression") && strings.Contains(note, "billing-core") {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("expected note about billing-core manual coverage, got: %v", result.PolicyNotes)
+	}
+}
+
+func TestApplyManualCoverageOverlay_NoGaps(t *testing.T) {
+	t.Parallel()
+	result := &ImpactResult{}
+	artifacts := []models.ManualCoverageArtifact{
+		{ArtifactID: "manual:testrail:abc", Name: "billing regression", Area: "billing-core", Source: "testrail", Criticality: "high"},
+	}
+
+	result.ApplyManualCoverageOverlay(artifacts)
+
+	if len(result.PolicyNotes) != 0 {
+		t.Error("expected no policy notes when no protection gaps exist")
+	}
+}
+
+func TestApplyManualCoverageOverlay_NoArtifacts(t *testing.T) {
+	t.Parallel()
+	result := &ImpactResult{
+		ProtectionGaps: []ProtectionGap{
+			{Path: "billing-core/payment.go", GapType: "no_test_coverage"},
+		},
+	}
+
+	result.ApplyManualCoverageOverlay(nil)
+
+	if len(result.PolicyNotes) != 0 {
+		t.Error("expected no policy notes when no artifacts")
+	}
+}
+
+func TestMatchesArea(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		filePath string
+		area     string
+		want     bool
+	}{
+		{"billing-core/payment.go", "billing-core", true},
+		{"billing-core/sub/deep.go", "billing-core", true},
+		{"auth/login.go", "billing-core", false},
+		{"checkout/cart.go", "checkout/*", true},
+		{"checkout/cart.go", "checkout/", true},
+		{"other/file.go", "checkout/*", false},
+	}
+
+	for _, tt := range tests {
+		got := matchesArea(tt.filePath, tt.area)
+		if got != tt.want {
+			t.Errorf("matchesArea(%q, %q) = %v, want %v", tt.filePath, tt.area, got, tt.want)
 		}
 	}
 }

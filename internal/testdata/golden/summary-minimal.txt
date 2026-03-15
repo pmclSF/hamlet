@@ -1,4 +1,4 @@
-Hamlet Summary
+Terrain Summary
 ==================================================
 
 Posture: LOW
@@ -24,7 +24,7 @@ Posture Dimensions
     operational_risk posture is strong across 3 measurement(s).
 
 Next steps:
-  hamlet posture       evidence behind each dimension
-  hamlet analyze       full signal-level detail
-  hamlet compare       see what changed since last snapshot
+  terrain posture       evidence behind each dimension
+  terrain analyze       full signal-level detail
+  terrain compare       see what changed since last snapshot
 

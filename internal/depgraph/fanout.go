@@ -1,6 +1,9 @@
 package depgraph
 
-import "sort"
+import (
+	"fmt"
+	"sort"
+)
 
 // FanoutResult contains the fanout analysis for all nodes in a graph.
 type FanoutResult struct {
@@ -15,6 +18,12 @@ type FanoutResult struct {
 
 	// Threshold used for flagging.
 	Threshold int `json:"threshold"`
+
+	// Indicates transitive fanout analysis was skipped for scale-safety.
+	Skipped bool `json:"skipped,omitempty"`
+
+	// Human-readable reason when transitive fanout is skipped.
+	SkipReason string `json:"skipReason,omitempty"`
 }
 
 // FanoutEntry holds fanout metrics for a single node.
@@ -41,6 +50,11 @@ type FanoutEntry struct {
 // DefaultFanoutThreshold is the default threshold for flagging excessive fanout.
 const DefaultFanoutThreshold = 10
 
+// maxFanoutNodes is the safety threshold for transitive fanout analysis.
+// Above this size, exact transitive analysis is too expensive for interactive
+// CLI use; we fall back to direct-fanout summary counts.
+const maxFanoutNodes = 150000
+
 // AnalyzeFanout computes direct and transitive fanout for every node.
 //
 // Direct fanout counts unique outgoing neighbors. Transitive fanout counts all
@@ -60,6 +74,22 @@ func AnalyzeFanout(g *Graph, threshold int) FanoutResult {
 	adjIndex := make(map[string][]string, len(nodes))
 	for _, n := range nodes {
 		adjIndex[n.ID] = g.Neighbors(n.ID)
+	}
+
+	if len(nodes) > maxFanoutNodes {
+		flagged := 0
+		for _, n := range nodes {
+			if len(adjIndex[n.ID]) >= threshold {
+				flagged++
+			}
+		}
+		return FanoutResult{
+			NodeCount:    len(nodes),
+			FlaggedCount: flagged,
+			Threshold:    threshold,
+			Skipped:      true,
+			SkipReason:   fmt.Sprintf("skipped transitive fanout for %d nodes (limit %d); using direct fanout summary", len(nodes), maxFanoutNodes),
+		}
 	}
 
 	// Compute transitive reachability using reverse-topological ordering.

@@ -3,7 +3,7 @@ package signals
 import (
 	"testing"
 
-	"github.com/pmclSF/hamlet/internal/models"
+	"github.com/pmclSF/terrain/internal/models"
 )
 
 // stubDetector emits a fixed set of signals for testing.

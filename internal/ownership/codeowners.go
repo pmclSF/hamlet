@@ -173,10 +173,7 @@ func matchesCodeownersPattern(pattern, filePath string) bool {
 }
 
 func matchExpandedCodeownersPattern(pattern, filePath string) bool {
-	p := pattern
-	if strings.HasPrefix(p, "/") {
-		p = strings.TrimPrefix(p, "/")
-	}
+	p := strings.TrimPrefix(pattern, "/")
 
 	dirOnly := strings.HasSuffix(p, "/")
 	p = strings.TrimSuffix(p, "/")

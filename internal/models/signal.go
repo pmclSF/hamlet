@@ -1,6 +1,6 @@
 package models
 
-// SignalType is the canonical identifier for a Hamlet signal.
+// SignalType is the canonical identifier for a Terrain signal.
 // Signal type constants are defined in internal/signals for registry use,
 // but the type itself lives here so the snapshot model is self-contained.
 type SignalType string
@@ -60,7 +60,7 @@ const (
 	SourceCodeowners        EvidenceSource = "codeowners"
 )
 
-// Signal is the canonical structured insight type in Hamlet.
+// Signal is the canonical structured insight type in Terrain.
 //
 // Every meaningful user-facing finding should be representable as a Signal.
 // This type lives in models because it is a core part of TestSuiteSnapshot
@@ -76,7 +76,7 @@ type Signal struct {
 	Category SignalCategory `json:"category"`
 	Severity SignalSeverity `json:"severity"`
 
-	// Confidence indicates how certain Hamlet is about the signal.
+	// Confidence indicates how certain Terrain is about the signal.
 	// Expected range is 0.0 to 1.0.
 	Confidence float64 `json:"confidence,omitempty"`
 

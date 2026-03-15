@@ -5,7 +5,7 @@ import (
 	"io"
 	"strings"
 
-	"github.com/pmclSF/hamlet/internal/models"
+	"github.com/pmclSF/terrain/internal/models"
 )
 
 // RenderPortfolioReport writes a human-readable portfolio intelligence report to w.
@@ -15,7 +15,7 @@ func RenderPortfolioReport(w io.Writer, snap *models.TestSuiteSnapshot) {
 	}
 	blank := func() { fmt.Fprintln(w) }
 
-	line("Hamlet Portfolio Intelligence")
+	line("Terrain Portfolio Intelligence")
 	line(strings.Repeat("=", 50))
 	blank()
 
@@ -106,9 +106,9 @@ func RenderPortfolioReport(w io.Writer, snap *models.TestSuiteSnapshot) {
 
 	// Next steps
 	line("Next steps:")
-	line("  hamlet portfolio --json     full portfolio data as JSON")
-	line("  hamlet posture              see measurement-level evidence")
-	line("  hamlet summary              leadership-ready overview")
+	line("  terrain portfolio --json     full portfolio data as JSON")
+	line("  terrain posture              see measurement-level evidence")
+	line("  terrain summary              leadership-ready overview")
 	blank()
 }
 

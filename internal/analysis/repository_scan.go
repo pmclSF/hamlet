@@ -6,7 +6,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/pmclSF/hamlet/internal/models"
+	"github.com/pmclSF/terrain/internal/models"
 )
 
 // skipDirs lists directories that should never be traversed during scanning.
@@ -15,6 +15,7 @@ var skipDirs = map[string]bool{
 	"node_modules":  true,
 	"dist":          true,
 	"build":         true,
+	"benchmarks":    true,
 	"coverage":      true,
 	".next":         true,
 	".turbo":        true,
@@ -28,7 +29,7 @@ var skipDirs = map[string]bool{
 	"venv":          true,
 	".idea":         true,
 	".vscode":       true,
-	".hamlet":       true,
+	".terrain":       true,
 	"target":        true,
 }
 

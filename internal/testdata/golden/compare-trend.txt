@@ -1,4 +1,4 @@
-Hamlet Snapshot Comparison
+Terrain Snapshot Comparison
 ========================================
 
 Compared
@@ -12,7 +12,7 @@ Methodology Compatibility
 
 Recommended Next Steps
 ----------------------------------------
-  1. Regenerate snapshots with the current Hamlet version to persist methodology fingerprints.
+  1. Regenerate snapshots with the current Terrain version to persist methodology fingerprints.
   2. Continue using consistent policy/runtime/coverage inputs for trend comparisons.
 
 Test Files: +1

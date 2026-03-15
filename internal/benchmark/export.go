@@ -15,9 +15,9 @@ import (
 	"sort"
 	"time"
 
-	"github.com/pmclSF/hamlet/internal/metrics"
-	"github.com/pmclSF/hamlet/internal/models"
-	"github.com/pmclSF/hamlet/internal/signals"
+	"github.com/pmclSF/terrain/internal/metrics"
+	"github.com/pmclSF/terrain/internal/models"
+	"github.com/pmclSF/terrain/internal/signals"
 )
 
 // Coverage diversity thresholds: classify how much of the test coverage

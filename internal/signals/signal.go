@@ -1,5 +1,5 @@
 // Package signals contains the signal registry, signal type constants,
-// and detector interfaces for Hamlet's intelligence engine.
+// and detector interfaces for Terrain's intelligence engine.
 //
 // The canonical Signal struct and its supporting scalar types (SignalType,
 // SignalCategory, SignalSeverity, SignalLocation) live in internal/models

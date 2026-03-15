@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/pmclSF/hamlet/internal/impact"
-	"github.com/pmclSF/hamlet/internal/models"
+	"github.com/pmclSF/terrain/internal/impact"
+	"github.com/pmclSF/terrain/internal/models"
 )
 
 func testSnapshot() *models.TestSuiteSnapshot {
@@ -151,7 +151,7 @@ func TestRenderPRSummaryMarkdown(t *testing.T) {
 	RenderPRSummaryMarkdown(&buf, pr)
 	output := buf.String()
 
-	if !strings.Contains(output, "## Hamlet") {
+	if !strings.Contains(output, "## Terrain") {
 		t.Error("expected markdown header")
 	}
 	if !strings.Contains(output, "Posture") {
@@ -172,8 +172,8 @@ func TestRenderPRCommentConcise(t *testing.T) {
 	RenderPRCommentConcise(&buf, pr)
 	output := buf.String()
 
-	if !strings.Contains(output, "Hamlet") {
-		t.Error("expected Hamlet in concise comment")
+	if !strings.Contains(output, "Terrain") {
+		t.Error("expected Terrain in concise comment")
 	}
 }
 

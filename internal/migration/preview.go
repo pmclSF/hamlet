@@ -19,8 +19,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/pmclSF/hamlet/internal/models"
-	"github.com/pmclSF/hamlet/internal/signals"
+	"github.com/pmclSF/terrain/internal/models"
+	"github.com/pmclSF/terrain/internal/signals"
 )
 
 // PreviewResult is the structured output of a migration preview
@@ -93,7 +93,7 @@ func PreviewFile(snap *models.TestSuiteSnapshot, filePath string, repoRoot strin
 
 	if testFile == nil {
 		result.PreviewAvailable = false
-		result.Explanation = fmt.Sprintf("File %s not found in analysis snapshot. Run 'hamlet analyze' first.", filePath)
+		result.Explanation = fmt.Sprintf("File %s not found in analysis snapshot. Run 'terrain analyze' first.", filePath)
 		result.Difficulty = "unknown"
 		return result
 	}

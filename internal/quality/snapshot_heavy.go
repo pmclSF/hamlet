@@ -3,7 +3,7 @@ package quality
 import (
 	"fmt"
 
-	"github.com/pmclSF/hamlet/internal/models"
+	"github.com/pmclSF/terrain/internal/models"
 )
 
 // SnapshotHeavyDetector identifies test files that rely heavily on snapshots

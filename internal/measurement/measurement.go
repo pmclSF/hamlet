@@ -1,4 +1,4 @@
-// Package measurement implements Hamlet's formal measurement layer.
+// Package measurement implements Terrain's formal measurement layer.
 //
 // Measurements sit between raw signals/derived facts and user-facing
 // summaries. They provide:
@@ -15,7 +15,7 @@
 //   - no fake precision: prefer bands and ratios over decimal scores
 package measurement
 
-import "github.com/pmclSF/hamlet/internal/models"
+import "github.com/pmclSF/terrain/internal/models"
 
 // Dimension identifies which posture dimension a measurement feeds.
 type Dimension string

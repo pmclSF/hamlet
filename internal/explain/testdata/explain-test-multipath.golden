@@ -1,0 +1,42 @@
+{
+  "target": {
+    "path": "test/api.test.js",
+    "framework": "jest"
+  },
+  "verdict": "Selected via exact per-test coverage from src/api/handler.js:handle (confidence: high), plus 1 alternative path(s).",
+  "strongestPath": {
+    "steps": [
+      {
+        "from": "src/api/handler.js:handle",
+        "to": "test/api.test.js",
+        "relationship": "exact per-test coverage",
+        "edgeKind": "exact_coverage",
+        "edgeConfidence": 0.95
+      }
+    ],
+    "confidence": 0.95,
+    "band": "high"
+  },
+  "alternativePaths": [
+    {
+      "steps": [
+        {
+          "from": "src/api/validator.js:validate",
+          "to": "test/api.test.js",
+          "relationship": "exact per-test coverage",
+          "edgeKind": "exact_coverage",
+          "edgeConfidence": 0.95
+        }
+      ],
+      "confidence": 0.95,
+      "band": "high"
+    }
+  ],
+  "confidence": 0.95,
+  "confidenceBand": "high",
+  "reasonCategory": "directDependency",
+  "coversUnits": [
+    "src/api/handler.js:handle",
+    "src/api/validator.js:validate"
+  ]
+}

@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/pmclSF/hamlet/internal/models"
-	"github.com/pmclSF/hamlet/internal/runtime"
+	"github.com/pmclSF/terrain/internal/models"
+	"github.com/pmclSF/terrain/internal/runtime"
 )
 
 // SkippedTestDetector identifies skipped tests from runtime artifacts.

@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/pmclSF/hamlet/internal/models"
+	"github.com/pmclSF/terrain/internal/models"
 )
 
 // CoverageThresholdDetector checks whether coverage is below a declared
@@ -50,6 +50,10 @@ func (d *CoverageThresholdDetector) Detect(snap *models.TestSuiteSnapshot) []mod
 		threshold = 80.0
 	}
 
+	if summary, ok := coverageSummaryFromSnapshot(snap); ok {
+		return d.checkThreshold(summary, threshold)
+	}
+
 	root := snap.Repository.RootPath
 
 	// Try standard coverage summary locations.
@@ -75,6 +79,26 @@ func (d *CoverageThresholdDetector) Detect(snap *models.TestSuiteSnapshot) []mod
 	// No coverage data found — no signals to emit.
 	// Currently supports Istanbul JSON format only.
 	return nil
+}
+
+func coverageSummaryFromSnapshot(snap *models.TestSuiteSnapshot) (istanbulSummary, bool) {
+	var summary istanbulSummary
+	if snap == nil || snap.CoverageSummary == nil {
+		return summary, false
+	}
+	// TotalCodeUnits>0 indicates coverage attribution was actually computed
+	// from provided artifacts in the pipeline.
+	if snap.CoverageSummary.TotalCodeUnits == 0 {
+		return summary, false
+	}
+
+	summary.Total.Lines = &istanbulMetric{Pct: snap.CoverageSummary.LineCoveragePct}
+	// Branch coverage may be unavailable for some formats; only include it
+	// when present to avoid false 0% branch signals from missing data.
+	if snap.CoverageSummary.BranchCoveragePct > 0 {
+		summary.Total.Branches = &istanbulMetric{Pct: snap.CoverageSummary.BranchCoveragePct}
+	}
+	return summary, true
 }
 
 func (d *CoverageThresholdDetector) checkThreshold(summary istanbulSummary, threshold float64) []models.Signal {

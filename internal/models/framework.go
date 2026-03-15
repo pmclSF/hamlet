@@ -2,7 +2,7 @@ package models
 
 // FrameworkType describes the broad category of testing framework.
 //
-// This is intentionally high-level. Hamlet should be able to reason about
+// This is intentionally high-level. Terrain should be able to reason about
 // a repository using categories like "unit" or "e2e" even when the specific
 // framework differs.
 type FrameworkType string

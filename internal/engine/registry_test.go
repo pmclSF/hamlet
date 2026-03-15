@@ -3,8 +3,8 @@ package engine
 import (
 	"testing"
 
-	"github.com/pmclSF/hamlet/internal/policy"
-	"github.com/pmclSF/hamlet/internal/signals"
+	"github.com/pmclSF/terrain/internal/policy"
+	"github.com/pmclSF/terrain/internal/signals"
 )
 
 func TestDefaultRegistry_WithoutPolicy(t *testing.T) {

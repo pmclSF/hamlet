@@ -5,7 +5,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/pmclSF/hamlet/internal/models"
+	"github.com/pmclSF/terrain/internal/models"
 )
 
 // TypeCoverage describes coverage by test type for a code unit.

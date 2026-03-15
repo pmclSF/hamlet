@@ -5,7 +5,7 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/pmclSF/hamlet/internal/models"
+	"github.com/pmclSF/terrain/internal/models"
 )
 
 // Domain classifies a detector's area of concern.

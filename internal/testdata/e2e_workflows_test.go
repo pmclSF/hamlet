@@ -6,14 +6,14 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/pmclSF/hamlet/internal/benchmark"
-	"github.com/pmclSF/hamlet/internal/impact"
-	"github.com/pmclSF/hamlet/internal/measurement"
-	"github.com/pmclSF/hamlet/internal/metrics"
-	"github.com/pmclSF/hamlet/internal/migration"
-	"github.com/pmclSF/hamlet/internal/portfolio"
-	"github.com/pmclSF/hamlet/internal/reporting"
-	"github.com/pmclSF/hamlet/internal/scoring"
+	"github.com/pmclSF/terrain/internal/benchmark"
+	"github.com/pmclSF/terrain/internal/impact"
+	"github.com/pmclSF/terrain/internal/measurement"
+	"github.com/pmclSF/terrain/internal/metrics"
+	"github.com/pmclSF/terrain/internal/migration"
+	"github.com/pmclSF/terrain/internal/portfolio"
+	"github.com/pmclSF/terrain/internal/reporting"
+	"github.com/pmclSF/terrain/internal/scoring"
 )
 
 // TestE2E_PortfolioIntelligenceFlow exercises analyze -> portfolio -> render -> export.
@@ -179,8 +179,8 @@ func TestE2E_PostureExplainFlow(t *testing.T) {
 	var buf bytes.Buffer
 	reporting.RenderPostureReport(&buf, snap)
 	output := buf.String()
-	if !strings.Contains(output, "Hamlet Posture") {
-		t.Error("expected 'Hamlet Posture' header")
+	if !strings.Contains(output, "Terrain Posture") {
+		t.Error("expected 'Terrain Posture' header")
 	}
 	// Should contain dimension names.
 	for _, dim := range []string{"HEALTH", "COVERAGE_DEPTH", "STRUCTURAL_RISK"} {

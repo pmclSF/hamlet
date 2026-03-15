@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/pmclSF/hamlet/internal/identity"
+	"github.com/pmclSF/terrain/internal/identity"
 )
 
 // Extraction confidence levels: how reliable the test case identification is

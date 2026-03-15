@@ -6,8 +6,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/pmclSF/hamlet/internal/models"
-	"github.com/pmclSF/hamlet/internal/signals"
+	"github.com/pmclSF/terrain/internal/models"
+	"github.com/pmclSF/terrain/internal/signals"
 )
 
 // ReadinessSummary summarizes migration readiness for a repository.

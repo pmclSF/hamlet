@@ -1,0 +1,62 @@
+{
+  "testsDetected": {
+    "testFileCount": 3,
+    "testCaseCount": 5,
+    "codeUnitCount": 4,
+    "frameworks": [
+      {
+        "name": "jest",
+        "fileCount": 3,
+        "type": "unit"
+      }
+    ]
+  },
+  "repoProfile": {
+    "testVolume": "tiny",
+    "ciPressure": "low",
+    "coverageConfidence": "low",
+    "redundancyLevel": "low",
+    "fanoutBurden": "low",
+    "manualCoveragePresence": "none",
+    "graphDensity": 0.06666666666666667
+  },
+  "coverageConfidence": {
+    "highCount": 0,
+    "mediumCount": 0,
+    "lowCount": 1,
+    "totalFiles": 1
+  },
+  "duplicateClusters": {
+    "clusterCount": 0,
+    "redundantTestCount": 0
+  },
+  "highFanout": {
+    "flaggedCount": 0,
+    "threshold": 10
+  },
+  "skippedTestBurden": {
+    "skippedCount": 0,
+    "totalTests": 9,
+    "skipRatio": 0
+  },
+  "weakAreaCount": 1,
+  "ciOptimization": {
+    "duplicateTestsRemovable": 0,
+    "skippedTestsReviewable": 0,
+    "highFanoutNodes": 0,
+    "recommendation": "Graph has 10 nodes and 6 edges — confidence-based test selection available via `terrain impact`."
+  },
+  "signalSummary": {
+    "total": 4,
+    "critical": 0,
+    "high": 1,
+    "medium": 2,
+    "low": 1,
+    "byCategory": {
+      "health": 1,
+      "quality": 3
+    }
+  },
+  "hasTopInsight": true,
+  "riskDimensionCount": 0
+}

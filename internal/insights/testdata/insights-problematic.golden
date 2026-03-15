@@ -1,0 +1,15 @@
+{
+  "healthGrade": "D",
+  "findingCount": 6,
+  "recCount": 6,
+  "categories": {
+    "architecture_debt": 1,
+    "coverage_debt": 1,
+    "optimization": 1,
+    "reliability": 3
+  },
+  "topFinding": "1 critical-severity signals require attention",
+  "topRec": "1 critical-severity signals require attention",
+  "limitationCount": 4,
+  "dataSources": 4
+}

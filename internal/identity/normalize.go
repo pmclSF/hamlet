@@ -1,5 +1,5 @@
 // Package identity implements deterministic test identity construction
-// and normalization for Hamlet's longitudinal test tracking.
+// and normalization for Terrain's longitudinal test tracking.
 //
 // Test identity is critical for:
 //   - snapshot comparison across runs

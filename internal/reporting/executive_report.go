@@ -5,7 +5,7 @@ import (
 	"io"
 	"strings"
 
-	"github.com/pmclSF/hamlet/internal/summary"
+	"github.com/pmclSF/terrain/internal/summary"
 )
 
 // RenderExecutiveSummary writes a concise, leadership-oriented summary to w.
@@ -18,7 +18,7 @@ func RenderExecutiveSummary(w io.Writer, es *summary.ExecutiveSummary) {
 	}
 	blank := func() { fmt.Fprintln(w) }
 
-	line("Hamlet Executive Summary")
+	line("Terrain Executive Summary")
 	line(strings.Repeat("=", 50))
 	blank()
 
@@ -83,8 +83,8 @@ func RenderExecutiveSummary(w io.Writer, es *summary.ExecutiveSummary) {
 		line(strings.Repeat("-", 50))
 		line("  This is the first analysis — it establishes your baseline.")
 		line("  Save it and re-run later to see trends:")
-		line("    hamlet analyze --write-snapshot    save this as baseline")
-		line("  On subsequent runs, Hamlet will show changes in risk, signals, and posture.")
+		line("    terrain analyze --write-snapshot    save this as baseline")
+		line("  On subsequent runs, Terrain will show changes in risk, signals, and posture.")
 		blank()
 	}
 
@@ -155,8 +155,8 @@ func RenderExecutiveSummary(w io.Writer, es *summary.ExecutiveSummary) {
 
 	// Next command hints
 	line("Next steps:")
-	line("  hamlet posture       evidence behind each dimension")
-	line("  hamlet analyze       full signal-level detail")
-	line("  hamlet export benchmark   privacy-safe export")
+	line("  terrain posture       evidence behind each dimension")
+	line("  terrain analyze       full signal-level detail")
+	line("  terrain export benchmark   privacy-safe export")
 	blank()
 }

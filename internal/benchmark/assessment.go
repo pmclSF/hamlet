@@ -135,6 +135,19 @@ func AssessCommand(cr CommandResult) CommandAssessment {
 		a.WarningFlags = append(a.WarningFlags, "trivially short output")
 		a.CredibilityScore -= 10
 	}
+	if cr.StdoutTruncated {
+		a.WarningFlags = append(a.WarningFlags, fmt.Sprintf("stdout truncated (%d bytes)", cr.StdoutBytes))
+		a.Notes = append(a.Notes, "stdout was truncated for storage")
+	}
+	if cr.StderrTruncated {
+		a.WarningFlags = append(a.WarningFlags, fmt.Sprintf("stderr truncated (%d bytes)", cr.StderrBytes))
+		a.Notes = append(a.Notes, "stderr was truncated for storage")
+	}
+	if cr.TimedOut {
+		a.WarningFlags = append(a.WarningFlags, "command timed out")
+		a.Notes = append(a.Notes, "command exceeded timeout")
+		a.CredibilityScore -= 20
+	}
 
 	// Try to parse as JSON.
 	if len(stdout) > 0 {

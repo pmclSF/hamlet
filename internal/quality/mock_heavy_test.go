@@ -3,7 +3,7 @@ package quality
 import (
 	"testing"
 
-	"github.com/pmclSF/hamlet/internal/models"
+	"github.com/pmclSF/terrain/internal/models"
 )
 
 func TestMockHeavyDetector_HighMockRatio(t *testing.T) {

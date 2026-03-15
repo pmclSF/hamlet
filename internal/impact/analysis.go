@@ -6,7 +6,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/pmclSF/hamlet/internal/models"
+	"github.com/pmclSF/terrain/internal/models"
 )
 
 // CoverageTypeInfo describes the coverage type mix for an impacted code unit.

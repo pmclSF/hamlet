@@ -5,7 +5,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/pmclSF/hamlet/internal/models"
+	"github.com/pmclSF/terrain/internal/models"
 )
 
 // e2eFrameworks lists framework names whose lower assertion density is expected.

@@ -5,12 +5,12 @@
 package engine
 
 import (
-	"github.com/pmclSF/hamlet/internal/governance"
-	"github.com/pmclSF/hamlet/internal/migration"
-	"github.com/pmclSF/hamlet/internal/models"
-	"github.com/pmclSF/hamlet/internal/policy"
-	"github.com/pmclSF/hamlet/internal/quality"
-	"github.com/pmclSF/hamlet/internal/signals"
+	"github.com/pmclSF/terrain/internal/governance"
+	"github.com/pmclSF/terrain/internal/migration"
+	"github.com/pmclSF/terrain/internal/models"
+	"github.com/pmclSF/terrain/internal/policy"
+	"github.com/pmclSF/terrain/internal/quality"
+	"github.com/pmclSF/terrain/internal/signals"
 )
 
 // Config holds runtime configuration needed to construct detectors.
@@ -23,7 +23,7 @@ type Config struct {
 }
 
 // DefaultRegistry returns a DetectorRegistry populated with all
-// standard Hamlet detectors in the correct execution order.
+// standard Terrain detectors in the correct execution order.
 //
 // The order matters: governance detectors depend on signals from
 // quality and migration detectors, so they are registered last.
@@ -47,7 +47,7 @@ func DefaultRegistry(cfg Config) *signals.DetectorRegistry {
 			Domain:       signals.DomainQuality,
 			EvidenceType: signals.EvidenceStructuralPattern,
 			Description:  "Detect test files with excessive mock usage.",
-			SignalTypes:  []models.SignalType{signals.SignalMockHeavyTest},
+			SignalTypes:  []models.SignalType{signals.SignalMockHeavyTest, signals.SignalTestsOnlyMocks},
 		},
 		Detector: &quality.MockHeavyDetector{},
 	})
@@ -157,7 +157,7 @@ func DefaultRegistry(cfg Config) *signals.DetectorRegistry {
 				Domain:           signals.DomainGovernance,
 				EvidenceType:     signals.EvidencePolicy,
 				Description:      "Evaluate repository state against local policy rules.",
-				SignalTypes:      []models.SignalType{signals.SignalPolicyViolation, signals.SignalLegacyFrameworkUsage, signals.SignalRuntimeBudgetExceeded},
+				SignalTypes:      []models.SignalType{signals.SignalPolicyViolation, signals.SignalLegacyFrameworkUsage, signals.SignalSkippedTestsInCI, signals.SignalRuntimeBudgetExceeded},
 				DependsOnSignals: true,
 			},
 			Detector: &GovernanceDetector{Config: cfg.PolicyConfig},

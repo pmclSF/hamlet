@@ -1,0 +1,60 @@
+{
+  "summary": "1 test(s) selected, strategy: exact, coverage confidence: high.",
+  "strategy": "exact",
+  "totalSelected": 1,
+  "coverageConfidence": "high",
+  "reasonBreakdown": {
+    "directDependency": 1,
+    "directlyChanged": 0,
+    "directoryProximity": 0,
+    "fixtureDependency": 0
+  },
+  "highConfidenceTests": [
+    {
+      "target": {
+        "path": "test/auth.test.js",
+        "framework": "jest"
+      },
+      "verdict": "Selected via exact per-test coverage from src/auth.js:login (confidence: high), plus 1 alternative path(s).",
+      "strongestPath": {
+        "steps": [
+          {
+            "from": "src/auth.js:login",
+            "to": "test/auth.test.js",
+            "relationship": "exact per-test coverage",
+            "edgeKind": "exact_coverage",
+            "edgeConfidence": 0.95
+          }
+        ],
+        "confidence": 0.95,
+        "band": "high"
+      },
+      "alternativePaths": [
+        {
+          "steps": [
+            {
+              "from": "src/auth.js:logout",
+              "to": "test/auth.test.js",
+              "relationship": "exact per-test coverage",
+              "edgeKind": "exact_coverage",
+              "edgeConfidence": 0.95
+            }
+          ],
+          "confidence": 0.95,
+          "band": "high"
+        }
+      ],
+      "confidence": 0.95,
+      "confidenceBand": "high",
+      "reasonCategory": "directDependency",
+      "coversUnits": [
+        "src/auth.js:login",
+        "src/auth.js:logout"
+      ]
+    }
+  ],
+  "gapCount": 0,
+  "limitations": [
+    "No ownership data available; coordination risk may be underestimated."
+  ]
+}

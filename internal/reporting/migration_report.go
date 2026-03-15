@@ -5,7 +5,7 @@ import (
 	"io"
 	"strings"
 
-	"github.com/pmclSF/hamlet/internal/migration"
+	"github.com/pmclSF/terrain/internal/migration"
 )
 
 // RenderMigrationReport writes a migration readiness report to w.
@@ -15,7 +15,7 @@ func RenderMigrationReport(w io.Writer, readiness *migration.ReadinessSummary) {
 	}
 	blank := func() { fmt.Fprintln(w) }
 
-	line("Hamlet Migration Readiness")
+	line("Terrain Migration Readiness")
 	line(strings.Repeat("=", 40))
 	blank()
 
@@ -100,14 +100,14 @@ func RenderMigrationReport(w io.Writer, readiness *migration.ReadinessSummary) {
 }
 
 // RenderMigrationBlockers writes a focused migration blockers report to w.
-// This is the output for `hamlet migration blockers`.
+// This is the output for `terrain migration blockers`.
 func RenderMigrationBlockers(w io.Writer, readiness *migration.ReadinessSummary) {
 	line := func(format string, args ...any) {
 		fmt.Fprintf(w, format+"\n", args...)
 	}
 	blank := func() { fmt.Fprintln(w) }
 
-	line("Hamlet Migration Blockers")
+	line("Terrain Migration Blockers")
 	line(strings.Repeat("=", 40))
 	blank()
 
@@ -161,9 +161,9 @@ func RenderMigrationBlockers(w io.Writer, readiness *migration.ReadinessSummary)
 	}
 
 	line("Next steps:")
-	line("  hamlet migration readiness    full readiness assessment with quality factors")
-	line("  hamlet migration preview      preview migration for a specific file")
-	line("  hamlet policy check           check against local policy rules")
+	line("  terrain migration readiness    full readiness assessment with quality factors")
+	line("  terrain migration preview      preview migration for a specific file")
+	line("  terrain policy check           check against local policy rules")
 }
 
 // RenderMigrationPreview writes a migration preview report for a single file.
@@ -173,7 +173,7 @@ func RenderMigrationPreview(w io.Writer, preview *migration.PreviewResult) {
 	}
 	blank := func() { fmt.Fprintln(w) }
 
-	line("Hamlet Migration Preview")
+	line("Terrain Migration Preview")
 	line(strings.Repeat("=", 40))
 	blank()
 
@@ -247,7 +247,7 @@ func RenderMigrationPreviewScope(w io.Writer, previews []*migration.PreviewResul
 	}
 	blank := func() { fmt.Fprintln(w) }
 
-	line("Hamlet Migration Preview (scope)")
+	line("Terrain Migration Preview (scope)")
 	line(strings.Repeat("=", 40))
 	blank()
 

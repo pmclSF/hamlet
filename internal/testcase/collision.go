@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/pmclSF/hamlet/internal/identity"
-	"github.com/pmclSF/hamlet/internal/models"
+	"github.com/pmclSF/terrain/internal/identity"
+	"github.com/pmclSF/terrain/internal/models"
 )
 
 // CollisionDiagnostic reports a detected identity collision.

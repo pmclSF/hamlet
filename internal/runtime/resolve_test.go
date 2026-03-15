@@ -3,7 +3,7 @@ package runtime
 import (
 	"testing"
 
-	"github.com/pmclSF/hamlet/internal/models"
+	"github.com/pmclSF/terrain/internal/models"
 )
 
 func TestResolveTestIDs_ExactMatch(t *testing.T) {

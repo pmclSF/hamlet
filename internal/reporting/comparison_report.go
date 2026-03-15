@@ -5,7 +5,7 @@ import (
 	"io"
 	"strings"
 
-	"github.com/pmclSF/hamlet/internal/comparison"
+	"github.com/pmclSF/terrain/internal/comparison"
 )
 
 // RenderComparisonReport writes a human-readable comparison report to w.
@@ -15,7 +15,7 @@ func RenderComparisonReport(w io.Writer, comp *comparison.SnapshotComparison) {
 	}
 	blank := func() { fmt.Fprintln(w) }
 
-	line("Hamlet Snapshot Comparison")
+	line("Terrain Snapshot Comparison")
 	line(strings.Repeat("=", 40))
 	blank()
 
@@ -41,14 +41,14 @@ func RenderComparisonReport(w io.Writer, comp *comparison.SnapshotComparison) {
 	if !comp.MethodologyCompatible {
 		line("Recommended Next Steps")
 		line(strings.Repeat("-", 40))
-		line("  1. Re-run `hamlet analyze --write-snapshot` for baseline and current states with the same Hamlet version.")
+		line("  1. Re-run `terrain analyze --write-snapshot` for baseline and current states with the same Terrain version.")
 		line("  2. Keep policy/runtime/coverage inputs consistent between both snapshots.")
 		line("  3. Compare the regenerated snapshots to unlock risk, posture, and measurement deltas.")
 		blank()
 	} else if len(comp.MethodologyNotes) > 0 {
 		line("Recommended Next Steps")
 		line(strings.Repeat("-", 40))
-		line("  1. Regenerate snapshots with the current Hamlet version to persist methodology fingerprints.")
+		line("  1. Regenerate snapshots with the current Terrain version to persist methodology fingerprints.")
 		line("  2. Continue using consistent policy/runtime/coverage inputs for trend comparisons.")
 		blank()
 	}

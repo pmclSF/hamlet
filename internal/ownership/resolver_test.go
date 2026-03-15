@@ -10,8 +10,8 @@ import (
 func TestResolver_ExplicitConfig(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
-	hamletDir := filepath.Join(dir, ".hamlet")
-	mustMkdirAll(t, hamletDir)
+	terrainDir := filepath.Join(dir, ".terrain")
+	mustMkdirAll(t, terrainDir)
 
 	config := `ownership:
   rules:
@@ -22,7 +22,7 @@ func TestResolver_ExplicitConfig(t *testing.T) {
     - path: "packages/auth/mfa/"
       owner: "security-team"
 `
-	mustWriteFile(t, filepath.Join(hamletDir, "ownership.yaml"), []byte(config))
+	mustWriteFile(t, filepath.Join(terrainDir, "ownership.yaml"), []byte(config))
 
 	r := NewResolver(dir)
 
@@ -47,15 +47,15 @@ func TestResolver_ExplicitConfig(t *testing.T) {
 func TestResolver_ExplicitConfig_PathBoundary(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
-	hamletDir := filepath.Join(dir, ".hamlet")
-	mustMkdirAll(t, hamletDir)
+	terrainDir := filepath.Join(dir, ".terrain")
+	mustMkdirAll(t, terrainDir)
 
 	config := `ownership:
   rules:
     - path: "src/auth/"
       owner: "auth-team"
 `
-	mustWriteFile(t, filepath.Join(hamletDir, "ownership.yaml"), []byte(config))
+	mustWriteFile(t, filepath.Join(terrainDir, "ownership.yaml"), []byte(config))
 
 	r := NewResolver(dir)
 
@@ -133,14 +133,14 @@ func TestResolver_Precedence(t *testing.T) {
 	mustMkdirAll(t, githubDir)
 	mustWriteFile(t, filepath.Join(githubDir, "CODEOWNERS"), []byte("src/ @code-owner\n"))
 
-	hamletDir := filepath.Join(dir, ".hamlet")
-	mustMkdirAll(t, hamletDir)
+	terrainDir := filepath.Join(dir, ".terrain")
+	mustMkdirAll(t, terrainDir)
 	config := `ownership:
   rules:
     - path: "src/"
       owner: "explicit-owner"
 `
-	mustWriteFile(t, filepath.Join(hamletDir, "ownership.yaml"), []byte(config))
+	mustWriteFile(t, filepath.Join(terrainDir, "ownership.yaml"), []byte(config))
 
 	r := NewResolver(dir)
 
@@ -166,15 +166,15 @@ func TestResolver_NoConfigFiles(t *testing.T) {
 func TestResolver_ResolveAssignment_Provenance(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
-	hamletDir := filepath.Join(dir, ".hamlet")
-	mustMkdirAll(t, hamletDir)
+	terrainDir := filepath.Join(dir, ".terrain")
+	mustMkdirAll(t, terrainDir)
 
 	config := `ownership:
   rules:
     - path: "src/auth/"
       owner: "@team-auth"
 `
-	mustWriteFile(t, filepath.Join(hamletDir, "ownership.yaml"), []byte(config))
+	mustWriteFile(t, filepath.Join(terrainDir, "ownership.yaml"), []byte(config))
 
 	r := NewResolver(dir)
 	a := r.ResolveAssignment("src/auth/login.js")
@@ -191,8 +191,8 @@ func TestResolver_ResolveAssignment_Provenance(t *testing.T) {
 	if a.PrimaryOwnerID() != "team-auth" {
 		t.Errorf("owner = %q, want %q", a.PrimaryOwnerID(), "team-auth")
 	}
-	if a.SourceFile != ".hamlet/ownership.yaml" {
-		t.Errorf("sourceFile = %q, want %q", a.SourceFile, ".hamlet/ownership.yaml")
+	if a.SourceFile != ".terrain/ownership.yaml" {
+		t.Errorf("sourceFile = %q, want %q", a.SourceFile, ".terrain/ownership.yaml")
 	}
 }
 
@@ -258,8 +258,8 @@ func TestResolver_ResolveAssignment_Unknown(t *testing.T) {
 func TestResolver_PathMappings(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
-	hamletDir := filepath.Join(dir, ".hamlet")
-	mustMkdirAll(t, hamletDir)
+	terrainDir := filepath.Join(dir, ".terrain")
+	mustMkdirAll(t, terrainDir)
 
 	config := `ownership:
   rules: []
@@ -269,7 +269,7 @@ func TestResolver_PathMappings(t *testing.T) {
     - prefix: "lib/auth/"
       owners: ["@team-auth"]
 `
-	mustWriteFile(t, filepath.Join(hamletDir, "ownership.yaml"), []byte(config))
+	mustWriteFile(t, filepath.Join(terrainDir, "ownership.yaml"), []byte(config))
 
 	r := NewResolver(dir)
 	a := r.ResolveAssignment("lib/payments/stripe.go")
@@ -291,8 +291,8 @@ func TestResolver_PathMappings(t *testing.T) {
 func TestResolver_PathMappings_PathBoundary(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
-	hamletDir := filepath.Join(dir, ".hamlet")
-	mustMkdirAll(t, hamletDir)
+	terrainDir := filepath.Join(dir, ".terrain")
+	mustMkdirAll(t, terrainDir)
 
 	config := `ownership:
   rules: []
@@ -300,7 +300,7 @@ func TestResolver_PathMappings_PathBoundary(t *testing.T) {
     - prefix: "lib/auth/"
       owners: ["@team-auth"]
 `
-	mustWriteFile(t, filepath.Join(hamletDir, "ownership.yaml"), []byte(config))
+	mustWriteFile(t, filepath.Join(terrainDir, "ownership.yaml"), []byte(config))
 
 	r := NewResolver(dir)
 
@@ -348,14 +348,14 @@ func TestResolver_SourcesUsed(t *testing.T) {
 	mustWriteFile(t, filepath.Join(githubDir, "CODEOWNERS"), []byte("* @owner\n"))
 
 	// Set up explicit config.
-	hamletDir := filepath.Join(dir, ".hamlet")
-	mustMkdirAll(t, hamletDir)
+	terrainDir := filepath.Join(dir, ".terrain")
+	mustMkdirAll(t, terrainDir)
 	config := `ownership:
   rules:
     - path: "src/"
       owner: "explicit"
 `
-	mustWriteFile(t, filepath.Join(hamletDir, "ownership.yaml"), []byte(config))
+	mustWriteFile(t, filepath.Join(terrainDir, "ownership.yaml"), []byte(config))
 
 	r := NewResolver(dir)
 	sources := r.SourcesUsed()
@@ -393,16 +393,16 @@ func TestResolver_GitHistoryFallback(t *testing.T) {
 	initTestRepo(t, dir)
 	writeAndCommitFile(t, dir, "src/service/handler.go", "package service\n", "alice")
 
-	hamletDir := filepath.Join(dir, ".hamlet")
-	if err := os.MkdirAll(hamletDir, 0o755); err != nil {
-		t.Fatalf("mkdir .hamlet: %v", err)
+	terrainDir := filepath.Join(dir, ".terrain")
+	if err := os.MkdirAll(terrainDir, 0o755); err != nil {
+		t.Fatalf("mkdir .terrain: %v", err)
 	}
 	config := `ownership:
   git_history:
     enabled: true
     max_commits: 50
 `
-	if err := os.WriteFile(filepath.Join(hamletDir, "ownership.yaml"), []byte(config), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(terrainDir, "ownership.yaml"), []byte(config), 0o644); err != nil {
 		t.Fatalf("write ownership config: %v", err)
 	}
 
@@ -446,15 +446,15 @@ func TestResolver_GitHistoryAutoDisabledUsesDirectoryFallback(t *testing.T) {
 	initTestRepo(t, dir)
 	writeAndCommitFile(t, dir, "src/service/handler.go", "package service\n", "alice")
 
-	hamletDir := filepath.Join(dir, ".hamlet")
-	if err := os.MkdirAll(hamletDir, 0o755); err != nil {
-		t.Fatalf("mkdir .hamlet: %v", err)
+	terrainDir := filepath.Join(dir, ".terrain")
+	if err := os.MkdirAll(terrainDir, 0o755); err != nil {
+		t.Fatalf("mkdir .terrain: %v", err)
 	}
 	config := `ownership:
   git_history:
     auto_when_no_codeowners: false
 `
-	if err := os.WriteFile(filepath.Join(hamletDir, "ownership.yaml"), []byte(config), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(terrainDir, "ownership.yaml"), []byte(config), 0o644); err != nil {
 		t.Fatalf("write ownership config: %v", err)
 	}
 
@@ -488,9 +488,9 @@ func TestResolver_GitHistoryPrecedence(t *testing.T) {
 		t.Fatalf("write CODEOWNERS: %v", err)
 	}
 
-	hamletDir := filepath.Join(dir, ".hamlet")
-	if err := os.MkdirAll(hamletDir, 0o755); err != nil {
-		t.Fatalf("mkdir .hamlet: %v", err)
+	terrainDir := filepath.Join(dir, ".terrain")
+	if err := os.MkdirAll(terrainDir, 0o755); err != nil {
+		t.Fatalf("mkdir .terrain: %v", err)
 	}
 	config := `ownership:
   rules:
@@ -502,7 +502,7 @@ func TestResolver_GitHistoryPrecedence(t *testing.T) {
   git_history:
     enabled: true
 `
-	if err := os.WriteFile(filepath.Join(hamletDir, "ownership.yaml"), []byte(config), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(terrainDir, "ownership.yaml"), []byte(config), 0o644); err != nil {
 		t.Fatalf("write ownership config: %v", err)
 	}
 
@@ -532,15 +532,15 @@ func TestResolver_GitHistoryPrecedence(t *testing.T) {
 func TestResolver_GitHistorySourceReported(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
-	hamletDir := filepath.Join(dir, ".hamlet")
-	if err := os.MkdirAll(hamletDir, 0o755); err != nil {
-		t.Fatalf("mkdir .hamlet: %v", err)
+	terrainDir := filepath.Join(dir, ".terrain")
+	if err := os.MkdirAll(terrainDir, 0o755); err != nil {
+		t.Fatalf("mkdir .terrain: %v", err)
 	}
 	config := `ownership:
   git_history:
     enabled: true
 `
-	if err := os.WriteFile(filepath.Join(hamletDir, "ownership.yaml"), []byte(config), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(terrainDir, "ownership.yaml"), []byte(config), 0o644); err != nil {
 		t.Fatalf("write ownership config: %v", err)
 	}
 
@@ -556,15 +556,15 @@ func TestResolver_GitHistoryDiagnosticsWhenNotRepo(t *testing.T) {
 	requireGit(t)
 
 	dir := t.TempDir()
-	hamletDir := filepath.Join(dir, ".hamlet")
-	if err := os.MkdirAll(hamletDir, 0o755); err != nil {
-		t.Fatalf("mkdir .hamlet: %v", err)
+	terrainDir := filepath.Join(dir, ".terrain")
+	if err := os.MkdirAll(terrainDir, 0o755); err != nil {
+		t.Fatalf("mkdir .terrain: %v", err)
 	}
 	config := `ownership:
   git_history:
     enabled: true
 `
-	if err := os.WriteFile(filepath.Join(hamletDir, "ownership.yaml"), []byte(config), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(terrainDir, "ownership.yaml"), []byte(config), 0o644); err != nil {
 		t.Fatalf("write ownership config: %v", err)
 	}
 

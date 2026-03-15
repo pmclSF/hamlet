@@ -8,8 +8,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/pmclSF/hamlet/internal/models"
-	"github.com/pmclSF/hamlet/internal/policy"
+	"github.com/pmclSF/terrain/internal/models"
+	"github.com/pmclSF/terrain/internal/policy"
 )
 
 // Result holds the outcome of a policy evaluation.
@@ -84,7 +84,7 @@ func checkDisallowedFrameworks(snap *models.TestSuiteSnapshot, cfg *policy.Confi
 	return signals
 }
 
-// checkSkippedTests emits a policyViolation signal if skipped tests
+// checkSkippedTests emits a skippedTestsInCI governance signal if skipped tests
 // are found when policy disallows them.
 func checkSkippedTests(snap *models.TestSuiteSnapshot, cfg *policy.Config) []models.Signal {
 	if cfg.Rules.DisallowSkippedTests == nil || !*cfg.Rules.DisallowSkippedTests {
@@ -100,7 +100,7 @@ func checkSkippedTests(snap *models.TestSuiteSnapshot, cfg *policy.Config) []mod
 	skippedCount := countSignalsForType(snap.Signals, "skippedTest")
 
 	return []models.Signal{{
-		Type:       "policyViolation",
+		Type:       "skippedTestsInCI",
 		Category:   models.CategoryGovernance,
 		Severity:   models.SeverityMedium,
 		Confidence: 1.0,

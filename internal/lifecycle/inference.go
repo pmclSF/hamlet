@@ -5,8 +5,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/pmclSF/hamlet/internal/identity"
-	"github.com/pmclSF/hamlet/internal/models"
+	"github.com/pmclSF/terrain/internal/identity"
+	"github.com/pmclSF/terrain/internal/models"
 )
 
 // InferContinuity analyzes two snapshots and classifies test continuity.

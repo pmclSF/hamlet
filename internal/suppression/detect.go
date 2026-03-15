@@ -4,7 +4,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/pmclSF/hamlet/internal/models"
+	"github.com/pmclSF/terrain/internal/models"
 )
 
 // Detect analyzes a snapshot for suppression mechanisms.

@@ -4,7 +4,7 @@
 // for PR reviews, CI gating, and incremental development workflows.
 package changescope
 
-import "github.com/pmclSF/hamlet/internal/impact"
+import "github.com/pmclSF/terrain/internal/impact"
 
 // PRAnalysis is the output of a PR/change-scoped analysis.
 type PRAnalysis struct {

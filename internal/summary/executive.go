@@ -1,4 +1,4 @@
-// Package summary builds executive-level summaries from Hamlet analysis data.
+// Package summary builds executive-level summaries from Terrain analysis data.
 //
 // The ExecutiveSummary model synthesizes risk, trends, hotspots, and
 // benchmark readiness into a single artifact suitable for:
@@ -20,11 +20,11 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/pmclSF/hamlet/internal/benchmark"
-	"github.com/pmclSF/hamlet/internal/comparison"
-	"github.com/pmclSF/hamlet/internal/heatmap"
-	"github.com/pmclSF/hamlet/internal/metrics"
-	"github.com/pmclSF/hamlet/internal/models"
+	"github.com/pmclSF/terrain/internal/benchmark"
+	"github.com/pmclSF/terrain/internal/comparison"
+	"github.com/pmclSF/terrain/internal/heatmap"
+	"github.com/pmclSF/terrain/internal/metrics"
+	"github.com/pmclSF/terrain/internal/models"
 )
 
 // ExecutiveSummary is the top-level leadership summary artifact.
@@ -87,11 +87,11 @@ type DimensionPosture struct {
 
 // FocusArea identifies a concentrated risk area.
 type FocusArea struct {
-	Name       string          `json:"name"`
-	Scope      string          `json:"scope"` // "directory" or "owner"
-	Band       models.RiskBand `json:"band"`
-	RiskType   string          `json:"riskType"`
-	SignalCount int            `json:"signalCount"`
+	Name        string          `json:"name"`
+	Scope       string          `json:"scope"` // "directory" or "owner"
+	Band        models.RiskBand `json:"band"`
+	RiskType    string          `json:"riskType"`
+	SignalCount int             `json:"signalCount"`
 }
 
 // TrendCallout is a notable trend change worth surfacing.
@@ -558,7 +558,7 @@ func buildBlindSpots(snap *models.TestSuiteSnapshot, ms *metrics.Snapshot) []Bli
 				spots = append(spots, BlindSpot{
 					Area:        "Ownership coverage",
 					Reason:      fmt.Sprintf("Only %d of %d files have ownership (%0.f%%)", ownedCount, len(allFiles), ratio*100),
-					Remediation: "Expand CODEOWNERS or .hamlet/ownership.yaml to cover more files",
+					Remediation: "Expand CODEOWNERS or .terrain/ownership.yaml to cover more files",
 				})
 			}
 		}
@@ -632,7 +632,7 @@ func categorizeSignalType(signalType string) string {
 		return "quality"
 	case "migrationBlocker", "deprecatedTestPattern", "customMatcherRisk", "dynamicTestGeneration":
 		return "migration"
-	case "policyViolation", "legacyFrameworkUsage":
+	case "policyViolation", "legacyFrameworkUsage", "skippedTestsInCI":
 		return "governance"
 	default:
 		return "quality"

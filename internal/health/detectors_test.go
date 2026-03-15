@@ -3,7 +3,7 @@ package health
 import (
 	"testing"
 
-	"github.com/pmclSF/hamlet/internal/runtime"
+	"github.com/pmclSF/terrain/internal/runtime"
 )
 
 func TestSlowTestDetector_OverThreshold(t *testing.T) {

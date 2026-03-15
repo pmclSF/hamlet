@@ -1,0 +1,21 @@
+{
+  "summary": "0 test(s) selected, strategy: fallback_broad, coverage confidence: low, 1 protection gap(s).",
+  "strategy": "fallback_broad",
+  "totalSelected": 0,
+  "coverageConfidence": "low",
+  "reasonBreakdown": {
+    "directDependency": 0,
+    "directlyChanged": 0,
+    "directoryProximity": 0,
+    "fixtureDependency": 0
+  },
+  "fallbackUsed": {
+    "level": "all",
+    "reason": "no impacted tests identified; full suite fallback"
+  },
+  "gapCount": 1,
+  "limitations": [
+    "No per-test coverage lineage available; test selection uses structural heuristics.",
+    "No ownership data available; coordination risk may be underestimated."
+  ]
+}

@@ -2,7 +2,7 @@ package models
 
 // No external imports — Signal is now in the models package.
 
-// TestFile represents a discovered test file and the key facts Hamlet knows
+// TestFile represents a discovered test file and the key facts Terrain knows
 // about it.
 //
 // Over time, this model will become one of the central objects in the product.
@@ -15,7 +15,7 @@ type TestFile struct {
 	// Path is the repository-relative path to the test file.
 	Path string `json:"path"`
 
-	// Framework is the primary framework Hamlet believes this file uses.
+	// Framework is the primary framework Terrain believes this file uses.
 	Framework string `json:"framework,omitempty"`
 
 	// FrameworkConfidence is the detection confidence (0.0–1.0).
@@ -46,6 +46,16 @@ type TestFile struct {
 
 	// LinkedCodeUnits identifies code units this test file is believed to exercise.
 	LinkedCodeUnits []string `json:"linkedCodeUnits,omitempty"`
+
+	// EnvironmentIDs lists the environments this test file is known to execute in.
+	// Inferred from CI config matrices, Docker configs, or manual annotation.
+	// Format: "env:<canonical-name>" matching Environment.EnvironmentID.
+	EnvironmentIDs []string `json:"environmentIds,omitempty"`
+
+	// DeviceIDs lists the devices or browsers this test file targets.
+	// Inferred from Playwright configs, BrowserStack, Xcode schemes, etc.
+	// Format: "device:<canonical-name>" matching DeviceConfig.DeviceID.
+	DeviceIDs []string `json:"deviceIds,omitempty"`
 
 	// Signals contains signal identifiers or full signal objects associated with this file.
 	Signals []Signal `json:"signals,omitempty"`

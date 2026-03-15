@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/pmclSF/hamlet/internal/impact"
-	"github.com/pmclSF/hamlet/internal/models"
+	"github.com/pmclSF/terrain/internal/impact"
+	"github.com/pmclSF/terrain/internal/models"
 )
 
 // AnalyzePR performs a PR/change-scoped analysis.
@@ -74,6 +74,66 @@ func AnalyzePR(scope *impact.ChangeScope, snap *models.TestSuiteSnapshot) *PRAna
 	pr.PostureDelta = buildPostureDelta(result)
 
 	// Build summary.
+	pr.Summary = buildPRSummary(pr)
+
+	return pr
+}
+
+// AnalyzePRFromChangeSet performs a PR/change-scoped analysis starting from
+// a ChangeSet. This is the preferred entry point for new code.
+func AnalyzePRFromChangeSet(cs *models.ChangeSet, snap *models.TestSuiteSnapshot) *PRAnalysis {
+	result := impact.AnalyzeChangeSet(cs, snap)
+
+	pr := &PRAnalysis{
+		Scope:        result.Scope,
+		ImpactResult: result,
+	}
+
+	for _, cf := range cs.ChangedFiles {
+		pr.ChangedFileCount++
+		if cf.IsTestFile {
+			pr.ChangedTestCount++
+		} else if impact.IsAnalyzableSourceFile(cf.Path) {
+			pr.ChangedSourceCount++
+		}
+	}
+
+	pr.ImpactedUnitCount = len(result.ImpactedUnits)
+	pr.ProtectionGapCount = len(result.ProtectionGaps)
+	pr.PostureBand = result.Posture.Band
+	pr.AffectedOwners = result.ImpactedOwners
+	pr.Limitations = result.Limitations
+
+	if result.ProtectiveSet != nil {
+		pr.SelectionStrategy = result.ProtectiveSet.SetKind
+		pr.SelectionExplanation = result.ProtectiveSet.Explanation
+		for _, st := range result.ProtectiveSet.Tests {
+			pr.RecommendedTests = append(pr.RecommendedTests, st.Path)
+			ts := TestSelection{
+				Path:        st.Path,
+				Confidence:  string(st.ImpactConfidence),
+				Relevance:   st.Relevance,
+				CoversUnits: st.CoversUnits,
+			}
+			for _, r := range st.Reasons {
+				ts.Reasons = append(ts.Reasons, r.Reason)
+			}
+			pr.TestSelections = append(pr.TestSelections, ts)
+		}
+	} else {
+		for _, t := range result.SelectedTests {
+			pr.RecommendedTests = append(pr.RecommendedTests, t.Path)
+			pr.TestSelections = append(pr.TestSelections, TestSelection{
+				Path:        t.Path,
+				Confidence:  string(t.ImpactConfidence),
+				Relevance:   t.Relevance,
+				CoversUnits: t.CoversUnits,
+			})
+		}
+	}
+
+	pr.NewFindings = buildChangeScopedFindings(result, snap)
+	pr.PostureDelta = buildPostureDelta(result)
 	pr.Summary = buildPRSummary(pr)
 
 	return pr

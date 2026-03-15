@@ -3,7 +3,7 @@ package metrics
 import (
 	"testing"
 
-	"github.com/pmclSF/hamlet/internal/models"
+	"github.com/pmclSF/terrain/internal/models"
 )
 
 func TestDerive_Empty(t *testing.T) {
@@ -212,6 +212,7 @@ func TestDerive_GovernanceSignals(t *testing.T) {
 		Signals: []models.Signal{
 			{Type: "policyViolation"},
 			{Type: "policyViolation"},
+			{Type: "skippedTestsInCI"},
 			{Type: "legacyFrameworkUsage"},
 			{Type: "runtimeBudgetExceeded"},
 		},
@@ -219,8 +220,8 @@ func TestDerive_GovernanceSignals(t *testing.T) {
 
 	ms := Derive(snap)
 
-	if ms.Governance.PolicyViolationCount != 2 {
-		t.Errorf("policyViolationCount = %d, want 2", ms.Governance.PolicyViolationCount)
+	if ms.Governance.PolicyViolationCount != 3 {
+		t.Errorf("policyViolationCount = %d, want 3", ms.Governance.PolicyViolationCount)
 	}
 	if ms.Governance.LegacyFrameworkUsageCount != 1 {
 		t.Errorf("legacyFrameworkUsageCount = %d, want 1", ms.Governance.LegacyFrameworkUsageCount)

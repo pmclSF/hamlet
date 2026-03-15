@@ -1,6 +1,6 @@
 package quality
 
-import "github.com/pmclSF/hamlet/internal/models"
+import "github.com/pmclSF/terrain/internal/models"
 
 // MockHeavyDetector identifies test files with high mock usage relative
 // to direct assertions.
