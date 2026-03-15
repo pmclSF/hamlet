@@ -149,7 +149,7 @@ function attachEvents(container, state, actions) {
   const dl = container.querySelector('#dl-result');
   if (dl && job.result)
     dl.addEventListener('click', () =>
-      api.downloadJson(job, 'hamlet-conversion.json')
+      api.downloadJson(job, 'terrain-conversion.json')
     );
 
   // View diff buttons
@@ -174,7 +174,7 @@ function attachEvents(container, state, actions) {
   const openDir = container.querySelector('#open-outdir');
   if (openDir && job.params) {
     openDir.addEventListener('click', () => {
-      const dir = job.params.outputDir || './hamlet-out';
+      const dir = job.params.outputDir || './terrain-out';
       api.openPath(dir);
     });
   }

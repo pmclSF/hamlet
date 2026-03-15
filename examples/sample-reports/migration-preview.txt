@@ -1,4 +1,4 @@
-Hamlet Migration Preview
+Terrain Migration Preview
 ========================================
 
 File: test/auth/login.test.js

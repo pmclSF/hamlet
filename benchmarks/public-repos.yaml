@@ -1,6 +1,6 @@
-# Public repository benchmark matrix for Hamlet.
+# Public repository benchmark matrix for Terrain.
 #
-# Each entry defines a public repo that Hamlet will be run against.
+# Each entry defines a public repo that Terrain will be run against.
 # Tiers:
 #   smoke  — small/moderate repos, fast signal, run frequently
 #   full   — the main representative matrix
@@ -92,7 +92,7 @@ repos:
     description: >
       Python micro web framework. pytest test suite. Non-JS repo to exercise
       cross-language analysis, Python framework detection, and degradation
-      behavior when outside Hamlet's primary language focus.
+      behavior when outside Terrain's primary language focus.
     expected:
       min_test_files: 5
       min_code_units: 0
@@ -126,7 +126,7 @@ repos:
     clone: shallow
     description: >
       UI component workshop. Massive monorepo with 100+ packages, mix of
-      Jest and Vitest, multiple languages. Stress-tests Hamlet's scale
+      Jest and Vitest, multiple languages. Stress-tests Terrain's scale
       handling, framework fragmentation analysis, and memory usage.
     expected:
       min_test_files: 200

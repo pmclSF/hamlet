@@ -1,13 +1,13 @@
-# Hamlet — Architecture Overview
+# Terrain — Architecture Overview
 
-Hamlet is a signal-first test intelligence platform. It analyzes repository structure, test code, runtime artifacts, and local policy to surface actionable findings about test suite health, quality, migration readiness, and risk.
+Terrain is a signal-first test intelligence platform. It analyzes repository structure, test code, runtime artifacts, and local policy to surface actionable findings about test suite health, quality, migration readiness, and risk.
 
 ## Core Principles
 
 - **Signals are the core abstraction.** Every finding is a structured signal with type, severity, evidence, and location.
 - **Snapshots are the canonical artifact.** The `TestSuiteSnapshot` is the serialized boundary between engine, reporting, and future aggregation.
 - **Risk must be explainable.** Risk surfaces are derived from signals with transparent scoring, not opaque scores.
-- **Local-first.** Hamlet is useful on a single machine, without accounts, SaaS, or network access.
+- **Local-first.** Terrain is useful on a single machine, without accounts, SaaS, or network access.
 - **Privacy boundary.** Aggregate metrics and benchmark exports never expose raw file paths or source code.
 
 ## Architecture
@@ -41,7 +41,7 @@ See [docs/architecture.md](docs/architecture.md) for the full layered architectu
 ## Package Map
 
 ```
-cmd/hamlet/          CLI entry point
+cmd/terrain/          CLI entry point
 internal/
   analysis/          Repository scanning, framework detection, test file discovery
   benchmark/         Privacy-safe benchmark export and segmentation
@@ -73,10 +73,10 @@ See [docs/engineering/architecture-map.md](docs/engineering/architecture-map.md)
 
 ## Migration Context
 
-Hamlet originated as a multi-framework test converter (legacy). That converter engine (JavaScript ES modules, `src/`) remains in the repository and is fully functional. The current engine reframes migration as one dimension of broader test intelligence rather than the sole product.
+Terrain originated as a multi-framework test converter (legacy). That converter engine (JavaScript ES modules, `src/`) remains in the repository and is fully functional. The current engine reframes migration as one dimension of broader test intelligence rather than the sole product.
 
 The legacy converter architecture is documented in [docs/legacy/converter-architecture-legacy.md](docs/legacy/converter-architecture-legacy.md).
 
 ## Extension Architecture
 
-The VS Code extension is intentionally thin. It invokes `hamlet analyze --json`, reads the snapshot, and renders views. No domain logic is duplicated in the extension. See [docs/vscode-extension.md](docs/vscode-extension.md).
+The VS Code extension is intentionally thin. It invokes `terrain analyze --json`, reads the snapshot, and renders views. No domain logic is duplicated in the extension. See [docs/vscode-extension.md](docs/vscode-extension.md).

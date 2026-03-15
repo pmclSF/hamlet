@@ -321,9 +321,9 @@ export class SeleniumToCypress extends BaseConverter {
       'cy.get($1).select($2)'
     );
 
-    // Strip HAMLET-TODO comment blocks from forward conversion
+    // Strip TERRAIN-TODO comment blocks from forward conversion
     result = result.replace(
-      /^[ \t]*\/\/ HAMLET-TODO \[[^\]]+\]:.*\n(?:[ \t]*\n)*(?:[ \t]*\/\/ (?:Original|Manual action required):.*\n(?:[ \t]*\n)*)*/gm,
+      /^[ \t]*\/\/ TERRAIN-TODO \[[^\]]+\]:.*\n(?:[ \t]*\n)*(?:[ \t]*\/\/ (?:Original|Manual action required):.*\n(?:[ \t]*\n)*)*/gm,
       ''
     );
 

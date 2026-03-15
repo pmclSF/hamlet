@@ -16,7 +16,7 @@ const DEFAULT_IGNORE = [
   'coverage',
   '.nyc_output',
   '.cache',
-  '.hamlet',
+  '.terrain',
   '__pycache__',
   '.tox',
   '.mypy_cache',

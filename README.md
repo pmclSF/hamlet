@@ -1,82 +1,54 @@
-# Hamlet
+# Terrain
 
-**Signal-first test intelligence for engineering teams**
+**Map your test terrain.**
 
-Hamlet analyzes repository structure, test code, runtime artifacts, coverage data, and local policy to surface the real state of your test system — risk, quality, migration readiness, and governance — without running tests.
+Terrain is a test system intelligence platform. It reads your repository — test code, source structure, coverage data, runtime artifacts, ownership files, and local policy — and builds a structural model of how your tests relate to your code. From that model it surfaces risk, quality gaps, redundancy, fragile dependencies, and migration readiness, all without running a single test.
 
-## Quick Start
+The core idea: every codebase has a *test terrain* — the shape of its testing infrastructure, the density of coverage across areas, the hidden fault lines where a fixture change cascades into thousands of tests. Terrain makes that shape visible and navigable so you can make informed decisions about what to test, what to fix, and where to invest.
+
+## What "Test Terrain" Means
+
+Most teams know what tests they have. Few teams understand the *terrain* underneath:
+
+- Which source files have no structural test coverage?
+- Which shared fixtures fan out to thousands of tests, making any change to them a blast-radius problem?
+- Which test clusters are near-duplicates burning CI time?
+- Which areas have tests but weak assertions that wouldn't catch a real regression?
+- When you change `auth/session.ts`, which 41 of your 18,000 tests actually matter?
+
+Test terrain is the structural topology of your test system — the dependency graph, the coverage landscape, the duplication clusters, the fanout hotspots, the skip debt. Terrain maps it.
+
+## Problems Terrain Solves
+
+**"We don't know the state of our test system."** Teams inherit test suites they didn't write. Terrain gives a baseline in seconds: framework mix, coverage confidence, duplication, risk posture.
+
+**"CI takes too long and we don't know what to cut."** Terrain identifies redundant tests, high-fanout fixtures, and confidence-based test selection — showing where CI time is wasted and what can be safely reduced.
+
+**"We changed auth code — what tests should we worry about?"** Terrain traces your change through the import graph and structural dependencies, returning the impacted tests ranked by confidence, with reason chains explaining each selection.
+
+**"A tool flagged something but won't explain why."** Every Terrain finding carries an evidence chain. `terrain explain` shows exactly what signals, dependency paths, and scoring rules produced each decision.
+
+**"We're migrating frameworks and need to know what's blocking us."** Migration readiness, blockers by type, and preview-scoped difficulty assessment — all derived from static analysis.
+
+## The Four Canonical Workflows
+
+Terrain is organized around four questions. Everything else is a supporting view.
+
+```
+terrain analyze     "What is the state of our test system?"
+terrain insights    "What should we fix in our test system?"
+terrain impact      "What validations matter for this change?"
+terrain explain     "Why did Terrain make this decision?"
+```
+
+### 1. Analyze — understand the test system
 
 ```bash
-# Install
-go install github.com/pmclSF/hamlet/cmd/hamlet@latest
-
-# Or build from source
-git clone https://github.com/pmclSF/hamlet.git
-cd hamlet
-go build -o hamlet ./cmd/hamlet
-
-# Detect coverage/runtime paths (recommended first step)
-hamlet init
-
-# Analyze the current repository
-hamlet analyze
-
-# Executive summary with risk, trends, and benchmark readiness
-hamlet summary
-
-# Aggregate metrics scorecard
-hamlet metrics
-
-# JSON output for any command
-hamlet analyze --json
-hamlet summary --json
-hamlet metrics --json
-```
-
-### Requirements
-
-- Go 1.23 or later
-
-## Commands
-
-| Command | Description |
-|---------|-------------|
-| `hamlet analyze` | Analyze repository test suite — frameworks, signals, risk |
-| `hamlet summary` | Executive summary — posture, trends, focus, benchmark readiness |
-| `hamlet insights` | Prioritized improvement actions with rationale |
-| `hamlet explain <entity>` | Evidence chain for a test, code unit, owner, or finding |
-| `hamlet focus` | Where to concentrate testing effort based on risk and gaps |
-| `hamlet portfolio` | Portfolio view — coverage breadth, test type distribution, risk allocation |
-| `hamlet posture` | Detailed posture breakdown with measurement evidence |
-| `hamlet metrics` | Aggregate metrics scorecard (privacy-safe, benchmark-ready) |
-| `hamlet impact` | Impact analysis for changed code (git diff-aware) |
-| `hamlet select-tests` | Protective test selection for a git diff |
-| `hamlet pr` | PR analysis — impact, test selection, and risk for review |
-| `hamlet show <type> <id>` | Drill into a specific test, unit, owner, or finding |
-| `hamlet migration readiness` | Migration readiness assessment with quality factors |
-| `hamlet migration blockers` | List migration blockers by type and area |
-| `hamlet migration preview` | Preview migration difficulty for a file or scope |
-| `hamlet compare` | Compare two snapshots and show trend changes |
-| `hamlet policy check` | Evaluate repository against local policy rules |
-| `hamlet export benchmark` | Output benchmark-safe JSON export for future comparison |
-| `hamlet init` | Detect coverage/runtime paths and print recommended analyze command |
-| `hamlet version` | Show version, commit, and build date |
-
-Run `hamlet --help` for full flag documentation.
-
-## Walkthrough: Using Hamlet on pandas
-
-Imagine you maintain [pandas](https://github.com/pandas-dev/pandas) — 1,000+ test files, ~52,000 test cases across pytest, and CI runs that take significant time. Here's what Hamlet tells you.
-
-### Step 1: Analyze
-
-```bash
-cd pandas
-hamlet analyze
+terrain analyze
 ```
 
 ```
-Hamlet Test Suite Analysis
+Terrain Test Suite Analysis
 ══════════════════════════════════════════════════
 
 Repository Profile
@@ -106,14 +78,14 @@ Risk Posture
 
 Signals: 1,204 total (38 critical, 187 high, 412 medium, 567 low)
 
-Next: hamlet insights    see what to improve
-      hamlet impact      analyze a specific change
+Next: terrain insights    see what to improve
+      terrain impact      analyze a specific change
 ```
 
-### Step 2: Insights — what to fix first
+### 2. Insights — find what to improve
 
 ```bash
-hamlet insights
+terrain insights
 ```
 
 ```
@@ -140,16 +112,14 @@ Top improvement opportunities:
      where: pandas/tests/io/json/, pandas/tests/io/html/
 ```
 
-### Step 3: Impact — what does your PR actually touch?
-
-You're working on a fix in `pandas/core/groupby/groupby.py`. Before pushing:
+### 3. Impact — understand what a change affects
 
 ```bash
-hamlet impact --base main
+terrain impact --base main
 ```
 
 ```
-Hamlet Impact Analysis
+Terrain Impact Analysis
 ══════════════════════════════════════════════════
 
 Changed areas:
@@ -171,10 +141,10 @@ Insights:
     pytest tests/groupby/ -x -q
 ```
 
-### Step 4: Explain — why did Hamlet flag something?
+### 4. Explain — understand why
 
 ```bash
-hamlet explain pandas/tests/io/json/test_pandas.py
+terrain explain pandas/tests/io/json/test_pandas.py
 ```
 
 ```
@@ -190,128 +160,144 @@ Signals (4):
   [low]    xfailAccumulation: 3 xfail markers older than 180 days
 ```
 
-### The pattern
+See [Canonical User Journeys](docs/product/canonical-user-journeys.md) for the full workflow specification and [example outputs](docs/examples/) for detailed report samples.
 
-```
-hamlet analyze     →  "What is the state of our test system?"
-hamlet insights    →  "What should we fix first?"
-hamlet impact      →  "What tests matter for this PR?"
-hamlet explain     →  "Why was this flagged?"
-```
+## Product Philosophy
 
-See [Canonical User Journeys](docs/product/canonical-user-journeys.md) for the full workflow and [example outputs](docs/examples/).
+**Inference first.** Terrain reads code. It parses imports, detects frameworks, resolves coverage relationships, and builds dependency graphs from what already exists in the repository. No annotations, no test tagging, no SDK integration required.
 
-## What Hamlet Reveals
+**Zero-config by default.** `terrain analyze` works on any repository with test files. Coverage data, runtime artifacts, ownership files, and policy rules are optional inputs that enrich the model — but the core analysis requires nothing beyond the code itself.
 
-### Structure
-Framework inventory, test file discovery, code-to-test relationships, ownership mapping.
+**Explainability over magic.** Every finding carries evidence: which signal type, what confidence level, what dependency path, what scoring rule. `terrain explain` exposes the full reasoning chain behind any decision. Teams should never wonder *why* Terrain said something.
 
-### Health
-Flaky tests, slow tests, skipped tests, dead tests, unstable suites.
+**Conservative under uncertainty.** When Terrain encounters ambiguity — a dependency path with low confidence, a file that might or might not be a test — it flags the uncertainty rather than guessing. Impact analysis uses fallback policies with explicit confidence penalties rather than silently expanding scope.
 
-### Quality
-Weak assertions, mock-heavy tests, untested exports, coverage blind spots.
+**System health, not individual productivity.** Terrain measures the test system. It never attributes quality to individual developers. Ownership information is used for routing and triage, not scoring.
 
-### Migration Readiness
-Migration blockers, deprecated patterns, legacy framework drift, framework fragmentation.
+## Who Uses Terrain
 
-### Policy and Governance
-Local policy rules, violation tracking, compliance enforcement in CI.
+Terrain is framework-agnostic and language-aware. The same analysis model applies across:
 
-### Risk
-Explainable risk surfaces by dimension (reliability, change, speed) with directory and owner concentration.
+- **Frontend teams** — React/Vue component tests, Playwright/Cypress E2E suites, Vitest/Jest unit tests
+- **Backend teams** — Go test suites, pytest collections, JUnit hierarchies, integration test infrastructure
+- **Mobile teams** — XCTest, Espresso, and cross-platform test suites
+- **QA / SDET** — test portfolio management, coverage gap analysis, migration planning across frameworks
+- **SRE / Platform** — CI optimization, test selection for pipelines, policy enforcement
+- **AI / ML evaluation** — evaluation suite structure, benchmark test management, coverage across model behaviors
 
-### Benchmark-Safe Exports
-Privacy-safe aggregate metrics for future cross-repo comparison — no raw paths or source code exposed.
+The structural model is the same. The signals and recommendations adapt to the framework and test patterns detected.
 
-## Snapshot Workflow
+## How CI Optimization Emerges
 
-Hamlet supports local snapshot history for trend tracking:
+Terrain does not start with CI optimization. It starts with understanding.
 
-```bash
-# Save a snapshot
-hamlet analyze --write-snapshot
+When you run `terrain analyze`, Terrain builds a structural model: which tests exist, which source files they cover, how they depend on shared fixtures, where duplication lives. From that model, CI optimization *emerges*:
 
-# Later, save another snapshot
-hamlet analyze --write-snapshot
+- **Test selection** — `terrain impact` traces a diff through the dependency graph and returns only the tests that structurally matter, ranked by confidence. This is not a heuristic skip list — it is a graph traversal with evidence.
+- **Redundancy reduction** — `terrain insights` surfaces duplicate test clusters. Removing or consolidating them directly reduces CI time without reducing coverage.
+- **Fanout control** — High-fanout fixtures that trigger thousands of tests on any change are identified and prioritized for splitting.
+- **Confidence-based runs** — Impact analysis assigns confidence scores. CI pipelines can run high-confidence tests immediately and defer low-confidence tests to nightly runs.
 
-# Compare the two most recent snapshots
-hamlet compare
+The result is faster CI that comes from *understanding the test system*, not from skipping tests and hoping for the best.
 
-# Executive summary automatically includes trend highlights
-hamlet summary
-```
-
-Snapshots are stored in `.hamlet/snapshots/` as timestamped JSON files.
-
-## Policy
-
-Define local policy rules in `.hamlet/policy.yaml`:
-
-```yaml
-rules:
-  disallow_skipped_tests: true
-  max_weak_assertions: 10
-  max_mock_heavy_tests: 5
-```
-
-Then check compliance:
+## Quick Start
 
 ```bash
-hamlet policy check        # human-readable output
-hamlet policy check --json # JSON output for CI
+# Install
+go install github.com/pmclSF/terrain/cmd/terrain@latest
+
+# Or build from source
+git clone https://github.com/pmclSF/terrain.git
+cd terrain
+go build -o terrain ./cmd/terrain
+
+# Detect coverage/runtime data paths (recommended first step)
+terrain init
+
+# Analyze the current repository
+terrain analyze
+
+# JSON output for any command
+terrain analyze --json
 ```
 
-Exit code 0 = pass, 2 = violations found, 1 = execution/error conditions.
+### Requirements
 
-## Migration Workflow
+- Go 1.23 or later
 
-Hamlet started with migration pain — "how hard will this migration be?" The current engine turns that pain into broader test intelligence while keeping migration as a first-class workflow:
+## Commands
 
-```bash
-# Assess migration readiness
-hamlet migration readiness
+### Primary commands
 
-# List specific blockers
-hamlet migration blockers
+| Command | Question |
+|---------|----------|
+| `terrain analyze` | What is the state of our test system? |
+| `terrain insights` | What should we fix in our test system? |
+| `terrain impact` | What validations matter for this change? |
+| `terrain explain <target>` | Why did Terrain make this decision? |
 
-# Review policy and governance
-hamlet policy check
+### Supporting commands
 
-# Save snapshot, fix issues, save another, then compare
-hamlet analyze --write-snapshot
-# ... fix blockers ...
-hamlet analyze --write-snapshot
-hamlet compare
+| Command | Purpose |
+|---------|---------|
+| `terrain init` | Detect data files and print recommended analyze command |
+| `terrain summary` | Executive summary with risk, trends, benchmark readiness |
+| `terrain focus` | Prioritized next actions |
+| `terrain posture` | Detailed posture breakdown with measurement evidence |
+| `terrain portfolio` | Portfolio intelligence: cost, breadth, leverage, redundancy |
+| `terrain metrics` | Aggregate metrics scorecard |
+| `terrain compare` | Compare two snapshots for trend tracking |
+| `terrain select-tests` | Recommend protective test set for a change |
+| `terrain pr` | PR/change-scoped analysis |
+| `terrain show <type> <id>` | Drill into test, unit, owner, or finding |
+| `terrain migration <sub>` | Migration readiness, blockers, or preview |
+| `terrain policy check` | Evaluate local policy rules |
+| `terrain export benchmark` | Privacy-safe JSON export for benchmarking |
+
+### Advanced / debug
+
+| Command | Purpose |
+|---------|---------|
+| `terrain debug graph` | Dependency graph statistics |
+| `terrain debug coverage` | Structural coverage analysis |
+| `terrain debug fanout` | High-fanout node analysis |
+| `terrain debug duplicates` | Duplicate test cluster analysis |
+| `terrain debug depgraph` | Full dependency graph analysis (all engines) |
+
+All commands support `--root PATH` and `--json` flags. Run `terrain --help` for full flag documentation.
+
+## Architecture Overview
+
+Terrain is built around a signal-first architecture:
+
+```
+Repository scan  →  Signal detection  →  Risk modeling  →  Reporting
+     │                    │                    │               │
+  test files         framework-specific    explainable     human-readable
+  source files       pattern detectors     risk scoring    + JSON output
+  coverage data      quality signals       with evidence
+  runtime artifacts  health signals        chains
+  ownership files    migration signals
+  policy rules       governance signals
 ```
 
-## Architecture
-
-Hamlet is built around a signal-first architecture:
-
-```
-Repository scan → Signal detection → Risk modeling → Reporting
-```
-
-- **Signals** are the core abstraction — every finding is a structured signal
-- **Snapshots** are the canonical serialized artifact (`TestSuiteSnapshot`)
-- **Risk surfaces** are derived from signals with explainable scoring
-- **Reports** synthesize signals, risk, trends, and benchmark readiness
-
-See [DESIGN.md](DESIGN.md) for architecture overview and [docs/](docs/) for detailed documentation.
-JSON output structure is documented in [docs/json-schema.md](docs/json-schema.md).
-
-## Project Structure (Go Engine)
+- **Signals** are the core abstraction — every finding is a structured signal with type, severity, confidence, evidence, and location
+- **Snapshots** (`TestSuiteSnapshot`) are the canonical serialized artifact — the complete structural model of a test system at a point in time
+- **Risk surfaces** are derived from signals with explainable scoring across dimensions (quality, reliability, speed, governance)
+- **Dependency graphs** model import relationships, fixture fanout, and structural coverage
+- **Reports** synthesize signals, risk, trends, and benchmark readiness into actionable output
 
 ```
-cmd/hamlet/          CLI entry point
+cmd/terrain/          CLI entry point
 internal/
 ├── analysis/        Repository scanning, framework detection, test file discovery
 ├── benchmark/       Privacy-safe benchmark export and segmentation
 ├── comparison/      Snapshot-to-snapshot trend comparison
 ├── coverage/        Coverage ingestion (LCOV, Istanbul) and attribution
+├── depgraph/        Dependency graph: coverage, duplicates, fanout, profiling
 ├── engine/          Pipeline orchestration and detector registry
 ├── governance/      Policy evaluation and governance signals
+├── graph/           Import graph construction
 ├── health/          Runtime-backed health detectors (slow, flaky, skipped)
 ├── heatmap/         Risk concentration model (directory and owner hotspots)
 ├── identity/        Test identity hashing and normalization
@@ -332,15 +318,53 @@ internal/
 └── testtype/        Test type inference (unit, integration, e2e)
 ```
 
-## Legacy Converter Engine
+See [DESIGN.md](DESIGN.md) for the full architecture overview, [docs/architecture/](docs/architecture/) for detailed design documents, and [docs/json-schema.md](docs/json-schema.md) for JSON output structure.
 
-Hamlet originated as a multi-framework test converter (legacy, JavaScript ES modules), published to npm as `hamlet-testframework`. That engine is preserved in `src/`, `bin/`, and `test/` and remains functional. The current engine reframes migration as one dimension of broader test intelligence. See [docs/legacy/](docs/legacy/) for historical architecture docs and [CLAUDE.md](CLAUDE.md) for legacy code conventions.
+## Snapshot Workflow
+
+Terrain supports local snapshot history for trend tracking:
+
+```bash
+# Save a snapshot
+terrain analyze --write-snapshot
+
+# Later, save another snapshot
+terrain analyze --write-snapshot
+
+# Compare the two most recent snapshots
+terrain compare
+
+# Executive summary automatically includes trend highlights
+terrain summary
+```
+
+Snapshots are stored in `.terrain/snapshots/` as timestamped JSON files.
+
+## Policy
+
+Define local policy rules in `.terrain/policy.yaml`:
+
+```yaml
+rules:
+  disallow_skipped_tests: true
+  max_weak_assertions: 10
+  max_mock_heavy_tests: 5
+```
+
+Then check compliance:
+
+```bash
+terrain policy check        # human-readable output
+terrain policy check --json # JSON output for CI
+```
+
+Exit code 0 = pass, 2 = violations found, 1 = error.
 
 ## Development
 
 ```bash
 # Build
-go build -o hamlet ./cmd/hamlet
+go build -o terrain ./cmd/terrain
 
 # Test all Go packages
 go test ./internal/... ./cmd/...
@@ -352,28 +376,15 @@ go test -v ./internal/...
 npm test
 ```
 
-## Principles
+## Documentation
 
-- Signals are the core abstraction
-- Analysis comes before automation
-- Risk must be explainable
-- Hamlet must be useful locally, without SaaS
-- Privacy boundary: aggregate metrics never expose raw paths or source code
-- Hamlet measures system health, not individual developer productivity
-
-## Status
-
-Hamlet's current engine is in active development. The Go engine implements:
-- repository analysis and signal detection
-- explainable risk modeling
-- local policy and governance
-- ownership-aware review and triage
-- migration intelligence
-- snapshot history and trend comparison
-- benchmark-ready metrics
-- executive summary reporting
-
-The JSON contract (`TestSuiteSnapshot`) is stabilizing but may evolve.
+- [Canonical User Journeys](docs/product/canonical-user-journeys.md) — primary workflows and expected outcomes
+- [Example Reports](docs/examples/) — analyze, impact, insights, explain output samples
+- [Architecture](docs/architecture/) — design documents and technical specifications
+- [CLI Specification](docs/cli-spec.md) — full command and flag reference
+- [Signal Model](docs/signal-model.md) — the core signal abstraction
+- [Engineering](docs/engineering/) — contributor-facing architecture maps and implementation details
+- [Legacy Converter](docs/legacy/) — historical JavaScript converter engine documentation
 
 ## License
 

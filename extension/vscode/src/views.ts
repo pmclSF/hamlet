@@ -1,6 +1,6 @@
 // Extension view descriptions for VS Code / Cursor sidebar.
 //
-// Each view consumes `hamlet analyze --json` output and renders
+// Each view consumes `terrain analyze --json` output and renders
 // a tree view. The extension does NOT re-implement business logic.
 //
 // This file defines the view structure and data flow.

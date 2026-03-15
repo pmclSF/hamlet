@@ -2,7 +2,7 @@
 
 ## 3.0.0 — V3 Signal-First Test Intelligence (unreleased)
 
-Hamlet V3 is a complete architectural shift from V2's conversion-led approach
+Terrain V3 is a complete architectural shift from V2's conversion-led approach
 to a signal-first test intelligence platform built in Go.
 
 ### Core Analysis
@@ -23,9 +23,9 @@ to a signal-first test intelligence platform built in Go.
 - Heatmap model with directory and owner hotspots
 
 ### Migration Intelligence
-- `hamlet migration readiness` — readiness assessment with quality factors and area assessments
-- `hamlet migration blockers` — blockers by type and area with representative examples
-- `hamlet migration preview` — file-level and scope-level migration difficulty preview
+- `terrain migration readiness` — readiness assessment with quality factors and area assessments
+- `terrain migration blockers` — blockers by type and area with representative examples
+- `terrain migration preview` — file-level and scope-level migration difficulty preview
 - Target framework inference (jest to vitest, cypress to playwright, etc.)
 
 ### Executive Summary
@@ -39,11 +39,11 @@ to a signal-first test intelligence platform built in Go.
 - Graceful degradation when artifacts are absent
 
 ### Snapshot and Comparison
-- `hamlet analyze --write-snapshot` — persist snapshots for trend tracking
-- `hamlet compare` — snapshot-to-snapshot comparison with signal deltas and risk band changes
+- `terrain analyze --write-snapshot` — persist snapshots for trend tracking
+- `terrain compare` — snapshot-to-snapshot comparison with signal deltas and risk band changes
 
 ### Impact Analysis
-- `hamlet impact` — change-scope analysis against git diff
+- `terrain impact` — change-scope analysis against git diff
 - Drill-down views: units, gaps, tests, owners
 
 ### VS Code Extension
@@ -53,7 +53,7 @@ to a signal-first test intelligence platform built in Go.
 
 ### Packaging
 - goreleaser config for multi-platform binaries
-- `hamlet version` with build metadata
+- `terrain version` with build metadata
 - 25 internal Go packages
 
 ---
@@ -88,15 +88,15 @@ to a signal-first test intelligence platform built in Go.
 
 ### Migration Tool
 
-- `hamlet migrate` — full project migration with state tracking
-- `hamlet estimate` — preview migration complexity
-- `hamlet status` / `hamlet checklist` — track migration progress
+- `terrain migrate` — full project migration with state tracking
+- `terrain estimate` — preview migration complexity
+- `terrain status` / `terrain checklist` — track migration progress
 - Dependency-ordered conversion (helpers before tests)
 - Resume interrupted migrations with `--continue`
 
 ### Config Conversion
 
-- `hamlet convert-config` — convert framework configuration files
+- `terrain convert-config` — convert framework configuration files
 - Supports Jest, Vitest, Cypress, Playwright, WebdriverIO, Mocha configs
 
 ### CLI Polish
@@ -107,15 +107,15 @@ to a signal-first test intelligence platform built in Go.
 - **`--on-error`** — skip, fail, or best-effort error handling
 - **`--json`** — machine-readable output for CI
 - **`--quiet` / `--verbose`** — output control
-- **`hamlet list`** — categorized conversion directory
-- **`hamlet doctor`** — diagnostic command
+- **`terrain list`** — categorized conversion directory
+- **`terrain doctor`** — diagnostic command
 - TTY-aware progress bar
 
 ### Pipeline Architecture
 
 - Framework-neutral intermediate representation (IR)
 - Confidence scoring for every conversion
-- HAMLET-TODO markers for unconvertible patterns
+- TERRAIN-TODO markers for unconvertible patterns
 - Pattern-based parsing and emission
 
 ## 1.0.0

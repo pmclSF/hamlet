@@ -1,5 +1,5 @@
 /**
- * Hamlet - Multi-framework test converter type definitions
+ * Terrain - Multi-framework test converter type definitions
  */
 
 export type Framework =
@@ -235,7 +235,7 @@ export interface IPatternEngine {
   clear(): void;
 }
 
-// ── Classes exported from main entry (hamlet-testframework) ──
+// ── Classes exported from main entry (terrain-testframework) ──
 
 export class RepositoryConverter {
   constructor();

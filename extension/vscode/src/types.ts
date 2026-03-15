@@ -1,5 +1,5 @@
-// Types aligned with the Hamlet CLI JSON snapshot contract.
-// These types are consumed from `hamlet analyze --json` output.
+// Types aligned with the Terrain CLI JSON snapshot contract.
+// These types are consumed from `terrain analyze --json` output.
 // Do NOT duplicate business logic here — the CLI is the source of truth.
 
 export interface SignalLocation {
@@ -140,7 +140,7 @@ export interface CoverageSummary {
   branchCoveragePct?: number;
 }
 
-// Migration preview types aligned with `hamlet migration preview --json`.
+// Migration preview types aligned with `terrain migration preview --json`.
 export interface MigrationPreviewBlocker {
   type: string;
   pattern: string;
@@ -160,7 +160,7 @@ export interface MigrationPreviewResult {
   limitations?: string[];
 }
 
-// Migration readiness types aligned with `hamlet migration readiness --json`.
+// Migration readiness types aligned with `terrain migration readiness --json`.
 export interface MigrationBlockerExample {
   type: string;
   file: string;

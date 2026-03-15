@@ -95,10 +95,10 @@ function emit(ir, source, transformContext) {
   // jest.requireActual → await vi.importActual (factory must become async)
   result = convertRequireActual(result);
 
-  // jest.mock with { virtual: true } → HAMLET-TODO
+  // jest.mock with { virtual: true } → TERRAIN-TODO
   result = convertVirtualMocks(result, todos);
 
-  // jest.retryTimes → HAMLET-TODO
+  // jest.retryTimes → TERRAIN-TODO
   result = convertRetryTimes(result, todos);
 
   // jest.setTimeout → vi.setConfig
@@ -107,7 +107,7 @@ function emit(ir, source, transformContext) {
     'vi.setConfig({ testTimeout: $1 })'
   );
 
-  // expect.addSnapshotSerializer → HAMLET-TODO
+  // expect.addSnapshotSerializer → TERRAIN-TODO
   result = convertSnapshotSerializer(result, todos);
 
   // --- Phase 2: Simple jest.* → vi.* replacements ---
@@ -150,7 +150,7 @@ function emit(ir, source, transformContext) {
   // Must run after virtual mock handling
   result = result.replace(/\bjest\.mock\b/g, 'vi.mock');
 
-  // jest.isolateModules → HAMLET-TODO (no direct Vitest equivalent)
+  // jest.isolateModules → TERRAIN-TODO (no direct Vitest equivalent)
   result = result.replace(/\bjest\.isolateModules\s*\(/g, (match) => {
     return (
       formatter.formatTodo({
@@ -248,7 +248,7 @@ function convertRequireActual(source) {
 }
 
 /**
- * Convert jest.mock with { virtual: true } to HAMLET-TODO.
+ * Convert jest.mock with { virtual: true } to TERRAIN-TODO.
  */
 function convertVirtualMocks(source, todos) {
   // Match jest.mock('module', factory, { virtual: true })
@@ -274,7 +274,7 @@ function convertVirtualMocks(source, todos) {
 }
 
 /**
- * Convert jest.retryTimes to HAMLET-TODO.
+ * Convert jest.retryTimes to TERRAIN-TODO.
  */
 function convertRetryTimes(source, todos) {
   return source.replace(
@@ -294,7 +294,7 @@ function convertRetryTimes(source, todos) {
 }
 
 /**
- * Convert expect.addSnapshotSerializer to HAMLET-TODO.
+ * Convert expect.addSnapshotSerializer to TERRAIN-TODO.
  */
 function convertSnapshotSerializer(source, todos) {
   return source.replace(
@@ -334,7 +334,7 @@ function addMockHostingWarning(source, warnings) {
     }
   }
 
-  if (mockLine >= 0 && !source.includes('HAMLET-WARNING')) {
+  if (mockLine >= 0 && !source.includes('TERRAIN-WARNING')) {
     const warning = formatter.formatWarning({
       description:
         'vi.mock is hoisted like jest.mock, but factory function scoping ' +
@@ -354,7 +354,7 @@ function addMockHostingWarning(source, warnings) {
  * Add warning comment before toMatchSnapshot() calls.
  */
 function addSnapshotWarning(source, warnings) {
-  if (source.includes('HAMLET-WARNING') && source.includes('snapshot')) {
+  if (source.includes('TERRAIN-WARNING') && source.includes('snapshot')) {
     return source; // Already warned
   }
 
@@ -362,17 +362,17 @@ function addSnapshotWarning(source, warnings) {
   for (let i = 0; i < lines.length; i++) {
     if (
       /\.toMatchSnapshot\s*\(/.test(lines[i]) &&
-      !lines[i].includes('HAMLET')
+      !lines[i].includes('TERRAIN')
     ) {
       const warning =
-        '// HAMLET-WARNING: Snapshot file location and format may differ between\n' +
+        '// TERRAIN-WARNING: Snapshot file location and format may differ between\n' +
         '// Jest (__snapshots__/*.snap) and Vitest. Run `vitest --update` to\n' +
         '// regenerate snapshots after migration.';
       // Insert warning before the first snapshot assertion only
       const describeIdx = findPrecedingDescribe(lines, i);
       if (
         describeIdx >= 0 &&
-        !lines.slice(describeIdx, i).some((l) => l.includes('HAMLET-WARNING'))
+        !lines.slice(describeIdx, i).some((l) => l.includes('TERRAIN-WARNING'))
       ) {
         lines.splice(describeIdx, 0, warning);
       }
@@ -517,7 +517,7 @@ function addDoneCallbackWarning(source, warnings) {
   let warned = false;
 
   for (let i = 0; i < lines.length; i++) {
-    if (doneCallbackRe.test(lines[i]) && !lines[i].includes('HAMLET')) {
+    if (doneCallbackRe.test(lines[i]) && !lines[i].includes('TERRAIN')) {
       const warning = formatter.formatWarning({
         description:
           'done() callback pattern detected. Vitest supports done() but ' +

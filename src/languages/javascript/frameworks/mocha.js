@@ -476,10 +476,10 @@ function emit(ir, source) {
     }
   }
 
-  // --- File-level Phase 0: Strip incoming HAMLET-TODO blocks ---
+  // --- File-level Phase 0: Strip incoming TERRAIN-TODO blocks ---
   let result = source;
   result = result.replace(
-    /^[ \t]*\/\/ HAMLET-TODO \[[^\]]+\]:.*\n(?:[ \t]*\n)*(?:[ \t]*\/\/ (?:Original|Manual action required):.*\n(?:[ \t]*\n)*)*/gm,
+    /^[ \t]*\/\/ TERRAIN-TODO \[[^\]]+\]:.*\n(?:[ \t]*\n)*(?:[ \t]*\/\/ (?:Original|Manual action required):.*\n(?:[ \t]*\n)*)*/gm,
     ''
   );
 

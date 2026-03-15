@@ -577,7 +577,7 @@ export class CypressToPlaywright extends BaseConverter {
     result = result.replace(/\bcy\.(\w+)\s*\(/g, (match, cmd) => {
       if (knownCyCommands.has(cmd)) return match;
       return (
-        '// HAMLET-TODO [UNCONVERTIBLE-CUSTOM-COMMAND]: ' +
+        '// TERRAIN-TODO [UNCONVERTIBLE-CUSTOM-COMMAND]: ' +
         `Custom Cypress command cy.${cmd}() has no Playwright equivalent.\n` +
         '// Manual action required: Implement as a Playwright helper function or page object method.\n' +
         match
@@ -830,7 +830,7 @@ export default defineConfig(${JSON.stringify(playwrightConfig, null, 2)});
    * @returns {string}
    */
   addRetryWarning(content) {
-    if (content.includes('HAMLET-WARNING')) return content;
+    if (content.includes('TERRAIN-WARNING')) return content;
 
     const hasWebFirstAssertion =
       content.includes('toBeVisible') ||
@@ -844,7 +844,7 @@ export default defineConfig(${JSON.stringify(playwrightConfig, null, 2)});
     if (!hasWebFirstAssertion) return content;
 
     const warning =
-      '// HAMLET-WARNING: Cypress .should() chains retry until timeout.\n' +
+      '// TERRAIN-WARNING: Cypress .should() chains retry until timeout.\n' +
       '// Playwright web-first assertions (toBeVisible, toHaveText, etc.) also\n' +
       '// auto-retry, but non-web assertions do not. Verify timeout behavior.';
 

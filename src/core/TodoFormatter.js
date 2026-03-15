@@ -1,5 +1,5 @@
 /**
- * Formats HAMLET-TODO markers for unconvertible patterns.
+ * Formats TERRAIN-TODO markers for unconvertible patterns.
  *
  * Produces standardized output in the target language's comment syntax
  * when code cannot be automatically converted.
@@ -22,7 +22,7 @@ export class TodoFormatter {
   }
 
   /**
-   * Format a HAMLET-TODO comment for an unconvertible pattern.
+   * Format a TERRAIN-TODO comment for an unconvertible pattern.
    *
    * @param {Object} options
    * @param {string} options.id - Unconvertible pattern ID (e.g., 'UNCONVERTIBLE-001')
@@ -35,7 +35,7 @@ export class TodoFormatter {
     const p = this.style.prefix;
     const lines = [];
 
-    lines.push(`${p} HAMLET-TODO [${id}]: ${description}`);
+    lines.push(`${p} TERRAIN-TODO [${id}]: ${description}`);
 
     const originalLines = original.split('\n');
     if (originalLines.length === 1) {
@@ -53,7 +53,7 @@ export class TodoFormatter {
   }
 
   /**
-   * Format a HAMLET-WARNING comment for patterns that convert but may need review.
+   * Format a TERRAIN-WARNING comment for patterns that convert but may need review.
    *
    * @param {Object} options
    * @param {string} options.description - What the concern is
@@ -64,7 +64,7 @@ export class TodoFormatter {
     const p = this.style.prefix;
     const lines = [];
 
-    lines.push(`${p} HAMLET-WARNING: ${description}`);
+    lines.push(`${p} TERRAIN-WARNING: ${description}`);
     if (original) {
       lines.push(`${p} Original: ${original}`);
     }

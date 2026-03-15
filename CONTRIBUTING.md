@@ -1,13 +1,13 @@
-# Contributing to Hamlet
+# Contributing to Terrain
 
 ## Quick Start (Go Engine)
 
 ```bash
-git clone https://github.com/pmclSF/hamlet.git
-cd hamlet
+git clone https://github.com/pmclSF/terrain.git
+cd terrain
 make build
 make test
-./hamlet analyze
+./terrain analyze
 ```
 
 ## Quick Start (Legacy Converter)

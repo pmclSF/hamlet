@@ -115,7 +115,7 @@ async function renderConvertAll(container, state, _actions) {
       </div>
       <div class="form-group">
         <label>Output Directory</label>
-        <input type="text" class="text-input" id="batch-outdir" value="./hamlet-out" />
+        <input type="text" class="text-input" id="batch-outdir" value="./terrain-out" />
       </div>
       <button class="btn btn-primary" id="batch-run">Run Conversion</button>
     </div>`;
@@ -139,7 +139,7 @@ async function renderConvertAll(container, state, _actions) {
     const from = fromSel.value;
     const to = toSel.value;
     const outdir =
-      container.querySelector('#batch-outdir').value || './hamlet-out';
+      container.querySelector('#batch-outdir').value || './terrain-out';
     try {
       const { jobId } = await api.startConvert({
         root: state.root,

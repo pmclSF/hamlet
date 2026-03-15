@@ -1,5 +1,5 @@
 /**
- * Hamlet Doctor — environment and project diagnostic checks.
+ * Terrain Doctor — environment and project diagnostic checks.
  *
  * Pure logic module: returns structured results, no console/chalk/process.exit.
  */

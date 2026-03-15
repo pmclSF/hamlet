@@ -520,9 +520,9 @@ function convertAssertThrowsToTestNG(source) {
 function emit(_ir, source) {
   let result = source;
 
-  // Strip incoming HAMLET-TODO blocks (from previous round-trip step)
+  // Strip incoming TERRAIN-TODO blocks (from previous round-trip step)
   result = result.replace(
-    /^[ \t]*\/\/ HAMLET-TODO \[[^\]]+\]:.*\n(?:[ \t]*\n)*(?:[ \t]*\/\/ (?:Original|Manual action required):.*\n(?:[ \t]*\n)*)*/gm,
+    /^[ \t]*\/\/ TERRAIN-TODO \[[^\]]+\]:.*\n(?:[ \t]*\n)*(?:[ \t]*\/\/ (?:Original|Manual action required):.*\n(?:[ \t]*\n)*)*/gm,
     ''
   );
 
@@ -681,7 +681,7 @@ function emit(_ir, source) {
 
   result = convertAssertThrowsToTestNG(result);
 
-  // --- Phase 7: Unconvertible JUnit 5 patterns → HAMLET-TODO ---
+  // --- Phase 7: Unconvertible JUnit 5 patterns → TERRAIN-TODO ---
 
   // @DisplayName
   result = result.replace(
@@ -759,7 +759,7 @@ function emit(_ir, source) {
     );
   });
 
-  // --- Phase 8: @ParameterizedTest + source annotations → HAMLET-TODO ---
+  // --- Phase 8: @ParameterizedTest + source annotations → TERRAIN-TODO ---
 
   // @ParameterizedTest (with or without name attribute)
   result = result.replace(

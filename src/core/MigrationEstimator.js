@@ -3,7 +3,7 @@
  *
  * Runs scanner + classifier + dependency graph.
  * Returns structured data (CLI formats it).
- * Read-only: does NOT modify files, does NOT create .hamlet/.
+ * Read-only: does NOT modify files, does NOT create .terrain/.
  */
 
 import fs from 'fs/promises';

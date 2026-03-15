@@ -415,9 +415,9 @@ function parse(source) {
 function emit(_ir, source) {
   let result = source;
 
-  // Strip incoming HAMLET-TODO blocks (from previous round-trip step)
+  // Strip incoming TERRAIN-TODO blocks (from previous round-trip step)
   result = result.replace(
-    /^[ \t]*\/\/ HAMLET-TODO \[[^\]]+\]:.*\n(?:[ \t]*\n)*(?:[ \t]*\/\/ (?:Original|Manual action required):.*\n(?:[ \t]*\n)*)*/gm,
+    /^[ \t]*\/\/ TERRAIN-TODO \[[^\]]+\]:.*\n(?:[ \t]*\n)*(?:[ \t]*\/\/ (?:Original|Manual action required):.*\n(?:[ \t]*\n)*)*/gm,
     ''
   );
 
@@ -593,7 +593,7 @@ function emit(_ir, source) {
 
   // --- Phase 5: Unconvertible patterns ---
 
-  // jest.mock(module) → HAMLET-TODO
+  // jest.mock(module) → TERRAIN-TODO
   result = result.replace(/\bjest\.mock\s*\(([^)]+)\)\s*;?/g, (match) => {
     return (
       formatter.formatTodo({
@@ -608,7 +608,7 @@ function emit(_ir, source) {
     );
   });
 
-  // toMatchSnapshot → HAMLET-TODO
+  // toMatchSnapshot → TERRAIN-TODO
   result = result.replace(
     /expect\([^)]+\)\.toMatchSnapshot\(\)\s*;?/g,
     (match) => {
@@ -625,7 +625,7 @@ function emit(_ir, source) {
     }
   );
 
-  // toMatchInlineSnapshot → HAMLET-TODO
+  // toMatchInlineSnapshot → TERRAIN-TODO
   result = result.replace(
     /expect\([^)]+\)\.toMatchInlineSnapshot\([^)]*\)\s*;?/g,
     (match) => {

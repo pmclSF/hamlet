@@ -1,6 +1,6 @@
-# Hamlet Test Intelligence -- VS Code Extension
+# Terrain Test Intelligence -- VS Code Extension
 
-Thin VS Code / Cursor extension that renders Hamlet analysis as sidebar views.
+Thin VS Code / Cursor extension that renders Terrain analysis as sidebar views.
 All intelligence lives in the CLI -- the extension is a read-only lens.
 
 See [docs/vscode-extension.md](../../docs/vscode-extension.md) for the design.
@@ -8,7 +8,7 @@ See [docs/vscode-extension.md](../../docs/vscode-extension.md) for the design.
 ## Architecture
 
 ```
-hamlet analyze --json  -->  TestSuiteSnapshot  -->  TreeDataProviders  -->  Sidebar Views
+terrain analyze --json  -->  TestSuiteSnapshot  -->  TreeDataProviders  -->  Sidebar Views
 ```
 
 The extension invokes the CLI, parses the JSON snapshot, and renders views.
@@ -28,10 +28,10 @@ No business logic is duplicated in TypeScript.
 
 | Command | Description |
 |---------|-------------|
-| `Hamlet: Refresh Analysis` | Re-run `hamlet analyze --json` and refresh all views |
-| `Hamlet: Open Executive Summary` | Open terminal with `hamlet summary` |
-| `Hamlet: Show Migration Blockers` | Open terminal with `hamlet migration blockers` |
-| `Hamlet: Reveal File` | Open the file associated with a finding |
+| `Terrain: Refresh Analysis` | Re-run `terrain analyze --json` and refresh all views |
+| `Terrain: Open Executive Summary` | Open terminal with `terrain summary` |
+| `Terrain: Show Migration Blockers` | Open terminal with `terrain migration blockers` |
+| `Terrain: Reveal File` | Open the file associated with a finding |
 
 ## States
 
@@ -46,8 +46,8 @@ All views handle these states:
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| `hamlet.binaryPath` | `hamlet` | Path to the hamlet CLI binary |
-| `hamlet.autoRefresh` | `false` | Auto-refresh when files change |
+| `terrain.binaryPath` | `terrain` | Path to the terrain CLI binary |
+| `terrain.autoRefresh` | `false` | Auto-refresh when files change |
 
 ## Development
 

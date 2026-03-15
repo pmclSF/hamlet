@@ -117,7 +117,7 @@ function buildHtml(report) {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Hamlet Analysis Report</title>
+<title>Terrain Analysis Report</title>
 <style>
 :root{--bg-0:#0d1117;--bg-1:#161b22;--bg-2:#21262d;--bg-3:#30363d;--text-0:#e6edf3;--text-1:#8b949e;--text-2:#484f58;--accent:#58a6ff;--accent-dim:#1f6feb;--success:#3fb950;--warning:#d29922;--danger:#f85149;--info:#79c0ff;--radius:6px;--mono:'SF Mono','Cascadia Code','Fira Code',Consolas,monospace;--sans:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -181,14 +181,14 @@ tbody tr.selected{background:var(--bg-2)}
 </head>
 <body>
 <header class="topbar">
-  <div class="topbar-brand">Hamlet Analysis Report</div>
+  <div class="topbar-brand">Terrain Analysis Report</div>
   <div class="topbar-actions">
     <button class="btn" id="dl-json">Download JSON</button>
   </div>
 </header>
 <div class="container">
   <div class="meta">
-    <span>Hamlet v${esc(meta.hamletVersion)}</span>
+    <span>Terrain v${esc(meta.terrainVersion)}</span>
     <span>Generated ${esc(meta.generatedAt)}</span>
     <span>Root: <code>${esc(meta.root)}</code></span>
   </div>
@@ -280,7 +280,7 @@ tbody.addEventListener('click',function(e){
   tbody.querySelectorAll('tr').forEach(function(r){r.classList.remove('selected')});
   row.classList.add('selected');
   var fd=dirs.filter(function(d){return d.from===f.framework});
-  var cmd=fd.length>0?'hamlet convert '+f.path+' --from '+f.framework+' --to '+fd[0].to+' -o hamlet-out/':'';
+  var cmd=fd.length>0?'terrain convert '+f.path+' --from '+f.framework+' --to '+fd[0].to+' -o terrain-out/':'';
   detail.className='detail-side open';
   detail.innerHTML='<div class="detail-header"><h3>'+esc(f.path)+'</h3><button class="btn btn-ghost" id="close-detail">\\u2715</button></div>'
     +'<div class="detail-section"><div class="detail-row"><span class="detail-label">Type</span>'+badge(f.type,f.type==='test'?'success':'muted')+'</div>'
@@ -298,7 +298,7 @@ tbody.addEventListener('click',function(e){
 
 document.getElementById('dl-json').addEventListener('click',function(){
   var blob=new Blob([JSON.stringify(DATA,null,2)],{type:'application/json'});
-  var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='hamlet-analysis.json';a.click();URL.revokeObjectURL(a.href);
+  var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='terrain-analysis.json';a.click();URL.revokeObjectURL(a.href);
 });
 })();
 </script>

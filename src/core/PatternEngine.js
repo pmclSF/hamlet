@@ -85,13 +85,13 @@ export class PatternEngine {
     const protectedContent = content.replace(combined, (match) => {
       const index = literals.length;
       literals.push(match);
-      return `__HAMLET_LIT_${index}__`;
+      return `__TERRAIN_LIT_${index}__`;
     });
 
     const restore = (text) => {
       let restored = text;
       for (let i = literals.length - 1; i >= 0; i--) {
-        restored = restored.split(`__HAMLET_LIT_${i}__`).join(literals[i]);
+        restored = restored.split(`__TERRAIN_LIT_${i}__`).join(literals[i]);
       }
       return restored;
     };

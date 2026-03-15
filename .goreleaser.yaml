@@ -1,10 +1,10 @@
 version: 2
 
-project_name: hamlet
+project_name: terrain
 
 builds:
-  - main: ./cmd/hamlet
-    binary: hamlet
+  - main: ./cmd/terrain
+    binary: terrain
     env:
       - CGO_ENABLED=0
     goos:
@@ -42,4 +42,4 @@ changelog:
 release:
   github:
     owner: pmclSF
-    name: hamlet
+    name: terrain

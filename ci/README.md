@@ -1,6 +1,6 @@
 # ci/
 
-CI integration helpers and configuration for Hamlet's current engine.
+CI integration helpers and configuration for Terrain's current engine.
 
 Will include:
 - CI-friendly output formats

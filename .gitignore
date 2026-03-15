@@ -147,10 +147,10 @@ benchmarks/run-benchmark.sh
 # Public benchmark repos and artifacts (generated, not committed)
 benchmarks/repos/
 artifacts/public-benchmarks/
-hamlet-bench
+terrain-bench
 
 # Large local-only directories
-/hamlet/
+/terrain/
 testing/
 
 # Test output (generated during test runs)

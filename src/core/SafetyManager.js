@@ -14,7 +14,7 @@ export class SafetyManager {
    */
   constructor(projectRoot) {
     this.projectRoot = projectRoot;
-    this.backupDir = path.join(projectRoot, '.hamlet', 'backups');
+    this.backupDir = path.join(projectRoot, '.terrain', 'backups');
   }
 
   /**
@@ -28,7 +28,7 @@ export class SafetyManager {
     const dir = path.dirname(filePath);
     await fs.mkdir(dir, { recursive: true });
 
-    const tmpPath = filePath + '.hamlet-tmp';
+    const tmpPath = filePath + '.terrain-tmp';
     await fs.writeFile(tmpPath, content, 'utf8');
     await fs.rename(tmpPath, filePath);
   }

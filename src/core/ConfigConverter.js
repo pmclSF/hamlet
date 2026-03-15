@@ -2,7 +2,7 @@
  * Converts test framework configuration files between frameworks.
  *
  * Handles the 5-6 most common keys per framework pair.
- * Unrecognized keys get a HAMLET-TODO comment (not silent omission).
+ * Unrecognized keys get a TERRAIN-TODO comment (not silent omission).
  */
 
 import { TodoFormatter } from './TodoFormatter.js';
@@ -315,7 +315,7 @@ export class ConfigConverter {
     const { keys } = parsed;
     const lines = [];
     lines.push('# unittest configuration');
-    lines.push('# Converted from pytest.ini by Hamlet');
+    lines.push('# Converted from pytest.ini by Terrain');
     lines.push('#');
 
     if (keys.testpaths) {
@@ -746,7 +746,7 @@ export class ConfigConverter {
       /\bfunction\s/.test(content) ||
       /=>\s*\{/.test(content)
     ) {
-      return null; // Too complex — will get HAMLET-TODO
+      return null; // Too complex — will get TERRAIN-TODO
     }
 
     return null;
@@ -1015,7 +1015,7 @@ export class ConfigConverter {
   }
 
   /**
-   * Add a HAMLET-TODO header to unconvertible config.
+   * Add a TERRAIN-TODO header to unconvertible config.
    * @param {string} content
    * @param {string} from
    * @param {string} to

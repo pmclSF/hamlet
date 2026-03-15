@@ -161,24 +161,24 @@ export class PlaywrightToCypress extends BaseConverter {
     let result = content;
 
     // --- Restore annotated page.route() → cy.intercept() ---
-    // page.route(url, route => route.fulfill(response)) /* @hamlet:intercept('METHOD').as("alias") */
+    // page.route(url, route => route.fulfill(response)) /* @terrain:intercept('METHOD').as("alias") */
     result = result.replace(
-      /await page\.route\(([^,\n]+),\s*route\s*=>\s*route\.fulfill\(([^)]+)\)\)\s*\/\*\s*@hamlet:intercept\(([^)]+)\)\.as\(["']([^"']+)["']\)\s*\*\//g,
+      /await page\.route\(([^,\n]+),\s*route\s*=>\s*route\.fulfill\(([^)]+)\)\)\s*\/\*\s*@terrain:intercept\(([^)]+)\)\.as\(["']([^"']+)["']\)\s*\*\//g,
       "cy.intercept($3, $1, $2).as('$4')"
     );
-    // page.route(url, route => route.continue()) /* @hamlet:intercept('METHOD').as("alias") */
+    // page.route(url, route => route.continue()) /* @terrain:intercept('METHOD').as("alias") */
     result = result.replace(
-      /await page\.route\(([^,\n]+),\s*route\s*=>\s*route\.continue\(\)\)\s*\/\*\s*@hamlet:intercept\(([^)]+)\)\.as\(["']([^"']+)["']\)\s*\*\//g,
+      /await page\.route\(([^,\n]+),\s*route\s*=>\s*route\.continue\(\)\)\s*\/\*\s*@terrain:intercept\(([^)]+)\)\.as\(["']([^"']+)["']\)\s*\*\//g,
       "cy.intercept($2, $1).as('$3')"
     );
-    // page.route(url, route => route.continue()) /* @hamlet:as("alias") */
+    // page.route(url, route => route.continue()) /* @terrain:as("alias") */
     result = result.replace(
-      /await page\.route\(([^,\n]+),\s*route\s*=>\s*route\.continue\(\)\)\s*\/\*\s*@hamlet:as\(["']([^"']+)["']\)\s*\*\//g,
+      /await page\.route\(([^,\n]+),\s*route\s*=>\s*route\.continue\(\)\)\s*\/\*\s*@terrain:as\(["']([^"']+)["']\)\s*\*\//g,
       "cy.intercept($1).as('$2')"
     );
-    // page.route(url, (route) => { /* @hamlet:intercept('METHOD') */
+    // page.route(url, (route) => { /* @terrain:intercept('METHOD') */
     result = result.replace(
-      /await page\.route\(([^,\n]+),\s*\(route\)\s*=>\s*\{\s*\/\*\s*@hamlet:intercept\(([^)]+)\)\s*\*\//g,
+      /await page\.route\(([^,\n]+),\s*\(route\)\s*=>\s*\{\s*\/\*\s*@terrain:intercept\(([^)]+)\)\s*\*\//g,
       'cy.intercept($2, $1, (req) => {'
     );
     // page.route(url, route => route.fulfill(response)) — no annotation
@@ -528,11 +528,11 @@ export class PlaywrightToCypress extends BaseConverter {
     result = result.replace(/test\.describe\.skip\(/g, 'describe.skip(');
     // Restore context() from annotated test.describe
     result = result.replace(
-      /test\.describe\(\s*\/\* @hamlet:was-context \*\//g,
+      /test\.describe\(\s*\/\* @terrain:was-context \*\//g,
       'context('
     );
     result = result.replace(
-      /describe\(\s*\/\* @hamlet:was-context \*\//g,
+      /describe\(\s*\/\* @terrain:was-context \*\//g,
       'context('
     );
     result = result.replace(/test\.describe\(/g, 'describe(');
@@ -548,9 +548,9 @@ export class PlaywrightToCypress extends BaseConverter {
     result = result.replace(/test\.beforeEach\(/g, 'beforeEach(');
     result = result.replace(/test\.afterEach\(/g, 'afterEach(');
 
-    // Strip HAMLET-TODO comment blocks from forward conversion
+    // Strip TERRAIN-TODO comment blocks from forward conversion
     result = result.replace(
-      /^[ \t]*\/\/ HAMLET-TODO \[[^\]]+\]:.*\n(?:[ \t]*\n)*(?:[ \t]*\/\/ (?:Original|Manual action required):.*\n(?:[ \t]*\n)*)*/gm,
+      /^[ \t]*\/\/ TERRAIN-TODO \[[^\]]+\]:.*\n(?:[ \t]*\n)*(?:[ \t]*\/\/ (?:Original|Manual action required):.*\n(?:[ \t]*\n)*)*/gm,
       ''
     );
 

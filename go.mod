@@ -1,4 +1,4 @@
-module github.com/pmclSF/hamlet
+module github.com/pmclSF/terrain
 
 go 1.23
 

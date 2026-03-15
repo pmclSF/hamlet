@@ -3,7 +3,7 @@
  *
  * Wraps functions to catch errors and return partial results.
  * Recovers from parse errors with line-by-line fallback.
- * Produces HAMLET-WARNING comments for recovered sections.
+ * Produces TERRAIN-WARNING comments for recovered sections.
  */
 
 import { TodoFormatter } from './TodoFormatter.js';
@@ -40,7 +40,7 @@ export class ErrorRecovery {
   /**
    * Attempt to recover from a parse error by processing content line-by-line.
    *
-   * Lines that fail individually are replaced with HAMLET-WARNING comments.
+   * Lines that fail individually are replaced with TERRAIN-WARNING comments.
    *
    * @param {string} content - The original content that failed to parse
    * @param {Error} error - The original parse error
