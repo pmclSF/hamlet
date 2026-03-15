@@ -19,7 +19,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        language: [actions, go, java-kotlin, javascript-typescript, python]
+        language: [go, javascript-typescript, python]
 
     steps:
       - name: Checkout repository
