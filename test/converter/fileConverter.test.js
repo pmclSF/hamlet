@@ -11,7 +11,7 @@ describe('fileConverter', () => {
   let tmpDir;
 
   beforeEach(async () => {
-    tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'hamlet-file-convert-'));
+    tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'terrain-file-convert-'));
   });
 
   afterEach(async () => {
@@ -87,7 +87,7 @@ test('works', () => {
       to: 'playwright',
     });
 
-    expect(converted).toContain('HAMLET-TODO');
+    expect(converted).toContain('TERRAIN-TODO');
     expect(converted).not.toContain('projects: [');
     expect(converted).toContain("module.exports = makeConfig");
   });

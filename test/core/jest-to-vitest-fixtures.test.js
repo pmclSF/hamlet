@@ -20,7 +20,7 @@ describe('MULTI: Multi-file migration scenarios', () => {
 
   beforeEach(async () => {
     engine = new MigrationEngine();
-    tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'hamlet-multi-'));
+    tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'terrain-multi-'));
     outputDir = path.join(tmpDir, 'output');
     await fs.mkdir(outputDir);
   });
@@ -250,7 +250,7 @@ describe('MIGRATE: Migration-specific scenarios', () => {
   let tmpDir;
 
   beforeEach(async () => {
-    tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'hamlet-migrate-'));
+    tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'terrain-migrate-'));
   });
 
   afterEach(async () => {

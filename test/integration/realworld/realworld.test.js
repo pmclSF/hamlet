@@ -5,7 +5,7 @@
  * Each file is converted through all applicable directions and verified for:
  * - Conversion completes without throwing
  * - Output is non-empty and syntactically plausible
- * - No source framework API residue outside HAMLET comments
+ * - No source framework API residue outside TERRAIN comments
  * - Test count is preserved
  */
 

@@ -28,11 +28,11 @@ describe('ProjectAnalyzer', () => {
 
     it('should include correct meta fields', async () => {
       const report = await analyzer.analyze(fixturesDir);
-      expect(report.meta).toHaveProperty('hamletVersion');
+      expect(report.meta).toHaveProperty('terrainVersion');
       expect(report.meta).toHaveProperty('nodeVersion');
       expect(report.meta).toHaveProperty('generatedAt');
       expect(report.meta).toHaveProperty('root');
-      expect(typeof report.meta.hamletVersion).toBe('string');
+      expect(typeof report.meta.terrainVersion).toBe('string');
       expect(report.meta.nodeVersion).toBe(process.version);
       expect(report.meta.root).toBe(path.resolve(fixturesDir));
     });

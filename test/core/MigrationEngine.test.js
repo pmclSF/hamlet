@@ -10,7 +10,7 @@ describe('MigrationEngine', () => {
 
   beforeEach(async () => {
     engine = new MigrationEngine();
-    tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'hamlet-engine-'));
+    tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'terrain-engine-'));
     outputDir = path.join(tmpDir, 'output');
     await fs.mkdir(outputDir);
   });
@@ -69,7 +69,7 @@ describe('MigrationEngine', () => {
         output: outputDir,
       });
 
-      const stateExists = await fs.access(path.join(tmpDir, '.hamlet', 'state.json'))
+      const stateExists = await fs.access(path.join(tmpDir, '.terrain', 'state.json'))
         .then(() => true).catch(() => false);
       expect(stateExists).toBe(true);
     });
@@ -189,7 +189,7 @@ describe('MigrationEngine', () => {
     });
 
     it('should start fresh when no prior state and --continue is set', async () => {
-      const freshDir = await fs.mkdtemp(path.join(os.tmpdir(), 'hamlet-fresh-'));
+      const freshDir = await fs.mkdtemp(path.join(os.tmpdir(), 'terrain-fresh-'));
       const freshOutput = path.join(freshDir, 'output');
       await fs.mkdir(freshOutput);
       await fs.writeFile(path.join(freshDir, 'test.test.js'), jestContent());
@@ -234,15 +234,15 @@ describe('MigrationEngine', () => {
       expect(results.length).toBeGreaterThanOrEqual(1);
     });
 
-    it('should handle .hamlet/ existing from previous run', async () => {
-      await fs.mkdir(path.join(tmpDir, '.hamlet'));
+    it('should handle .terrain/ existing from previous run', async () => {
+      await fs.mkdir(path.join(tmpDir, '.terrain'));
       await fs.writeFile(
-        path.join(tmpDir, '.hamlet', 'state.json'),
+        path.join(tmpDir, '.terrain', 'state.json'),
         JSON.stringify({ version: 1, startedAt: '', source: 'jest', target: 'vitest', files: {} })
       );
       await fs.writeFile(path.join(tmpDir, 'test.test.js'), jestContent());
 
-      // Should not crash with existing .hamlet/
+      // Should not crash with existing .terrain/
       const { results } = await engine.migrate(tmpDir, {
         from: 'jest',
         to: 'vitest',

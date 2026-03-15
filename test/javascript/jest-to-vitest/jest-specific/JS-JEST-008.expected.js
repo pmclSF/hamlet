@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import renderer from 'react-test-renderer';
 import Button from './Button';
 
-// HAMLET-WARNING: Snapshot file location and format may differ between
+// TERRAIN-WARNING: Snapshot file location and format may differ between
 // Jest (__snapshots__/*.snap) and Vitest. Run `vitest --update` to
 // regenerate snapshots after migration.
 describe('Component', () => {

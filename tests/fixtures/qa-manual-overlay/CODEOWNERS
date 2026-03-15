@@ -1,0 +1,10 @@
+# Billing
+src/billing/ @billing-team
+tests/billing/ @billing-team @qa-billing
+
+# Onboarding
+src/onboarding/ @platform-team
+tests/onboarding/ @platform-team
+
+# QA oversight
+.terrain/ @qa-lead

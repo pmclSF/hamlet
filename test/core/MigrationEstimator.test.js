@@ -9,7 +9,7 @@ describe('MigrationEstimator', () => {
 
   beforeEach(async () => {
     estimator = new MigrationEstimator();
-    tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'hamlet-estimate-'));
+    tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'terrain-estimate-'));
   });
 
   afterEach(async () => {
@@ -99,7 +99,7 @@ describe('MigrationEstimator', () => {
       expect(result.summary.totalFiles).toBe(0); // No .js/.ts files
     });
 
-    it('should NOT modify files or create .hamlet/', async () => {
+    it('should NOT modify files or create .terrain/', async () => {
       await fs.writeFile(
         path.join(tmpDir, 'test.test.js'),
         `describe('test', () => { it('works', () => { expect(1).toBe(1); }); });`
@@ -107,9 +107,9 @@ describe('MigrationEstimator', () => {
 
       await estimator.estimate(tmpDir, { from: 'jest', to: 'vitest' });
 
-      const hamletExists = await fs.access(path.join(tmpDir, '.hamlet'))
+      const terrainExists = await fs.access(path.join(tmpDir, '.terrain'))
         .then(() => true).catch(() => false);
-      expect(hamletExists).toBe(false);
+      expect(terrainExists).toBe(false);
     });
 
     it('should include file type classification in results', async () => {

@@ -4,7 +4,7 @@ import { runFixture } from '../convert.helper.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-describe('UNCONV-001: nose2 plugin marked as HAMLET-TODO', () => {
+describe('UNCONV-001: nose2 plugin marked as TERRAIN-TODO', () => {
   it('should convert correctly', async () => {
     await runFixture(__dirname, 'UNCONV-001');
   });

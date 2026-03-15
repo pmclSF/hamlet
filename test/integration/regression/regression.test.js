@@ -13,7 +13,7 @@ import { ConverterFactory } from '../../../src/core/ConverterFactory.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, '../../..');
-const cliPath = path.resolve(rootDir, 'bin/hamlet.js');
+const cliPath = path.resolve(rootDir, 'bin/terrain.js');
 const outputDir = path.resolve(__dirname, '../../output/regression');
 
 function runCLI(args, options = {}) {
@@ -129,8 +129,8 @@ describe('Cross-Step Regression Testing', () => {
 
       expect(result).toContain('Migration complete');
 
-      // State tracked in .hamlet/
-      const stateExists = await fs.access(path.join(migrateDir, '.hamlet', 'state.json'))
+      // State tracked in .terrain/
+      const stateExists = await fs.access(path.join(migrateDir, '.terrain', 'state.json'))
         .then(() => true).catch(() => false);
       expect(stateExists).toBe(true);
     });
@@ -281,7 +281,7 @@ describe('Cross-Step Regression Testing', () => {
   describe('Doctor command', () => {
     test('should run without error and show diagnostics', () => {
       const result = runCLI(['doctor']);
-      expect(result).toContain('Hamlet Doctor');
+      expect(result).toContain('Terrain Doctor');
       expect(result).toContain('Node.js');
       expect(result).toContain('PASS');
       expect(result).toContain('checks:');

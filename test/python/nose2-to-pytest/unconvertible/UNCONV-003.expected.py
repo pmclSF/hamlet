@@ -1,4 +1,4 @@
-# HAMLET-TODO [UNCONVERTIBLE-SUCH-DSL]: nose2 such DSL has no direct pytest equivalent
+# TERRAIN-TODO [UNCONVERTIBLE-SUCH-DSL]: nose2 such DSL has no direct pytest equivalent
 
 # Original: it = such.A('calculator')
 

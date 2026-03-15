@@ -86,7 +86,7 @@ describe('convertConfig', () => {
   let tmpDir;
 
   beforeEach(async () => {
-    tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'hamlet-test-'));
+    tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'terrain-test-'));
   });
 
   afterEach(async () => {

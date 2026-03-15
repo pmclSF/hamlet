@@ -4,7 +4,7 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, '../..');
-const cliPath = path.resolve(rootDir, 'bin/hamlet.js');
+const cliPath = path.resolve(rootDir, 'bin/terrain.js');
 const fixturesDir = path.resolve(__dirname, '../fixtures/analyze');
 
 function runCLI(args) {
@@ -37,7 +37,7 @@ describe('CLI analyze command', () => {
     it('should have correct meta field types', () => {
       const result = runCLI(['analyze', fixturesDir, '--json']);
       const report = JSON.parse(result.stdout);
-      expect(typeof report.meta.hamletVersion).toBe('string');
+      expect(typeof report.meta.terrainVersion).toBe('string');
       expect(typeof report.meta.nodeVersion).toBe('string');
       expect(typeof report.meta.generatedAt).toBe('string');
       expect(typeof report.meta.root).toBe('string');

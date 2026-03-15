@@ -4,7 +4,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const CLI = path.join(__dirname, '../../bin/hamlet.js');
+const CLI = path.join(__dirname, '../../bin/terrain.js');
 const fixturesDir = path.join(__dirname, '../fixtures/configs');
 
 function run(args) {

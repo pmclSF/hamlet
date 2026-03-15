@@ -191,7 +191,7 @@ describe('CypressToPlaywright', () => {
     it('should add retry warning when .should() is converted to expect()', async () => {
       const input = `cy.get('.btn').should('be.visible');`;
       const result = await converter.convert(input);
-      expect(result).toContain('HAMLET-WARNING');
+      expect(result).toContain('TERRAIN-WARNING');
       expect(result).toContain('retry');
     });
   });

@@ -8,7 +8,7 @@ describe('TodoFormatter', () => {
       formatter = new TodoFormatter('javascript');
     });
 
-    it('should format a HAMLET-TODO with // prefix', () => {
+    it('should format a TERRAIN-TODO with // prefix', () => {
       const result = formatter.formatTodo({
         id: 'UNCONVERTIBLE-001',
         description: 'Jest snapshot testing has no equivalent',
@@ -16,7 +16,7 @@ describe('TodoFormatter', () => {
         action: 'Replace with explicit assertion',
       });
 
-      expect(result).toContain('// HAMLET-TODO [UNCONVERTIBLE-001]: Jest snapshot testing has no equivalent');
+      expect(result).toContain('// TERRAIN-TODO [UNCONVERTIBLE-001]: Jest snapshot testing has no equivalent');
       expect(result).toContain('// Original: expect(tree).toMatchSnapshot()');
       expect(result).toContain('// Manual action required: Replace with explicit assertion');
     });
@@ -34,13 +34,13 @@ describe('TodoFormatter', () => {
       expect(result).toContain('//     "login",');
     });
 
-    it('should format a HAMLET-WARNING', () => {
+    it('should format a TERRAIN-WARNING', () => {
       const result = formatter.formatWarning({
         description: 'vi.mock hoisting differs from jest.mock',
         original: 'jest.mock("./render")',
       });
 
-      expect(result).toContain('// HAMLET-WARNING: vi.mock hoisting differs from jest.mock');
+      expect(result).toContain('// TERRAIN-WARNING: vi.mock hoisting differs from jest.mock');
       expect(result).toContain('// Original: jest.mock("./render")');
     });
 
@@ -49,7 +49,7 @@ describe('TodoFormatter', () => {
         description: 'Snapshot file locations differ between Jest and Vitest',
       });
 
-      expect(result).toContain('// HAMLET-WARNING:');
+      expect(result).toContain('// TERRAIN-WARNING:');
       expect(result).not.toContain('// Original:');
     });
   });
@@ -69,7 +69,7 @@ describe('TodoFormatter', () => {
         action: 'Move fixture logic to setUpClass or a base test class',
       });
 
-      expect(result).toContain('# HAMLET-TODO [UNCONVERTIBLE-003]:');
+      expect(result).toContain('# TERRAIN-TODO [UNCONVERTIBLE-003]:');
       expect(result).toContain('# Original: @pytest.fixture(scope="session")');
       expect(result).toContain('# Manual action required:');
     });
@@ -85,7 +85,7 @@ describe('TodoFormatter', () => {
         action: 'Extract shared tests into a module',
       });
 
-      expect(result).toContain('# HAMLET-TODO [UNCONVERTIBLE-004]:');
+      expect(result).toContain('# TERRAIN-TODO [UNCONVERTIBLE-004]:');
       expect(result).toContain('# Original:');
     });
   });
@@ -100,7 +100,7 @@ describe('TodoFormatter', () => {
         action: 'Replace with assertThrows() calls',
       });
 
-      expect(result).toContain('// HAMLET-TODO [UNCONVERTIBLE-006]:');
+      expect(result).toContain('// TERRAIN-TODO [UNCONVERTIBLE-006]:');
       expect(result).toContain('// Original: @Rule public ExpectedException');
     });
   });
@@ -115,7 +115,7 @@ describe('TodoFormatter', () => {
         action: 'Fix it',
       });
 
-      expect(result).toContain('// HAMLET-TODO');
+      expect(result).toContain('// TERRAIN-TODO');
     });
   });
 });

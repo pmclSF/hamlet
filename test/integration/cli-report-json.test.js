@@ -6,7 +6,7 @@ import os from 'os';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, '../..');
-const cliPath = path.resolve(rootDir, 'bin/hamlet.js');
+const cliPath = path.resolve(rootDir, 'bin/terrain.js');
 const fixtureFile = path.resolve(
   __dirname,
   '../fixtures/convert/simple.test.js'
@@ -18,7 +18,7 @@ function assertConversionReportSchema(report) {
 
   expect(report.schemaVersion).toBe('1.0.0');
   expect(report.meta).toBeDefined();
-  expect(typeof report.meta.hamletVersion).toBe('string');
+  expect(typeof report.meta.terrainVersion).toBe('string');
   expect(typeof report.meta.nodeVersion).toBe('string');
   expect(typeof report.meta.startedAt).toBe('string');
   expect(typeof report.meta.finishedAt).toBe('string');
@@ -68,7 +68,7 @@ describe('CLI --report-json on convert', () => {
   let tmpDir;
 
   beforeEach(async () => {
-    tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'hamlet-report-'));
+    tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'terrain-report-'));
   });
 
   afterEach(async () => {

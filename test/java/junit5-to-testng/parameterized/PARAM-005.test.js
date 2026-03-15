@@ -4,7 +4,7 @@ import { runFixture } from '../convert.helper.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-describe('PARAM-005: @EnumSource → HAMLET-TODO', () => {
+describe('PARAM-005: @EnumSource → TERRAIN-TODO', () => {
   it('should convert correctly', async () => {
     await runFixture(__dirname, 'PARAM-005');
   });

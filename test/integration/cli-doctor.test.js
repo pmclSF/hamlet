@@ -5,7 +5,7 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, '../..');
-const cliPath = path.resolve(rootDir, 'bin/hamlet.js');
+const cliPath = path.resolve(rootDir, 'bin/terrain.js');
 const outputDir = path.resolve(__dirname, '../output/doctor');
 
 /**
@@ -137,7 +137,7 @@ describe('CLI doctor command', () => {
   // ── Non-existent path ────────────────────────────────────────────
 
   it('exits 1 for a non-existent path', () => {
-    const { stdout, exitCode } = runDoctor(['/tmp/does-not-exist-hamlet']);
+    const { stdout, exitCode } = runDoctor(['/tmp/does-not-exist-terrain']);
     expect(exitCode).toBe(1);
     expect(stdout).toContain('FAIL');
     expect(stdout).toContain('does not exist');
@@ -179,7 +179,7 @@ describe('CLI doctor command', () => {
   it('returns exit 1 and summary.fail > 0 for FAIL in JSON mode', () => {
     const { stdout, exitCode } = runDoctor([
       '--json',
-      '/tmp/does-not-exist-hamlet',
+      '/tmp/does-not-exist-terrain',
     ]);
     expect(exitCode).toBe(1);
     const parsed = JSON.parse(stdout);
@@ -189,7 +189,7 @@ describe('CLI doctor command', () => {
   it('includes remediation on FAIL checks in JSON mode', () => {
     const { stdout } = runDoctor([
       '--json',
-      '/tmp/does-not-exist-hamlet',
+      '/tmp/does-not-exist-terrain',
     ]);
     const parsed = JSON.parse(stdout);
     const failCheck = parsed.checks.find((c) => c.status === 'FAIL');

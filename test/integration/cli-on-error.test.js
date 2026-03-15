@@ -5,7 +5,7 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, '../..');
-const cliPath = path.resolve(rootDir, 'bin/hamlet.js');
+const cliPath = path.resolve(rootDir, 'bin/terrain.js');
 const outputDir = path.resolve(__dirname, '../output/on-error');
 
 function runCLI(args, options = {}) {
@@ -98,7 +98,7 @@ describe('CLI --on-error Flag', () => {
   });
 
   describe('best-effort mode for single file', () => {
-    test('should try partial output with HAMLET-WARNING comment on error', () => {
+    test('should try partial output with TERRAIN-WARNING comment on error', () => {
       // Create a file that will cause conversion issues
       const badDir = path.resolve(outputDir, 'best-effort-src');
       // For single file, best-effort still exits 1 but may write partial output

@@ -5,7 +5,7 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, '../..');
-const cliPath = path.resolve(rootDir, 'bin/hamlet.js');
+const cliPath = path.resolve(rootDir, 'bin/terrain.js');
 const fixturesDir = path.resolve(__dirname, '../fixtures');
 const outputDir = path.resolve(__dirname, '../output/dry-run');
 
@@ -121,7 +121,7 @@ describe('CLI Dry-Run Mode', () => {
   });
 
   describe('Migrate dry-run', () => {
-    test('should show estimation without creating .hamlet/', async () => {
+    test('should show estimation without creating .terrain/', async () => {
       const migrateDir = path.resolve(outputDir, 'migrate-dryrun');
       await fs.mkdir(migrateDir, { recursive: true });
       await fs.writeFile(
@@ -138,10 +138,10 @@ describe('CLI Dry-Run Mode', () => {
       expect(result).toContain('Dry run');
       expect(result).toContain('Estimation Summary');
 
-      // .hamlet/ should NOT exist
-      const hamletExists = await fs.access(path.join(migrateDir, '.hamlet'))
+      // .terrain/ should NOT exist
+      const terrainExists = await fs.access(path.join(migrateDir, '.terrain'))
         .then(() => true).catch(() => false);
-      expect(hamletExists).toBe(false);
+      expect(terrainExists).toBe(false);
     });
   });
 
@@ -387,12 +387,12 @@ describe('CLI Dry-Run Mode', () => {
       expect(result).toContain('Confidence');
       expect(result).toContain('Summary');
 
-      // .hamlet/ should NOT exist
-      const hamletExists = await fs
-        .access(path.join(migrateDir, '.hamlet'))
+      // .terrain/ should NOT exist
+      const terrainExists = await fs
+        .access(path.join(migrateDir, '.terrain'))
         .then(() => true)
         .catch(() => false);
-      expect(hamletExists).toBe(false);
+      expect(terrainExists).toBe(false);
     });
   });
 });

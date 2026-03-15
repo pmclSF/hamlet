@@ -4,7 +4,7 @@ import { runFixture } from '../convert.helper.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-describe('UNCONVERTIBLE-001: jest.mock to HAMLET-TODO', () => {
+describe('UNCONVERTIBLE-001: jest.mock to TERRAIN-TODO', () => {
   it('should convert correctly', async () => {
     await runFixture(__dirname, 'UNCONVERTIBLE-001', { minConfidence: 0 });
   });

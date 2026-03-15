@@ -174,7 +174,7 @@ test('should login with valid credentials', async t => {
 fixture('Search').page('http://localhost:3000');
 
 test('should search and find results', async t => {
-  await t.typeText('#search', 'hamlet');
+  await t.typeText('#search', 'terrain');
   await t.click('#search-btn');
   await t.expect(Selector('.results').count).gte(1);
 });

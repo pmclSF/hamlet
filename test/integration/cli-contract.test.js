@@ -11,7 +11,7 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, '../..');
-const cliPath = path.resolve(rootDir, 'bin/hamlet.js');
+const cliPath = path.resolve(rootDir, 'bin/terrain.js');
 const fixturesDir = path.resolve(__dirname, '../fixtures');
 const outputDir = path.resolve(__dirname, '../output/contract');
 
@@ -40,8 +40,8 @@ describe('CLI Contract Snapshot Tests', () => {
     await fs.rm(outputDir, { recursive: true, force: true }).catch(() => {});
   });
 
-  // ── 1) hamlet --help ────────────────────────────────────────────
-  describe('hamlet --help', () => {
+  // ── 1) terrain --help ────────────────────────────────────────────
+  describe('terrain --help', () => {
     let helpOutput;
 
     beforeAll(() => {
@@ -66,8 +66,8 @@ describe('CLI Contract Snapshot Tests', () => {
     });
   });
 
-  // ── 2) hamlet doctor ───────────────────────────────────────────
-  describe('hamlet doctor on project root', () => {
+  // ── 2) terrain doctor ───────────────────────────────────────────
+  describe('terrain doctor on project root', () => {
     let result;
 
     beforeAll(() => {
@@ -92,8 +92,8 @@ describe('CLI Contract Snapshot Tests', () => {
     });
   });
 
-  // ── 3) hamlet convert --dry-run ────────────────────────────────
-  describe('hamlet convert --dry-run', () => {
+  // ── 3) terrain convert --dry-run ────────────────────────────────
+  describe('terrain convert --dry-run', () => {
     const fixture = path.resolve(fixturesDir, 'sample.jest.js');
     let result;
 

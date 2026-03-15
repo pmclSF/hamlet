@@ -5,7 +5,7 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, '../..');
-const cliPath = path.resolve(rootDir, 'bin/hamlet.js');
+const cliPath = path.resolve(rootDir, 'bin/terrain.js');
 const fixturesDir = path.resolve(__dirname, '../fixtures');
 const outputDir = path.resolve(__dirname, '../output/cli');
 
@@ -122,7 +122,7 @@ describe('Sample Test', () => {
   describe('Help Command', () => {
     test('should display help information', () => {
       const result = runCLI(['--help']);
-      expect(result).toContain('hamlet');
+      expect(result).toContain('terrain');
       expect(result).toContain('convert');
     });
 
@@ -498,7 +498,7 @@ describe('Test 2', () => {
       expect(result).toContain('Migration complete');
     });
 
-    test('should create .hamlet state directory', async () => {
+    test('should create .terrain state directory', async () => {
       await fs.writeFile(
         path.join(migrateDir, 'test.test.js'),
         `describe('t', () => { it('w', () => { expect(1).toBe(1); }); });`
@@ -510,7 +510,7 @@ describe('Test 2', () => {
         '-o', migrateOutput,
       ]);
 
-      const stateExists = await fs.access(path.join(migrateDir, '.hamlet', 'state.json'))
+      const stateExists = await fs.access(path.join(migrateDir, '.terrain', 'state.json'))
         .then(() => true).catch(() => false);
       expect(stateExists).toBe(true);
     });
@@ -567,7 +567,7 @@ describe('Test 2', () => {
       expect(result).toContain('Effort Estimate');
     });
 
-    test('should NOT create .hamlet directory', async () => {
+    test('should NOT create .terrain directory', async () => {
       await fs.writeFile(
         path.join(estimateDir, 'test.test.js'),
         `describe('t', () => { it('w', () => { expect(1).toBe(1); }); });`
@@ -578,9 +578,9 @@ describe('Test 2', () => {
         '--from', 'jest', '--to', 'vitest',
       ]);
 
-      const hamletExists = await fs.access(path.join(estimateDir, '.hamlet'))
+      const terrainExists = await fs.access(path.join(estimateDir, '.terrain'))
         .then(() => true).catch(() => false);
-      expect(hamletExists).toBe(false);
+      expect(terrainExists).toBe(false);
     });
 
     test('should show blockers for complex files', async () => {
@@ -610,7 +610,7 @@ describe('Test 2', () => {
       await fs.rm(statusDir, { recursive: true, force: true }).catch(() => {});
     });
 
-    test('should show "no migration" when .hamlet does not exist', () => {
+    test('should show "no migration" when .terrain does not exist', () => {
       const result = runCLI(['status', '-d', statusDir]);
       expect(result).toContain('No migration in progress');
     });
@@ -652,7 +652,7 @@ describe('Test 2', () => {
       await fs.rm(checklistDir, { recursive: true, force: true }).catch(() => {});
     });
 
-    test('should show "no migration" when .hamlet does not exist', () => {
+    test('should show "no migration" when .terrain does not exist', () => {
       const result = runCLI(['checklist', '-d', checklistDir]);
       expect(result).toContain('No migration in progress');
     });
@@ -692,15 +692,15 @@ describe('Test 2', () => {
       await fs.rm(resetDir, { recursive: true, force: true }).catch(() => {});
     });
 
-    test('should show "no state" when .hamlet does not exist', () => {
+    test('should show "no state" when .terrain does not exist', () => {
       const result = runCLI(['reset', '-d', resetDir, '--yes']);
       expect(result).toContain('No migration state');
     });
 
     test('should require --yes flag', async () => {
-      await fs.mkdir(path.join(resetDir, '.hamlet'), { recursive: true });
+      await fs.mkdir(path.join(resetDir, '.terrain'), { recursive: true });
       await fs.writeFile(
-        path.join(resetDir, '.hamlet', 'state.json'),
+        path.join(resetDir, '.terrain', 'state.json'),
         JSON.stringify({ version: 1, files: {} })
       );
 
@@ -708,19 +708,19 @@ describe('Test 2', () => {
       expect(result).toContain('Use --yes');
     });
 
-    test('should clear .hamlet directory with --yes', async () => {
-      await fs.mkdir(path.join(resetDir, '.hamlet'), { recursive: true });
+    test('should clear .terrain directory with --yes', async () => {
+      await fs.mkdir(path.join(resetDir, '.terrain'), { recursive: true });
       await fs.writeFile(
-        path.join(resetDir, '.hamlet', 'state.json'),
+        path.join(resetDir, '.terrain', 'state.json'),
         JSON.stringify({ version: 1, files: {} })
       );
 
       const result = runCLI(['reset', '-d', resetDir, '--yes']);
       expect(result).toContain('Migration state cleared');
 
-      const hamletExists = await fs.access(path.join(resetDir, '.hamlet'))
+      const terrainExists = await fs.access(path.join(resetDir, '.terrain'))
         .then(() => true).catch(() => false);
-      expect(hamletExists).toBe(false);
+      expect(terrainExists).toBe(false);
     });
   });
 
