@@ -74,11 +74,11 @@ func TestBuildWithoutBehaviorSurfaces(t *testing.T) {
 			{
 				Path:      "src/__tests__/auth.test.ts",
 				Framework: "jest",
-				Language:  "javascript",
-				TestCases: []models.TestCase{
-					{Name: "should login", Line: 5},
-				},
+				TestCount: 1,
 			},
+		},
+		TestCases: []models.TestCase{
+			{TestName: "should login", FilePath: "src/__tests__/auth.test.ts", Framework: "jest", Language: "javascript", Line: 5, ExtractionKind: "static", Confidence: 1.0},
 		},
 		CodeSurfaces: []models.CodeSurface{
 			{SurfaceID: "surface:src/auth.ts:login", Name: "login", Path: "src/auth.ts", Kind: models.SurfaceFunction, Language: "typescript", Exported: true},
@@ -204,15 +204,15 @@ func TestBuildEndToEnd_InferenceChain(t *testing.T) {
 			{
 				Path:      "tests/auth.test.ts",
 				Framework: "jest",
-				Language:  "javascript",
-				TestCases: []models.TestCase{
-					{Name: "should login successfully", Line: 10},
-					{Name: "should reject bad password", Line: 20},
-				},
-				ImportGraph: map[string][]string{
-					"tests/auth.test.ts": {"src/auth.ts"},
-				},
+				TestCount: 2,
 			},
+		},
+		TestCases: []models.TestCase{
+			{TestName: "should login successfully", FilePath: "tests/auth.test.ts", Framework: "jest", Language: "javascript", Line: 10, ExtractionKind: "static", Confidence: 1.0},
+			{TestName: "should reject bad password", FilePath: "tests/auth.test.ts", Framework: "jest", Language: "javascript", Line: 20, ExtractionKind: "static", Confidence: 1.0},
+		},
+		ImportGraph: map[string]map[string]bool{
+			"tests/auth.test.ts": {"src/auth.ts": true},
 		},
 		CodeSurfaces: []models.CodeSurface{
 			{SurfaceID: "surface:src/auth.ts:login", Name: "login", Path: "src/auth.ts", Kind: models.SurfaceFunction, Language: "typescript", Exported: true},
