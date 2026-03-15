@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"encoding/json"
 	"flag"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/pmclSF/terrain/internal/analyze"
@@ -21,52 +23,65 @@ import (
 
 var updateGolden = flag.Bool("update-golden", false, "update golden snapshot files")
 
+var fixtureOnce sync.Once
+var fixtureErr error
+
 func fixtureRoot(t *testing.T) string {
 	t.Helper()
 	_, thisFile, _, _ := runtime.Caller(0)
 	root := filepath.Join(filepath.Dir(thisFile), "..", "..", "tests", "fixtures", "sample-repo")
-	ensureFixtureGit(t, root)
+	fixtureOnce.Do(func() {
+		fixtureErr = ensureFixtureGit(root)
+	})
+	if fixtureErr != nil {
+		t.Fatalf("fixture git setup failed: %v", fixtureErr)
+	}
 	return root
 }
 
 // ensureFixtureGit initializes a git repo in the fixture directory if one
 // doesn't already exist. The impact snapshot test requires HEAD~1 to show
 // exactly 2 changed files (login-extended.test.ts and register-v2.test.ts).
-func ensureFixtureGit(t *testing.T, root string) {
-	t.Helper()
+func ensureFixtureGit(root string) error {
 	if _, err := os.Stat(filepath.Join(root, ".git")); err == nil {
-		return // already initialized
+		return nil // already initialized
 	}
 
-	cmds := [][]string{
-		{"git", "init"},
-		{"git", "config", "user.email", "test@test.com"},
-		{"git", "config", "user.name", "Test"},
-	}
-	for _, args := range cmds {
+	run := func(args ...string) error {
 		cmd := exec.Command(args[0], args[1:]...)
 		cmd.Dir = root
 		if out, err := cmd.CombinedOutput(); err != nil {
-			t.Fatalf("fixture git setup (%v): %v\n%s", args, err, out)
+			return fmt.Errorf("fixture git setup (%v): %v\n%s", args, err, out)
+		}
+		return nil
+	}
+
+	for _, args := range [][]string{
+		{"git", "init"},
+		{"git", "config", "user.email", "test@test.com"},
+		{"git", "config", "user.name", "Test"},
+	} {
+		if err := run(args...); err != nil {
+			return err
 		}
 	}
 
 	// First commit: everything except the 2 extended test files.
-	run := func(args ...string) {
-		t.Helper()
-		cmd := exec.Command(args[0], args[1:]...)
-		cmd.Dir = root
-		if out, err := cmd.CombinedOutput(); err != nil {
-			t.Fatalf("fixture git setup (%v): %v\n%s", args, err, out)
-		}
+	if err := run("git", "add", "."); err != nil {
+		return err
 	}
-	run("git", "add", ".")
-	run("git", "rm", "--cached", "tests/unit/register-v2.test.ts", "tests/unit/login-extended.test.ts")
-	run("git", "commit", "-m", "initial commit")
+	if err := run("git", "rm", "--cached", "tests/unit/register-v2.test.ts", "tests/unit/login-extended.test.ts"); err != nil {
+		return err
+	}
+	if err := run("git", "commit", "-m", "initial commit"); err != nil {
+		return err
+	}
 
 	// Second commit: add the 2 files so HEAD~1 diff shows exactly 2 changes.
-	run("git", "add", "tests/unit/register-v2.test.ts", "tests/unit/login-extended.test.ts")
-	run("git", "commit", "-m", "add extended test files")
+	if err := run("git", "add", "tests/unit/register-v2.test.ts", "tests/unit/login-extended.test.ts"); err != nil {
+		return err
+	}
+	return run("git", "commit", "-m", "add extended test files")
 }
 
 func goldenPath(t *testing.T, name string) string {
