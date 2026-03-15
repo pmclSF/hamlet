@@ -1,4 +1,4 @@
-Hamlet Posture Report
+Terrain Posture Report
 ============================================================
 
 HEALTH
@@ -104,7 +104,7 @@ OPERATIONAL_RISK
 ------------------------------------------------------------
 
 Next steps:
-  hamlet summary       leadership-ready overview
-  hamlet metrics       aggregate scorecard
-  hamlet posture --json   machine-readable posture data
+  terrain summary       leadership-ready overview
+  terrain metrics       aggregate scorecard
+  terrain posture --json   machine-readable posture data
 

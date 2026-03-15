@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/pmclSF/hamlet/internal/models"
+	"github.com/pmclSF/terrain/internal/models"
 )
 
 func TestExtractJSExports_DefaultAndReExports(t *testing.T) {
@@ -34,6 +34,40 @@ export { baz } from './baz';
 	}
 
 	for _, want := range []string{"login", "AuthClient", "Foo", "bar", "baz"} {
+		if !got[want] {
+			t.Fatalf("missing exported unit %q in %+v", want, units)
+		}
+	}
+}
+
+func TestExtractJSExports_MultilineNamedExportList(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	relPath := "src/multi.js"
+	absPath := filepath.Join(root, relPath)
+	if err := os.MkdirAll(filepath.Dir(absPath), 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	content := `
+const alpha = 1
+const beta = 2
+
+export {
+  alpha as Alpha,
+  beta,
+} from './values'
+`
+	if err := os.WriteFile(absPath, []byte(content), 0o644); err != nil {
+		t.Fatalf("write file: %v", err)
+	}
+
+	units := extractJSExports(root, relPath)
+	got := map[string]bool{}
+	for _, u := range units {
+		got[u.Name] = true
+	}
+
+	for _, want := range []string{"Alpha", "beta"} {
 		if !got[want] {
 			t.Fatalf("missing exported unit %q in %+v", want, units)
 		}
@@ -83,6 +117,42 @@ func (h *Handler) Serve() {}
 	}
 	if got["pkg/auth.go:Handler.Serve"].Kind != models.CodeUnitKindMethod {
 		t.Fatalf("Serve kind = %s, want method", got["pkg/auth.go:Handler.Serve"].Kind)
+	}
+}
+
+func TestExtractGoExports_LowercaseReceiverType(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	relPath := "pkg/worker.go"
+	absPath := filepath.Join(root, relPath)
+	if err := os.MkdirAll(filepath.Dir(absPath), 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	content := `
+package pkg
+
+type reader struct{}
+
+func (r *reader) Read() {}
+func (reader) Write() {}
+`
+	if err := os.WriteFile(absPath, []byte(content), 0o644); err != nil {
+		t.Fatalf("write file: %v", err)
+	}
+
+	units := extractGoExports(root, relPath)
+	got := map[string]bool{}
+	for _, u := range units {
+		got[u.UnitID] = true
+	}
+
+	for _, id := range []string{
+		"pkg/worker.go:reader.Read",
+		"pkg/worker.go:reader.Write",
+	} {
+		if !got[id] {
+			t.Fatalf("missing Go method %q in %+v", id, units)
+		}
 	}
 }
 

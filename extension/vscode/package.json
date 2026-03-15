@@ -1,6 +1,6 @@
 {
-  "name": "hamlet-test-intelligence",
-  "displayName": "Hamlet Test Intelligence",
+  "name": "terrain-test-intelligence",
+  "displayName": "Terrain Test Intelligence",
   "description": "Signal-first test intelligence: risk, quality, migration readiness, and governance insights for your test suite.",
   "version": "0.1.0",
   "publisher": "pmclSF",
@@ -19,73 +19,73 @@
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "hamlet",
-          "title": "Hamlet",
+          "id": "terrain",
+          "title": "Terrain",
           "icon": "$(beaker)"
         }
       ]
     },
     "views": {
-      "hamlet": [
+      "terrain": [
         {
-          "id": "hamlet.overview",
+          "id": "terrain.overview",
           "name": "Overview"
         },
         {
-          "id": "hamlet.health",
+          "id": "terrain.health",
           "name": "Health"
         },
         {
-          "id": "hamlet.quality",
+          "id": "terrain.quality",
           "name": "Quality"
         },
         {
-          "id": "hamlet.migration",
+          "id": "terrain.migration",
           "name": "Migration"
         },
         {
-          "id": "hamlet.review",
+          "id": "terrain.review",
           "name": "Review"
         }
       ]
     },
     "commands": [
       {
-        "command": "hamlet.refresh",
-        "title": "Hamlet: Refresh Analysis",
+        "command": "terrain.refresh",
+        "title": "Terrain: Refresh Analysis",
         "icon": "$(refresh)"
       },
       {
-        "command": "hamlet.openSummary",
-        "title": "Hamlet: Open Executive Summary"
+        "command": "terrain.openSummary",
+        "title": "Terrain: Open Executive Summary"
       },
       {
-        "command": "hamlet.openMigrationBlockers",
-        "title": "Hamlet: Show Migration Blockers"
+        "command": "terrain.openMigrationBlockers",
+        "title": "Terrain: Show Migration Blockers"
       },
       {
-        "command": "hamlet.revealFile",
-        "title": "Hamlet: Reveal File"
+        "command": "terrain.revealFile",
+        "title": "Terrain: Reveal File"
       }
     ],
     "menus": {
       "view/title": [
         {
-          "command": "hamlet.refresh",
-          "when": "view =~ /^hamlet\\./",
+          "command": "terrain.refresh",
+          "when": "view =~ /^terrain\\./",
           "group": "navigation"
         }
       ]
     },
     "configuration": {
-      "title": "Hamlet",
+      "title": "Terrain",
       "properties": {
-        "hamlet.binaryPath": {
+        "terrain.binaryPath": {
           "type": "string",
-          "default": "hamlet",
-          "description": "Path to the hamlet CLI binary."
+          "default": "terrain",
+          "description": "Path to the terrain CLI binary."
         },
-        "hamlet.autoRefresh": {
+        "terrain.autoRefresh": {
           "type": "boolean",
           "default": false,
           "description": "Automatically refresh analysis when files change."

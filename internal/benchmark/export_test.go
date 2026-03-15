@@ -3,8 +3,8 @@ package benchmark
 import (
 	"testing"
 
-	"github.com/pmclSF/hamlet/internal/metrics"
-	"github.com/pmclSF/hamlet/internal/models"
+	"github.com/pmclSF/terrain/internal/metrics"
+	"github.com/pmclSF/terrain/internal/models"
 )
 
 func TestBuildExport_Basic(t *testing.T) {
@@ -23,7 +23,7 @@ func TestBuildExport_Basic(t *testing.T) {
 	exp := BuildExport(snap, ms, false)
 
 	if exp.SchemaVersion != "3" {
-		t.Errorf("schemaVersion = %q, want 2", exp.SchemaVersion)
+		t.Errorf("schemaVersion = %q, want 3", exp.SchemaVersion)
 	}
 	if exp.Segment.PrimaryLanguage != "javascript" {
 		t.Errorf("primaryLanguage = %q, want javascript", exp.Segment.PrimaryLanguage)

@@ -1,4 +1,4 @@
-// setup.js - Jest test setup for Hamlet
+// setup.js - Jest test setup for Terrain
 
 // Global test setup
 beforeAll(() => {

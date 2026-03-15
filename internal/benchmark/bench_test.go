@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 // --- Config tests ---
@@ -372,7 +373,7 @@ func TestGenerateSummary(t *testing.T) {
 	md := GenerateSummary(assessments)
 
 	checks := []string{
-		"# Hamlet CLI Benchmark Summary",
+		"# Terrain CLI Benchmark Summary",
 		"## Repo: test-repo",
 		"### analyze",
 		"### impact",
@@ -392,7 +393,7 @@ func TestGenerateSummary_Empty(t *testing.T) {
 	t.Parallel()
 
 	md := GenerateSummary(nil)
-	if !strings.Contains(md, "# Hamlet CLI Benchmark Summary") {
+	if !strings.Contains(md, "# Terrain CLI Benchmark Summary") {
 		t.Error("empty summary should still have title")
 	}
 }
@@ -523,6 +524,149 @@ func TestExtractTestIDFromAnalyze_FallbackToID(t *testing.T) {
 	id := extractTestIDFromAnalyze(j)
 	if id != "id_field_test" {
 		t.Errorf("expected id_field_test, got %q", id)
+	}
+}
+
+// --- Assessment: truncation and timeout tests ---
+
+func TestAssessCommand_Truncation(t *testing.T) {
+	t.Parallel()
+
+	cr := CommandResult{
+		Command:         "analyze",
+		RepoName:        "test-repo",
+		ExitCode:        0,
+		Stdout:          `{"tests": 5}`,
+		StdoutTruncated: true,
+		StdoutBytes:     1024 * 1024,
+	}
+
+	a := AssessCommand(cr)
+
+	foundTrunc := false
+	for _, w := range a.WarningFlags {
+		if strings.Contains(w, "stdout truncated") {
+			foundTrunc = true
+		}
+	}
+	if !foundTrunc {
+		t.Error("expected stdout truncated warning flag")
+	}
+}
+
+func TestAssessCommand_Timeout(t *testing.T) {
+	t.Parallel()
+
+	cr := CommandResult{
+		Command:   "analyze",
+		RepoName:  "test-repo",
+		ExitCode:  -1,
+		TimedOut:   true,
+		RuntimeMs: 60000,
+		Error:     "timed out after 1m0s",
+	}
+
+	a := AssessCommand(cr)
+
+	foundTimeout := false
+	for _, w := range a.WarningFlags {
+		if strings.Contains(w, "timed out") {
+			foundTimeout = true
+		}
+	}
+	if !foundTimeout {
+		t.Error("expected timeout warning flag")
+	}
+}
+
+// --- Bounded capture tests ---
+
+func TestBoundedCapture_UnderLimit(t *testing.T) {
+	t.Parallel()
+
+	bc := newBoundedCapture(1024)
+	data := []byte("hello world")
+	n, err := bc.Write(data)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if n != len(data) {
+		t.Errorf("expected %d bytes written, got %d", len(data), n)
+	}
+	if bc.truncated {
+		t.Error("expected no truncation")
+	}
+	if bc.String() != "hello world" {
+		t.Errorf("expected 'hello world', got %q", bc.String())
+	}
+	if bc.AnnotatedString() != "hello world" {
+		t.Errorf("annotated string should match raw when not truncated")
+	}
+}
+
+func TestBoundedCapture_OverLimit(t *testing.T) {
+	t.Parallel()
+
+	bc := newBoundedCapture(1024) // minimum enforced
+	// Write more than 1024 bytes.
+	chunk := strings.Repeat("x", 600)
+	bc.Write([]byte(chunk))
+	bc.Write([]byte(chunk)) // total 1200 > 1024
+
+	if !bc.truncated {
+		t.Error("expected truncation")
+	}
+	if len(bc.data) != 1024 {
+		t.Errorf("expected 1024 bytes captured, got %d", len(bc.data))
+	}
+	if bc.total != 1200 {
+		t.Errorf("expected 1200 total bytes, got %d", bc.total)
+	}
+	if !strings.Contains(bc.AnnotatedString(), "output truncated") {
+		t.Error("annotated string should contain truncation notice")
+	}
+}
+
+func TestBoundedCapture_MinimumSize(t *testing.T) {
+	t.Parallel()
+
+	bc := newBoundedCapture(10) // should be bumped to 1024
+	if bc.maxBytes != 1024 {
+		t.Errorf("expected minimum 1024, got %d", bc.maxBytes)
+	}
+}
+
+// --- Timeout factor tests ---
+
+func TestTimeoutForCommand(t *testing.T) {
+	t.Parallel()
+
+	// Save and restore globals.
+	origTimeout := PerCommandTimeout
+	origFactor := HeavyCommandTimeoutFactor
+	defer func() {
+		PerCommandTimeout = origTimeout
+		HeavyCommandTimeoutFactor = origFactor
+	}()
+
+	PerCommandTimeout = 60 * time.Second
+	HeavyCommandTimeoutFactor = 4.0
+
+	// Regular command: no scaling.
+	if d := timeoutForCommand("analyze"); d != 60*time.Second {
+		t.Errorf("analyze timeout = %v, want 60s", d)
+	}
+	// Insights: factor * 1.5.
+	if d := timeoutForCommand("insights"); d != time.Duration(float64(60*time.Second)*6.0) {
+		t.Errorf("insights timeout = %v, want 360s", d)
+	}
+	// Debug: factor.
+	if d := timeoutForCommand("debug:graph"); d != time.Duration(float64(60*time.Second)*4.0) {
+		t.Errorf("debug:graph timeout = %v, want 240s", d)
+	}
+	// Explain: 1.5x.
+	if d := timeoutForCommand("explain"); d != time.Duration(float64(60*time.Second)*1.5) {
+		t.Errorf("explain timeout = %v, want 90s", d)
 	}
 }
 

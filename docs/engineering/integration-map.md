@@ -1,6 +1,6 @@
 # Integration Map: Signals, Quality, and Migration
 
-How Hamlet's signal types flow through major subsystems.
+How Terrain's signal types flow through major subsystems.
 
 ## Canonical Signal Type Sets
 
@@ -41,7 +41,7 @@ All subsystems import these sets from `signals` rather than defining local copie
       |
       +---> [summary/executive] → ExecutiveSummary (posture, focus, trends)
       |
-      +---> [benchmark/export] → privacy-safe Export (schema v3)
+      +---> [benchmark/export] → privacy-safe Export (current schema)
       |
       +---> [reporting/] → human-readable CLI output
 ```

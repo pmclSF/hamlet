@@ -3,7 +3,7 @@ package impact
 import (
 	"sort"
 
-	"github.com/pmclSF/hamlet/internal/models"
+	"github.com/pmclSF/terrain/internal/models"
 )
 
 // EdgeKind describes the type of impact relationship.

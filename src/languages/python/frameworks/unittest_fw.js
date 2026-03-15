@@ -446,7 +446,7 @@ function convertAssertions(result) {
         expr = topParts.slice(0, -1).join(', ');
       }
     }
-    const msgAnnotation = assertMsg ? `  # @hamlet:msg(${assertMsg})` : '';
+    const msgAnnotation = assertMsg ? `  # @terrain:msg(${assertMsg})` : '';
 
     // Strip string contents for safe operator detection (avoid matching > inside strings)
     const safe = expr.replace(/(["'])(?:(?!\1|\\).|\\.)*\1/g, (_m, q) => q + q);
@@ -722,10 +722,10 @@ function convertMarkers(result) {
     '@unittest.skipIf($1, $2)'
   );
 
-  // @pytest.mark.xfail(args) -> @unittest.expectedFailure  # @hamlet:xfail(args)
+  // @pytest.mark.xfail(args) -> @unittest.expectedFailure  # @terrain:xfail(args)
   result = result.replace(
     /@pytest\.mark\.xfail\(([^)]*)\)/g,
-    '@unittest.expectedFailure  # @hamlet:xfail($1)'
+    '@unittest.expectedFailure  # @terrain:xfail($1)'
   );
 
   // @pytest.mark.xfail (bare) -> @unittest.expectedFailure
@@ -964,7 +964,7 @@ function emit(_ir, source) {
   // Phase 5: Convert markers
   result = convertMarkers(result);
 
-  // Phase 6: @pytest.mark.parametrize -> HAMLET-TODO (complex conversion)
+  // Phase 6: @pytest.mark.parametrize -> TERRAIN-TODO (complex conversion)
   result = result.replace(
     /^(\s*)@pytest\.mark\.parametrize\((.+)\)$/gm,
     (match, indent, args) => {

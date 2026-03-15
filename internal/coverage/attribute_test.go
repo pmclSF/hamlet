@@ -3,7 +3,7 @@ package coverage
 import (
 	"testing"
 
-	"github.com/pmclSF/hamlet/internal/models"
+	"github.com/pmclSF/terrain/internal/models"
 )
 
 func TestAttributeToCodeUnits_FullyCovered(t *testing.T) {

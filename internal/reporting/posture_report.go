@@ -5,7 +5,7 @@ import (
 	"io"
 	"strings"
 
-	"github.com/pmclSF/hamlet/internal/models"
+	"github.com/pmclSF/terrain/internal/models"
 )
 
 // RenderPostureReport writes a detailed posture breakdown with measurement
@@ -16,13 +16,13 @@ func RenderPostureReport(w io.Writer, snap *models.TestSuiteSnapshot) {
 	}
 	blank := func() { fmt.Fprintln(w) }
 
-	line("Hamlet Posture Report")
+	line("Terrain Posture Report")
 	line(strings.Repeat("=", 60))
 	blank()
 
 	if snap.Measurements == nil || len(snap.Measurements.Posture) == 0 {
 		line("  No measurement data available.")
-		line("  Run `hamlet analyze` to generate posture measurements.")
+		line("  Run `terrain analyze` to generate posture measurements.")
 		return
 	}
 
@@ -63,8 +63,8 @@ func RenderPostureReport(w io.Writer, snap *models.TestSuiteSnapshot) {
 	}
 
 	line("Next steps:")
-	line("  hamlet summary       leadership-ready overview")
-	line("  hamlet metrics       aggregate scorecard")
-	line("  hamlet posture --json   machine-readable posture data")
+	line("  terrain summary       leadership-ready overview")
+	line("  terrain metrics       aggregate scorecard")
+	line("  terrain posture --json   machine-readable posture data")
 	blank()
 }

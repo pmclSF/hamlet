@@ -1,6 +1,6 @@
 # Analysis Graph
 
-The analysis graph (`internal/graph`) is a lightweight in-memory index that connects Hamlet's core entities for cross-cutting queries. It is built on demand from a `TestSuiteSnapshot` and provides O(1) lookups that would otherwise require repeated linear scans.
+The analysis graph (`internal/graph`) is a lightweight in-memory index that connects Terrain's core entities for cross-cutting queries. It is built on demand from a `TestSuiteSnapshot` and provides O(1) lookups that would otherwise require repeated linear scans.
 
 ## Design Principles
 

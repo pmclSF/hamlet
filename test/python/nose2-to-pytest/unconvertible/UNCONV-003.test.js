@@ -4,7 +4,7 @@ import { runFixture } from '../convert.helper.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-describe('UNCONV-003: such DSL marked as HAMLET-TODO', () => {
+describe('UNCONV-003: such DSL marked as TERRAIN-TODO', () => {
   it('should convert correctly', async () => {
     await runFixture(__dirname, 'UNCONV-003');
   });

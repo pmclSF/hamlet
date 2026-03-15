@@ -3,7 +3,7 @@ package suppression
 import (
 	"testing"
 
-	"github.com/pmclSF/hamlet/internal/models"
+	"github.com/pmclSF/terrain/internal/models"
 )
 
 func TestDetect_NilSnapshot(t *testing.T) {

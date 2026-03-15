@@ -3,7 +3,7 @@ package coverage
 import (
 	"testing"
 
-	"github.com/pmclSF/hamlet/internal/models"
+	"github.com/pmclSF/terrain/internal/models"
 )
 
 func TestComputeByType_UnlabeledCoverageDefaultsToUnit(t *testing.T) {

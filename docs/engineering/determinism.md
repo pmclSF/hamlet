@@ -1,12 +1,12 @@
 # Deterministic Output Contract
 
-Hamlet guarantees that running the same analysis on the same input produces
+Terrain guarantees that running the same analysis on the same input produces
 byte-identical JSON output (excluding timestamps). This contract is enforced
 by tests and architectural rules.
 
 ## Why Determinism Matters
 
-- **Snapshot comparison** (`hamlet compare`) depends on stable ordering to
+- **Snapshot comparison** (`terrain compare`) depends on stable ordering to
   produce meaningful diffs.
 - **CI gating** requires that repeated runs yield the same policy verdict.
 - **Extension rendering** should not shuffle items between refreshes.

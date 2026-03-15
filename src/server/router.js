@@ -132,7 +132,7 @@ function readJsonBody(req) {
         cleanup();
         chunks.length = 0;
         // Destroy the stream to stop receiving data from abusive senders.
-        // The 413 response is written by the error handler in HamletServer
+        // The 413 response is written by the error handler in TerrainServer
         // before the socket is torn down because node:http flushes the
         // response before closing.
         req.destroy();

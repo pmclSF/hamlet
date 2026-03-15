@@ -8,8 +8,8 @@ package heatmap
 import (
 	"sort"
 
-	"github.com/pmclSF/hamlet/internal/graph"
-	"github.com/pmclSF/hamlet/internal/models"
+	"github.com/pmclSF/terrain/internal/graph"
+	"github.com/pmclSF/terrain/internal/models"
 )
 
 // HotSpot represents a single area of concentrated risk.

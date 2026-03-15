@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-const gitHistoryAuthorPrefix = "__HAMLET_AUTHOR__:"
+const gitHistoryAuthorPrefix = "__TERRAIN_AUTHOR__:"
 
 func (r *Resolver) matchGitHistoryAssignment(relPath string) (OwnershipAssignment, bool) {
 	if !r.shouldTryGitHistory() {

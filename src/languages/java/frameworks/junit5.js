@@ -471,9 +471,9 @@ function reorderAssertionArgs(source, methodName, arityWithMessage) {
 function emit(_ir, source) {
   let result = source;
 
-  // Strip incoming HAMLET-TODO blocks (from previous round-trip step)
+  // Strip incoming TERRAIN-TODO blocks (from previous round-trip step)
   result = result.replace(
-    /^[ \t]*\/\/ HAMLET-TODO \[[^\]]+\]:.*\n(?:[ \t]*\n)*(?:[ \t]*\/\/ (?:Original|Manual action required):.*\n(?:[ \t]*\n)*)*/gm,
+    /^[ \t]*\/\/ TERRAIN-TODO \[[^\]]+\]:.*\n(?:[ \t]*\n)*(?:[ \t]*\/\/ (?:Original|Manual action required):.*\n(?:[ \t]*\n)*)*/gm,
     ''
   );
 
@@ -612,7 +612,7 @@ function emit(_ir, source) {
 
     result = convertTimeoutAnnotations(result);
 
-    // --- Phase 7: Unconvertible JUnit 4 patterns → HAMLET-TODO ---
+    // --- Phase 7: Unconvertible JUnit 4 patterns → TERRAIN-TODO ---
 
     result = markUnconvertibleJUnit4Patterns(result);
   } // end JUnit 4 → JUnit 5
@@ -705,7 +705,7 @@ function emit(_ir, source) {
 
     result = convertExpectedExceptionsTestNG(result);
 
-    // --- Phase 14: Unconvertible TestNG patterns → HAMLET-TODO ---
+    // --- Phase 14: Unconvertible TestNG patterns → TERRAIN-TODO ---
 
     result = markUnconvertibleTestNGPatterns(result);
   } // end TestNG → JUnit 5
@@ -778,7 +778,7 @@ function convertExpectedExceptions(source) {
         i = endLine + 1;
         needsAssertThrowsImport = true;
       } else {
-        // Brace-counting failed — emit HAMLET-TODO
+        // Brace-counting failed — emit TERRAIN-TODO
         result.push(
           line.replace(
             /@Test\s*\(\s*expected\s*=\s*[\w.]+\.class\s*\)/,
@@ -912,7 +912,7 @@ function convertTimeoutAnnotations(source) {
 }
 
 /**
- * Mark unconvertible JUnit 4 patterns with HAMLET-TODO.
+ * Mark unconvertible JUnit 4 patterns with TERRAIN-TODO.
  */
 function markUnconvertibleJUnit4Patterns(source) {
   let result = source;
@@ -1140,7 +1140,7 @@ function convertExpectedExceptionsTestNG(source) {
 }
 
 /**
- * Mark unconvertible TestNG patterns with HAMLET-TODO.
+ * Mark unconvertible TestNG patterns with TERRAIN-TODO.
  */
 function markUnconvertibleTestNGPatterns(source) {
   let result = source;
@@ -1170,7 +1170,7 @@ function markUnconvertibleTestNGPatterns(source) {
   result = result.replace(
     /^([ \t]*).*@Test\s*\(.*\bpriority\s*=.*$/gm,
     (match, indent) => {
-      if (/HAMLET-TODO/.test(match)) return match;
+      if (/TERRAIN-TODO/.test(match)) return match;
       return (
         formatter
           .formatTodo({

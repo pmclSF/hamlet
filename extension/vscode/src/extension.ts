@@ -1,6 +1,6 @@
-// Hamlet VS Code Extension
+// Terrain VS Code Extension
 //
-// Thin client over the CLI. All intelligence lives in `hamlet analyze --json`.
+// Thin client over the CLI. All intelligence lives in `terrain analyze --json`.
 // The extension renders structured views from the snapshot — no business logic.
 
 import * as vscode from "vscode";
@@ -48,28 +48,28 @@ export function activate(context: vscode.ExtensionContext) {
   ];
 
   context.subscriptions.push(
-    vscode.window.registerTreeDataProvider("hamlet.overview", overviewProvider),
-    vscode.window.registerTreeDataProvider("hamlet.health", healthProvider),
-    vscode.window.registerTreeDataProvider("hamlet.quality", qualityProvider),
+    vscode.window.registerTreeDataProvider("terrain.overview", overviewProvider),
+    vscode.window.registerTreeDataProvider("terrain.health", healthProvider),
+    vscode.window.registerTreeDataProvider("terrain.quality", qualityProvider),
     vscode.window.registerTreeDataProvider(
-      "hamlet.migration",
+      "terrain.migration",
       migrationProvider
     ),
-    vscode.window.registerTreeDataProvider("hamlet.review", reviewProvider)
+    vscode.window.registerTreeDataProvider("terrain.review", reviewProvider)
   );
 
   context.subscriptions.push(
-    vscode.commands.registerCommand("hamlet.refresh", () => {
+    vscode.commands.registerCommand("terrain.refresh", () => {
       runAnalysis(providers);
     }),
-    vscode.commands.registerCommand("hamlet.openSummary", () => {
+    vscode.commands.registerCommand("terrain.openSummary", () => {
       runCliInTerminal("summary");
     }),
-    vscode.commands.registerCommand("hamlet.openMigrationBlockers", () => {
+    vscode.commands.registerCommand("terrain.openMigrationBlockers", () => {
       runCliInTerminal("migration blockers");
     }),
     vscode.commands.registerCommand(
-      "hamlet.revealFile",
+      "terrain.revealFile",
       (filePath: string) => {
         if (filePath && vscode.workspace.workspaceFolders?.[0]) {
           const uri = vscode.Uri.joinPath(
@@ -90,10 +90,10 @@ export function deactivate() {}
 
 // ── CLI Integration ────────────────────────────────────────
 
-function getHamletBinary(): string {
+function getTerrainBinary(): string {
   return (
-    vscode.workspace.getConfiguration("hamlet").get<string>("binaryPath") ||
-    "hamlet"
+    vscode.workspace.getConfiguration("terrain").get<string>("binaryPath") ||
+    "terrain"
   );
 }
 
@@ -101,7 +101,7 @@ function getWorkspaceRoot(): string | undefined {
   return vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
 }
 
-function runAnalysis(providers: HamletTreeProvider[]) {
+function runAnalysis(providers: TerrainTreeProvider[]) {
   const root = getWorkspaceRoot();
   if (!root) {
     state = { kind: "error", message: "No workspace folder open" };
@@ -112,12 +112,12 @@ function runAnalysis(providers: HamletTreeProvider[]) {
   state = { kind: "loading" };
   providers.forEach((p) => p.refresh());
 
-  const binary = getHamletBinary();
+  const binary = getTerrainBinary();
   execFile(binary, ["analyze", "--json", "--root", root], (err, stdout) => {
     if (err) {
       state = {
         kind: "error",
-        message: `hamlet analyze failed: ${err.message}`,
+        message: `terrain analyze failed: ${err.message}`,
       };
       providers.forEach((p) => p.refresh());
       return;
@@ -135,8 +135,8 @@ function runAnalysis(providers: HamletTreeProvider[]) {
 
 function runCliInTerminal(subcommand: string) {
   const root = getWorkspaceRoot();
-  const binary = getHamletBinary();
-  const terminal = vscode.window.createTerminal("Hamlet");
+  const binary = getTerrainBinary();
+  const terminal = vscode.window.createTerminal("Terrain");
   const rootFlag = root ? ` --root "${root}"` : "";
   terminal.sendText(`${binary} ${subcommand}${rootFlag}`);
   terminal.show();
@@ -144,29 +144,29 @@ function runCliInTerminal(subcommand: string) {
 
 // ── Base TreeDataProvider ──────────────────────────────────
 
-interface HamletTreeProvider extends vscode.TreeDataProvider<HamletTreeItem> {
+interface TerrainTreeProvider extends vscode.TreeDataProvider<TerrainTreeItem> {
   refresh(): void;
 }
 
-class HamletTreeItem extends vscode.TreeItem {
+class TerrainTreeItem extends vscode.TreeItem {
   constructor(
     label: string,
     collapsibleState: vscode.TreeItemCollapsibleState = vscode
       .TreeItemCollapsibleState.None,
-    public children: HamletTreeItem[] = []
+    public children: TerrainTreeItem[] = []
   ) {
     super(label, collapsibleState);
   }
 }
 
-function stateItems(): HamletTreeItem[] | null {
+function stateItems(): TerrainTreeItem[] | null {
   switch (state.kind) {
     case "empty":
       return [
         makeItem(
-          "Run hamlet.refresh to analyze",
+          "Run terrain.refresh to analyze",
           "$(play)",
-          "No analysis data yet. Click refresh or run 'Hamlet: Refresh Analysis'."
+          "No analysis data yet. Click refresh or run 'Terrain: Refresh Analysis'."
         ),
       ];
     case "loading":
@@ -176,9 +176,9 @@ function stateItems(): HamletTreeItem[] | null {
         makeItem("Analysis failed", "$(error)"),
         makeItem(state.message, "$(info)"),
         makeItem(
-          "Is hamlet installed?",
+          "Is terrain installed?",
           "$(question)",
-          "Install: go install github.com/pmclSF/hamlet/cmd/hamlet@latest"
+          "Install: go install github.com/pmclSF/terrain/cmd/terrain@latest"
         ),
       ];
     case "loaded":
@@ -190,8 +190,8 @@ function makeItem(
   label: string,
   icon?: string,
   tooltip?: string
-): HamletTreeItem {
-  const item = new HamletTreeItem(label);
+): TerrainTreeItem {
+  const item = new TerrainTreeItem(label);
   if (icon) {
     item.iconPath = new vscode.ThemeIcon(icon.replace("$(", "").replace(")", ""));
   }
@@ -201,12 +201,12 @@ function makeItem(
   return item;
 }
 
-function signalItem(s: Signal): HamletTreeItem {
+function signalItem(s: Signal): TerrainTreeItem {
   const loc = s.location?.file
     ? `${s.location.file}${s.location.line ? `:${s.location.line}` : ""}`
     : "";
   const label = loc ? `${s.type} - ${loc}` : s.type;
-  const item = new HamletTreeItem(label);
+  const item = new TerrainTreeItem(label);
   item.iconPath = new vscode.ThemeIcon(severityIcon(s.severity));
   item.tooltip = s.explanation;
   item.description = s.evidenceStrength
@@ -214,7 +214,7 @@ function signalItem(s: Signal): HamletTreeItem {
     : s.severity;
   if (s.location?.file) {
     item.command = {
-      command: "hamlet.revealFile",
+      command: "terrain.revealFile",
       title: "Open File",
       arguments: [s.location.file],
     };
@@ -222,10 +222,10 @@ function signalItem(s: Signal): HamletTreeItem {
   return item;
 }
 
-function groupItems(groups: GroupedItem[]): HamletTreeItem[] {
+function groupItems(groups: GroupedItem[]): TerrainTreeItem[] {
   return groups.map((g) => {
     const children = g.signals.map(signalItem);
-    const item = new HamletTreeItem(
+    const item = new TerrainTreeItem(
       `${g.key} (${g.count})`,
       vscode.TreeItemCollapsibleState.Collapsed,
       children
@@ -236,7 +236,7 @@ function groupItems(groups: GroupedItem[]): HamletTreeItem[] {
 
 // ── Overview Provider ──────────────────────────────────────
 
-class OverviewTreeProvider implements HamletTreeProvider {
+class OverviewTreeProvider implements TerrainTreeProvider {
   private _onDidChangeTreeData = new vscode.EventEmitter<void>();
   readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
 
@@ -244,11 +244,11 @@ class OverviewTreeProvider implements HamletTreeProvider {
     this._onDidChangeTreeData.fire();
   }
 
-  getTreeItem(element: HamletTreeItem): HamletTreeItem {
+  getTreeItem(element: TerrainTreeItem): TerrainTreeItem {
     return element;
   }
 
-  getChildren(element?: HamletTreeItem): HamletTreeItem[] {
+  getChildren(element?: TerrainTreeItem): TerrainTreeItem[] {
     if (element) return element.children;
     const items = stateItems();
     if (items) return items;
@@ -258,8 +258,8 @@ class OverviewTreeProvider implements HamletTreeProvider {
     return this.buildItems(data);
   }
 
-  private buildItems(data: OverviewData): HamletTreeItem[] {
-    const items: HamletTreeItem[] = [
+  private buildItems(data: OverviewData): TerrainTreeItem[] {
+    const items: TerrainTreeItem[] = [
       makeItem(`Repository: ${data.repoName}`, "$(repo)"),
       makeItem(`Frameworks: ${data.frameworkCount}`, "$(package)"),
       makeItem(`Test files: ${data.testFileCount}`, "$(file-code)"),
@@ -279,7 +279,7 @@ class OverviewTreeProvider implements HamletTreeProvider {
         });
       if (riskChildren.length > 0) {
         items.push(
-          new HamletTreeItem(
+          new TerrainTreeItem(
             "Risk Surfaces",
             vscode.TreeItemCollapsibleState.Expanded,
             riskChildren
@@ -291,7 +291,7 @@ class OverviewTreeProvider implements HamletTreeProvider {
     if (data.topIssues.length > 0) {
       const issueChildren = data.topIssues.map(signalItem);
       items.push(
-        new HamletTreeItem(
+        new TerrainTreeItem(
           "Top Issues",
           vscode.TreeItemCollapsibleState.Collapsed,
           issueChildren
@@ -305,7 +305,7 @@ class OverviewTreeProvider implements HamletTreeProvider {
 
 // ── Health Provider ────────────────────────────────────────
 
-class HealthTreeProvider implements HamletTreeProvider {
+class HealthTreeProvider implements TerrainTreeProvider {
   private _onDidChangeTreeData = new vscode.EventEmitter<void>();
   readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
 
@@ -313,11 +313,11 @@ class HealthTreeProvider implements HamletTreeProvider {
     this._onDidChangeTreeData.fire();
   }
 
-  getTreeItem(element: HamletTreeItem): HamletTreeItem {
+  getTreeItem(element: TerrainTreeItem): TerrainTreeItem {
     return element;
   }
 
-  getChildren(element?: HamletTreeItem): HamletTreeItem[] {
+  getChildren(element?: TerrainTreeItem): TerrainTreeItem[] {
     if (element) return element.children;
     const items = stateItems();
     if (items) return items;
@@ -327,13 +327,13 @@ class HealthTreeProvider implements HamletTreeProvider {
     return this.buildItems(data);
   }
 
-  private buildItems(data: HealthData): HamletTreeItem[] {
+  private buildItems(data: HealthData): TerrainTreeItem[] {
     if (data.signals.length === 0) {
       return [
         makeItem(
           "No health signals detected",
           "$(pass)",
-          "Health signals require runtime artifacts. Use --runtime flag with hamlet analyze."
+          "Health signals require runtime artifacts. Use --runtime flag with terrain analyze."
         ),
       ];
     }
@@ -343,7 +343,7 @@ class HealthTreeProvider implements HamletTreeProvider {
 
 // ── Quality Provider ───────────────────────────────────────
 
-class QualityTreeProvider implements HamletTreeProvider {
+class QualityTreeProvider implements TerrainTreeProvider {
   private _onDidChangeTreeData = new vscode.EventEmitter<void>();
   readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
 
@@ -351,11 +351,11 @@ class QualityTreeProvider implements HamletTreeProvider {
     this._onDidChangeTreeData.fire();
   }
 
-  getTreeItem(element: HamletTreeItem): HamletTreeItem {
+  getTreeItem(element: TerrainTreeItem): TerrainTreeItem {
     return element;
   }
 
-  getChildren(element?: HamletTreeItem): HamletTreeItem[] {
+  getChildren(element?: TerrainTreeItem): TerrainTreeItem[] {
     if (element) return element.children;
     const items = stateItems();
     if (items) return items;
@@ -365,7 +365,7 @@ class QualityTreeProvider implements HamletTreeProvider {
     return this.buildItems(data);
   }
 
-  private buildItems(data: QualityData): HamletTreeItem[] {
+  private buildItems(data: QualityData): TerrainTreeItem[] {
     if (data.signals.length === 0) {
       return [makeItem("No quality signals detected", "$(pass)")];
     }
@@ -375,7 +375,7 @@ class QualityTreeProvider implements HamletTreeProvider {
 
 // ── Migration Provider ─────────────────────────────────────
 
-class MigrationTreeProvider implements HamletTreeProvider {
+class MigrationTreeProvider implements TerrainTreeProvider {
   private _onDidChangeTreeData = new vscode.EventEmitter<void>();
   readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
 
@@ -383,11 +383,11 @@ class MigrationTreeProvider implements HamletTreeProvider {
     this._onDidChangeTreeData.fire();
   }
 
-  getTreeItem(element: HamletTreeItem): HamletTreeItem {
+  getTreeItem(element: TerrainTreeItem): TerrainTreeItem {
     return element;
   }
 
-  getChildren(element?: HamletTreeItem): HamletTreeItem[] {
+  getChildren(element?: TerrainTreeItem): TerrainTreeItem[] {
     if (element) return element.children;
     const items = stateItems();
     if (items) return items;
@@ -397,8 +397,8 @@ class MigrationTreeProvider implements HamletTreeProvider {
     return this.buildItems(data);
   }
 
-  private buildItems(data: MigrationData): HamletTreeItem[] {
-    const items: HamletTreeItem[] = [];
+  private buildItems(data: MigrationData): TerrainTreeItem[] {
+    const items: TerrainTreeItem[] = [];
 
     // Framework summary
     if (data.frameworkSummary.length > 0) {
@@ -406,7 +406,7 @@ class MigrationTreeProvider implements HamletTreeProvider {
         makeItem(fw, "$(package)")
       );
       items.push(
-        new HamletTreeItem(
+        new TerrainTreeItem(
           "Frameworks",
           vscode.TreeItemCollapsibleState.Expanded,
           fwChildren
@@ -428,7 +428,7 @@ class MigrationTreeProvider implements HamletTreeProvider {
     // Blocker groups
     if (data.blockerGroups.length > 0) {
       items.push(
-        new HamletTreeItem(
+        new TerrainTreeItem(
           "Blockers by Type",
           vscode.TreeItemCollapsibleState.Collapsed,
           groupItems(data.blockerGroups)
@@ -453,7 +453,7 @@ class MigrationTreeProvider implements HamletTreeProvider {
         return item;
       });
       items.push(
-        new HamletTreeItem(
+        new TerrainTreeItem(
           "Area Assessments",
           vscode.TreeItemCollapsibleState.Collapsed,
           areaChildren
@@ -467,7 +467,7 @@ class MigrationTreeProvider implements HamletTreeProvider {
 
 // ── Review Provider ────────────────────────────────────────
 
-class ReviewTreeProvider implements HamletTreeProvider {
+class ReviewTreeProvider implements TerrainTreeProvider {
   private _onDidChangeTreeData = new vscode.EventEmitter<void>();
   readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
 
@@ -475,11 +475,11 @@ class ReviewTreeProvider implements HamletTreeProvider {
     this._onDidChangeTreeData.fire();
   }
 
-  getTreeItem(element: HamletTreeItem): HamletTreeItem {
+  getTreeItem(element: TerrainTreeItem): TerrainTreeItem {
     return element;
   }
 
-  getChildren(element?: HamletTreeItem): HamletTreeItem[] {
+  getChildren(element?: TerrainTreeItem): TerrainTreeItem[] {
     if (element) return element.children;
     const items = stateItems();
     if (items) return items;
@@ -489,18 +489,18 @@ class ReviewTreeProvider implements HamletTreeProvider {
     return this.buildItems(data);
   }
 
-  private buildItems(data: ReviewData): HamletTreeItem[] {
+  private buildItems(data: ReviewData): TerrainTreeItem[] {
     if (data.totalCount === 0) {
       return [makeItem("No review-worthy findings", "$(pass)")];
     }
 
-    const items: HamletTreeItem[] = [
+    const items: TerrainTreeItem[] = [
       makeItem(`${data.totalCount} findings need attention`, "$(warning)"),
     ];
 
     if (data.byType.length > 0) {
       items.push(
-        new HamletTreeItem(
+        new TerrainTreeItem(
           "By Type",
           vscode.TreeItemCollapsibleState.Collapsed,
           groupItems(data.byType)
@@ -510,7 +510,7 @@ class ReviewTreeProvider implements HamletTreeProvider {
 
     if (data.byOwner.length > 0) {
       items.push(
-        new HamletTreeItem(
+        new TerrainTreeItem(
           "By Owner",
           vscode.TreeItemCollapsibleState.Collapsed,
           groupItems(data.byOwner)
@@ -520,7 +520,7 @@ class ReviewTreeProvider implements HamletTreeProvider {
 
     if (data.byDirectory.length > 0) {
       items.push(
-        new HamletTreeItem(
+        new TerrainTreeItem(
           "By Directory",
           vscode.TreeItemCollapsibleState.Collapsed,
           groupItems(data.byDirectory)
@@ -530,7 +530,7 @@ class ReviewTreeProvider implements HamletTreeProvider {
 
     if (data.migrationBlockers.length > 0) {
       items.push(
-        new HamletTreeItem(
+        new TerrainTreeItem(
           "Migration Blockers",
           vscode.TreeItemCollapsibleState.Collapsed,
           groupItems(data.migrationBlockers)

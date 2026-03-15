@@ -2,9 +2,9 @@
 
 ## Strategy
 
-The open-source Hamlet must be indispensable to developers.
+The open-source Terrain must be indispensable to developers.
 
-The paid Hamlet must be indispensable to organizations.
+The paid Terrain must be indispensable to organizations.
 
 ## Open Source includes
 

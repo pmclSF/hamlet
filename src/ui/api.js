@@ -9,7 +9,7 @@ async function request(method, path, body) {
     headers: { 'Content-Type': 'application/json' },
   };
   if (method === 'POST' && _sessionToken) {
-    opts.headers['x-hamlet-token'] = _sessionToken;
+    opts.headers['x-terrain-token'] = _sessionToken;
   }
   if (body) opts.body = JSON.stringify(body);
   const res = await fetch(`${BASE}${path}`, opts);

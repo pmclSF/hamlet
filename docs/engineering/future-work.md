@@ -5,16 +5,16 @@ implemented. They are scoped and ready for implementation when the need arises.
 
 ## Incremental Analysis (Stage 29)
 
-Today every `hamlet analyze` run scans the full repository. For large
+Today every `terrain analyze` run scans the full repository. For large
 monorepos this can be slow. Incremental analysis would skip unchanged files.
 
 **Design:**
 - Cache key: file path + content hash (SHA-256 of file bytes)
-- Cache location: `.hamlet/cache/analysis.json`
+- Cache location: `.terrain/cache/analysis.json`
 - On `--incremental`, load cache, compute hashes for current files, skip
   files whose hash matches
 - CLI flags: `--incremental` (use cache), `--no-cache` (force full scan)
-- Cache invalidation: any change to `.hamlet.yml` policy invalidates all
+- Cache invalidation: any change to `.terrain.yml` policy invalidates all
 
 **What exists today:**
 - `models.SortSnapshot()` ensures deterministic output regardless of scan order

@@ -425,18 +425,18 @@ function emit(ir, source) {
     }
   }
 
-  // --- File-level Phase 0: Restore multi-line HAMLET-TODO blocks ---
+  // --- File-level Phase 0: Restore multi-line TERRAIN-TODO blocks ---
   let result = source;
   result = result.replace(
-    /\/\/ HAMLET-TODO \[UNCONVERTIBLE-SNAPSHOT\][^\n]*\n\s*\/\/ Original: ([^\n]+)\n\s*\/\/ Manual action required:[^\n]*\n\s*\/\/[^\n]*/g,
+    /\/\/ TERRAIN-TODO \[UNCONVERTIBLE-SNAPSHOT\][^\n]*\n\s*\/\/ Original: ([^\n]+)\n\s*\/\/ Manual action required:[^\n]*\n\s*\/\/[^\n]*/g,
     '$1'
   );
   result = result.replace(
-    /\/\/ HAMLET-TODO \[UNCONVERTIBLE-INLINE-SNAPSHOT\][^\n]*\n\s*\/\/ Original: ([^\n]+)\n\s*\/\/ Manual action required:[^\n]*\n\s*\/\/[^\n]*/g,
+    /\/\/ TERRAIN-TODO \[UNCONVERTIBLE-INLINE-SNAPSHOT\][^\n]*\n\s*\/\/ Original: ([^\n]+)\n\s*\/\/ Manual action required:[^\n]*\n\s*\/\/[^\n]*/g,
     '$1'
   );
   result = result.replace(
-    /\/\/ HAMLET-TODO \[UNCONVERTIBLE-MODULE-MOCK\][^\n]*\n\s*\/\/ Original: ([^\n]+)\n\s*\/\/ Manual action required:[^\n]*\n\s*\/\/[^\n]*/g,
+    /\/\/ TERRAIN-TODO \[UNCONVERTIBLE-MODULE-MOCK\][^\n]*\n\s*\/\/ Original: ([^\n]+)\n\s*\/\/ Manual action required:[^\n]*\n\s*\/\/[^\n]*/g,
     '$1'
   );
   result = result.replace(
@@ -483,7 +483,7 @@ function emit(ir, source) {
   if (doneRe.test(result)) {
     const rLines = result.split('\n');
     for (let li = 0; li < rLines.length; li++) {
-      if (doneRe.test(rLines[li]) && !rLines[li].includes('HAMLET')) {
+      if (doneRe.test(rLines[li]) && !rLines[li].includes('TERRAIN')) {
         const warning = formatter.formatWarning({
           description:
             'done() callback detected. Jest supports done() but async/await ' +
@@ -505,7 +505,7 @@ function emit(ir, source) {
       if (
         /\.to\.\w+\.\w+\.\w+/.test(trimmedLine) &&
         !trimmedLine.startsWith('//') &&
-        !trimmedLine.includes('HAMLET')
+        !trimmedLine.includes('TERRAIN')
       ) {
         const warning = formatter.formatWarning({
           description:

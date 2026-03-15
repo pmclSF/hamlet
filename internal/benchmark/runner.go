@@ -18,11 +18,11 @@ type ProgressFunc func(cr CommandResult)
 
 // RunBenchmark executes all commands against a single repo sequentially.
 // Commands run sequentially within a repo to avoid resource contention
-// (each hamlet invocation scans the full codebase). Repos can be
+// (each terrain invocation scans the full codebase). Repos can be
 // parallelized at the caller level.
 //
 // If onProgress is non-nil, it is called after each command completes.
-func RunBenchmark(ctx context.Context, hamletBin string, meta *RepoMeta, primary, debug []CommandSpec, onProgress ProgressFunc) BenchResult {
+func RunBenchmark(ctx context.Context, terrainBin string, meta *RepoMeta, primary, debug []CommandSpec, onProgress ProgressFunc) BenchResult {
 	result := BenchResult{
 		Repo:  *meta,
 		RunAt: time.Now(),
@@ -44,9 +44,9 @@ func RunBenchmark(ctx context.Context, hamletBin string, meta *RepoMeta, primary
 
 		var cr CommandResult
 		if spec.Name == "explain" {
-			cr = RunExplain(ctx, hamletBin, meta.AbsPath)
+			cr = RunExplain(ctx, terrainBin, meta.AbsPath)
 		} else {
-			cr = RunCommand(ctx, hamletBin, meta.AbsPath, spec)
+			cr = RunCommand(ctx, terrainBin, meta.AbsPath, spec)
 		}
 		cr.RepoName = meta.Name
 		result.Commands = append(result.Commands, cr)
@@ -56,7 +56,7 @@ func RunBenchmark(ctx context.Context, hamletBin string, meta *RepoMeta, primary
 	}
 
 	for _, spec := range debug {
-		cr := RunCommand(ctx, hamletBin, meta.AbsPath, spec)
+		cr := RunCommand(ctx, terrainBin, meta.AbsPath, spec)
 		cr.RepoName = meta.Name
 		result.Commands = append(result.Commands, cr)
 		if onProgress != nil {
@@ -70,8 +70,10 @@ func RunBenchmark(ctx context.Context, hamletBin string, meta *RepoMeta, primary
 // DefaultProgress prints each command result as it completes.
 func DefaultProgress(cr CommandResult) {
 	status := "OK"
-	if cr.ExitCode != 0 || cr.Error != "" {
+	if cr.TimedOut {
+		status = "TIMEOUT"
+	} else if cr.ExitCode != 0 || cr.Error != "" {
 		status = fmt.Sprintf("FAIL (exit %d)", cr.ExitCode)
 	}
-	fmt.Printf("  %-20s %s  %dms\n", cr.Command, status, cr.RuntimeMs)
+	fmt.Printf("  -> %-18s %-14s %dms\n", cr.Command, status, cr.RuntimeMs)
 }

@@ -1,20 +1,20 @@
 # Lovable Release Goals
 
-## What "lovable" means for Hamlet
+## What "lovable" means for Terrain
 
 A lovable release is not about feature count. It is about a user running one command, seeing something they did not know about their test suite, and immediately understanding what to do next.
 
-Hamlet should feel like a sharp, honest colleague who looked at your tests and told you the three things that actually matter — not a dashboard full of numbers.
+Terrain should feel like a sharp, honest colleague who looked at your tests and told you the three things that actually matter — not a dashboard full of numbers.
 
 ## Release Principles
 
 ### 1. Immediate value
 
-The first command produces a real insight. No setup wizard, no configuration file, no signup. Run `hamlet analyze`, get signal.
+The first command produces a real insight. No setup wizard, no configuration file, no signup. Run `terrain analyze`, get signal.
 
 ### 2. One-command time-to-insight
 
-Every useful workflow starts with a single command. `hamlet summary` gives you the leadership view. `hamlet posture` gives you the evidence. `hamlet focus` tells you where to look first. No multi-step ceremonies.
+Every useful workflow starts with a single command. `terrain summary` gives you the leadership view. `terrain posture` gives you the evidence. `terrain focus` tells you where to look first. No multi-step ceremonies.
 
 ### 3. Strong explainability
 

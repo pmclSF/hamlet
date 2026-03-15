@@ -13,7 +13,7 @@ describe('Migration resume/retry/idempotency', () => {
   let tmpDir;
 
   beforeEach(async () => {
-    tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'hamlet-resume-'));
+    tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'terrain-resume-'));
   });
 
   afterEach(async () => {
@@ -21,11 +21,11 @@ describe('Migration resume/retry/idempotency', () => {
   });
 
   describe('initial run produces a state file', () => {
-    it('should create .hamlet/state.json after init', async () => {
+    it('should create .terrain/state.json after init', async () => {
       const manager = new MigrationStateManager(tmpDir);
       await manager.init({ source: 'jest', target: 'vitest' });
 
-      const statePath = path.join(tmpDir, '.hamlet', 'state.json');
+      const statePath = path.join(tmpDir, '.terrain', 'state.json');
       const exists = await fs
         .access(statePath)
         .then(() => true)

@@ -15,7 +15,7 @@ import { FrameworkDetector } from './FrameworkDetector.js';
 import { ConverterFactory } from './ConverterFactory.js';
 
 const __require = createRequire(import.meta.url);
-const hamletVersion = __require('../../package.json').version;
+const terrainVersion = __require('../../package.json').version;
 
 export class ProjectAnalyzer {
   constructor() {
@@ -197,7 +197,7 @@ export class ProjectAnalyzer {
     return {
       schemaVersion: '1.0.0',
       meta: {
-        hamletVersion,
+        terrainVersion,
         nodeVersion: process.version,
         generatedAt: new Date().toISOString(),
         root: resolvedRoot,

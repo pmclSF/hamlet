@@ -5,7 +5,7 @@ import (
 	"io"
 	"strings"
 
-	"github.com/pmclSF/hamlet/internal/impact"
+	"github.com/pmclSF/terrain/internal/impact"
 )
 
 // RenderImpactUnits writes a focused view of impacted code units.
@@ -177,7 +177,7 @@ func RenderImpactGraph(w io.Writer, result *impact.ImpactResult) {
 		blank()
 	}
 
-	line("Next: hamlet impact --show units   view impacted code units")
+	line("Next: terrain impact --show units   view impacted code units")
 	blank()
 }
 
@@ -230,7 +230,7 @@ func RenderProtectiveSet(w io.Writer, result *impact.ImpactResult) {
 		blank()
 	}
 
-	line("Next: hamlet impact --show gaps   view protection gaps")
+	line("Next: terrain impact --show gaps   view protection gaps")
 	blank()
 }
 

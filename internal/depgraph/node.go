@@ -14,22 +14,149 @@
 //   - Lightweight: adjacency lists, no graph database
 package depgraph
 
+// NodeFamily groups node types into conceptual layers.
+type NodeFamily string
+
+const (
+	FamilySystem     NodeFamily = "system"
+	FamilyValidation NodeFamily = "validation"
+	FamilyBehavior   NodeFamily = "behavior"
+	FamilyEnvironment NodeFamily = "environment"
+	FamilyExecution  NodeFamily = "execution"
+	FamilyGovernance NodeFamily = "governance"
+)
+
 // NodeType classifies graph nodes.
 type NodeType string
 
+// --- System topology nodes ---
+//
+// Represent the structural elements of the codebase: source files,
+// packages, services, generated artifacts, and code surfaces.
 const (
-	NodeTest              NodeType = "test"
-	NodeSuite             NodeType = "suite"
-	NodeTestFile          NodeType = "test_file"
 	NodeSourceFile        NodeType = "source_file"
-	NodeFixture           NodeType = "fixture"
-	NodeHelper            NodeType = "helper"
 	NodePackage           NodeType = "package"
 	NodeService           NodeType = "service"
 	NodeGeneratedArtifact NodeType = "generated_artifact"
-	NodeConfigArtifact    NodeType = "config_artifact"
-	NodeManualCoverage    NodeType = "manual_coverage"
+	NodeCodeSurface       NodeType = "code_surface"
 )
+
+// --- Validation topology nodes ---
+//
+// Represent the test system: tests, suites, fixtures, helpers,
+// and the files/targets they validate.
+const (
+	NodeValidationTarget NodeType = "validation_target"
+	NodeTest             NodeType = "test"
+	NodeScenario         NodeType = "scenario"
+	NodeManualCoverage   NodeType = "manual_coverage"
+	NodeSuite            NodeType = "suite"
+	NodeTestFile         NodeType = "test_file"
+	NodeFixture          NodeType = "fixture"
+	NodeHelper           NodeType = "helper"
+)
+
+// --- Behavior topology nodes ---
+//
+// Represent inferred behavioral surfaces derived from code structure.
+const (
+	NodeBehaviorSurface NodeType = "behavior_surface"
+)
+
+// --- Environment topology nodes ---
+//
+// Represent execution environments, device configurations,
+// external services, and AI/ML-specific nodes.
+const (
+	NodeEnvironment      NodeType = "environment"
+	NodeEnvironmentClass NodeType = "environment_class"
+	NodeDeviceConfig     NodeType = "device_config"
+	NodeExternalService  NodeType = "external_service"
+	NodeDataset          NodeType = "dataset"
+	NodeModel            NodeType = "model"
+	NodePrompt           NodeType = "prompt"
+	NodeEvalMetric       NodeType = "eval_metric"
+)
+
+// --- Execution topology nodes ---
+//
+// Represent runtime execution state: execution runs and validation results.
+const (
+	NodeExecutionRun        NodeType = "execution_run"
+	NodeValidationExecution NodeType = "validation_execution"
+)
+
+// --- Governance topology nodes ---
+//
+// Represent ownership, policy, and release governance.
+const (
+	NodeOwner NodeType = "owner"
+)
+
+// NodeTypeFamily returns the family a node type belongs to.
+func NodeTypeFamily(t NodeType) NodeFamily {
+	switch t {
+	// System
+	case NodeSourceFile, NodePackage, NodeService,
+		NodeGeneratedArtifact, NodeCodeSurface:
+		return FamilySystem
+
+	// Validation
+	case NodeValidationTarget, NodeTest, NodeScenario, NodeManualCoverage,
+		NodeSuite, NodeTestFile, NodeFixture, NodeHelper:
+		return FamilyValidation
+
+	// Behavior
+	case NodeBehaviorSurface:
+		return FamilyBehavior
+
+	// Environment
+	case NodeEnvironment, NodeEnvironmentClass, NodeDeviceConfig,
+		NodeExternalService, NodeDataset, NodeModel, NodePrompt,
+		NodeEvalMetric:
+		return FamilyEnvironment
+
+	// Execution
+	case NodeExecutionRun, NodeValidationExecution:
+		return FamilyExecution
+
+	// Governance
+	case NodeOwner:
+		return FamilyGovernance
+
+	default:
+		return ""
+	}
+}
+
+// AllNodeTypes returns all registered node types grouped by family.
+// This is useful for documentation, validation, and schema export.
+func AllNodeTypes() map[NodeFamily][]NodeType {
+	return map[NodeFamily][]NodeType{
+		FamilySystem: {
+			NodeSourceFile, NodePackage, NodeService,
+			NodeGeneratedArtifact, NodeCodeSurface,
+		},
+		FamilyValidation: {
+			NodeValidationTarget, NodeTest, NodeScenario, NodeManualCoverage,
+			NodeSuite, NodeTestFile, NodeFixture, NodeHelper,
+		},
+		FamilyBehavior: {
+			NodeBehaviorSurface,
+		},
+		FamilyEnvironment: {
+			NodeEnvironment, NodeEnvironmentClass, NodeDeviceConfig,
+			NodeExternalService, NodeDataset, NodeModel, NodePrompt,
+			NodeEvalMetric,
+		},
+		FamilyExecution: {
+			NodeExecutionRun, NodeValidationExecution,
+		},
+		FamilyGovernance: {
+			NodeOwner,
+		},
+	}
+}
 
 // Node is a vertex in the dependency graph.
 type Node struct {
@@ -57,4 +184,9 @@ type Node struct {
 
 	// Metadata holds additional key-value pairs for extensibility.
 	Metadata map[string]string `json:"metadata,omitempty"`
+}
+
+// Family returns the NodeFamily this node belongs to.
+func (n *Node) Family() NodeFamily {
+	return NodeTypeFamily(n.Type)
 }

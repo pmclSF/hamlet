@@ -6,15 +6,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pmclSF/hamlet/internal/comparison"
-	"github.com/pmclSF/hamlet/internal/heatmap"
-	"github.com/pmclSF/hamlet/internal/impact"
-	"github.com/pmclSF/hamlet/internal/measurement"
-	"github.com/pmclSF/hamlet/internal/metrics"
-	"github.com/pmclSF/hamlet/internal/migration"
-	"github.com/pmclSF/hamlet/internal/models"
-	"github.com/pmclSF/hamlet/internal/scoring"
-	"github.com/pmclSF/hamlet/internal/testdata"
+	"github.com/pmclSF/terrain/internal/comparison"
+	"github.com/pmclSF/terrain/internal/heatmap"
+	"github.com/pmclSF/terrain/internal/impact"
+	"github.com/pmclSF/terrain/internal/measurement"
+	"github.com/pmclSF/terrain/internal/metrics"
+	"github.com/pmclSF/terrain/internal/migration"
+	"github.com/pmclSF/terrain/internal/models"
+	"github.com/pmclSF/terrain/internal/scoring"
+	"github.com/pmclSF/terrain/internal/testdata"
 )
 
 func TestRenderSummaryReport_HealthyBalanced(t *testing.T) {
@@ -29,7 +29,7 @@ func TestRenderSummaryReport_HealthyBalanced(t *testing.T) {
 	RenderSummaryReport(&buf, snap, h)
 	output := buf.String()
 
-	checks := []string{"Hamlet Summary", "Key Numbers", "Test files:", "Frameworks:", "Next steps:"}
+	checks := []string{"Terrain Summary", "Key Numbers", "Test files:", "Frameworks:", "Next steps:"}
 	for _, c := range checks {
 		if !strings.Contains(output, c) {
 			t.Errorf("summary report missing %q", c)
@@ -46,7 +46,7 @@ func TestRenderMetricsReport_Minimal(t *testing.T) {
 	RenderMetricsReport(&buf, ms)
 	output := buf.String()
 
-	if !strings.Contains(output, "Hamlet Metrics") {
+	if !strings.Contains(output, "Terrain Metrics") {
 		t.Error("metrics report missing header")
 	}
 	if !strings.Contains(output, "Test files:") {
@@ -64,7 +64,7 @@ func TestRenderPostureReport_Healthy(t *testing.T) {
 	RenderPostureReport(&buf, snap)
 	output := buf.String()
 
-	if !strings.Contains(output, "Hamlet Posture") {
+	if !strings.Contains(output, "Terrain Posture") {
 		t.Error("posture report missing header")
 	}
 	if !strings.Contains(output, "Next steps:") {
@@ -82,7 +82,7 @@ func TestRenderComparisonReport(t *testing.T) {
 	RenderComparisonReport(&buf, comp)
 	output := buf.String()
 
-	if !strings.Contains(output, "Hamlet Snapshot Comparison") {
+	if !strings.Contains(output, "Terrain Snapshot Comparison") {
 		t.Error("comparison report missing header")
 	}
 	if !strings.Contains(output, "Methodology Compatibility") {
@@ -157,9 +157,10 @@ func TestRenderImpactReport_WithGaps(t *testing.T) {
 	output := buf.String()
 
 	checks := []string{
-		"Hamlet Impact Analysis",
+		"Terrain Impact Analysis",
 		"Change-Risk Posture: HIGH_RISK",
-		"Impacted Code Units",
+		"Coverage confidence:",
+		"PR risk:",
 		"Protection Gaps",
 		"Recommended Tests",
 		"Impacted Owners: team-api",

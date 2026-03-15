@@ -46,7 +46,7 @@ This document maps the complete measurement and posture system for maintainers. 
 │ Posture  │  │ Executive  │  │ Compare  │  │ Benchmark│
 │ Report   │  │ Summary    │  │          │  │ Export   │
 │          │  │            │  │ Posture  │  │          │
-│ hamlet   │  │ Prefers    │  │ Deltas   │  │ Posture  │
+│ terrain   │  │ Prefers    │  │ Deltas   │  │ Posture  │
 │ posture  │  │ measurement│  │ Measure  │  │ Bands    │
 │          │  │ posture    │  │ Deltas   │  │ (safe)   │
 └──────────┘  └────────────┘  └──────────┘  └──────────┘
@@ -79,7 +79,7 @@ This document maps the complete measurement and posture system for maintainers. 
 | `internal/reporting/comparison_report.go` | Renders posture and measurement deltas |
 | `internal/comparison/compare.go` | compareMeasurements() produces deltas |
 | `internal/benchmark/export.go` | Extracts PostureBands from measurements |
-| `cmd/hamlet/main.go` | CLI: `hamlet posture`, `hamlet posture --json` |
+| `cmd/terrain/main.go` | CLI: `terrain posture`, `terrain posture --json` |
 
 ### Test Coverage
 

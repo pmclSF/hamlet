@@ -5,7 +5,7 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, '../..');
-const cliPath = path.resolve(rootDir, 'bin/hamlet.js');
+const cliPath = path.resolve(rootDir, 'bin/terrain.js');
 const fixturesDir = path.resolve(__dirname, '../fixtures');
 const outputDir = path.resolve(__dirname, '../output/shorthands');
 
@@ -194,7 +194,7 @@ def test_string():
     });
   });
 
-  describe('hamlet list command', () => {
+  describe('terrain list command', () => {
     test('should show all 25 directions with shorthands', () => {
       const result = runCLI(['list']);
 
@@ -216,7 +216,7 @@ def test_string():
     });
   });
 
-  describe('hamlet shorthands command', () => {
+  describe('terrain shorthands command', () => {
     test('should list all shorthand aliases', () => {
       const result = runCLI(['shorthands']);
 
@@ -230,7 +230,7 @@ def test_string():
     });
   });
 
-  describe('hamlet --help', () => {
+  describe('terrain --help', () => {
     test('should show list and shorthands commands', () => {
       const result = runCLI(['--help']);
 

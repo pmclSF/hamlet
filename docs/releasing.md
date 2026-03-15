@@ -1,4 +1,4 @@
-# Releasing Hamlet
+# Releasing Terrain
 
 ## Release Flow
 
@@ -25,8 +25,25 @@ git tag vX.Y.Z && git push origin vX.Y.Z
           └── Create GitHub Release (auto-generated notes)
 ```
 
-A single workflow (`release.yml`) handles the full pipeline: verify → release →
-publish. The release job only runs if verify passes.
+A single workflow (`release.yml`) handles the full pipeline: verify → npm release →
+Go binary release. Both release jobs only run if verify passes.
+
+### Go Binary Release
+
+The `go-release` job uses [GoReleaser](https://goreleaser.com/) to build
+multi-platform binaries (Linux/macOS/Windows × amd64/arm64) and attach them
+to the GitHub Release. Configuration lives in `.goreleaser.yaml`.
+
+Binaries are stamped with version, commit, and build date via ldflags:
+```
+-X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}}
+```
+
+Users can install via:
+```bash
+go install github.com/pmclSF/terrain/cmd/terrain@latest
+```
+Or download pre-built binaries from the GitHub Releases page.
 
 The verify job includes a **tag/version guard** that aborts if the git tag
 version does not match `package.json` version — preventing accidental publishes
@@ -79,7 +96,7 @@ npm pack --dry-run
 ```
 
 Confirm only expected files are included:
-- `bin/hamlet.js`
+- `bin/terrain.js`
 - `src/**/*.js`
 - `src/types/*.d.ts`
 - `README.md`
@@ -100,8 +117,8 @@ git push origin vX.Y.Z
 
 - [ ] GitHub Actions: `release.yml` completed successfully
 - [ ] GitHub Releases: new release exists with auto-generated notes
-- [ ] npm: `npm view hamlet-testframework version` shows the new version
-- [ ] Install test: `npx hamlet-testframework@latest --version` prints the new version
+- [ ] npm: `npm view terrain-testframework version` shows the new version
+- [ ] Install test: `npx terrain-testframework@latest --version` prints the new version
 
 ## Tag Naming Convention
 

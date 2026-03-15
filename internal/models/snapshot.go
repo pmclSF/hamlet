@@ -62,7 +62,7 @@ type SnapshotMeta struct {
 	// SchemaVersion identifies the snapshot JSON schema version.
 	SchemaVersion string `json:"schemaVersion"`
 
-	// EngineVersion is the hamlet binary version that produced this snapshot.
+	// EngineVersion is the terrain binary version that produced this snapshot.
 	EngineVersion string `json:"engineVersion,omitempty"`
 
 	// DetectorCount is the number of detectors that ran during analysis.
@@ -76,7 +76,7 @@ type SnapshotMeta struct {
 	MethodologyFingerprint string `json:"methodologyFingerprint,omitempty"`
 }
 
-// TestSuiteSnapshot is the canonical output artifact of Hamlet analysis.
+// TestSuiteSnapshot is the canonical output artifact of Terrain analysis.
 //
 // This is the main serialization boundary for:
 //   - CLI JSON output
@@ -98,6 +98,37 @@ type TestSuiteSnapshot struct {
 	TestCases []TestCase `json:"testCases,omitempty"`
 
 	CodeUnits []CodeUnit `json:"codeUnits,omitempty"`
+
+	// CodeSurfaces contains inferred behavior anchors — the points in code
+	// where observable behavior originates. Inferred automatically from
+	// exported functions, methods, handlers, and routes.
+	CodeSurfaces []CodeSurface `json:"codeSurfaces,omitempty"`
+
+	// BehaviorSurfaces contains derived behavior groupings that aggregate
+	// related CodeSurfaces into higher-level behavioral units. Optional —
+	// all analysis pipelines work with or without them.
+	BehaviorSurfaces []BehaviorSurface `json:"behaviorSurfaces,omitempty"`
+
+	// Scenarios contains behavioral scenarios — AI evaluation cases,
+	// multi-step workflows, or derived behavior specifications.
+	Scenarios []Scenario `json:"scenarios,omitempty"`
+
+	// ManualCoverage contains manual coverage artifacts — QA checklists,
+	// TestRail suites, and other validation that exists outside CI.
+	// Manual coverage is an overlay, not executable CI coverage.
+	ManualCoverage []ManualCoverageArtifact `json:"manualCoverage,omitempty"`
+
+	// Environments contains concrete execution contexts where tests run.
+	// Inferred from CI configuration files or declared in terrain.yaml.
+	Environments []Environment `json:"environments,omitempty"`
+
+	// EnvironmentClasses contains groups of related environments that
+	// share common characteristics (e.g., all browsers, all OS variants).
+	EnvironmentClasses []EnvironmentClass `json:"environmentClasses,omitempty"`
+
+	// DeviceConfigs contains target device or browser configurations
+	// where tests execute (phones, tablets, browsers, emulators).
+	DeviceConfigs []DeviceConfig `json:"deviceConfigs,omitempty"`
 
 	Signals []Signal `json:"signals,omitempty"`
 

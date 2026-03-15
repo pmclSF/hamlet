@@ -1,11 +1,11 @@
 # Stage 117 -- UI Drill-Down Hierarchy and Triage Queue
 
-Design specification for the Hamlet extension UI's primary navigation and triage workflow.
+Design specification for the Terrain extension UI's primary navigation and triage workflow.
 This document describes views, not implementation. No Go code is introduced.
 
 ## Overview
 
-The Hamlet UI surfaces engine findings through a drill-down hierarchy that mirrors
+The Terrain UI surfaces engine findings through a drill-down hierarchy that mirrors
 how engineers reason about test risk: start with a posture dimension, narrow to a
 cluster of related findings, identify the responsible owner or package, then inspect
 individual test cases or code units. A companion triage queue lets users categorize
@@ -50,7 +50,7 @@ Within a cluster, findings are broken down by owner (from `Signal.Owner` and
 
 When ownership data is missing (confidence `none`), the view groups by package
 path and renders an "unowned" badge with a suggestion to configure CODEOWNERS
-or `.hamlet/ownership.yaml`.
+or `.terrain/ownership.yaml`.
 
 Clicking an owner row opens Level 4.
 
@@ -83,7 +83,7 @@ Users assign each finding (or batch of findings) to one of five buckets:
 
 ### Data model
 
-Triage state is stored locally in `.hamlet/triage.json` as an array of entries:
+Triage state is stored locally in `.terrain/triage.json` as an array of entries:
 
 ```
 { "signalType": SignalType, "locationKey": string, "bucket": string,

@@ -1,10 +1,10 @@
-# Your First 10 Minutes with Hamlet
+# Your First 10 Minutes with Terrain
 
-## Minute 0-2: See what Hamlet finds
+## Minute 0-2: See what Terrain finds
 
 ```bash
 cd your-repo
-hamlet analyze
+terrain analyze
 ```
 
 Scan the output for surprises. Common first reactions:
@@ -15,7 +15,7 @@ Scan the output for surprises. Common first reactions:
 ## Minute 2-4: Get the leadership view
 
 ```bash
-hamlet summary
+terrain summary
 ```
 
 This produces a concise overview with:
@@ -30,7 +30,7 @@ This output is designed to be paste-ready for Slack, PRs, or team updates.
 ## Minute 4-6: Understand the evidence
 
 ```bash
-hamlet posture
+terrain posture
 ```
 
 This breaks down each posture dimension with individual measurements, evidence strength, and limitations. If a dimension is rated "weak," you can see exactly which measurements drove that assessment.
@@ -38,21 +38,21 @@ This breaks down each posture dimension with individual measurements, evidence s
 ## Minute 6-7: See test cost and leverage
 
 ```bash
-hamlet portfolio
+terrain portfolio
 ```
 
-Run `hamlet portfolio` to see test cost, leverage, and redundancy insights. The portfolio view treats your test suite as a set of investments — showing which tests deliver the most protection per CI minute and which overlap so heavily they are candidates for consolidation.
+Run `terrain portfolio` to see test cost, leverage, and redundancy insights. The portfolio view treats your test suite as a set of investments — showing which tests deliver the most protection per CI minute and which overlap so heavily they are candidates for consolidation.
 
 ## Minute 7-9: Save and track
 
 ```bash
-hamlet analyze --write-snapshot
+terrain analyze --write-snapshot
 ```
 
 Do this regularly to track trends. After your second snapshot:
 
 ```bash
-hamlet compare
+terrain compare
 ```
 
 You'll see what improved, what worsened, and what stayed the same.
@@ -60,15 +60,15 @@ You'll see what improved, what worsened, and what stayed the same.
 ## Minute 9-10: Export and share
 
 ```bash
-hamlet metrics          # aggregate scorecard
-hamlet export benchmark # privacy-safe export
+terrain metrics          # aggregate scorecard
+terrain export benchmark # privacy-safe export
 ```
 
 The metrics command gives you a structured scorecard. The benchmark export produces an artifact with only aggregate counts and bands — no file paths, no symbol names, no source code.
 
 ## What's next
 
-- Add a `.hamlet/policy.yaml` to enforce team standards
-- Run `hamlet policy check` in CI
-- Use `hamlet analyze --json` to integrate with other tools
-- Share `hamlet summary` output in your next retrospective
+- Add a `.terrain/policy.yaml` to enforce team standards
+- Run `terrain policy check` in CI
+- Use `terrain analyze --json` to integrate with other tools
+- Share `terrain summary` output in your next retrospective

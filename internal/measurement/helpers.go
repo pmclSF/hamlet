@@ -1,6 +1,6 @@
 package measurement
 
-import "github.com/pmclSF/hamlet/internal/models"
+import "github.com/pmclSF/terrain/internal/models"
 
 // countSignals counts the number of signals in the snapshot matching any of
 // the given signal types.

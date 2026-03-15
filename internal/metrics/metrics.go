@@ -19,8 +19,8 @@ package metrics
 import (
 	"time"
 
-	"github.com/pmclSF/hamlet/internal/models"
-	"github.com/pmclSF/hamlet/internal/signals"
+	"github.com/pmclSF/terrain/internal/models"
+	"github.com/pmclSF/terrain/internal/signals"
 )
 
 // Snapshot contains benchmark-ready aggregate metrics derived from
@@ -33,7 +33,7 @@ type Snapshot struct {
 	// GeneratedAt is when this metrics snapshot was created.
 	GeneratedAt time.Time `json:"generatedAt"`
 
-	// AnalysisVersion identifies the Hamlet version/stage.
+	// AnalysisVersion identifies the Terrain version/stage.
 	AnalysisVersion string `json:"analysisVersion"`
 
 	Structure  StructureMetrics  `json:"structure"`
@@ -145,7 +145,7 @@ func Derive(snap *models.TestSuiteSnapshot) *Snapshot {
 
 	ms := &Snapshot{
 		GeneratedAt:     time.Now().UTC(),
-		AnalysisVersion: "v3-nucleus",
+		AnalysisVersion: "signal-first",
 	}
 
 	// Structure
@@ -214,7 +214,7 @@ func Derive(snap *models.TestSuiteSnapshot) *Snapshot {
 
 	// Governance
 	ms.Governance = GovernanceMetrics{
-		PolicyViolationCount:       signalCounts["policyViolation"],
+		PolicyViolationCount:       signalCounts["policyViolation"] + signalCounts["skippedTestsInCI"],
 		LegacyFrameworkUsageCount:  signalCounts["legacyFrameworkUsage"],
 		RuntimeBudgetExceededCount: signalCounts["runtimeBudgetExceeded"],
 	}

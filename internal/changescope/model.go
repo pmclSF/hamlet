@@ -4,7 +4,7 @@
 // for PR reviews, CI gating, and incremental development workflows.
 package changescope
 
-import "github.com/pmclSF/hamlet/internal/impact"
+import "github.com/pmclSF/terrain/internal/impact"
 
 // PRAnalysis is the output of a PR/change-scoped analysis.
 type PRAnalysis struct {
@@ -38,8 +38,17 @@ type PRAnalysis struct {
 	// AffectedOwners lists owners with impacted code.
 	AffectedOwners []string `json:"affectedOwners,omitempty"`
 
-	// RecommendedTests are the tests to run for this change.
+	// RecommendedTests are the tests to run for this change (paths only, for backward compat).
 	RecommendedTests []string `json:"recommendedTests,omitempty"`
+
+	// TestSelections are the recommended tests with reasoning.
+	TestSelections []TestSelection `json:"testSelections,omitempty"`
+
+	// SelectionStrategy describes how the test set was chosen.
+	SelectionStrategy string `json:"selectionStrategy,omitempty"`
+
+	// SelectionExplanation describes why this strategy was used.
+	SelectionExplanation string `json:"selectionExplanation,omitempty"`
 
 	// PostureDelta describes posture changes in the affected area.
 	PostureDelta *PostureDelta `json:"postureDelta,omitempty"`
@@ -49,6 +58,20 @@ type PRAnalysis struct {
 
 	// ImpactResult is the full impact analysis result.
 	ImpactResult *impact.ImpactResult `json:"-"`
+}
+
+// TestSelection is a recommended test with reasoning about why it was selected.
+type TestSelection struct {
+	// Path is the test file path.
+	Path string `json:"path"`
+	// Confidence is the impact mapping confidence (exact, inferred, weak).
+	Confidence string `json:"confidence"`
+	// Relevance describes why this test is relevant.
+	Relevance string `json:"relevance"`
+	// CoversUnits lists code unit names this test protects.
+	CoversUnits []string `json:"coversUnits,omitempty"`
+	// Reasons are structured selection reasons.
+	Reasons []string `json:"reasons,omitempty"`
 }
 
 // ChangeScopedFinding is a finding relevant to the changed area.

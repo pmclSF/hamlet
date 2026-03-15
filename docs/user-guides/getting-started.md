@@ -1,9 +1,9 @@
-# Getting Started with Hamlet
+# Getting Started with Terrain
 
 ## Install
 
 ```bash
-go install github.com/pmclSF/hamlet/cmd/hamlet@latest
+go install github.com/pmclSF/terrain/cmd/terrain@latest
 ```
 
 ## First run
@@ -11,10 +11,10 @@ go install github.com/pmclSF/hamlet/cmd/hamlet@latest
 Navigate to any repository with tests and run:
 
 ```bash
-hamlet analyze
+terrain analyze
 ```
 
-Hamlet will discover test files, detect frameworks, emit signals, compute risk surfaces, and produce a posture assessment — all from static analysis.
+Terrain will discover test files, detect frameworks, emit signals, compute risk surfaces, and produce a posture assessment — all from static analysis.
 
 ## Understanding the output
 
@@ -31,22 +31,22 @@ The analyze report shows:
 After `analyze`, try:
 
 ```bash
-hamlet summary     # leadership-ready overview
-hamlet posture     # detailed posture with evidence per measurement
-hamlet portfolio   # see which tests provide the most value and which waste resources
-hamlet metrics     # aggregate scorecard
+terrain summary     # leadership-ready overview
+terrain posture     # detailed posture with evidence per measurement
+terrain portfolio   # see which tests provide the most value and which waste resources
+terrain metrics     # aggregate scorecard
 ```
 
 ## Saving snapshots for trend tracking
 
 ```bash
-hamlet analyze --write-snapshot
+terrain analyze --write-snapshot
 ```
 
-This saves the snapshot to `.hamlet/snapshots/`. After multiple snapshots, compare them:
+This saves the snapshot to `.terrain/snapshots/`. After multiple snapshots, compare them:
 
 ```bash
-hamlet compare
+terrain compare
 ```
 
 ## JSON output
@@ -54,17 +54,17 @@ hamlet compare
 All commands support `--json` for machine-readable output:
 
 ```bash
-hamlet analyze --json
-hamlet summary --json
-hamlet posture --json
+terrain analyze --json
+terrain summary --json
+terrain posture --json
 ```
 
 ## Policy enforcement
 
-Create `.hamlet/policy.yaml` to define rules, then:
+Create `.terrain/policy.yaml` to define rules, then:
 
 ```bash
-hamlet policy check
+terrain policy check
 ```
 
 Returns exit code 2 if violations are found — useful in CI gates.

@@ -1,11 +1,12 @@
 # Release Checklist
 
-Status checklist for Hamlet V3 release readiness.
+Status checklist for Terrain release readiness.
 
 ## Product
 
-- [x] Core commands work: analyze, summary, posture, metrics, impact, compare, policy check, export benchmark
+- [x] Core commands work: analyze, summary, insights, explain, focus, portfolio, posture, metrics, impact, select-tests, pr, show, compare, policy check, export benchmark, init
 - [x] Migration commands: readiness, blockers, preview (file + scope)
+- [x] Debug/inspection commands: debug (graph, coverage, fanout, duplicates), depgraph
 - [x] Human-readable and JSON output for all commands
 - [x] Executive summary with posture, trends, focus, benchmark readiness
 - [x] Structured recommendations with what/why/where/evidence-strength
@@ -18,7 +19,7 @@ Status checklist for Hamlet V3 release readiness.
 - [x] All Go packages build cleanly (`go build ./internal/... ./cmd/...`)
 - [x] All Go tests pass (`go test ./internal/... ./cmd/...`)
 - [x] 25 internal packages with test coverage
-- [x] Snapshot contract (`TestSuiteSnapshot`) stable for current features
+- [x] Snapshot contract (`TestSuiteSnapshot`) stable for current engine features
 - [x] Evidence model: EvidenceStrength, EvidenceSource, Confidence on all signals
 - [x] Registry-based detector architecture with 10 detectors (quality, migration, governance)
 - [x] Runtime ingestion: JUnit XML, Jest JSON parsers
@@ -27,7 +28,7 @@ Status checklist for Hamlet V3 release readiness.
 
 ## UX
 
-- [x] `hamlet --help` output is accurate and readable
+- [x] `terrain --help` output is accurate and readable
 - [x] Each subcommand has clear flag descriptions
 - [x] Summary command includes trend + benchmark readiness
 - [x] Graceful degradation when no snapshot history exists
@@ -40,7 +41,7 @@ Status checklist for Hamlet V3 release readiness.
 - [x] README accurate with quick start, commands, architecture
 - [x] docs/README.md provides navigation index with product evolution
 - [x] docs/demo.md walkthrough complete (includes migration workflow)
-- [x] docs/cli-spec.md covers all commands
+- [x] docs/cli-spec.md covers all 22 commands
 - [x] docs/roadmap.md milestones A through O documented
 - [x] docs/architecture.md layered architecture documented
 - [x] docs/engineering/detector-architecture.md documented
@@ -52,13 +53,13 @@ Status checklist for Hamlet V3 release readiness.
 - [x] Build-from-source instructions in README
 - [x] Makefile with build, test, demo, install targets
 - [x] goreleaser config for multi-platform binaries
-- [x] Version command with build metadata (`hamlet version`)
+- [x] Version command with build metadata (`terrain version`)
 - [x] Checksum generation in release artifacts
 - [ ] Homebrew formula (not yet created)
 
 ## Hardening
 
-- [x] V3 identity consistent across all top-level files
+- [x] signal-first identity consistent across all top-level files
 - [x] Legacy converter material clearly marked as historical
 - [x] CLI help text aligned with actual behavior
 - [x] Doc comment in main.go matches CLI surface

@@ -9,7 +9,7 @@ describe('Scanner', () => {
 
   beforeEach(async () => {
     scanner = new Scanner();
-    tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'hamlet-scanner-'));
+    tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'terrain-scanner-'));
   });
 
   afterEach(async () => {
@@ -198,10 +198,10 @@ describe('Scanner', () => {
       expect(results[0].relativePath).toBe('app.js');
     });
 
-    it('should handle .hamlet directory in ignore', async () => {
-      const hamletDir = path.join(tmpDir, '.hamlet');
-      await fs.mkdir(hamletDir);
-      await fs.writeFile(path.join(hamletDir, 'state.json'), '{}');
+    it('should handle .terrain directory in ignore', async () => {
+      const terrainDir = path.join(tmpDir, '.terrain');
+      await fs.mkdir(terrainDir);
+      await fs.writeFile(path.join(terrainDir, 'state.json'), '{}');
       await fs.writeFile(path.join(tmpDir, 'test.js'), 'test');
 
       const results = await scanner.scan(tmpDir);

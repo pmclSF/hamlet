@@ -820,7 +820,7 @@ function convertUnittestDecorators(result) {
 
   // @unittest.expectedFailure with annotation -> @pytest.mark.xfail(args)
   result = result.replace(
-    /@unittest\.expectedFailure\s+# @hamlet:xfail\(([^)]*)\)/g,
+    /@unittest\.expectedFailure\s+# @terrain:xfail\(([^)]*)\)/g,
     '@pytest.mark.xfail($1)'
   );
 
@@ -1062,9 +1062,9 @@ function markUnconvertibleNose(result) {
 function emit(_ir, source) {
   let result = source;
 
-  // Strip incoming HAMLET-TODO blocks (from previous round-trip step)
+  // Strip incoming TERRAIN-TODO blocks (from previous round-trip step)
   result = result.replace(
-    /^[ \t]*# HAMLET-TODO \[[^\]]+\]:.*\n(?:[ \t]*\n)*(?:[ \t]*# (?:Original|Manual action required):.*\n(?:[ \t]*\n)*)*/gm,
+    /^[ \t]*# TERRAIN-TODO \[[^\]]+\]:.*\n(?:[ \t]*\n)*(?:[ \t]*# (?:Original|Manual action required):.*\n(?:[ \t]*\n)*)*/gm,
     ''
   );
 
@@ -1117,8 +1117,8 @@ function emit(_ir, source) {
 
     // Phase 4b: Extract assertion message annotations into marker comments
     result = result.replace(
-      /^(.+?)\s+# @hamlet:msg\((.+)\)[^\S\n]*$/gm,
-      '$1\n# HAMLET_ASSERT_MSG: $2'
+      /^(.+?)\s+# @terrain:msg\((.+)\)[^\S\n]*$/gm,
+      '$1\n# TERRAIN_ASSERT_MSG: $2'
     );
 
     // Phase 5: Convert assertions
@@ -1126,7 +1126,7 @@ function emit(_ir, source) {
 
     // Phase 5b: Restore assertion messages from marker comments
     result = result.replace(
-      /^(\s*assert .+)\n\s*# HAMLET_ASSERT_MSG: (.+)$/gm,
+      /^(\s*assert .+)\n\s*# TERRAIN_ASSERT_MSG: (.+)$/gm,
       '$1, $2'
     );
 

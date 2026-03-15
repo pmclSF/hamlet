@@ -1,20 +1,20 @@
 # Coverage by Type
 
-Hamlet can analyze your test coverage by type — showing which functions are covered by unit tests vs. integration tests vs. e2e tests, and identifying risky areas where code is covered only by slow, broad tests.
+Terrain can analyze your test coverage by type — showing which functions are covered by unit tests vs. integration tests vs. e2e tests, and identifying risky areas where code is covered only by slow, broad tests.
 
 ## Quick Start
 
 ```bash
 # Analyze with separate coverage runs
-hamlet analyze --coverage unit:./coverage/unit/lcov.info \
+terrain analyze --coverage unit:./coverage/unit/lcov.info \
                --coverage e2e:./coverage/e2e/lcov.info \
                --coverage integration:./coverage/integration/lcov.info
 
 # View coverage by type in the posture report
-hamlet posture
+terrain posture
 
 # View detailed coverage insights
-hamlet analyze --json | jq '.coverageInsights'
+terrain analyze --json | jq '.coverageInsights'
 ```
 
 ## How It Works
@@ -82,11 +82,11 @@ Functions with line coverage but no branch coverage:
 
 ```bash
 # Save a baseline snapshot
-hamlet analyze --coverage unit:./coverage/unit/lcov.info --json > baseline.json
+terrain analyze --coverage unit:./coverage/unit/lcov.info --json > baseline.json
 
 # After improvements, compare
-hamlet analyze --coverage unit:./coverage/unit/lcov.info --json > current.json
-hamlet compare baseline.json current.json
+terrain analyze --coverage unit:./coverage/unit/lcov.info --json > current.json
+terrain compare baseline.json current.json
 ```
 
 The comparison shows:

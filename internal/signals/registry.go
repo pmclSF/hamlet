@@ -1,8 +1,8 @@
 package signals
 
-import "github.com/pmclSF/hamlet/internal/models"
+import "github.com/pmclSF/terrain/internal/models"
 
-// Definition describes a known signal type in the Hamlet registry.
+// Definition describes a known signal type in the Terrain registry.
 //
 // The registry is the canonical catalog of signals supported by the product.
 // It exists to keep code, docs, UI copy, and future scoring/policy logic
@@ -14,7 +14,7 @@ type Definition struct {
 	Description string                `json:"description"`
 }
 
-// Registry contains the initial V3 signal catalog.
+// Registry contains the current signal catalog.
 //
 // This should remain in sync with docs/signal-catalog.md.
 var Registry = map[models.SignalType]Definition{
@@ -124,7 +124,7 @@ var Registry = map[models.SignalType]Definition{
 		Type:        SignalPolicyViolation,
 		Category:    models.CategoryGovernance,
 		Title:       "Policy Violation",
-		Description: "Current repository state violates declared Hamlet policy.",
+		Description: "Current repository state violates declared Terrain policy.",
 	},
 	SignalLegacyFrameworkUsage: {
 		Type:        SignalLegacyFrameworkUsage,

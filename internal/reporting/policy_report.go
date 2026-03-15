@@ -5,7 +5,7 @@ import (
 	"io"
 	"strings"
 
-	"github.com/pmclSF/hamlet/internal/governance"
+	"github.com/pmclSF/terrain/internal/governance"
 )
 
 // RenderPolicyReport writes a human-readable policy check report to w.
@@ -15,7 +15,7 @@ func RenderPolicyReport(w io.Writer, policyPath string, result *governance.Resul
 	}
 	blank := func() { fmt.Fprintln(w) }
 
-	line("Hamlet Policy Check")
+	line("Terrain Policy Check")
 	line(strings.Repeat("=", 40))
 	blank()
 

@@ -8,7 +8,7 @@ describe('SafetyManager', () => {
   let manager;
 
   beforeEach(async () => {
-    tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'hamlet-safety-'));
+    tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'terrain-safety-'));
     manager = new SafetyManager(tmpDir);
   });
 
@@ -29,7 +29,7 @@ describe('SafetyManager', () => {
       const filePath = path.join(tmpDir, 'output.js');
       await manager.atomicWrite(filePath, 'content');
 
-      const tmpExists = await fs.access(filePath + '.hamlet-tmp')
+      const tmpExists = await fs.access(filePath + '.terrain-tmp')
         .then(() => true).catch(() => false);
       expect(tmpExists).toBe(false);
     });
@@ -63,13 +63,13 @@ describe('SafetyManager', () => {
       expect(backupContent).toBe('original content');
     });
 
-    it('should store backup in .hamlet/backups/', async () => {
+    it('should store backup in .terrain/backups/', async () => {
       const filePath = path.join(tmpDir, 'test.js');
       await fs.writeFile(filePath, 'content');
 
       const backupPath = await manager.backup(filePath);
 
-      expect(backupPath).toContain('.hamlet');
+      expect(backupPath).toContain('.terrain');
       expect(backupPath).toContain('backups');
     });
 

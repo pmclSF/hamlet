@@ -1,0 +1,28 @@
+manual_coverage:
+  - name: billing regression suite
+    area: billing-core
+    source: testrail
+    owner: qa-billing
+    criticality: high
+  - name: onboarding flow
+    area: onboarding
+    source: jira
+    owner: qa-platform
+    criticality: high
+  - name: payment integration
+    area: payments
+    source: testrail
+    owner: qa-payments
+    criticality: high
+  - name: admin portal
+    area: admin
+    source: testrail
+    owner: qa-admin
+    criticality: medium
+  - name: reporting dashboard
+    area: reporting
+    source: jira
+    owner: qa-analytics
+    criticality: low
+
+ci_duration_seconds: 45

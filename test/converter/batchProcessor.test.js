@@ -153,7 +153,7 @@ describe('processTestFiles', () => {
   let tmpDir;
 
   beforeEach(async () => {
-    tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'hamlet-batch-'));
+    tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'terrain-batch-'));
   });
 
   afterEach(async () => {

@@ -52,7 +52,7 @@ const FRAMEWORK_FILE_OVERRIDE = {
 };
 
 /**
- * Conversion directions handled by the new pipeline (v2 architecture).
+ * Conversion directions handled by the pipeline architecture.
  * All other directions fall back to legacy converters.
  */
 const PIPELINE_DIRECTIONS = new Set([

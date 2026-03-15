@@ -16,7 +16,7 @@ describe('RepositoryConverter', () => {
 
   describe('constructor', () => {
     it('should initialize with default options', () => {
-      expect(converter.options.tempDir).toBe('.hamlet-temp');
+      expect(converter.options.tempDir).toBe('.terrain-temp');
       expect(converter.options.batchSize).toBe(5);
       expect(converter.options.preserveStructure).toBe(true);
       expect(converter.options.ignore).toEqual(['node_modules/**', '**/cypress/plugins/**']);
@@ -178,7 +178,7 @@ describe('RepositoryConverter', () => {
 
     it('should include configuration options in report', () => {
       const report = converter.generateReport();
-      expect(report.configuration.tempDir).toBe('.hamlet-temp');
+      expect(report.configuration.tempDir).toBe('.terrain-temp');
       expect(report.configuration.batchSize).toBe(5);
     });
   });
@@ -187,7 +187,7 @@ describe('RepositoryConverter', () => {
     let tmpDir;
 
     beforeEach(async () => {
-      tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'hamlet-repo-'));
+      tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'terrain-repo-'));
     });
 
     afterEach(async () => {

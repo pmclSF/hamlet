@@ -1,4 +1,4 @@
-// Package ownership implements Hamlet's normalized ownership subsystem.
+// Package ownership implements Terrain's normalized ownership subsystem.
 //
 // Ownership is a routing layer, not a blame layer. It exists to make
 // findings actionable by connecting risk, health, quality, and migration
@@ -21,7 +21,7 @@ const (
 	// SourceCodeowners is ownership derived from a CODEOWNERS file.
 	SourceCodeowners SourceType = "codeowners"
 
-	// SourceExplicitConfig is ownership from .hamlet/ownership.yaml.
+	// SourceExplicitConfig is ownership from .terrain/ownership.yaml.
 	SourceExplicitConfig SourceType = "explicit_config"
 
 	// SourcePackageMetadata is ownership from package.json, pom.xml, etc.
@@ -116,7 +116,7 @@ type OwnershipAssignment struct {
 	MatchedRule string `json:"matchedRule,omitempty"`
 
 	// SourceFile is the file that contained the ownership rule.
-	// E.g., ".github/CODEOWNERS" or ".hamlet/ownership.yaml".
+	// E.g., ".github/CODEOWNERS" or ".terrain/ownership.yaml".
 	SourceFile string `json:"sourceFile,omitempty"`
 }
 

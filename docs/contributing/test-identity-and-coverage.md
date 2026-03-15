@@ -1,6 +1,6 @@
 # Extending Test Identity and Coverage
 
-This guide covers how to extend Hamlet's test identity, type inference, coverage ingestion, and attribution systems.
+This guide covers how to extend Terrain's test identity, type inference, coverage ingestion, and attribution systems.
 
 ## Adding a New Language for Test Extraction
 

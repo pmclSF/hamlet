@@ -1,12 +1,12 @@
 # Stage 119 -- UI Filtering, Scoping, and Confidence Cues
 
-Design specification for the Hamlet extension UI's filtering system and
+Design specification for the Terrain extension UI's filtering system and
 confidence communication. This document describes views and interaction
 patterns, not implementation.
 
 ## Overview
 
-Hamlet signals carry structured metadata about where they apply, who owns
+Terrain signals carry structured metadata about where they apply, who owns
 the affected code, how they were derived, and how confident the engine is
 in the result. The filtering system lets users scope any view to a relevant
 slice of findings. Confidence cues ensure users understand which findings
@@ -32,8 +32,8 @@ distinct `Package` values across all `Signal.Location` entries.
 
 ### Changed Area
 
-When a `PRAnalysis` or `ImpactResult` is available (from `hamlet pr` or
-`hamlet impact`), the filter can scope to only findings within the change
+When a `PRAnalysis` or `ImpactResult` is available (from `terrain pr` or
+`terrain impact`), the filter can scope to only findings within the change
 scope. This uses the `ImpactResult.ImpactedUnits[].UnitID` set and the
 `ChangeScopedFinding` list. The UI calls `FilterByOwner` logic client-side,
 matching `Signal.Location.File` against the impacted file set.
@@ -166,7 +166,7 @@ empty or misleading values.
 
 ## Filter State Persistence
 
-Active filter combinations are saved to `.hamlet/ui-state.json` per repository,
+Active filter combinations are saved to `.terrain/ui-state.json` per repository,
 so users return to their last working context. The state includes:
 
 - Active filter values (owner, package, dimension, severity, etc.)

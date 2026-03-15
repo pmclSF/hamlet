@@ -6,17 +6,17 @@ This guide covers how to maintain and extend the measurement and posture system.
 
 ```
 Signals → Measurements → Posture → User-Facing Outputs
-                                    ├── hamlet posture
-                                    ├── hamlet summary
-                                    ├── hamlet compare
-                                    └── hamlet export benchmark
+                                    ├── terrain posture
+                                    ├── terrain summary
+                                    ├── terrain compare
+                                    └── terrain export benchmark
 ```
 
 ## Key Design Decisions
 
 ### 1. No single global score
 
-Hamlet reports five independent dimensions. Do not add a combined score. If someone asks for one, explain why it would reduce actionability.
+Terrain reports five independent dimensions. Do not add a combined score. If someone asks for one, explain why it would reduce actionability.
 
 ### 2. Evidence is first-class
 
@@ -95,7 +95,7 @@ Only dimension → band mappings and aggregate metrics are safe for export.
 
 ## Phrasing
 
-Follow Hamlet's ownership-safe phrasing:
+Follow Terrain's ownership-safe phrasing:
 
 | Do | Don't |
 |----|-------|

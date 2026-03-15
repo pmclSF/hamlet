@@ -3,7 +3,7 @@ package engine
 import (
 	"testing"
 
-	"github.com/pmclSF/hamlet/internal/testdata"
+	"github.com/pmclSF/terrain/internal/testdata"
 )
 
 func BenchmarkSignalDetection(b *testing.B) {

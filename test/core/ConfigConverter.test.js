@@ -55,11 +55,11 @@ describe('ConfigConverter', () => {
       expect(result).toContain('true');
     });
 
-    it('should add HAMLET-TODO for unrecognized keys', () => {
+    it('should add TERRAIN-TODO for unrecognized keys', () => {
       const input = `module.exports = { testEnvironment: 'node', moduleNameMapper: './mappers' };`;
       const result = converter.convert(input, 'jest', 'vitest');
 
-      expect(result).toContain('HAMLET-TODO');
+      expect(result).toContain('TERRAIN-TODO');
       expect(result).toContain('moduleNameMapper');
     });
 
@@ -103,11 +103,11 @@ describe('ConfigConverter', () => {
       expect(result).toContain('restoreMocks: true');
     });
 
-    it('should add HAMLET-TODO for unsupported keys', () => {
+    it('should add TERRAIN-TODO for unsupported keys', () => {
       const input = `export default defineConfig({ test: { environment: 'node', deps: 'inline' } });`;
       const result = converter.convert(input, 'vitest', 'jest');
 
-      expect(result).toContain('HAMLET-TODO');
+      expect(result).toContain('TERRAIN-TODO');
       expect(result).toContain('deps');
     });
   });
@@ -144,11 +144,11 @@ describe('ConfigConverter', () => {
       expect(result).toContain('timeout: 10000');
     });
 
-    it('should add HAMLET-TODO for unrecognized Cypress keys', () => {
+    it('should add TERRAIN-TODO for unrecognized Cypress keys', () => {
       const input = `module.exports = { baseUrl: 'http://localhost', chromeWebSecurity: false };`;
       const result = converter.convert(input, 'cypress', 'playwright');
 
-      expect(result).toContain('HAMLET-TODO');
+      expect(result).toContain('TERRAIN-TODO');
       expect(result).toContain('chromeWebSecurity');
     });
   });
@@ -177,11 +177,11 @@ describe('ConfigConverter', () => {
       expect(result).toContain('retries: 3');
     });
 
-    it('should add HAMLET-TODO for unsupported keys', () => {
+    it('should add TERRAIN-TODO for unsupported keys', () => {
       const input = `export default defineConfig({ baseURL: '/', workers: 4 });`;
       const result = converter.convert(input, 'playwright', 'cypress');
 
-      expect(result).toContain('HAMLET-TODO');
+      expect(result).toContain('TERRAIN-TODO');
       expect(result).toContain('workers');
     });
   });
@@ -211,11 +211,11 @@ describe('ConfigConverter', () => {
       expect(result).toContain('workers: 5');
     });
 
-    it('should add HAMLET-TODO for unsupported keys', () => {
+    it('should add TERRAIN-TODO for unsupported keys', () => {
       const input = `exports.config = { baseUrl: '/', framework: 'mocha' };`;
       const result = converter.convert(input, 'webdriverio', 'playwright');
 
-      expect(result).toContain('HAMLET-TODO');
+      expect(result).toContain('TERRAIN-TODO');
       expect(result).toContain('framework');
     });
   });
@@ -317,11 +317,11 @@ describe('ConfigConverter', () => {
       expect(result).toContain('setupFiles');
     });
 
-    it('should add HAMLET-TODO for unsupported keys', () => {
+    it('should add TERRAIN-TODO for unsupported keys', () => {
       const input = `timeout: 5000\nreporter: spec`;
       const result = converter.convert(input, 'mocha', 'jest');
 
-      expect(result).toContain('HAMLET-TODO');
+      expect(result).toContain('TERRAIN-TODO');
       expect(result).toContain('reporter');
     });
   });
@@ -349,11 +349,11 @@ describe('ConfigConverter', () => {
       expect(result).toContain('randomize: true');
     });
 
-    it('should add HAMLET-TODO for unsupported keys', () => {
+    it('should add TERRAIN-TODO for unsupported keys', () => {
       const input = `{ "spec_dir": "spec", "stopSpecOnExpectationFailure": true }`;
       const result = converter.convert(input, 'jasmine', 'jest');
 
-      expect(result).toContain('HAMLET-TODO');
+      expect(result).toContain('TERRAIN-TODO');
       expect(result).toContain('stopSpecOnExpectationFailure');
     });
   });
@@ -375,11 +375,11 @@ describe('ConfigConverter', () => {
       expect(result).toContain('python -m unittest discover');
     });
 
-    it('should add HAMLET-TODO for unsupported pytest keys', () => {
+    it('should add TERRAIN-TODO for unsupported pytest keys', () => {
       const input = `[pytest]\ntestpaths = tests\naddopts = -v --tb=short`;
       const result = converter.convert(input, 'pytest', 'unittest');
 
-      expect(result).toContain('HAMLET-TODO');
+      expect(result).toContain('TERRAIN-TODO');
       expect(result).toContain('addopts');
     });
   });
@@ -451,35 +451,35 @@ describe('ConfigConverter', () => {
       expect(result).toContain('junit-jupiter');
     });
 
-    it('should add HAMLET-TODO for unrecognized build format', () => {
+    it('should add TERRAIN-TODO for unrecognized build format', () => {
       const input = `some_unknown_format { junit 4.13 }`;
       const result = converter.convert(input, 'junit4', 'junit5');
 
-      expect(result).toContain('HAMLET-TODO');
+      expect(result).toContain('TERRAIN-TODO');
     });
   });
 
   describe('edge cases', () => {
-    it('should handle config with JS logic (conditional) by adding HAMLET-TODO', () => {
+    it('should handle config with JS logic (conditional) by adding TERRAIN-TODO', () => {
       const input = `const env = process.env.NODE_ENV;\nmodule.exports = env === 'ci' ? { retries: 3 } : { retries: 0 };`;
       const result = converter.convert(input, 'jest', 'vitest');
 
-      expect(result).toContain('HAMLET-TODO');
+      expect(result).toContain('TERRAIN-TODO');
     });
 
-    it('should handle nested config (projects array) with HAMLET-TODO', () => {
+    it('should handle nested config (projects array) with TERRAIN-TODO', () => {
       const input = `module.exports = { projects: [{ displayName: 'unit' }, { displayName: 'e2e' }] };`;
       const result = converter.convert(input, 'jest', 'vitest');
 
-      // projects is unsupported → should have HAMLET-TODO
-      expect(result).toContain('HAMLET-TODO');
+      // projects is unsupported → should have TERRAIN-TODO
+      expect(result).toContain('TERRAIN-TODO');
     });
 
     it('should handle unsupported conversion direction', () => {
       const input = `module.exports = { baseUrl: '/' };`;
       const result = converter.convert(input, 'selenium', 'playwright');
 
-      expect(result).toContain('HAMLET-TODO');
+      expect(result).toContain('TERRAIN-TODO');
       expect(result).toContain('Manual action required');
     });
 

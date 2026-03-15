@@ -1,4 +1,4 @@
-# Hamlet — observability and intelligence for test suites
+# Terrain — signal-first test intelligence platform
 
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 COMMIT  ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
@@ -10,11 +10,11 @@ LDFLAGS := -s -w -X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.dat
 
 # Build the CLI binary
 build:
-	go build -ldflags "$(LDFLAGS)" -o hamlet ./cmd/hamlet
+	go build -ldflags "$(LDFLAGS)" -o terrain ./cmd/terrain
 
 # Install to $GOPATH/bin
 install:
-	go install -ldflags "$(LDFLAGS)" ./cmd/hamlet
+	go install -ldflags "$(LDFLAGS)" ./cmd/terrain
 
 # Run all Go tests
 test:
@@ -35,20 +35,20 @@ check:
 
 # Clean build artifacts
 clean:
-	rm -f hamlet coverage.out
+	rm -f terrain coverage.out
 
 # Run demo: analyze the current repository
 demo:
-	@echo "=== Hamlet Demo ==="
+	@echo "=== Terrain Demo ==="
 	@echo ""
-	@echo "--- hamlet analyze ---"
-	go run ./cmd/hamlet analyze
+	@echo "--- terrain analyze ---"
+	go run ./cmd/terrain analyze
 	@echo ""
-	@echo "--- hamlet summary ---"
-	go run ./cmd/hamlet summary
+	@echo "--- terrain summary ---"
+	go run ./cmd/terrain summary
 	@echo ""
-	@echo "--- hamlet metrics ---"
-	go run ./cmd/hamlet metrics
+	@echo "--- terrain metrics ---"
+	go run ./cmd/terrain metrics
 
 # ── Verification Layer Targets ──────────────────────────────
 

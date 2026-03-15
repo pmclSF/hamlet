@@ -24,6 +24,9 @@ type RepoProfile struct {
 	// FlakeBurden measures the proportion of flaky tests.
 	FlakeBurden string `json:"flakeBurden"` // low, medium, high
 
+	// ManualCoveragePresence indicates whether manual/QA coverage exists.
+	ManualCoveragePresence string `json:"manualCoveragePresence"` // none, partial, significant
+
 	// GraphDensity is the raw edge-to-node ratio.
 	GraphDensity float64 `json:"graphDensity"`
 }
@@ -33,6 +36,33 @@ type ProfileInsights struct {
 	Coverage   *CoverageResult
 	Duplicates *DuplicateResult
 	Fanout     *FanoutResult
+	// Snapshot is optional; when provided, enables richer profiling
+	// (manual coverage, snapshot-heavy detection, etc.).
+	Snapshot SnapshotProfileData
+}
+
+// SnapshotProfileData carries snapshot-level aggregates needed by the profiler.
+// This avoids importing models into depgraph (which only depends on models
+// via Build). Callers populate it from the snapshot.
+type SnapshotProfileData struct {
+	// ManualCoverageCount is the number of manual coverage artifacts.
+	ManualCoverageCount int
+	// SnapshotAssertionCount is the total snapshot assertions across test files.
+	SnapshotAssertionCount int
+	// TotalAssertionCount is the total assertions across test files.
+	TotalAssertionCount int
+	// FrameworkCount is the number of distinct frameworks detected.
+	FrameworkCount int
+	// FrameworkTypes lists the distinct framework types (unit, e2e, etc.).
+	FrameworkTypes []string
+	// MigrationSignalCount is the number of migration-category signals.
+	MigrationSignalCount int
+	// ExternalServiceNodeCount is populated from graph stats.
+	ExternalServiceNodeCount int
+	// GeneratedArtifactNodeCount is populated from graph stats.
+	GeneratedArtifactNodeCount int
+	// LegacyFrameworkSignalCount counts legacyFrameworkUsage signals.
+	LegacyFrameworkSignalCount int
 }
 
 // AnalyzeProfile classifies a repository based on its graph structure
@@ -41,15 +71,29 @@ func AnalyzeProfile(g *Graph, insights ProfileInsights) RepoProfile {
 	stats := g.Stats()
 
 	profile := RepoProfile{
-		TestVolume:         classifyVolume(stats),
-		CIPressure:         classifyCIPressure(stats),
-		CoverageConfidence: classifyCoverageConfidence(insights.Coverage, stats),
-		RedundancyLevel:    classifyRedundancy(insights.Duplicates),
-		FanoutBurden:       classifyFanoutBurden(insights.Fanout),
-		GraphDensity:       stats.Density,
+		TestVolume:             classifyVolume(stats),
+		CIPressure:             classifyCIPressure(stats),
+		CoverageConfidence:     classifyCoverageConfidence(insights.Coverage, stats),
+		RedundancyLevel:        classifyRedundancy(insights.Duplicates),
+		FanoutBurden:           classifyFanoutBurden(insights.Fanout),
+		ManualCoveragePresence: classifyManualCoverage(insights.Snapshot, stats),
+		GraphDensity:           stats.Density,
 	}
 
 	return profile
+}
+
+func classifyManualCoverage(spd SnapshotProfileData, stats Stats) string {
+	manualNodes := stats.NodesByType[string(NodeManualCoverage)]
+	total := manualNodes + spd.ManualCoverageCount
+	switch {
+	case total >= 20:
+		return "significant"
+	case total >= 1:
+		return "partial"
+	default:
+		return "none"
+	}
 }
 
 func classifyVolume(stats Stats) string {

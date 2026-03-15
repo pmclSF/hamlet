@@ -1,6 +1,6 @@
 # Test Architecture
 
-Hamlet's V3 engine (Go) uses a layered test strategy. Each layer targets a different failure class, from pure logic bugs through schema drift to performance regressions. All test infrastructure lives under `internal/testdata/`.
+Terrain's current engine (Go) uses a layered test strategy. Each layer targets a different failure class, from pure logic bugs through schema drift to performance regressions. All test infrastructure lives under `internal/testdata/`.
 
 ## File Organization
 
@@ -135,8 +135,8 @@ Run: `go test -bench=. ./internal/testdata/`
 
 `internal/testdata/cli_test.go` runs against the compiled binary:
 
-- `go build` succeeds for `cmd/hamlet/`
-- `--help` exits cleanly and mentions "Hamlet"
+- `go build` succeeds for `cmd/terrain/`
+- `--help` exits cleanly and mentions "Terrain"
 - Help text lists all commands: analyze, summary, posture, metrics, compare, impact, policy check, export benchmark
 - Unknown command exits non-zero
 - `analyze --root internal/analysis/testdata/sample-repo` produces expected header and next-steps

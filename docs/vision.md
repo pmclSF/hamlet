@@ -1,6 +1,6 @@
 # Vision
 
-Hamlet provides observability and intelligence for test suites.
+Terrain provides observability and intelligence for test suites.
 
 Modern engineering teams depend on tests for confidence, but most teams lack visibility into the real health and effectiveness of their test systems.
 
@@ -18,9 +18,9 @@ But they usually cannot answer:
 - Which teams carry the most test debt?
 - How does our engineering risk compare to similar organizations?
 
-Hamlet exists to answer those questions.
+Terrain exists to answer those questions.
 
-Hamlet treats the test suite as a real system that deserves observability.
+Terrain treats the test suite as a real system that deserves observability.
 
 Just as infrastructure observability tools help teams understand:
 - performance
@@ -28,17 +28,17 @@ Just as infrastructure observability tools help teams understand:
 - regressions
 - hotspots
 
-Hamlet helps teams understand the same things for tests:
+Terrain helps teams understand the same things for tests:
 - structure
 - health
 - quality
 - modernization readiness
 - governance state
 
-Hamlet does not run tests.
-Hamlet interprets the test system.
+Terrain does not run tests.
+Terrain interprets the test system.
 
-Over time, Hamlet should become the standard intelligence layer for understanding whether a codebase is:
+Over time, Terrain should become the standard intelligence layer for understanding whether a codebase is:
 - trustworthy
 - changeable
 - stable

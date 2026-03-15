@@ -1,0 +1,38 @@
+{
+  "changedAreas": [
+    {
+      "area": "db",
+      "surfaces": [
+        {
+          "surfaceId": "surface:src/db/connection.js:connect",
+          "name": "connect",
+          "path": "src/db/connection.js",
+          "kind": "function",
+          "changeKind": "modified"
+        }
+      ]
+    }
+  ],
+  "impactedUnitCount": 1,
+  "impactedTestCount": 0,
+  "protectionGapCount": 1,
+  "selectedTestCount": 0,
+  "coverageConfidence": "low",
+  "reasonCategories": {
+    "directDependency": 0,
+    "fixtureDependency": 0,
+    "directlyChanged": 0,
+    "directoryProximity": 0
+  },
+  "fallback": {
+    "level": "all",
+    "reason": "no impacted tests identified; full suite fallback",
+    "additionalTests": 0
+  },
+  "postureBand": "high_risk",
+  "summary": "1 file(s) changed, 1 code unit(s) impacted, 1 protection gap(s). Posture: high_risk.",
+  "limitations": [
+    "No per-test coverage lineage available; test selection uses structural heuristics.",
+    "No ownership data available; coordination risk may be underestimated."
+  ]
+}

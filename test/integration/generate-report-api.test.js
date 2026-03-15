@@ -7,7 +7,7 @@ describe('Public API: generateReport', () => {
   let tmpDir;
 
   beforeEach(async () => {
-    tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'hamlet-report-api-'));
+    tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'terrain-report-api-'));
   });
 
   afterEach(async () => {

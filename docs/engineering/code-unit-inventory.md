@@ -1,6 +1,6 @@
 # Code Unit Inventory
 
-Hamlet maintains a normalized inventory of code units — functions, methods, classes, and modules — so coverage can be attributed to meaningful code structure rather than raw lines.
+Terrain maintains a normalized inventory of code units — functions, methods, classes, and modules — so coverage can be attributed to meaningful code structure rather than raw lines.
 
 ## CodeUnit Model
 

@@ -1,6 +1,6 @@
 # Wow Moments
 
-These are the specific insights Hamlet should reliably produce that make users say "I didn't know that."
+These are the specific insights Terrain should reliably produce that make users say "I didn't know that."
 
 ## Top 5 Wow Moments
 
@@ -24,7 +24,7 @@ These are the specific insights Hamlet should reliably produce that make users s
 
 **Insight:** "src/auth/ has 5 migration blockers AND 3 quality issues. Address quality before migrating."
 
-**Why it matters:** Migrating code with weak assertions and heavy mocking is dangerous — tests pass but verify nothing. This cross-referencing is Hamlet's unique value.
+**Why it matters:** Migrating code with weak assertions and heavy mocking is dangerous — tests pass but verify nothing. This cross-referencing is Terrain's unique value.
 
 **Evidence chain:** migration blocker signals + quality signals → area assessment (risky) → coverage guidance.
 
@@ -50,7 +50,7 @@ These are the specific insights Hamlet should reliably produce that make users s
 
 **Why it matters:** Teams add broad E2E tests without realizing they duplicate coverage. The portfolio view reveals redundancy candidates, high-leverage tests, and runtime concentration — turning CI cost into an optimization target.
 
-**Evidence chain:** `hamlet portfolio` → test cost signals + protection breadth overlap → redundancy candidates + runtime concentration ratio.
+**Evidence chain:** `terrain portfolio` → test cost signals + protection breadth overlap → redundancy candidates + runtime concentration ratio.
 
 ## What makes these moments work
 
@@ -60,4 +60,4 @@ These are the specific insights Hamlet should reliably produce that make users s
 
 3. **Action-oriented.** Each insight implies a clear next step — fix those 3 files, add unit tests for those exports, address quality before migrating.
 
-4. **Honest about evidence.** When runtime data is missing, Hamlet says so. When evidence is partial, the posture reflects it.
+4. **Honest about evidence.** When runtime data is missing, Terrain says so. When evidence is partial, the posture reflects it.

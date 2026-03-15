@@ -1,6 +1,6 @@
 # Schema Compatibility Testing
 
-Schema tests verify that Hamlet's data models survive serialization round-trips
+Schema tests verify that Terrain's data models survive serialization round-trips
 and remain forward-compatible as the schema evolves. Since snapshots are
 persisted as JSON (exported files, cached analyses, benchmark data), schema
 integrity is critical to the platform's reliability.
@@ -32,7 +32,7 @@ func TestSchema_SnapshotRoundTrip(t *testing.T) {
 Forward compatibility tests verify that JSON with unknown fields deserializes
 without error. This is essential because:
 
-- Older Hamlet versions may read snapshots produced by newer versions
+- Older Terrain versions may read snapshots produced by newer versions
 - External tools may add custom fields to snapshot JSON
 - Schema evolution must not break existing consumers
 

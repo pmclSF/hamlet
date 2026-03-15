@@ -1,11 +1,11 @@
 import org.testng.Assert;
 
 public class ValueSourceTest {
-    // HAMLET-TODO [UNCONVERTIBLE-PARAMETERIZED-TEST]: JUnit 5 @ParameterizedTest requires manual conversion to TestNG @DataProvider
+    // TERRAIN-TODO [UNCONVERTIBLE-PARAMETERIZED-TEST]: JUnit 5 @ParameterizedTest requires manual conversion to TestNG @DataProvider
     // Original: @ParameterizedTest
     // Manual action required: Create a @DataProvider method and reference it with @Test(dataProvider = "...")
     @ParameterizedTest
-    // HAMLET-TODO [UNCONVERTIBLE-VALUE-SOURCE]: JUnit 5 @ValueSource has no direct TestNG equivalent
+    // TERRAIN-TODO [UNCONVERTIBLE-VALUE-SOURCE]: JUnit 5 @ValueSource has no direct TestNG equivalent
     // Original: @ValueSource(strings = {"hello", "world"})
     // Manual action required: Convert values into a @DataProvider method returning Object[][]
     @ValueSource(strings = {"hello", "world"})

@@ -1,7 +1,7 @@
 {
-  "name": "hamlet-testframework",
+  "name": "terrain-testframework",
   "version": "2.0.2",
-  "description": "Hamlet: Signal-first test intelligence platform with legacy multi-framework converter.",
+  "description": "Terrain: Signal-first test intelligence platform with legacy multi-framework converter.",
   "type": "module",
   "main": "src/index.js",
   "types": "src/types/index.d.ts",
@@ -24,6 +24,7 @@
     }
   },
   "bin": {
+    "terrain": "bin/terrain.js",
     "hamlet": "bin/hamlet.js"
   },
   "files": [
@@ -46,18 +47,18 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/pmclSF/hamlet.git"
+    "url": "git+https://github.com/pmclSF/terrain.git"
   },
-  "homepage": "https://github.com/pmclSF/hamlet#readme",
+  "homepage": "https://github.com/pmclSF/terrain#readme",
   "bugs": {
-    "url": "https://github.com/pmclSF/hamlet/issues"
+    "url": "https://github.com/pmclSF/terrain/issues"
   },
   "scripts": {
     "test": "NODE_OPTIONS='--experimental-vm-modules' jest",
     "lint": "eslint src/**/*.js",
     "format": "prettier --write \"src/**/*.js\" \"bin/**/*.js\"",
     "format:check": "prettier --check \"src/**/*.js\" \"bin/**/*.js\"",
-    "start": "node bin/hamlet.js",
+    "start": "node bin/terrain.js",
     "lint-staged": "lint-staged",
     "test:staged": "jest --findRelatedTests",
     "release:verify": "npm run format:check && npm run lint && npm test && node scripts/verify-pack.js",

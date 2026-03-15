@@ -4,7 +4,7 @@ import (
 	"math"
 	"sort"
 
-	"github.com/pmclSF/hamlet/internal/models"
+	"github.com/pmclSF/terrain/internal/models"
 )
 
 // Analyze runs the full portfolio intelligence pipeline on a snapshot.

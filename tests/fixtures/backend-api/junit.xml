@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites tests="11" failures="0" errors="0" time="0.045">
+  <testsuite name="handlers" tests="9" failures="0" time="0.035">
+    <testcase classname="handlers" name="TestCreateUser" time="0.003"/>
+    <testcase classname="handlers" name="TestCreateUser_EmptyName" time="0.001"/>
+    <testcase classname="handlers" name="TestGetUser" time="0.002"/>
+    <testcase classname="handlers" name="TestGetUser_InvalidID" time="0.001"/>
+    <testcase classname="handlers" name="TestAuthenticate" time="0.004"/>
+    <testcase classname="handlers" name="TestAuthenticate_ShortPassword" time="0.001"/>
+    <testcase classname="handlers" name="TestValidateToken" time="0.002"/>
+    <testcase classname="handlers" name="TestValidateToken_Invalid" time="0.001"/>
+    <testcase classname="handlers" name="TestCheckHealth" time="0.001"/>
+  </testsuite>
+  <testsuite name="middleware" tests="2" failures="0" time="0.010">
+    <testcase classname="middleware" name="TestFormatLogEntry" time="0.002"/>
+    <testcase classname="middleware" name="TestShouldLog" time="0.001"/>
+  </testsuite>
+</testsuites>

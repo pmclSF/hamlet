@@ -73,7 +73,7 @@ describe('ErrorRecovery', () => {
       expect(recovered).toContain('LINE3');
     });
 
-    it('should add HAMLET-WARNING for lines that fail individually', () => {
+    it('should add TERRAIN-WARNING for lines that fail individually', () => {
       const content = 'good\nbad\ngood2';
       const error = new Error('parse failed');
       const processor = (line) => {
@@ -83,7 +83,7 @@ describe('ErrorRecovery', () => {
 
       const { recovered, warnings } = recovery.recoverFromParseError(content, error, processor);
 
-      expect(recovered).toContain('HAMLET-WARNING');
+      expect(recovered).toContain('TERRAIN-WARNING');
       expect(recovered).toContain('bad');
       expect(warnings.length).toBeGreaterThan(0);
     });
@@ -95,7 +95,7 @@ describe('ErrorRecovery', () => {
 
       const { recovered, warnings } = recovery.recoverFromParseError(content, error, processor);
 
-      expect(recovered).toContain('HAMLET-WARNING');
+      expect(recovered).toContain('TERRAIN-WARNING');
       expect(recovered).toContain('recovered from parse error');
       expect(warnings.some(w => w.includes('parse error'))).toBe(true);
     });

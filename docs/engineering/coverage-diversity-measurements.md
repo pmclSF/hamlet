@@ -2,7 +2,7 @@
 
 ## Overview
 
-Coverage diversity measures whether the test suite is structurally diversified across test types or overreliant on broad tests (e2e, integration) or mocks. This is one of Hamlet's most distinctive product dimensions.
+Coverage diversity measures whether the test suite is structurally diversified across test types or overreliant on broad tests (e2e, integration) or mocks. This is one of Terrain's most distinctive product dimensions.
 
 ## Key Insight
 

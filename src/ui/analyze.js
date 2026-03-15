@@ -150,7 +150,7 @@ function renderDetail(file, rpt, actions) {
   );
   const cmd =
     dirs.length > 0
-      ? `hamlet convert ${file.path} --from ${file.framework} --to ${dirs[0].to} -o hamlet-out/`
+      ? `terrain convert ${file.path} --from ${file.framework} --to ${dirs[0].to} -o terrain-out/`
       : '';
   const maxScore =
     file.candidates.length > 0
@@ -269,7 +269,7 @@ function renderConvertForm(file, dirs, _rpt, _actions) {
     </div>
     <div class="form-group" id="outdir-group">
       <label>Output Directory</label>
-      <input type="text" class="text-input" id="output-dir" value="./hamlet-out" />
+      <input type="text" class="text-input" id="output-dir" value="./terrain-out" />
     </div>
     <button class="btn btn-primary" id="run-convert-btn">Convert</button>
   </div>`;
@@ -396,7 +396,7 @@ function attachEvents(container, state, actions) {
   const dl = container.querySelector('#dl-report');
   if (dl)
     dl.addEventListener('click', () =>
-      api.downloadJson(report, 'hamlet-analysis.json')
+      api.downloadJson(report, 'terrain-analysis.json')
     );
 
   // Refresh
@@ -424,7 +424,7 @@ function attachEvents(container, state, actions) {
       const targetFw = container.querySelector('#target-fw').value;
       const outputMode = container.querySelector('#output-mode').value;
       const outputDir =
-        container.querySelector('#output-dir')?.value || './hamlet-out';
+        container.querySelector('#output-dir')?.value || './terrain-out';
       try {
         const { jobId } = await api.startConvert({
           root: state.root,

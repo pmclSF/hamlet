@@ -1,8 +1,8 @@
-# CLAUDE.md — Agent Instructions for Hamlet
+# CLAUDE.md — Agent Instructions for Terrain
 
 ## Project Overview
 
-Hamlet is a signal-first test intelligence platform. The V3 engine (Go, in `internal/` and `cmd/`) analyzes repository structure, test code, and policy to surface risk, quality, migration readiness, and governance findings. The V2 converter engine (JavaScript ES modules, in `src/` and `bin/`) provides multi-framework test conversion across 16 frameworks and remains functional.
+Terrain is a test system intelligence platform that maps your "test terrain". The current engine (Go, in `internal/` and `cmd/`) analyzes repository structure, test code, and policy to surface risk, quality, migration readiness, and governance findings. The legacy converter engine (JavaScript ES modules, in `src/` and `bin/`) provides multi-framework test conversion across 16 frameworks and remains functional.
 
 The instructions below apply to the JavaScript codebase (`src/`, `test/`, `bin/`).
 
@@ -24,7 +24,7 @@ npm run lint                # Lint source files (src/**/*.js)
 npm run format              # Format source files with Prettier (src + bin)
 npm run format:check        # Check formatting without writing (used in CI)
 npm run test:staged         # Run tests related to staged files
-node bin/hamlet.js          # Run the CLI
+node bin/terrain.js          # Run the CLI
 ```
 
 > **Note:** There is no `build` script — the project ships raw ES modules. There is no `validate` script.
@@ -170,7 +170,7 @@ export class MyConverter extends BaseConverter { }
 
 **Exceptions:**
 - `commitlint.config.cjs` uses `module.exports` because commitlint requires it.
-- `src/index.js` and `bin/hamlet.js` use `createRequire` to read `package.json` (the only supported way to import JSON in ESM without import assertions).
+- `src/index.js` and `bin/terrain.js` use `createRequire` to read `package.json` (the only supported way to import JSON in ESM without import assertions).
 - Converter output strings may contain `require()` / `module.exports` when generating CommonJS target code (e.g., Cypress configs). These are string literals, not module-system usage.
 
 ### 5. Use `import` for Node.js builtins — with correct module paths
@@ -367,8 +367,7 @@ Before submitting any PR, verify:
 | `src/languages/*/frameworks/*.js` | Framework pattern definitions | Pattern registrations |
 | `src/cli/shorthands.js` | CLI shorthand definitions | `SHORTHANDS`, `CONVERSION_CATEGORIES` |
 | `src/utils/helpers.js` | Utility namespaces | `fileUtils`, `stringUtils`, `codeUtils`, `testUtils`, `reportUtils`, `logUtils` |
-| `config/index.js` | Configuration defaults | Default configs for conversion, reporting, TypeScript |
-| `bin/hamlet.js` | CLI entry point | Commander.js CLI |
+| `bin/terrain.js` | CLI entry point | Commander.js CLI |
 
 ## Running Tests
 

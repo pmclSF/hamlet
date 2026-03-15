@@ -198,12 +198,12 @@ function parse(source) {
 function emit(_ir, source) {
   let result = source;
 
-  // Strip incoming HAMLET-TODO blocks (from previous round-trip step)
+  // Strip incoming TERRAIN-TODO blocks (from previous round-trip step)
   result = result.replace(
-    /^[ \t]*\/\/ HAMLET-TODO \[[^\]]+\]:.*\n(?:[ \t]*\n)*(?:[ \t]*\/\/ (?:Original|Manual action required):.*\n(?:[ \t]*\n)*)*/gm,
+    /^[ \t]*\/\/ TERRAIN-TODO \[[^\]]+\]:.*\n(?:[ \t]*\n)*(?:[ \t]*\/\/ (?:Original|Manual action required):.*\n(?:[ \t]*\n)*)*/gm,
     ''
   );
-  result = result.replace(/^[ \t]*\/\*\s*HAMLET-TODO:.*?\*\/\s*\n?/gm, '');
+  result = result.replace(/^[ \t]*\/\*\s*TERRAIN-TODO:.*?\*\/\s*\n?/gm, '');
 
   const isPlaywrightSource =
     /from\s+['"]@playwright\/test['"]/.test(source) ||
@@ -612,7 +612,7 @@ function convertCypressToWdio(content) {
     'await browser.execute($1)'
   );
 
-  // --- Intercept -> HAMLET-TODO ---
+  // --- Intercept -> TERRAIN-TODO ---
 
   result = result.replace(
     /cy\.intercept\([^)]+(?:,[^)]+)?\)(?:\.as\(['"][^'"]+['"]\))?/g,

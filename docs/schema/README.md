@@ -1,13 +1,13 @@
-# Hamlet JSON Schema Contracts
+# Terrain JSON Schema Contracts
 
-This directory contains JSON Schema definitions for Hamlet's machine-readable outputs.
+This directory contains JSON Schema definitions for Terrain's machine-readable outputs.
 
 ## Schemas
 
 | Schema | Produced by | Purpose |
 |--------|------------|---------|
-| `analysis.schema.json` | `hamlet analyze --json` | Framework detection and project scan results |
-| `conversion.schema.json` | `hamlet convert --report-json <file>` | Structured conversion run report |
+| `analysis.schema.json` | `terrain analyze --json` | Framework detection and project scan results |
+| `conversion.schema.json` | `terrain convert --report-json <file>` | Structured conversion run report |
 
 ## Versioning
 
@@ -28,11 +28,11 @@ Each schema includes a `schemaVersion` field (e.g., `"1.0.0"`).
 
 ```bash
 # Analysis: pipe JSON to stdout
-hamlet analyze src/ --json | jq '.summary.frameworksDetected'
+terrain analyze src/ --json | jq '.summary.frameworksDetected'
 
 # Analysis: write to file
-hamlet analyze src/ --out analysis.json
+terrain analyze src/ --out analysis.json
 
 # Conversion: write report alongside converted files
-hamlet convert tests/ --from jest --to vitest -o out/ --report-json report.json
+terrain convert tests/ --from jest --to vitest -o out/ --report-json report.json
 ```

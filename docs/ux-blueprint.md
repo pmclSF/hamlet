@@ -1,6 +1,6 @@
 # UX Blueprint
 
-Hamlet is a developer-first observability product for test systems.
+Terrain is a developer-first observability product for test systems.
 
 The UX should feel:
 - lightweight
@@ -15,7 +15,7 @@ It should not feel like a heavy BI dashboard.
 Observe -> Understand -> Act -> Improve
 
 ### Observe
-User runs `hamlet analyze` or opens the extension.
+User runs `terrain analyze` or opens the extension.
 
 They should immediately understand:
 - frameworks in use
@@ -86,4 +86,4 @@ Low confidence routes to review.
 Review should often group by blocker/signal type first, then by owner/package.
 
 ### 5. Avoid surveillance framing
-Hamlet shows engineering risk surfaces, not individual rankings.
+Terrain shows engineering risk surfaces, not individual rankings.

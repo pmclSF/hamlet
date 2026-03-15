@@ -6,13 +6,20 @@ import "fmt"
 type EdgeCaseType string
 
 const (
-	EdgeCaseFewTests          EdgeCaseType = "FEW_TESTS"
-	EdgeCaseFastCIAlready     EdgeCaseType = "FAST_CI_ALREADY"
-	EdgeCaseRedundantSuite    EdgeCaseType = "REDUNDANT_TEST_SUITE"
-	EdgeCaseHighSkipBurden    EdgeCaseType = "HIGH_SKIP_BURDEN"
-	EdgeCaseHighFlakeBurden   EdgeCaseType = "HIGH_FLAKE_BURDEN"
-	EdgeCaseHighFanoutFixture EdgeCaseType = "HIGH_FANOUT_FIXTURE"
-	EdgeCaseLowGraphVisibility EdgeCaseType = "LOW_GRAPH_VISIBILITY"
+	EdgeCaseFewTests            EdgeCaseType = "FEW_TESTS"
+	EdgeCaseFastCIAlready       EdgeCaseType = "FAST_CI_ALREADY"
+	EdgeCaseRedundantSuite      EdgeCaseType = "REDUNDANT_TEST_SUITE"
+	EdgeCaseHighSkipBurden      EdgeCaseType = "HIGH_SKIP_BURDEN"
+	EdgeCaseHighFlakeBurden     EdgeCaseType = "HIGH_FLAKE_BURDEN"
+	EdgeCaseHighFanoutFixture   EdgeCaseType = "HIGH_FANOUT_FIXTURE"
+	EdgeCaseLowGraphVisibility  EdgeCaseType = "LOW_GRAPH_VISIBILITY"
+	EdgeCaseExternalServiceHeavy EdgeCaseType = "EXTERNAL_SERVICE_HEAVY"
+	EdgeCaseGeneratedArtifacts  EdgeCaseType = "GENERATED_ARTIFACT_CHANGES"
+	EdgeCaseMigrationOverlap    EdgeCaseType = "MIGRATION_OVERLAP"
+	EdgeCaseSnapshotHeavy       EdgeCaseType = "SNAPSHOT_HEAVY_SUITE"
+	EdgeCaseLegacyZone          EdgeCaseType = "LEGACY_ZONE"
+	EdgeCaseMixedTestCultures   EdgeCaseType = "MIXED_TEST_CULTURES"
+	EdgeCaseLargeManualSuite    EdgeCaseType = "LARGE_MANUAL_SUITE"
 )
 
 // EdgeCase represents a detected edge case condition.
@@ -162,7 +169,102 @@ func DetectEdgeCases(profile RepoProfile, g *Graph, insights ProfileInsights) []
 		})
 	}
 
+	// --- New edge cases using SnapshotProfileData ---
+	spd := insights.Snapshot
+
+	// External-service-heavy tests.
+	extSvcCount := stats.NodesByType[string(NodeExternalService)] + spd.ExternalServiceNodeCount
+	if extSvcCount > 5 {
+		cases = append(cases, EdgeCase{
+			Type:     EdgeCaseExternalServiceHeavy,
+			Severity: "caution",
+			Description: fmt.Sprintf(
+				"%d external service dependencies detected — test reliability depends on service availability.",
+				extSvcCount),
+		})
+	}
+
+	// Generated artifact changes.
+	genCount := stats.NodesByType[string(NodeGeneratedArtifact)] + spd.GeneratedArtifactNodeCount
+	if genCount > 0 {
+		cases = append(cases, EdgeCase{
+			Type:     EdgeCaseGeneratedArtifacts,
+			Severity: "warning",
+			Description: fmt.Sprintf(
+				"%d generated artifact(s) in the graph — changes to generated files may produce noise in impact analysis.",
+				genCount),
+		})
+	}
+
+	// Migration overlap.
+	if spd.MigrationSignalCount > 10 {
+		cases = append(cases, EdgeCase{
+			Type:     EdgeCaseMigrationOverlap,
+			Severity: "caution",
+			Description: fmt.Sprintf(
+				"%d migration signals detected — active framework migration may distort redundancy and coverage metrics.",
+				spd.MigrationSignalCount),
+		})
+	}
+
+	// Snapshot-heavy suite.
+	if spd.TotalAssertionCount > 0 {
+		snapRatio := float64(spd.SnapshotAssertionCount) / float64(spd.TotalAssertionCount)
+		if snapRatio > 0.40 && spd.SnapshotAssertionCount > 20 {
+			cases = append(cases, EdgeCase{
+				Type:     EdgeCaseSnapshotHeavy,
+				Severity: "warning",
+				Description: fmt.Sprintf(
+					"%.0f%% of assertions are snapshot-based (%d) — snapshot churn can mask real regressions.",
+					snapRatio*100, spd.SnapshotAssertionCount),
+			})
+		}
+	}
+
+	// Legacy zone.
+	if spd.LegacyFrameworkSignalCount > 5 {
+		cases = append(cases, EdgeCase{
+			Type:     EdgeCaseLegacyZone,
+			Severity: "caution",
+			Description: fmt.Sprintf(
+				"%d legacy framework signals — legacy test zones may not benefit from optimization.",
+				spd.LegacyFrameworkSignalCount),
+		})
+	}
+
+	// Mixed test cultures.
+	if spd.FrameworkCount >= 4 || (spd.FrameworkCount >= 3 && len(uniqueTypes(spd.FrameworkTypes)) >= 3) {
+		cases = append(cases, EdgeCase{
+			Type:     EdgeCaseMixedTestCultures,
+			Severity: "warning",
+			Description: fmt.Sprintf(
+				"%d frameworks across %d categories — mixed test cultures complicate unified optimization.",
+				spd.FrameworkCount, len(uniqueTypes(spd.FrameworkTypes))),
+		})
+	}
+
+	// Large manual test suite.
+	if profile.ManualCoveragePresence == "significant" {
+		cases = append(cases, EdgeCase{
+			Type:     EdgeCaseLargeManualSuite,
+			Severity: "warning",
+			Description: "Significant manual test coverage — automated analysis may underestimate total protection.",
+		})
+	}
+
 	return cases
+}
+
+func uniqueTypes(types []string) []string {
+	seen := map[string]bool{}
+	var out []string
+	for _, t := range types {
+		if t != "" && !seen[t] {
+			seen[t] = true
+			out = append(out, t)
+		}
+	}
+	return out
 }
 
 // ApplyEdgeCasePolicy derives a policy from detected edge cases.
@@ -227,6 +329,47 @@ func ApplyEdgeCasePolicy(cases []EdgeCase, profile RepoProfile) Policy {
 			policy.RiskElevated = true
 			policy.Recommendations = append(policy.Recommendations,
 				"Low graph visibility limits confidence in impact analysis. Recommendations may be incomplete.")
+
+		case EdgeCaseExternalServiceHeavy:
+			if policy.FallbackLevel < FallbackFixtureExpand {
+				policy.FallbackLevel = FallbackFixtureExpand
+			}
+			policy.ConfidenceAdjustment *= 0.85
+			policy.Recommendations = append(policy.Recommendations,
+				"External service dependencies may cause flaky results. Consider service virtualization or contract tests.")
+
+		case EdgeCaseGeneratedArtifacts:
+			policy.Recommendations = append(policy.Recommendations,
+				"Generated artifacts detected. Exclude generated files from impact scope to reduce noise.")
+
+		case EdgeCaseMigrationOverlap:
+			if policy.FallbackLevel < FallbackPackageTests {
+				policy.FallbackLevel = FallbackPackageTests
+			}
+			policy.ConfidenceAdjustment *= 0.8
+			policy.Recommendations = append(policy.Recommendations,
+				"Active migration may distort coverage and redundancy metrics. Complete migration before optimizing test selection.")
+
+		case EdgeCaseSnapshotHeavy:
+			policy.ConfidenceAdjustment *= 0.9
+			policy.Recommendations = append(policy.Recommendations,
+				"Snapshot-heavy suites inflate assertion counts. Review snapshot tests for value vs. churn cost.")
+
+		case EdgeCaseLegacyZone:
+			policy.Recommendations = append(policy.Recommendations,
+				"Legacy test zones may not benefit from test selection. Consider migrating legacy tests before optimizing.")
+
+		case EdgeCaseMixedTestCultures:
+			if policy.FallbackLevel < FallbackFixtureExpand {
+				policy.FallbackLevel = FallbackFixtureExpand
+			}
+			policy.ConfidenceAdjustment *= 0.85
+			policy.Recommendations = append(policy.Recommendations,
+				"Mixed test cultures reduce cross-framework optimization confidence. Consider standardizing on fewer frameworks.")
+
+		case EdgeCaseLargeManualSuite:
+			policy.Recommendations = append(policy.Recommendations,
+				"Significant manual coverage exists. Automated analysis may underestimate total protection — factor in manual QA when assessing risk.")
 		}
 	}
 

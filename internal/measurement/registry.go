@@ -3,8 +3,9 @@ package measurement
 import (
 	"fmt"
 	"sort"
+	"strings"
 
-	"github.com/pmclSF/hamlet/internal/models"
+	"github.com/pmclSF/terrain/internal/models"
 )
 
 // Registry holds measurement definitions and executes them.
@@ -20,13 +21,22 @@ func NewRegistry() *Registry {
 	}
 }
 
-// Register adds a measurement definition. Panics on duplicate ID.
-func (r *Registry) Register(def Definition) {
+// Register adds a measurement definition. Returns an error on duplicate ID.
+func (r *Registry) Register(def Definition) error {
 	if r.ids[def.ID] {
-		panic(fmt.Sprintf("measurement: duplicate ID %q", def.ID))
+		return fmt.Errorf("measurement: duplicate ID %q", def.ID)
 	}
 	r.ids[def.ID] = true
 	r.definitions = append(r.definitions, def)
+	return nil
+}
+
+// MustRegister adds a measurement definition, panicking on duplicate ID.
+// Use only for compile-time-known definitions (e.g., in DefaultRegistry).
+func (r *Registry) MustRegister(def Definition) {
+	if err := r.Register(def); err != nil {
+		panic(err)
+	}
 }
 
 // All returns all registered definitions in registration order.
@@ -291,12 +301,5 @@ func resultToModel(r Result) models.MeasurementResult {
 }
 
 func join(items []string) string {
-	if len(items) == 0 {
-		return ""
-	}
-	result := items[0]
-	for _, item := range items[1:] {
-		result += ", " + item
-	}
-	return result
+	return strings.Join(items, ", ")
 }

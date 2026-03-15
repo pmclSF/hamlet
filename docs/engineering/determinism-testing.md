@@ -1,6 +1,6 @@
 # Determinism Testing
 
-Determinism tests verify that Hamlet's computation pipeline produces bit-identical
+Determinism tests verify that Terrain's computation pipeline produces bit-identical
 output across multiple runs with the same input. Non-determinism in a test
 intelligence platform erodes trust: if the same snapshot produces different risk
 scores or posture bands on consecutive runs, users cannot rely on the results.

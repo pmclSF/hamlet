@@ -2,7 +2,7 @@
 
 ## Overview
 
-The measurement framework is a formal computation layer that sits between Hamlet's raw signals/derived facts and user-facing summaries, comparisons, and exports. It provides explicit, named, versioned measurements with evidence metadata that feed into posture dimensions.
+The measurement framework is a formal computation layer that sits between Terrain's raw signals/derived facts and user-facing summaries, comparisons, and exports. It provides explicit, named, versioned measurements with evidence metadata that feed into posture dimensions.
 
 ## Philosophy
 

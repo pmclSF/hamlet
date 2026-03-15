@@ -7,8 +7,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/pmclSF/hamlet/internal/models"
-	"github.com/pmclSF/hamlet/internal/signals"
+	"github.com/pmclSF/terrain/internal/models"
+	"github.com/pmclSF/terrain/internal/signals"
 )
 
 // AnalyzeReportOptions configures analyze report rendering.
@@ -28,7 +28,7 @@ func RenderAnalyzeReport(w io.Writer, snap *models.TestSuiteSnapshot, opts ...An
 	}
 
 	// Header
-	line("Hamlet — Test Suite Analysis")
+	line("Terrain — Test Suite Analysis")
 	line(strings.Repeat("=", 40))
 	blank()
 
@@ -69,13 +69,13 @@ func RenderAnalyzeReport(w io.Writer, snap *models.TestSuiteSnapshot, opts ...An
 	line("  [%-9s] Policy config", completenessBadge(policyStatus == models.DataSourceAvailable))
 	if coverageStatus != models.DataSourceAvailable {
 		line("  Coverage analysis skipped or partial. Provide coverage with:")
-		line("    hamlet analyze --root . --coverage path/to/lcov.info")
+		line("    terrain analyze --root . --coverage path/to/lcov.info")
 	}
 	if runtimeStatus != models.DataSourceAvailable {
 		line("  Runtime-dependent signals unavailable without runtime artifacts:")
 		line("    slowTest, flakyTest, skippedTest, deadTest, unstableSuite")
 		line("  Provide runtime data with:")
-		line("    hamlet analyze --root . --runtime path/to/results.xml")
+		line("    terrain analyze --root . --runtime path/to/results.xml")
 	}
 	blank()
 
@@ -117,7 +117,7 @@ func RenderAnalyzeReport(w io.Writer, snap *models.TestSuiteSnapshot, opts ...An
 		}
 	} else {
 		line("  No test files detected.")
-		line("  Hamlet looks for patterns like *_test.go, *.test.js, *.spec.ts, test_*.py.")
+		line("  Terrain looks for patterns like *_test.go, *.test.js, *.spec.ts, test_*.py.")
 	}
 	blank()
 
@@ -136,7 +136,7 @@ func RenderAnalyzeReport(w io.Writer, snap *models.TestSuiteSnapshot, opts ...An
 	line(strings.Repeat("-", 40))
 	if len(snap.Signals) == 0 {
 		line("  No signals detected.")
-		line("  This often means Hamlet needs more runtime/coverage data to surface issues.")
+		line("  This often means Terrain needs more runtime/coverage data to surface issues.")
 	} else {
 		counts := map[models.SignalCategory]int{}
 		byType := map[models.SignalType]int{}
@@ -154,35 +154,36 @@ func RenderAnalyzeReport(w io.Writer, snap *models.TestSuiteSnapshot, opts ...An
 				line("  %-14s %d", cat, c)
 			}
 		}
-			blank()
+		blank()
 
-			// Show breakdown by signal type
-			line("  Breakdown:")
-			types := make([]models.SignalType, 0, len(byType))
-			for st := range byType {
-				types = append(types, st)
+		// Show breakdown by signal type
+		line("  Breakdown:")
+		types := make([]models.SignalType, 0, len(byType))
+		for st := range byType {
+			types = append(types, st)
+		}
+		sort.Slice(types, func(i, j int) bool {
+			ci, cj := byType[types[i]], byType[types[j]]
+			if ci != cj {
+				return ci > cj
 			}
-			sort.Slice(types, func(i, j int) bool {
-				ci, cj := byType[types[i]], byType[types[j]]
-				if ci != cj {
-					return ci > cj
-				}
-				return types[i] < types[j]
-			})
-			for _, st := range types {
-				line("    %-26s %d", st, byType[st])
-			}
+			return types[i] < types[j]
+		})
+		for _, st := range types {
+			line("    %-26s %d", st, byType[st])
+		}
 
 		blank()
 		line("  Top findings:")
-		limit := len(snap.Signals)
+		orderedSignals := rankedSignals(snap.Signals)
+		limit := len(orderedSignals)
 		if !opt.Verbose {
 			limit = 5
-			if len(snap.Signals) < limit {
-				limit = len(snap.Signals)
+			if len(orderedSignals) < limit {
+				limit = len(orderedSignals)
 			}
 		}
-		for _, s := range snap.Signals[:limit] {
+		for _, s := range orderedSignals[:limit] {
 			loc := s.Location.File
 			if loc == "" {
 				loc = s.Location.Repository
@@ -198,8 +199,15 @@ func RenderAnalyzeReport(w io.Writer, snap *models.TestSuiteSnapshot, opts ...An
 				}
 			}
 		}
-		if !opt.Verbose && len(snap.Signals) > 5 {
-			line("    ... and %d more signals", len(snap.Signals)-5)
+		if !opt.Verbose && len(orderedSignals) > limit {
+			remaining := orderedSignals[limit:]
+			remainingCritical, remainingHigh := countHighSeverities(remaining)
+			line("    ... and %d more signals", len(remaining))
+			if remainingCritical > 0 || remainingHigh > 0 {
+				line("        hidden severities: %d critical, %d high (use --verbose to view all)", remainingCritical, remainingHigh)
+			} else {
+				line("        use --verbose to view all findings")
+			}
 		}
 	}
 	blank()
@@ -207,7 +215,7 @@ func RenderAnalyzeReport(w io.Writer, snap *models.TestSuiteSnapshot, opts ...An
 	// What this means
 	line("What This Means")
 	line(strings.Repeat("-", 40))
-	line("  Hamlet found %d test files with %d signals.", len(snap.TestFiles), len(snap.Signals))
+	line("  Terrain found %d test files with %d signals.", len(snap.TestFiles), len(snap.Signals))
 	line("  Test suite status: %s", suiteStatusBand(snap))
 	blank()
 
@@ -246,13 +254,13 @@ func RenderAnalyzeReport(w io.Writer, snap *models.TestSuiteSnapshot, opts ...An
 	// Next command hints
 	line("Next steps:")
 	line("  1) Add coverage data:")
-	line("     hamlet analyze --root . --coverage path/to/lcov.info")
+	line("     terrain analyze --root . --coverage path/to/lcov.info")
 	line("  2) Add runtime data:")
-	line("     hamlet analyze --root . --runtime path/to/test-results.xml")
+	line("     terrain analyze --root . --runtime path/to/test-results.xml")
 	line("  3) Show full findings:")
-	line("     hamlet analyze --root . --verbose")
+	line("     terrain analyze --root . --verbose")
 	line("  4) Save trend baseline:")
-	line("     hamlet analyze --write-snapshot")
+	line("     terrain analyze --write-snapshot")
 	blank()
 }
 
@@ -300,4 +308,61 @@ func suiteStatusBand(snap *models.TestSuiteSnapshot) string {
 	default:
 		return "good"
 	}
+}
+
+func rankedSignals(signals []models.Signal) []models.Signal {
+	if len(signals) == 0 {
+		return nil
+	}
+	out := append([]models.Signal(nil), signals...)
+	sort.Slice(out, func(i, j int) bool {
+		ai := signalSeverityRank(out[i].Severity)
+		aj := signalSeverityRank(out[j].Severity)
+		if ai != aj {
+			return ai > aj
+		}
+		if out[i].Confidence != out[j].Confidence {
+			return out[i].Confidence > out[j].Confidence
+		}
+		if out[i].Category != out[j].Category {
+			return out[i].Category < out[j].Category
+		}
+		if out[i].Type != out[j].Type {
+			return out[i].Type < out[j].Type
+		}
+		if out[i].Location.File != out[j].Location.File {
+			return out[i].Location.File < out[j].Location.File
+		}
+		return out[i].Location.Line < out[j].Location.Line
+	})
+	return out
+}
+
+func signalSeverityRank(sev models.SignalSeverity) int {
+	switch sev {
+	case models.SeverityCritical:
+		return 5
+	case models.SeverityHigh:
+		return 4
+	case models.SeverityMedium:
+		return 3
+	case models.SeverityLow:
+		return 2
+	case models.SeverityInfo:
+		return 1
+	default:
+		return 0
+	}
+}
+
+func countHighSeverities(signals []models.Signal) (critical, high int) {
+	for _, s := range signals {
+		if s.Severity == models.SeverityCritical {
+			critical++
+		}
+		if s.Severity == models.SeverityHigh {
+			high++
+		}
+	}
+	return critical, high
 }

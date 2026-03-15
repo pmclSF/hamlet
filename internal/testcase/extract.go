@@ -7,7 +7,24 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/pmclSF/hamlet/internal/identity"
+	"github.com/pmclSF/terrain/internal/identity"
+)
+
+// Extraction confidence levels: how reliable the test case identification is
+// based on the extraction method used.
+const (
+	// ConfidenceNamedPattern is assigned when extraction matches a well-defined
+	// named pattern (e.g., `describe("name", ...)` with clear suite path).
+	ConfidenceNamedPattern = 0.95
+	// ConfidenceSyntaxMatch is assigned when extraction uses syntactic structure
+	// (e.g., matching `it(` / `test(` blocks with string literals).
+	ConfidenceSyntaxMatch = 0.9
+	// ConfidenceHeuristic is assigned when extraction relies on regex heuristics
+	// (e.g., indentation-based nesting, partial matches).
+	ConfidenceHeuristic = 0.8
+	// ConfidenceInferred is assigned when the test case is inferred from context
+	// rather than directly matched (e.g., fallback `each` block detection).
+	ConfidenceInferred = 0.7
 )
 
 // Extract discovers individual test cases from a file and assigns stable IDs.
@@ -186,7 +203,7 @@ func extractJS(src, relPath, framework string) []TestCase {
 								SuiteHierarchy: suiteNames(suiteStack),
 								Line:           lineNum + 1,
 								ExtractionKind: ExtractionStatic,
-								Confidence:     0.8,
+								Confidence:     ConfidenceHeuristic,
 								Parameterized: &ParameterizationInfo{
 									IsTemplate:         false,
 									ParamSignature:     "case_" + strconv.Itoa(i),
@@ -201,7 +218,7 @@ func extractJS(src, relPath, framework string) []TestCase {
 							SuiteHierarchy: suiteNames(suiteStack),
 							Line:           lineNum + 1,
 							ExtractionKind: ExtractionParameterizedTemplate,
-							Confidence:     0.7,
+							Confidence:     ConfidenceInferred,
 							Parameterized: &ParameterizationInfo{
 								IsTemplate: true,
 							},
@@ -219,7 +236,7 @@ func extractJS(src, relPath, framework string) []TestCase {
 					SuiteHierarchy: suiteNames(suiteStack),
 					Line:           lineNum + 1,
 					ExtractionKind: ExtractionStatic,
-					Confidence:     0.9,
+					Confidence:     ConfidenceSyntaxMatch,
 				}
 				cases = append(cases, tc)
 			}
@@ -738,7 +755,7 @@ func extractGo(src, relPath, framework string) []TestCase {
 				TestName:       currentFunc,
 				Line:           lineNum + 1,
 				ExtractionKind: ExtractionStatic,
-				Confidence:     0.95,
+				Confidence:     ConfidenceNamedPattern,
 			})
 			continue
 		}
@@ -760,7 +777,7 @@ func extractGo(src, relPath, framework string) []TestCase {
 				SuiteHierarchy: hierarchy,
 				Line:           lineNum + 1,
 				ExtractionKind: ExtractionStatic,
-				Confidence:     0.9,
+				Confidence:     ConfidenceSyntaxMatch,
 			})
 		}
 	}

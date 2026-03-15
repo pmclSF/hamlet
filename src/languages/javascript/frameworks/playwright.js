@@ -65,12 +65,12 @@ function parse(source) {
 function emit(ir, source) {
   let result = source;
 
-  // Strip incoming HAMLET-TODO blocks (from previous round-trip step)
+  // Strip incoming TERRAIN-TODO blocks (from previous round-trip step)
   result = result.replace(
-    /^[ \t]*\/\/ HAMLET-TODO \[[^\]]+\]:.*\n(?:[ \t]*\n)*(?:[ \t]*\/\/ (?:Original|Manual action required):.*\n(?:[ \t]*\n)*)*/gm,
+    /^[ \t]*\/\/ TERRAIN-TODO \[[^\]]+\]:.*\n(?:[ \t]*\n)*(?:[ \t]*\/\/ (?:Original|Manual action required):.*\n(?:[ \t]*\n)*)*/gm,
     ''
   );
-  result = result.replace(/^[ \t]*\/\*\s*HAMLET-TODO:.*?\*\/\s*\n?/gm, '');
+  result = result.replace(/^[ \t]*\/\*\s*TERRAIN-TODO:.*?\*\/\s*\n?/gm, '');
   // Strip Cypress reference type directive (from round-trip)
   result = result.replace(
     /^\/\/\/\s*<reference types="cypress"\s*\/>\s*\n?/gm,
@@ -219,7 +219,7 @@ function convertCypressCommands(content) {
   result = result.replace(
     /\b(it|describe|context|specify|it\.only|it\.skip|describe\.only|describe\.skip)\(\s*(['"`])((?:(?!\2).)*)\2/g,
     (match, keyword, quote, name) => {
-      const placeholder = `__HAMLET_NAME_${nameCounter++}__`;
+      const placeholder = `__TERRAIN_NAME_${nameCounter++}__`;
       nameMap.set(placeholder, name);
       return `${keyword}(${quote}${placeholder}${quote}`;
     }
@@ -549,7 +549,7 @@ function convertCypressCommands(content) {
   );
   result = result.replace(
     /cy\.clearLocalStorage\(([^)]+)\)/g,
-    'await page.evaluate((key) => localStorage.removeItem(key), $1) /* @hamlet:clearLocalStorage($1) */'
+    'await page.evaluate((key) => localStorage.removeItem(key), $1) /* @terrain:clearLocalStorage($1) */'
   );
   result = result.replace(
     /cy\.clearLocalStorage\(\)/g,
@@ -585,7 +585,7 @@ function convertCypressCommands(content) {
 
   result = result.replace(
     /cy\.visualSnapshot\(([^)]*)\)/g,
-    'await page.screenshot({ path: $1 }) /* @hamlet:visualSnapshot */'
+    'await page.screenshot({ path: $1 }) /* @terrain:visualSnapshot */'
   );
 
   // --- Network ---
@@ -593,19 +593,19 @@ function convertCypressCommands(content) {
   // cy.intercept(method, url, response).as(alias) — static stub
   result = result.replace(
     /cy\.intercept\(([^,\n]+),\s*([^,\n]+),\s*([^)]+)\)\.as\(['"]([^'"]+)['"]\)/g,
-    'await page.route($2, route => route.fulfill($3)) /* @hamlet:intercept($1).as("$4") */'
+    'await page.route($2, route => route.fulfill($3)) /* @terrain:intercept($1).as("$4") */'
   );
 
   // cy.intercept(method, url).as(alias) — spy
   result = result.replace(
     /cy\.intercept\(([^,\n]+),\s*([^)]+)\)\.as\(['"]([^'"]+)['"]\)/g,
-    'await page.route($2, route => route.continue()) /* @hamlet:intercept($1).as("$3") */'
+    'await page.route($2, route => route.continue()) /* @terrain:intercept($1).as("$3") */'
   );
 
   // cy.intercept(method, url, callback) — 3-arg callback form
   result = result.replace(
     /cy\.intercept\(([^,\n]+),\s*([^,\n]+),\s*\(?(?:req|request)\)?\s*=>\s*\{/g,
-    'await page.route($2, (route) => { /* @hamlet:intercept($1) */'
+    'await page.route($2, (route) => { /* @terrain:intercept($1) */'
   );
 
   // cy.intercept(url, callback) — 2-arg callback form
@@ -617,7 +617,7 @@ function convertCypressCommands(content) {
   // cy.intercept(url).as(alias) — bare spy with alias
   result = result.replace(
     /cy\.intercept\(([^)]+)\)\.as\(['"]([^'"]+)['"]\)/g,
-    'await page.route($1, route => route.continue()) /* @hamlet:as("$2") */'
+    'await page.route($1, route => route.continue()) /* @terrain:as("$2") */'
   );
 
   // cy.intercept(method, url) — spy without alias (no .as())
@@ -632,29 +632,29 @@ function convertCypressCommands(content) {
     'await page.route($1, route => route.continue())'
   );
 
-  // --- Custom Cypress commands → HAMLET-TODO ---
+  // --- Custom Cypress commands → TERRAIN-TODO ---
 
   // cy.getBySel(selector) → page.getByTestId(selector) (common pattern in Cypress RWA)
   result = result.replace(
     /cy\.getBySel\(([^)]+)\)/g,
-    'page.getByTestId($1) /* @hamlet:getBySel */'
+    'page.getByTestId($1) /* @terrain:getBySel */'
   );
 
   // cy.getBySelLike(selector) → page.locator with data-test*= selector
   result = result.replace(
     /cy\.getBySelLike\(([^)]+)\)/g,
-    'page.locator(`[data-test*=${$1}]`) /* @hamlet:getBySelLike */'
+    'page.locator(`[data-test*=${$1}]`) /* @terrain:getBySelLike */'
   );
 
   // --- Viewport (numeric args) ---
 
   result = result.replace(
     /cy\.go\((-\d+)\)/g,
-    'await page.goBack() /* @hamlet:go($1) */'
+    'await page.goBack() /* @terrain:go($1) */'
   );
   result = result.replace(
     /cy\.go\((\d+)\)/g,
-    'await page.goForward() /* @hamlet:go($1) */'
+    'await page.goForward() /* @terrain:go($1) */'
   );
   result = result.replace(/cy\.reload\([^)]+\)/g, 'await page.reload()');
 
@@ -676,7 +676,7 @@ function convertCypressCommands(content) {
   );
   result = result.replace(/cy\.on\(([^,]+),\s*([^)]+)\)/g, 'page.on($1, $2)');
 
-  // cy.clock() / cy.clock(timestamp) / cy.tick() — HAMLET-TODO with brief note
+  // cy.clock() / cy.clock(timestamp) / cy.tick() — TERRAIN-TODO with brief note
   result = result.replace(
     /cy\.clock\(([^)]+)\)/g,
     formatter.formatTodo({
@@ -705,7 +705,7 @@ function convertCypressCommands(content) {
     })
   );
 
-  // cy.fixture / cy.exec / cy.task / cy.readFile / cy.writeFile — HAMLET-TODO
+  // cy.fixture / cy.exec / cy.task / cy.readFile / cy.writeFile — TERRAIN-TODO
   result = result.replace(
     /cy\.fixture\(([^)]+)\)/g,
     formatter.formatTodo({
@@ -816,15 +816,15 @@ function convertCypressCommands(content) {
     (match, _q, method, url, body) =>
       `await request.${method.toLowerCase()}(${url.trim()}, { data: ${body.trim()} })`
   );
-  // cy.request('METHOD', url) → await request.method(url) /* @hamlet:explicit-method */
+  // cy.request('METHOD', url) → await request.method(url) /* @terrain:explicit-method */
   result = result.replace(
     /cy\.request\((['"])(GET|POST|PUT|PATCH|DELETE)\1,\s*([^)]+)\)/g,
     (match, _q, method, url) =>
-      `await request.${method.toLowerCase()}(${url.trim()}) /* @hamlet:explicit-method */`
+      `await request.${method.toLowerCase()}(${url.trim()}) /* @terrain:explicit-method */`
   );
   // cy.request(url) → await request.get(url)
   result = result.replace(/cy\.request\(([^{),]+)\)/g, 'await request.get($1)');
-  // cy.request({ ... }) → HAMLET-TODO (complex config object)
+  // cy.request({ ... }) → TERRAIN-TODO (complex config object)
   result = result.replace(
     /cy\.request\(\{/g,
     formatter.formatTodo({
@@ -931,7 +931,7 @@ function convertCypressCommands(content) {
   // Convert to page.locator() instead of hitting the catch-all
   result = result.replace(/cy\.get\(([^)]+)\)/g, 'page.locator($1)');
 
-  // --- Catch-all: remaining cy.* custom commands → HAMLET-TODO ---
+  // --- Catch-all: remaining cy.* custom commands → TERRAIN-TODO ---
   // Process line-by-line to skip comment lines
   result = result
     .split('\n')
@@ -947,7 +947,7 @@ function convertCypressCommands(content) {
       }
       return line.replace(/cy\.(\w+)\(([^)]*)\)/g, (match, method) => {
         return (
-          `/* HAMLET-TODO: cy.${method}() has no Playwright equivalent — rewrite manually */` +
+          `/* TERRAIN-TODO: cy.${method}() has no Playwright equivalent — rewrite manually */` +
           '\n// ' +
           match.trim()
         );
@@ -1700,7 +1700,7 @@ function convertCypressTestStructure(content) {
   result = result.replace(/\bdescribe\(/g, 'test.describe(');
   result = result.replace(
     /\bcontext\(/g,
-    'test.describe( /* @hamlet:was-context */'
+    'test.describe( /* @terrain:was-context */'
   );
   result = result.replace(/\bit\.only\(/g, 'test.only(');
   result = result.replace(/\bit\.skip\(/g, 'test.skip(');

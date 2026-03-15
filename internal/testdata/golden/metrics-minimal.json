@@ -1,6 +1,6 @@
 {
   "generatedAt": "2025-01-15T12:00:00Z",
-  "analysisVersion": "v3-nucleus",
+  "analysisVersion": "signal-first",
   "structure": {
     "totalTestFiles": 1,
     "frameworks": [

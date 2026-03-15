@@ -3,7 +3,7 @@ package scoring
 import (
 	"testing"
 
-	"github.com/pmclSF/hamlet/internal/models"
+	"github.com/pmclSF/terrain/internal/models"
 )
 
 func TestComputeRisk_NoSignals(t *testing.T) {

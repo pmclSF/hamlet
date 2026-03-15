@@ -2,11 +2,12 @@ package changescope
 
 import (
 	"bytes"
+	"fmt"
 	"strings"
 	"testing"
 
-	"github.com/pmclSF/hamlet/internal/impact"
-	"github.com/pmclSF/hamlet/internal/models"
+	"github.com/pmclSF/terrain/internal/impact"
+	"github.com/pmclSF/terrain/internal/models"
 )
 
 func testSnapshot() *models.TestSuiteSnapshot {
@@ -109,14 +110,21 @@ func TestAnalyzePR_UntestedExport(t *testing.T) {
 
 	pr := AnalyzePR(scope, snap)
 
-	hasUntestedExport := false
+	// Untested exports are surfaced as protection_gap findings (not duplicated).
+	hasProtectionGap := false
 	for _, f := range pr.NewFindings {
-		if f.Type == "untested_export_in_change" {
-			hasUntestedExport = true
+		if f.Type == "protection_gap" && f.Severity == "high" && strings.Contains(f.Path, "feature.js") {
+			hasProtectionGap = true
 		}
 	}
-	if !hasUntestedExport {
-		t.Error("expected untested_export_in_change finding")
+	if !hasProtectionGap {
+		t.Error("expected high-severity protection_gap finding for untested export")
+	}
+	// Verify no duplicate — untested_export_in_change should not exist.
+	for _, f := range pr.NewFindings {
+		if f.Type == "untested_export_in_change" {
+			t.Error("unexpected duplicate untested_export_in_change finding — should only appear as protection_gap")
+		}
 	}
 }
 
@@ -143,7 +151,7 @@ func TestRenderPRSummaryMarkdown(t *testing.T) {
 	RenderPRSummaryMarkdown(&buf, pr)
 	output := buf.String()
 
-	if !strings.Contains(output, "## Hamlet") {
+	if !strings.Contains(output, "## Terrain") {
 		t.Error("expected markdown header")
 	}
 	if !strings.Contains(output, "Posture") {
@@ -164,8 +172,8 @@ func TestRenderPRCommentConcise(t *testing.T) {
 	RenderPRCommentConcise(&buf, pr)
 	output := buf.String()
 
-	if !strings.Contains(output, "Hamlet") {
-		t.Error("expected Hamlet in concise comment")
+	if !strings.Contains(output, "Terrain") {
+		t.Error("expected Terrain in concise comment")
 	}
 }
 
@@ -217,6 +225,7 @@ func TestPostureBadge(t *testing.T) {
 		{"partially_protected", "[WARN]"},
 		{"weakly_protected", "[RISK]"},
 		{"high_risk", "[FAIL]"},
+		{"evidence_limited", "[INFO]"},
 		{"unknown", "[????]"},
 	}
 	for _, tt := range tests {
@@ -224,5 +233,167 @@ func TestPostureBadge(t *testing.T) {
 		if got != tt.want {
 			t.Errorf("postureBadge(%q) = %q, want %q", tt.band, got, tt.want)
 		}
+	}
+}
+
+func TestExtractUnitNames(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name    string
+		unitIDs []string
+		want    []string
+	}{
+		{"path:Name format", []string{"src/auth.js:AuthService", "src/db.js:DBPool"}, []string{"AuthService", "DBPool"}},
+		{"deduplicates names", []string{"a.js:Foo", "b.js:Foo"}, []string{"Foo"}},
+		{"no colon fallback", []string{"bare_name"}, []string{"bare_name"}},
+		{"empty input", nil, nil},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := extractUnitNames(tt.unitIDs)
+			if len(got) != len(tt.want) {
+				t.Fatalf("extractUnitNames() = %v, want %v", got, tt.want)
+			}
+			for i := range got {
+				if got[i] != tt.want[i] {
+					t.Errorf("extractUnitNames()[%d] = %q, want %q", i, got[i], tt.want[i])
+				}
+			}
+		})
+	}
+}
+
+func TestFormatTestReasons_ShowsUnitNames(t *testing.T) {
+	t.Parallel()
+	selections := []TestSelection{
+		{
+			Path:       "test/auth.test.js",
+			Confidence: "exact",
+			CoversUnits: []string{
+				"src/auth.js:AuthService",
+				"src/auth.js:SessionManager",
+			},
+			Reasons: []string{"exact coverage of impacted unit", "exact coverage of impacted unit"},
+		},
+	}
+
+	reasons := formatTestReasons(selections)
+	why := reasons["test/auth.test.js"]
+
+	if !strings.Contains(why, "AuthService") {
+		t.Errorf("expected unit name AuthService in reason, got: %s", why)
+	}
+	if !strings.Contains(why, "SessionManager") {
+		t.Errorf("expected unit name SessionManager in reason, got: %s", why)
+	}
+	if strings.Contains(why, "exact coverage of impacted unit") {
+		t.Errorf("expected unit names instead of generic reason, got: %s", why)
+	}
+}
+
+func TestFormatTestReasons_TruncatesLongLists(t *testing.T) {
+	t.Parallel()
+	units := make([]string, 6)
+	for i := range units {
+		units[i] = fmt.Sprintf("src/mod%d.js:Unit%d", i, i)
+	}
+	selections := []TestSelection{
+		{
+			Path:        "test/all.test.js",
+			Confidence:  "exact",
+			CoversUnits: units,
+		},
+	}
+
+	reasons := formatTestReasons(selections)
+	why := reasons["test/all.test.js"]
+
+	if !strings.Contains(why, "+ 2 more") {
+		t.Errorf("expected truncation with '+ 2 more', got: %s", why)
+	}
+}
+
+func TestFormatTestReasons_FallsBackToReasons(t *testing.T) {
+	t.Parallel()
+	selections := []TestSelection{
+		{
+			Path:       "test/nearby.test.js",
+			Confidence: "inferred",
+			Reasons:    []string{"inferred structural relationship"},
+		},
+	}
+
+	reasons := formatTestReasons(selections)
+	why := reasons["test/nearby.test.js"]
+
+	if why != "inferred structural relationship" {
+		t.Errorf("expected fallback to reason string, got: %s", why)
+	}
+}
+
+func TestFormatTestReasons_UniqueVsShared(t *testing.T) {
+	t.Parallel()
+	selections := []TestSelection{
+		{
+			Path:       "test/auth.test.js",
+			Confidence: "exact",
+			CoversUnits: []string{
+				"src/auth.js:AuthService",   // unique to this test
+				"src/shared.js:SharedUtil",  // shared with test B
+			},
+		},
+		{
+			Path:       "test/user.test.js",
+			Confidence: "exact",
+			CoversUnits: []string{
+				"src/user.js:UserService",   // unique to this test
+				"src/shared.js:SharedUtil",  // shared with test A
+			},
+		},
+	}
+
+	reasons := formatTestReasons(selections)
+
+	authWhy := reasons["test/auth.test.js"]
+	userWhy := reasons["test/user.test.js"]
+
+	// Each test should lead with its unique unit.
+	if !strings.Contains(authWhy, "AuthService") {
+		t.Errorf("auth test should mention unique unit AuthService, got: %s", authWhy)
+	}
+	if !strings.Contains(userWhy, "UserService") {
+		t.Errorf("user test should mention unique unit UserService, got: %s", userWhy)
+	}
+	// Shared units should be noted.
+	if !strings.Contains(authWhy, "shared") {
+		t.Errorf("auth test should note shared units, got: %s", authWhy)
+	}
+}
+
+func TestFormatTestReasons_AllShared(t *testing.T) {
+	t.Parallel()
+	selections := []TestSelection{
+		{
+			Path:        "test/a.test.js",
+			Confidence:  "exact",
+			CoversUnits: []string{"src/x.js:Foo", "src/y.js:Bar"},
+		},
+		{
+			Path:        "test/b.test.js",
+			Confidence:  "exact",
+			CoversUnits: []string{"src/x.js:Foo", "src/y.js:Bar"},
+		},
+	}
+
+	reasons := formatTestReasons(selections)
+	why := reasons["test/a.test.js"]
+
+	// When all units are shared, should note that.
+	if !strings.Contains(why, "shared across") {
+		t.Errorf("expected 'shared across' note when all units are shared, got: %s", why)
+	}
+	if !strings.Contains(why, "Foo") {
+		t.Errorf("expected unit name Foo, got: %s", why)
 	}
 }

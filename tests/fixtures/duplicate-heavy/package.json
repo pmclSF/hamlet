@@ -1,0 +1,8 @@
+{
+  "name": "duplicate-heavy-fixture",
+  "private": true,
+  "type": "module",
+  "devDependencies": {
+    "vitest": "^1.0.0"
+  }
+}

@@ -3,8 +3,8 @@ package governance
 import (
 	"testing"
 
-	"github.com/pmclSF/hamlet/internal/models"
-	"github.com/pmclSF/hamlet/internal/policy"
+	"github.com/pmclSF/terrain/internal/models"
+	"github.com/pmclSF/terrain/internal/policy"
 )
 
 func boolPtr(v bool) *bool          { return &v }
@@ -105,8 +105,8 @@ func TestEvaluate_SkippedTests(t *testing.T) {
 	if len(result.Violations) != 1 {
 		t.Fatalf("expected 1 violation, got %d", len(result.Violations))
 	}
-	if result.Violations[0].Type != "policyViolation" {
-		t.Errorf("type = %q, want policyViolation", result.Violations[0].Type)
+	if result.Violations[0].Type != "skippedTestsInCI" {
+		t.Errorf("type = %q, want skippedTestsInCI", result.Violations[0].Type)
 	}
 }
 

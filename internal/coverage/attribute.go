@@ -4,7 +4,7 @@ import (
 	"sort"
 	"strconv"
 
-	"github.com/pmclSF/hamlet/internal/models"
+	"github.com/pmclSF/terrain/internal/models"
 )
 
 // UnitCoverage represents coverage attribution for a single code unit.

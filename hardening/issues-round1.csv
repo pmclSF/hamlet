@@ -1,0 +1,17 @@
+id,severity,area,title,evidence,status
+HARD-001,S1,CLI,"show --help fails and exits non-zero","go run ./cmd/terrain show --help => unknown entity type '--help'",resolved
+HARD-002,S1,Benchmarking,"No live progress during long benchmark runs","go run ./benchmarks/cli --repo terrain shows no per-command heartbeat",resolved
+HARD-003,S1,Benchmarking,"Benchmark harness stores full stdout/stderr for large commands","benchmarks/cli/runner.go CommandResult stores complete stdout/stderr",resolved
+HARD-004,S2,Code Quality,"Unused function analyzeTestFileContent","internal/analysis/content_analysis.go:22 (staticcheck U1000)",resolved
+HARD-005,S2,Code Quality,"Unused function ingestRuntime","internal/engine/pipeline.go:696 (staticcheck U1000)",resolved
+HARD-006,S2,Code Quality,"Unused function ingestCoverage","internal/engine/pipeline.go:761 (staticcheck U1000)",resolved
+HARD-007,S2,Test Reliability,"Server tests fail in restricted environments","npm test: listen EPERM 127.0.0.1 in server-api/ui-smoke suites",resolved
+HARD-008,S2,Usability,"Analyze output low signal/noise on large corpus roots","terrain analyze --root . produced 59k files and 56k+ signals",mitigated
+HARD-009,S2,Copy/Content,"Version-era references outside changelog","docs/vscode-extension.md, docs/demo.md, internal comments contain numbered release-line references",resolved
+HARD-010,S2,CLI Polish,"Duplicate default text for --slow-threshold","analyze --help prints '(default: 5000) (default 5000)'",resolved
+HARD-011,S3,Code Quality,"Redundant nil check before len(map)","cmd/terrain/snapshot_test.go:51 (staticcheck S1009)",resolved
+HARD-012,S3,Code Quality,"Unnecessary HasPrefix guard before TrimPrefix","internal/ownership/codeowners.go:177 (staticcheck S1017)",resolved
+HARD-013,S1,Performance,"insights and debug commands timeout on large real repo","/tmp/terrain-hardening-bench: insights/debug:* fail at ~180s (exit -1)",resolved
+HARD-014,S1,Reliability,"Benchmark can fail late on output write after long run","insights solo benchmark: no space left on device when creating output dir",resolved
+HARD-015,S2,Output Quality,"explain output missing dependency path/confidence in benchmark assessment","/tmp/terrain-hardening-bench summary: explain credibility 40",resolved
+HARD-016,S2,Benchmarking,"Runtime highly sensitive to command contention","parallel/contended runs push analyze/impact from ~57s to ~140s+",mitigated

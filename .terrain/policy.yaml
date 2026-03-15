@@ -1,0 +1,32 @@
+# Terrain local policy configuration.
+#
+# This file defines constraints that the repository's test suite should satisfy.
+# Run `terrain policy check` to evaluate the repository against this policy.
+#
+# All rules are optional. Only explicitly set rules are enforced.
+# Remove or comment out any rule you do not want to enforce.
+
+rules:
+  # Disallow skipped/pending tests.
+  # When true, any skippedTest signal triggers a policy violation.
+  # disallow_skipped_tests: true
+
+  # Disallow specific test frameworks.
+  # List framework names (case-insensitive) that should not appear.
+  # disallow_frameworks:
+  #   - jest
+  #   - mocha
+
+  # Maximum allowed average test runtime in milliseconds.
+  # Test files exceeding this threshold trigger a runtimeBudgetExceeded violation.
+  # max_test_runtime_ms: 5000
+
+  # Minimum required coverage percentage (0-100).
+  # Evaluated against coverage threshold break signals from the analysis phase.
+  # minimum_coverage_percent: 80
+
+  # Maximum allowed number of weakAssertion signals.
+  # max_weak_assertions: 5
+
+  # Maximum allowed number of mockHeavyTest signals.
+  # max_mock_heavy_tests: 3

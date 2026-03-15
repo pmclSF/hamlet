@@ -16,7 +16,7 @@ describe('Package version resolution', () => {
   let npmEnv;
 
   beforeAll(async () => {
-    npmCacheDir = await fs.mkdtemp(path.join(os.tmpdir(), 'hamlet-npm-cache-'));
+    npmCacheDir = await fs.mkdtemp(path.join(os.tmpdir(), 'terrain-npm-cache-'));
     npmEnv = {
       ...process.env,
       NPM_CONFIG_CACHE: npmCacheDir,
@@ -38,19 +38,19 @@ describe('Package version resolution', () => {
     tarball = path.join(os.tmpdir(), tarballName);
 
     // Extract package tarball
-    extractDir = await fs.mkdtemp(path.join(os.tmpdir(), 'hamlet-pack-test-'));
+    extractDir = await fs.mkdtemp(path.join(os.tmpdir(), 'terrain-pack-test-'));
     execFileSync('tar', ['-xzf', tarball, '-C', extractDir], {
       encoding: 'utf8',
     });
     packageDir = path.join(extractDir, 'package');
 
     // Create a temp consumer project that installs the packed artifact.
-    consumerDir = await fs.mkdtemp(path.join(os.tmpdir(), 'hamlet-consumer-'));
+    consumerDir = await fs.mkdtemp(path.join(os.tmpdir(), 'terrain-consumer-'));
     const consumerNodeModules = path.join(consumerDir, 'node_modules');
     await fs.mkdir(consumerNodeModules, { recursive: true });
     await fs.symlink(
       packageDir,
-      path.join(consumerNodeModules, 'hamlet-testframework')
+      path.join(consumerNodeModules, 'terrain-testframework')
     );
 
     // Allow extracted package to resolve dependencies from this workspace.
@@ -86,7 +86,7 @@ describe('Package version resolution', () => {
       [
         '--input-type=module',
         '-e',
-        "import { VERSION } from 'hamlet-testframework'; process.stdout.write(VERSION);",
+        "import { VERSION } from 'terrain-testframework'; process.stdout.write(VERSION);",
       ],
       {
         cwd: consumerDir,
@@ -103,7 +103,7 @@ describe('Package version resolution', () => {
       [
         '--input-type=module',
         '-e',
-        "import { ConverterFactory, FRAMEWORKS } from 'hamlet-testframework/core'; process.stdout.write(String(Boolean(ConverterFactory && FRAMEWORKS)));",
+        "import { ConverterFactory, FRAMEWORKS } from 'terrain-testframework/core'; process.stdout.write(String(Boolean(ConverterFactory && FRAMEWORKS)));",
       ],
       {
         cwd: consumerDir,

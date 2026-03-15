@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document describes the UI views and triage flow for impact analysis in the Hamlet extension. The UI is powered by the `ImpactResult` JSON output from the engine — no engine logic is duplicated in the UI layer.
+This document describes the UI views and triage flow for impact analysis in the Terrain extension. The UI is powered by the `ImpactResult` JSON output from the engine — no engine logic is duplicated in the UI layer.
 
 ## Changed Area Summary View
 
@@ -78,4 +78,4 @@ The UI guides users through a 4-step triage:
 
 ## Data Source
 
-All views are rendered from the `ImpactResult` JSON structure. The UI never calls the engine directly — it consumes the snapshot or impact result produced by `hamlet impact --json` or `hamlet pr --json`.
+All views are rendered from the `ImpactResult` JSON structure. The UI never calls the engine directly — it consumes the snapshot or impact result produced by `terrain impact --json` or `terrain pr --json`.

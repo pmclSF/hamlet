@@ -395,9 +395,9 @@ describe('PROP-004: No source framework API residue', () => {
 
         const result = await convert(input, from, to);
 
-        // Strip HAMLET-TODO/WARNING comments before checking
+        // Strip TERRAIN-TODO/WARNING comments before checking
         const codeLines = result.code.split('\n')
-          .filter(l => !l.includes('HAMLET-TODO') && !l.includes('HAMLET-WARNING') && !l.includes('// Original:'));
+          .filter(l => !l.includes('TERRAIN-TODO') && !l.includes('TERRAIN-WARNING') && !l.includes('// Original:'));
         const cleanCode = codeLines.join('\n');
 
         for (const pattern of residuePatterns) {

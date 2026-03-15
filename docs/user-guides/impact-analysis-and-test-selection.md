@@ -4,16 +4,16 @@
 
 ### Overview
 
-Hamlet's impact analysis commands help you understand which tests are affected by a code change and select the right tests to run. This guide covers the `hamlet impact` and `hamlet select-tests` commands.
+Terrain's impact analysis commands help you understand which tests are affected by a code change and select the right tests to run. This guide covers the `terrain impact` and `terrain select-tests` commands.
 
 ---
 
-### The `hamlet impact` Command
+### The `terrain impact` Command
 
 Analyze the impact of code changes on your test suite.
 
 ```bash
-hamlet impact [flags]
+terrain impact [flags]
 ```
 
 #### Flags
@@ -30,16 +30,16 @@ hamlet impact [flags]
 
 ```bash
 # Analyze impact of current branch vs main
-hamlet impact
+terrain impact
 
 # Analyze against a specific base
-hamlet impact --base develop
+terrain impact --base develop
 
 # JSON output for CI consumption
-hamlet impact --json
+terrain impact --json
 
 # Filter to a specific owner
-hamlet impact --owner @backend-team
+terrain impact --owner @backend-team
 ```
 
 ---
@@ -60,68 +60,68 @@ The `--show` flag selects a specific view of the impact data.
 
 ```bash
 # See which code units are affected
-hamlet impact --show units
+terrain impact --show units
 
 # Find protection gaps
-hamlet impact --show gaps
+terrain impact --show gaps
 
 # See the recommended test set
-hamlet impact --show selected
+terrain impact --show selected
 ```
 
 ---
 
-### The `hamlet select-tests` Command
+### The `terrain select-tests` Command
 
-Output a list of test files to run based on the current diff. This is the action-oriented counterpart to `hamlet impact --show selected`.
+Output a list of test files to run based on the current diff. This is the action-oriented counterpart to `terrain impact --show selected`.
 
 ```bash
-hamlet select-tests [flags]
+terrain select-tests [flags]
 ```
 
 ```bash
 # List test files to run
-hamlet select-tests
+terrain select-tests
 
 # Output as newline-delimited paths (for xargs / CI)
-hamlet select-tests --format paths
+terrain select-tests --format paths
 
 # Output as JSON array
-hamlet select-tests --json
+terrain select-tests --json
 
 # Against a specific base
-hamlet select-tests --base develop
+terrain select-tests --base develop
 ```
 
 #### CI Integration
 
 ```bash
 # Run only impacted tests with Jest
-hamlet select-tests --format paths | xargs npx jest
+terrain select-tests --format paths | xargs npx jest
 
 # Run only impacted tests with Go
-hamlet select-tests --format paths | xargs go test
+terrain select-tests --format paths | xargs go test
 ```
 
 ---
 
-### The `hamlet pr` Command
+### The `terrain pr` Command
 
 Generate PR-oriented impact reports suitable for GitHub comments or CI annotations.
 
 ```bash
-hamlet pr [flags]
+terrain pr [flags]
 ```
 
 ```bash
 # Markdown summary for PR comment
-hamlet pr --format markdown
+terrain pr --format markdown
 
 # CI annotations (GitHub Actions format)
-hamlet pr --format annotation
+terrain pr --format annotation
 
 # JSON for custom integrations
-hamlet pr --format json
+terrain pr --format json
 ```
 
 See the [PR Impact Workflow Guide](pr-impact-workflow.md) for detailed CI integration examples.
@@ -134,13 +134,13 @@ See the [PR Impact Workflow Guide](pr-impact-workflow.md) for detailed CI integr
 
 ```bash
 # 1. Check overall impact
-hamlet impact
+terrain impact
 
 # 2. Drill into gaps
-hamlet impact --show gaps
+terrain impact --show gaps
 
 # 3. Run the protective test set
-hamlet select-tests --format paths | xargs npx jest
+terrain select-tests --format paths | xargs npx jest
 ```
 
 #### CI Integration
@@ -148,13 +148,13 @@ hamlet select-tests --format paths | xargs npx jest
 ```bash
 # In your CI pipeline:
 # 1. Generate impact report
-hamlet impact --json > impact.json
+terrain impact --json > impact.json
 
 # 2. Post PR comment
-hamlet pr --format markdown > comment.md
+terrain pr --format markdown > comment.md
 
 # 3. Run selective tests
-hamlet select-tests --format paths | xargs npx jest --ci
+terrain select-tests --format paths | xargs npx jest --ci
 ```
 
 ---

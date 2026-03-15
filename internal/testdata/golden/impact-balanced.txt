@@ -1,4 +1,4 @@
-Hamlet Impact Analysis
+Terrain Impact Analysis
 ============================================================
 
 Summary: 2 file(s) changed, 2 code unit(s) impacted, 8 test(s) relevant. Posture: partially_protected.
@@ -27,7 +27,7 @@ Recommended Tests (2)
 Impacted Owners: team-payments, team-platform
 
 Next steps:
-  hamlet analyze       full repo analysis
-  hamlet posture       evidence-backed posture
-  hamlet impact --json   machine-readable impact data
+  terrain analyze       full repo analysis
+  terrain posture       evidence-backed posture
+  terrain impact --json   machine-readable impact data
 

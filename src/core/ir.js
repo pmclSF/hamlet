@@ -1,5 +1,5 @@
 /**
- * Intermediate Representation (IR) node types for Hamlet v2.
+ * Intermediate Representation (IR) node types for Terrain legacy converter.
  *
  * These nodes represent a normalized test file structure that is
  * framework-agnostic. Parsers produce IR from source code, and

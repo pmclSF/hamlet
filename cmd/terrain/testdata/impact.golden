@@ -1,0 +1,11 @@
+{
+  "changedFileCount": 2,
+  "coverageConfidence": "medium",
+  "hasSummary": true,
+  "impactedTestCount": 2,
+  "impactedUnitCount": 0,
+  "policyApplied": true,
+  "posture": "well_protected",
+  "protectionGapCount": 0,
+  "selectedTestCount": 2
+}

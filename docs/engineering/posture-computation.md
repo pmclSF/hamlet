@@ -2,7 +2,7 @@
 
 ## Overview
 
-Posture computation turns a set of measurement results for a dimension into a single calibrated band with an explanation. It runs per-dimension, producing a `DimensionPosture` for each of Hamlet's five dimensions.
+Posture computation turns a set of measurement results for a dimension into a single calibrated band with an explanation. It runs per-dimension, producing a `DimensionPosture` for each of Terrain's five dimensions.
 
 ## Posture Bands
 
@@ -72,7 +72,7 @@ Given health measurements:
 
 ### No Global Score
 
-Hamlet does not produce a single global repo score. Each dimension has its own posture. This is intentional — collapsing five dimensions into one number would lose the actionability that makes posture useful.
+Terrain does not produce a single global repo score. Each dimension has its own posture. This is intentional — collapsing five dimensions into one number would lose the actionability that makes posture useful.
 
 ### Threshold Transparency
 

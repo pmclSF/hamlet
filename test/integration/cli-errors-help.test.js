@@ -5,7 +5,7 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, '../..');
-const cliPath = path.resolve(rootDir, 'bin/hamlet.js');
+const cliPath = path.resolve(rootDir, 'bin/terrain.js');
 const fixturesDir = path.resolve(__dirname, '../fixtures');
 const outputDir = path.resolve(__dirname, '../output/errors-help');
 
@@ -104,7 +104,7 @@ describe('CLI Error Messages & Help', () => {
     });
   });
 
-  describe('hamlet --help', () => {
+  describe('terrain --help', () => {
     test('should show grouped commands', () => {
       const result = runCLI(['--help']);
 
@@ -118,7 +118,7 @@ describe('CLI Error Messages & Help', () => {
     });
   });
 
-  describe('hamlet convert --help', () => {
+  describe('terrain convert --help', () => {
     test('should show convert command options', () => {
       const result = runCLI(['convert', '--help']);
 
@@ -133,7 +133,7 @@ describe('CLI Error Messages & Help', () => {
     });
   });
 
-  describe('hamlet list', () => {
+  describe('terrain list', () => {
     test('should show all directions with shorthands', () => {
       const result = runCLI(['list']);
 
@@ -149,11 +149,11 @@ describe('CLI Error Messages & Help', () => {
     });
   });
 
-  describe('hamlet doctor', () => {
+  describe('terrain doctor', () => {
     test('should run without error', () => {
       const result = runCLI(['doctor']);
 
-      expect(result).toContain('Hamlet Doctor');
+      expect(result).toContain('Terrain Doctor');
       expect(result).toContain('Node.js');
       expect(result).toContain('PASS');
       expect(result).toContain('checks:');

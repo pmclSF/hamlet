@@ -1,6 +1,6 @@
 # Contributing: Impact Analysis and Test Selection
 
-This guide covers how to extend the impact analysis and protective test selection subsystems in Hamlet V3.
+This guide covers how to extend the impact analysis and protective test selection subsystems in Terrain's current engine.
 
 ## Package Layout
 

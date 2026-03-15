@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pmclSF/hamlet/internal/models"
+	"github.com/pmclSF/terrain/internal/models"
 )
 
 func TestRenderAnalyzeReport_SmokeSections(t *testing.T) {
@@ -47,7 +47,7 @@ func TestRenderAnalyzeReport_SmokeSections(t *testing.T) {
 	output := buf.String()
 
 	sections := []string{
-		"Hamlet",
+		"Terrain",
 		"test-repo",
 		"Frameworks",
 		"jest",

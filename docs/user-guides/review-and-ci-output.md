@@ -1,13 +1,13 @@
 # Review and CI Output Modes
 
-Hamlet provides output formats designed for code review and CI integration.
+Terrain provides output formats designed for code review and CI integration.
 
 ## PR Summary Markdown
 
 Generate a markdown summary for GitHub PR comments:
 
 ```bash
-hamlet pr --format markdown
+terrain pr --format markdown
 ```
 
 Output includes a posture badge, stats table, findings, recommended tests, and affected owners in clean markdown.
@@ -17,12 +17,12 @@ Output includes a posture badge, stats table, findings, recommended tests, and a
 Generate a one-line summary for inline PR comments:
 
 ```bash
-hamlet pr --format comment
+terrain pr --format comment
 ```
 
 Example output:
 ```
-[WARN] Hamlet: 3 file(s) changed, 2 unit(s) impacted, 1 gap(s), 2 test(s) recommended. Posture: partially_protected.
+[WARN] Terrain: 3 file(s) changed, 2 unit(s) impacted, 1 gap(s), 2 test(s) recommended. Posture: partially_protected.
   - 1 high-severity finding(s) require attention
   - Run: src/__tests__/auth.test.js, src/__tests__/payment.test.js
 ```
@@ -32,7 +32,7 @@ Example output:
 Generate GitHub Actions-compatible annotation output:
 
 ```bash
-hamlet pr --format annotation
+terrain pr --format annotation
 ```
 
 Example output:
@@ -46,20 +46,20 @@ Example output:
 ### GitHub Actions
 
 ```yaml
-- name: Hamlet PR Analysis
+- name: Terrain PR Analysis
   run: |
-    hamlet pr --format annotation
-    hamlet pr --format markdown >> $GITHUB_STEP_SUMMARY
+    terrain pr --format annotation
+    terrain pr --format markdown >> $GITHUB_STEP_SUMMARY
 ```
 
 ### Generic CI
 
 ```bash
 # Run analysis and capture exit code
-hamlet pr --json > hamlet-pr.json
+terrain pr --json > terrain-pr.json
 
 # Use jq to check posture
-POSTURE=$(jq -r '.postureBand' hamlet-pr.json)
+POSTURE=$(jq -r '.postureBand' terrain-pr.json)
 if [ "$POSTURE" = "high_risk" ]; then
   echo "High-risk change detected"
   exit 1
@@ -71,6 +71,6 @@ fi
 For programmatic CI integration:
 
 ```bash
-hamlet pr --json | jq '.postureBand'
-hamlet pr --json | jq '.newFindings[] | select(.severity == "high")'
+terrain pr --json | jq '.postureBand'
+terrain pr --json | jq '.newFindings[] | select(.severity == "high")'
 ```

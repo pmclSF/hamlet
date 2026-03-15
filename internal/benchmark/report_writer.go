@@ -46,7 +46,7 @@ func writeJSON(path string, v interface{}) error {
 func GenerateSummary(assessments []RepoAssessment) string {
 	var sb strings.Builder
 
-	sb.WriteString("# Hamlet CLI Benchmark Summary\n\n")
+	sb.WriteString("# Terrain CLI Benchmark Summary\n\n")
 
 	// Per-repo sections.
 	for _, ra := range assessments {

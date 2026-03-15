@@ -228,10 +228,10 @@ describe('IR Node Types', () => {
     it('should preserve code and optional comment', () => {
       const r = new RawCode({
         code: 'const x = 42;',
-        comment: 'HAMLET-TODO: Review this',
+        comment: 'TERRAIN-TODO: Review this',
       });
       expect(r.code).toBe('const x = 42;');
-      expect(r.comment).toBe('HAMLET-TODO: Review this');
+      expect(r.comment).toBe('TERRAIN-TODO: Review this');
     });
   });
 

@@ -10,13 +10,13 @@ Line coverage says 80%. But:
 - Three different test frameworks create maintenance burden
 - Migration blockers hide in files with the weakest assertions
 
-Traditional coverage tools count lines. Hamlet reads structure.
+Traditional coverage tools count lines. Terrain reads structure.
 
 ## The wedge: migration pain
 
 The most common entry point is framework migration. A team decides to move from Jasmine to Jest, or Protractor to Playwright. They discover it is harder than expected.
 
-Hamlet scans the repo and shows:
+Terrain scans the repo and shows:
 - How many migration blockers exist and where
 - Which blockers are compounded by quality issues (weak assertions, heavy mocking)
 - Which areas are safe to migrate first
@@ -35,7 +35,7 @@ Migration readiness is the wedge. The real product is structural test intelligen
 
 ## What's honest
 
-- Hamlet is local-first and open source today
+- Terrain is local-first and open source today
 - Analysis is static (runtime enrichment is optional)
 - Coverage data improves accuracy but is not required
 - Measurements are honest about evidence gaps
@@ -43,7 +43,7 @@ Migration readiness is the wedge. The real product is structural test intelligen
 
 ## Portfolio intelligence
 
-Hamlet doesn't just find problems — it identifies which tests provide the most value and which waste resources. The `hamlet portfolio` command treats the test suite as a portfolio of investments, analyzing cost (runtime), protection breadth (modules covered), redundancy (overlapping coverage), and leverage (value per CI minute). This turns "we have too many slow tests" into "these 3 tests overlap 90% and consume 60% of CI runtime — here are the redundancy candidates."
+Terrain doesn't just find problems — it identifies which tests provide the most value and which waste resources. The `terrain portfolio` command treats the test suite as a portfolio of investments, analyzing cost (runtime), protection breadth (modules covered), redundancy (overlapping coverage), and leverage (value per CI minute). This turns "we have too many slow tests" into "these 3 tests overlap 90% and consume 60% of CI runtime — here are the redundancy candidates."
 
 ## What's distinctive
 

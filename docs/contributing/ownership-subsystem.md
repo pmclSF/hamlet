@@ -59,7 +59,7 @@ file → signal (via location)
 
 ## Ownership-Safe Phrasing
 
-Hamlet's output should be operational, not personal. Follow these patterns:
+Terrain's output should be operational, not personal. Follow these patterns:
 
 | Do | Don't |
 |----|-------|

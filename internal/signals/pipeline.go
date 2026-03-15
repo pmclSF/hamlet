@@ -1,6 +1,6 @@
 package signals
 
-import "github.com/pmclSF/hamlet/internal/models"
+import "github.com/pmclSF/terrain/internal/models"
 
 // RunDetectors runs all provided detectors against the snapshot and
 // appends the resulting signals to snap.Signals.

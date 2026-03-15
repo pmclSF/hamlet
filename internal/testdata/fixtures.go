@@ -1,4 +1,4 @@
-// Package testdata provides standardized test fixtures for Hamlet's test suite.
+// Package testdata provides standardized test fixtures for Terrain's test suite.
 //
 // These fixtures represent common real-world scenarios and are reusable across
 // unit, integration, golden, and E2E tests.
@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/pmclSF/hamlet/internal/models"
+	"github.com/pmclSF/terrain/internal/models"
 )
 
 // FixedTime is a deterministic timestamp for reproducible test output.

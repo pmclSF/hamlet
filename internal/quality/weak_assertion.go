@@ -1,10 +1,10 @@
-// Package quality implements quality-focused signal detectors for Hamlet.
+// Package quality implements quality-focused signal detectors for Terrain.
 package quality
 
 import (
 	"fmt"
 
-	"github.com/pmclSF/hamlet/internal/models"
+	"github.com/pmclSF/terrain/internal/models"
 )
 
 // e2eFrameworks are frameworks where lower assertion density is expected

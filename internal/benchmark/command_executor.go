@@ -1,9 +1,9 @@
 package benchmark
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os/exec"
 	"strings"
@@ -12,6 +12,18 @@ import (
 
 // PerCommandTimeout is the per-command timeout. Set from the CLI.
 var PerCommandTimeout = 60 * time.Second
+
+// HeavyCommandTimeoutFactor scales timeout for expensive commands.
+// The benchmark uses this to avoid false timeout failures for heavyweight views.
+var HeavyCommandTimeoutFactor = 4.0
+
+// Maximum stdout/stderr bytes to retain per command in benchmark artifacts.
+// Command output can be extremely large on real-world repos; retaining only a
+// bounded snapshot keeps memory use and artifact size predictable.
+var (
+	MaxStdoutCaptureBytes = 512 * 1024
+	MaxStderrCaptureBytes = 128 * 1024
+)
 
 // CommandSpec describes a command to run against a repo.
 type CommandSpec struct {
@@ -22,22 +34,88 @@ type CommandSpec struct {
 
 // CommandResult captures the raw output of a single CLI command.
 type CommandResult struct {
-	RepoName  string   `json:"repoName"`
-	Command   string   `json:"command"`
-	Args      []string `json:"args,omitempty"`
-	ExitCode  int      `json:"exitCode"`
-	Stdout    string   `json:"stdout"`
-	Stderr    string   `json:"stderr"`
-	RuntimeMs int64    `json:"runtimeMs"`
-	Error     string   `json:"error,omitempty"`
+	RepoName        string   `json:"repoName"`
+	Command         string   `json:"command"`
+	Args            []string `json:"args,omitempty"`
+	ExitCode        int      `json:"exitCode"`
+	Stdout          string   `json:"stdout"`
+	Stderr          string   `json:"stderr"`
+	StdoutBytes     int64    `json:"stdoutBytes,omitempty"`
+	StderrBytes     int64    `json:"stderrBytes,omitempty"`
+	StdoutTruncated bool     `json:"stdoutTruncated,omitempty"`
+	StderrTruncated bool     `json:"stderrTruncated,omitempty"`
+	RuntimeMs       int64    `json:"runtimeMs"`
+	TimedOut        bool     `json:"timedOut,omitempty"`
+	Error           string   `json:"error,omitempty"`
 }
 
-// DetectCommands probes the hamlet binary to find which commands are available
+// boundedCapture is an io.Writer that retains at most maxBytes of output.
+type boundedCapture struct {
+	maxBytes  int
+	data      []byte
+	total     int64
+	truncated bool
+}
+
+func newBoundedCapture(maxBytes int) *boundedCapture {
+	if maxBytes < 1024 {
+		maxBytes = 1024
+	}
+	return &boundedCapture{maxBytes: maxBytes}
+}
+
+func (b *boundedCapture) Write(p []byte) (int, error) {
+	b.total += int64(len(p))
+	remaining := b.maxBytes - len(b.data)
+	if remaining > 0 {
+		if len(p) > remaining {
+			b.data = append(b.data, p[:remaining]...)
+			b.truncated = true
+		} else {
+			b.data = append(b.data, p...)
+		}
+	} else if len(p) > 0 {
+		b.truncated = true
+	}
+	return len(p), nil
+}
+
+func (b *boundedCapture) String() string {
+	return string(b.data)
+}
+
+func (b *boundedCapture) AnnotatedString() string {
+	if !b.truncated {
+		return string(b.data)
+	}
+	return fmt.Sprintf("%s\n\n...[output truncated: captured %d of %d bytes]...",
+		string(b.data), len(b.data), b.total)
+}
+
+// timeoutForCommand returns the per-command timeout, scaled for expensive commands.
+func timeoutForCommand(command string) time.Duration {
+	base := PerCommandTimeout
+	factor := 1.0
+	switch {
+	case command == "insights":
+		factor = HeavyCommandTimeoutFactor * 1.5
+	case strings.HasPrefix(command, "debug:") || strings.HasPrefix(command, "depgraph:"):
+		factor = HeavyCommandTimeoutFactor
+	case command == "explain":
+		factor = 1.5
+	}
+	if factor < 1.0 {
+		factor = 1.0
+	}
+	return time.Duration(float64(base) * factor)
+}
+
+// DetectCommands probes the terrain binary to find which commands are available
 // and returns the appropriate primary and debug command specs.
-func DetectCommands(hamletBin string) (primary []CommandSpec, debug []CommandSpec, err error) {
-	out, err := exec.Command(hamletBin, "help").CombinedOutput()
+func DetectCommands(terrainBin string) (primary []CommandSpec, debug []CommandSpec, err error) {
+	out, err := exec.Command(terrainBin, "help").CombinedOutput()
 	if err != nil {
-		return nil, nil, fmt.Errorf("running hamlet help: %w", err)
+		return nil, nil, fmt.Errorf("running terrain help: %w", err)
 	}
 	helpText := string(out)
 
@@ -97,8 +175,8 @@ func DetectCommands(hamletBin string) (primary []CommandSpec, debug []CommandSpe
 	return primary, debug, nil
 }
 
-// RunCommand executes a single hamlet command against a repo.
-func RunCommand(ctx context.Context, hamletBin string, repoPath string, spec CommandSpec) CommandResult {
+// RunCommand executes a single terrain command against a repo.
+func RunCommand(ctx context.Context, terrainBin string, repoPath string, spec CommandSpec) CommandResult {
 	result := CommandResult{
 		Command: spec.Name,
 		Args:    spec.Args,
@@ -108,19 +186,25 @@ func RunCommand(ctx context.Context, hamletBin string, repoPath string, spec Com
 	copy(args, spec.Args)
 	args = append(args, "--root", repoPath)
 
-	cmdCtx, cancel := context.WithTimeout(ctx, PerCommandTimeout)
+	timeout := timeoutForCommand(spec.Name)
+	cmdCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
 	start := time.Now()
-	cmd := exec.CommandContext(cmdCtx, hamletBin, args...)
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
+	cmd := exec.CommandContext(cmdCtx, terrainBin, args...)
+	stdout := newBoundedCapture(MaxStdoutCaptureBytes)
+	stderr := newBoundedCapture(MaxStderrCaptureBytes)
+	cmd.Stdout = stdout
+	cmd.Stderr = stderr
 
 	err := cmd.Run()
 	result.RuntimeMs = time.Since(start).Milliseconds()
-	result.Stdout = stdout.String()
-	result.Stderr = stderr.String()
+	result.Stdout = stdout.AnnotatedString()
+	result.Stderr = stderr.AnnotatedString()
+	result.StdoutBytes = stdout.total
+	result.StderrBytes = stderr.total
+	result.StdoutTruncated = stdout.truncated
+	result.StderrTruncated = stderr.truncated
 
 	if err != nil {
 		if exitErr, ok := err.(*exec.ExitError); ok {
@@ -128,6 +212,15 @@ func RunCommand(ctx context.Context, hamletBin string, repoPath string, spec Com
 		} else {
 			result.ExitCode = -1
 			result.Error = err.Error()
+		}
+	}
+	if errors.Is(cmdCtx.Err(), context.DeadlineExceeded) {
+		result.TimedOut = true
+		if result.ExitCode == 0 {
+			result.ExitCode = -1
+		}
+		if result.Error == "" {
+			result.Error = fmt.Sprintf("timed out after %s", timeout)
 		}
 	}
 
@@ -138,14 +231,15 @@ func RunCommand(ctx context.Context, hamletBin string, repoPath string, spec Com
 //  1. Run analyze --json to get test IDs (always available)
 //  2. If no test IDs found, fall back to impact --json
 //  3. Run explain <id> --json for the chosen test
-func RunExplain(ctx context.Context, hamletBin string, repoPath string) CommandResult {
+func RunExplain(ctx context.Context, terrainBin string, repoPath string) CommandResult {
 	result := CommandResult{
 		Command: "explain",
 	}
 
+	timeout := timeoutForCommand("explain")
 	start := time.Now()
 
-	cmdCtx, cancel := context.WithTimeout(ctx, PerCommandTimeout)
+	cmdCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
 	// Step 1: Get a test ID from analyze output.
@@ -153,9 +247,9 @@ func RunExplain(ctx context.Context, hamletBin string, repoPath string) CommandR
 	// changes and often finds no impacted tests in benchmark scenarios.
 	testID := ""
 	analyzeArgs := []string{"analyze", "--json", "--root", repoPath}
-	analyzeCmd := exec.CommandContext(cmdCtx, hamletBin, analyzeArgs...)
-	var analyzeOut bytes.Buffer
-	analyzeCmd.Stdout = &analyzeOut
+	analyzeCmd := exec.CommandContext(cmdCtx, terrainBin, analyzeArgs...)
+	analyzeOut := newBoundedCapture(MaxStdoutCaptureBytes)
+	analyzeCmd.Stdout = analyzeOut
 	if err := analyzeCmd.Run(); err == nil {
 		testID = extractTestIDFromAnalyze(analyzeOut.String())
 	}
@@ -163,9 +257,9 @@ func RunExplain(ctx context.Context, hamletBin string, repoPath string) CommandR
 	// Step 2: Fall back to impact if analyze found nothing.
 	if testID == "" {
 		impactArgs := []string{"impact", "--json", "--base", "HEAD~1", "--root", repoPath}
-		impactCmd := exec.CommandContext(cmdCtx, hamletBin, impactArgs...)
-		var impactOut bytes.Buffer
-		impactCmd.Stdout = &impactOut
+		impactCmd := exec.CommandContext(cmdCtx, terrainBin, impactArgs...)
+		impactOut := newBoundedCapture(MaxStdoutCaptureBytes)
+		impactCmd.Stdout = impactOut
 		if err := impactCmd.Run(); err == nil {
 			testID = ExtractTestID(impactOut.String())
 		}
@@ -181,16 +275,21 @@ func RunExplain(ctx context.Context, hamletBin string, repoPath string) CommandR
 	// Step 3: Run explain --json --root <path> <id>.
 	// Flags must come before positional args for Go's flag package.
 	explainArgs := []string{"explain", "--json", "--root", repoPath, testID}
-	explainCmd := exec.CommandContext(cmdCtx, hamletBin, explainArgs...)
-	var explainOut, explainErr bytes.Buffer
-	explainCmd.Stdout = &explainOut
-	explainCmd.Stderr = &explainErr
+	explainCmd := exec.CommandContext(cmdCtx, terrainBin, explainArgs...)
+	explainOut := newBoundedCapture(MaxStdoutCaptureBytes)
+	explainErr := newBoundedCapture(MaxStderrCaptureBytes)
+	explainCmd.Stdout = explainOut
+	explainCmd.Stderr = explainErr
 
 	err := explainCmd.Run()
 	result.RuntimeMs = time.Since(start).Milliseconds()
 	result.Args = explainArgs
-	result.Stdout = explainOut.String()
-	result.Stderr = explainErr.String()
+	result.Stdout = explainOut.AnnotatedString()
+	result.Stderr = explainErr.AnnotatedString()
+	result.StdoutBytes = explainOut.total
+	result.StderrBytes = explainErr.total
+	result.StdoutTruncated = explainOut.truncated
+	result.StderrTruncated = explainErr.truncated
 
 	if err != nil {
 		if exitErr, ok := err.(*exec.ExitError); ok {
@@ -198,6 +297,15 @@ func RunExplain(ctx context.Context, hamletBin string, repoPath string) CommandR
 		} else {
 			result.ExitCode = -1
 			result.Error = err.Error()
+		}
+	}
+	if errors.Is(cmdCtx.Err(), context.DeadlineExceeded) {
+		result.TimedOut = true
+		if result.ExitCode == 0 {
+			result.ExitCode = -1
+		}
+		if result.Error == "" {
+			result.Error = fmt.Sprintf("timed out after %s", timeout)
 		}
 	}
 

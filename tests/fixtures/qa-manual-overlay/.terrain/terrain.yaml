@@ -1,0 +1,36 @@
+manual_coverage:
+  - name: "Billing regression suite"
+    source: testrail
+    project: qa-billing
+    criticality: high
+    covers:
+      - src/billing/checkout.ts
+      - src/billing/invoice.ts
+    notes: "Full checkout flow including payment gateway integration"
+
+  - name: "Invoice lifecycle tests"
+    source: testrail
+    project: qa-billing
+    criticality: high
+    covers:
+      - src/billing/invoice.ts
+    notes: "Draft → sent → paid → overdue state transitions"
+
+  - name: "Onboarding flow"
+    source: jira
+    project: qa-platform
+    criticality: high
+    covers:
+      - src/onboarding/signup.ts
+      - src/onboarding/welcome.ts
+    notes: "End-to-end signup, email verification, welcome sequence"
+
+  - name: "Accessibility audit"
+    source: jira
+    project: qa-platform
+    criticality: medium
+    covers:
+      - src/onboarding/signup.ts
+    notes: "WCAG 2.1 AA compliance for signup form"
+
+ci_duration_seconds: 30

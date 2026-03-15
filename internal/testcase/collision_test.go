@@ -6,7 +6,7 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/pmclSF/hamlet/internal/models"
+	"github.com/pmclSF/terrain/internal/models"
 )
 
 func TestDetectCollisions_NoCollisions(t *testing.T) {

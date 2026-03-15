@@ -1,6 +1,6 @@
-// Package policy implements Hamlet's local, repo-native policy system.
+// Package policy implements Terrain's local, repo-native policy system.
 //
-// A policy is loaded from .hamlet/policy.yaml in the analyzed repository.
+// A policy is loaded from .terrain/policy.yaml in the analyzed repository.
 // It declares constraints that the repository's test suite should satisfy.
 // Policy evaluation produces governance signals when violations are found.
 //
@@ -14,7 +14,7 @@
 // any single repository.
 package policy
 
-// Config represents a local Hamlet policy loaded from .hamlet/policy.yaml.
+// Config represents a local Terrain policy loaded from .terrain/policy.yaml.
 //
 // All fields are pointers or zero-value-safe so that a partial policy
 // file works correctly — only explicitly set rules are enforced.

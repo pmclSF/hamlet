@@ -1,6 +1,6 @@
 package stability
 
-import "github.com/pmclSF/hamlet/internal/models"
+import "github.com/pmclSF/terrain/internal/models"
 
 // BuildHistories constructs TestHistory records from an ordered sequence
 // of snapshots (oldest first). This function joins test cases across

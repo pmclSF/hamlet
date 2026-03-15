@@ -5,8 +5,8 @@ import (
 	"io"
 	"strings"
 
-	"github.com/pmclSF/hamlet/internal/heatmap"
-	"github.com/pmclSF/hamlet/internal/models"
+	"github.com/pmclSF/terrain/internal/heatmap"
+	"github.com/pmclSF/terrain/internal/models"
 )
 
 // RenderSummaryReport writes a leadership-oriented summary to w.
@@ -16,7 +16,7 @@ func RenderSummaryReport(w io.Writer, snap *models.TestSuiteSnapshot, h *heatmap
 	}
 	blank := func() { fmt.Fprintln(w) }
 
-	line("Hamlet Summary")
+	line("Terrain Summary")
 	line(strings.Repeat("=", 50))
 	blank()
 
@@ -172,8 +172,8 @@ func RenderSummaryReport(w io.Writer, snap *models.TestSuiteSnapshot, h *heatmap
 
 	// Next command hints
 	line("Next steps:")
-	line("  hamlet posture       evidence behind each dimension")
-	line("  hamlet analyze       full signal-level detail")
-	line("  hamlet compare       see what changed since last snapshot")
+	line("  terrain posture       evidence behind each dimension")
+	line("  terrain analyze       full signal-level detail")
+	line("  terrain compare       see what changed since last snapshot")
 	blank()
 }

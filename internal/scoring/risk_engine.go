@@ -1,4 +1,4 @@
-// Package scoring implements Hamlet's explainable risk engine.
+// Package scoring implements Terrain's explainable risk engine.
 //
 // Risk surfaces are derived from concrete signals. Every risk surface
 // must be explainable, transparent, and actionable.
@@ -17,7 +17,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/pmclSF/hamlet/internal/models"
+	"github.com/pmclSF/terrain/internal/models"
 )
 
 // RiskModelVersion increments when scoring methodology changes.
@@ -64,6 +64,7 @@ var speedSignals = map[models.SignalType]bool{
 var governanceSignals = map[models.SignalType]bool{
 	"policyViolation":       true,
 	"legacyFrameworkUsage":  true,
+	"skippedTestsInCI":      true,
 	"runtimeBudgetExceeded": true,
 }
 

@@ -4,7 +4,7 @@ import { runFixture } from '../convert.helper.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-describe('UNCONV-001: setUpModule marked with HAMLET-TODO', () => {
+describe('UNCONV-001: setUpModule marked with TERRAIN-TODO', () => {
   it('should convert correctly', async () => {
     await runFixture(__dirname, 'UNCONV-001');
   });

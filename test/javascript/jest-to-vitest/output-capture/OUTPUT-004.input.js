@@ -12,7 +12,7 @@ describe('DeprecationWarner', () => {
   it('should warn about deprecated methods', () => {
     const api = {
       oldMethod() {
-        console.warn('DEPRECATED: oldMethod() will be removed in v3.0');
+        console.warn('DEPRECATED: oldMethod() will be removed in the next major release');
         return 'result';
       },
     };
@@ -21,7 +21,7 @@ describe('DeprecationWarner', () => {
 
     expect(result).toBe('result');
     expect(warnSpy).toHaveBeenCalledWith(
-      'DEPRECATED: oldMethod() will be removed in v3.0'
+      'DEPRECATED: oldMethod() will be removed in the next major release'
     );
   });
 

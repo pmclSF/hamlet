@@ -1,14 +1,14 @@
-// Package ownership implements Hamlet's normalized ownership subsystem.
+// Package ownership implements Terrain's normalized ownership subsystem.
 //
 // Ownership is a routing layer, not a blame layer. It exists to make
 // findings actionable by connecting risk, health, quality, and migration
 // data to the people and teams who can act on it.
 //
 // Resolution precedence (highest to lowest):
-//  1. Explicit Hamlet ownership config (.hamlet/ownership.yaml)
+//  1. Explicit Terrain ownership config (.terrain/ownership.yaml)
 //  2. CODEOWNERS file matching
-//  3. Path-prefix mapping (.hamlet/ownership.yaml path_mappings)
-//  4. Git-history fallback (.hamlet/ownership.yaml git_history or auto when CODEOWNERS is absent)
+//  3. Path-prefix mapping (.terrain/ownership.yaml path_mappings)
+//  4. Git-history fallback (.terrain/ownership.yaml git_history or auto when CODEOWNERS is absent)
 //  5. Directory-based fallback (top-level directory name)
 //  6. "unknown" when nothing matches
 //
@@ -45,7 +45,7 @@ type GitHistoryConfig struct {
 	AutoWhenNoCodeowners *bool `yaml:"auto_when_no_codeowners"`
 }
 
-// Config is the explicit ownership configuration from .hamlet/ownership.yaml.
+// Config is the explicit ownership configuration from .terrain/ownership.yaml.
 type Config struct {
 	Rules        []Rule           `yaml:"rules"`
 	PathMappings []PathMapping    `yaml:"path_mappings"`
@@ -193,7 +193,7 @@ func (r *Resolver) HasCodeowners() bool {
 }
 
 func (r *Resolver) loadExplicitConfig(root string) {
-	path := filepath.Join(root, ".hamlet", "ownership.yaml")
+	path := filepath.Join(root, ".terrain", "ownership.yaml")
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return
@@ -206,7 +206,7 @@ func (r *Resolver) loadExplicitConfig(root string) {
 		r.diagnostics = append(r.diagnostics, Diagnostic{
 			Level:   "warning",
 			Message: "failed to parse ownership config: " + err.Error(),
-			Source:  ".hamlet/ownership.yaml",
+			Source:  ".terrain/ownership.yaml",
 		})
 		return
 	}
@@ -255,7 +255,7 @@ func (r *Resolver) matchExplicitAssignment(relPath string) (OwnershipAssignment,
 		Confidence:  ConfidenceHigh,
 		Inheritance: InheritanceDirect,
 		MatchedRule: bestRule.Path,
-		SourceFile:  ".hamlet/ownership.yaml",
+		SourceFile:  ".terrain/ownership.yaml",
 	}, true
 }
 
@@ -302,7 +302,7 @@ func (r *Resolver) matchPathMapping(relPath string) (OwnershipAssignment, bool) 
 		Confidence:  ConfidenceMedium,
 		Inheritance: InheritanceDirect,
 		MatchedRule: bestMapping.Prefix,
-		SourceFile:  ".hamlet/ownership.yaml",
+		SourceFile:  ".terrain/ownership.yaml",
 	}, true
 }
 

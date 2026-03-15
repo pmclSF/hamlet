@@ -1,7 +1,7 @@
 /**
- * Manages migration state in a .hamlet/ directory.
+ * Manages migration state in a .terrain/ directory.
  *
- * Creates/reads/writes `.hamlet/` directory with atomic writes.
+ * Creates/reads/writes `.terrain/` directory with atomic writes.
  * Supports resume: skip already-converted files.
  */
 
@@ -9,7 +9,7 @@ import fs from 'fs/promises';
 import path from 'path';
 
 const STATE_VERSION = 1;
-const STATE_DIR = '.hamlet';
+const STATE_DIR = '.terrain';
 const STATE_FILE = 'state.json';
 const TMP_FILE = 'state.tmp.json';
 
@@ -26,7 +26,7 @@ export class MigrationStateManager {
   }
 
   /**
-   * Initialize the .hamlet directory and state.
+   * Initialize the .terrain directory and state.
    *
    * @param {Object} [options]
    * @param {string} [options.source] - Source framework
@@ -62,7 +62,7 @@ export class MigrationStateManager {
     } catch (error) {
       if (error.code === 'ENOENT') {
         throw new Error(
-          `No migration state found at ${this.statePath}. Run 'hamlet migrate' to start.`
+          `No migration state found at ${this.statePath}. Run 'terrain migrate' to start.`
         );
       }
       if (error instanceof SyntaxError) {
@@ -175,7 +175,7 @@ export class MigrationStateManager {
   }
 
   /**
-   * Check if .hamlet directory exists.
+   * Check if .terrain directory exists.
    *
    * @returns {Promise<boolean>}
    */
@@ -189,7 +189,7 @@ export class MigrationStateManager {
   }
 
   /**
-   * Remove .hamlet directory completely.
+   * Remove .terrain directory completely.
    *
    * @returns {Promise<void>}
    */

@@ -1,6 +1,6 @@
 # Signal Model
 
-Signals are the core abstraction in Hamlet.
+Signals are the core abstraction in Terrain.
 
 All user-visible insights must be reducible to structured signals.
 
@@ -8,7 +8,7 @@ All user-visible insights must be reducible to structured signals.
 
 The root artifact is `TestSuiteSnapshot`.
 
-A snapshot represents Hamlet's current understanding of a repository at a point in time.
+A snapshot represents Terrain's current understanding of a repository at a point in time.
 
 ## TestSuiteSnapshot
 
@@ -137,7 +137,7 @@ Every signal must include:
 
 ## Why signals matter
 
-Signals allow Hamlet to unify:
+Signals allow Terrain to unify:
 - static analysis
 - runtime evidence
 - migration analysis

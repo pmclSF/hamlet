@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/pmclSF/hamlet/internal/impact"
-	"github.com/pmclSF/hamlet/internal/models"
+	"github.com/pmclSF/terrain/internal/impact"
+	"github.com/pmclSF/terrain/internal/models"
 )
 
 // AnalyzePR performs a PR/change-scoped analysis.
@@ -24,7 +24,76 @@ func AnalyzePR(scope *impact.ChangeScope, snap *models.TestSuiteSnapshot) *PRAna
 		pr.ChangedFileCount++
 		if cf.IsTestFile {
 			pr.ChangedTestCount++
-		} else {
+		} else if impact.IsAnalyzableSourceFile(cf.Path) {
+			pr.ChangedSourceCount++
+		}
+		// Non-analyzable, non-test files (docs, config, CI) are counted
+		// in ChangedFileCount but not in source or test counts.
+	}
+
+	pr.ImpactedUnitCount = len(result.ImpactedUnits)
+	pr.ProtectionGapCount = len(result.ProtectionGaps)
+	pr.PostureBand = result.Posture.Band
+	pr.AffectedOwners = result.ImpactedOwners
+	pr.Limitations = result.Limitations
+
+	// Extract recommended tests with reasoning.
+	if result.ProtectiveSet != nil {
+		pr.SelectionStrategy = result.ProtectiveSet.SetKind
+		pr.SelectionExplanation = result.ProtectiveSet.Explanation
+		for _, st := range result.ProtectiveSet.Tests {
+			pr.RecommendedTests = append(pr.RecommendedTests, st.Path)
+			ts := TestSelection{
+				Path:        st.Path,
+				Confidence:  string(st.ImpactConfidence),
+				Relevance:   st.Relevance,
+				CoversUnits: st.CoversUnits,
+			}
+			for _, r := range st.Reasons {
+				ts.Reasons = append(ts.Reasons, r.Reason)
+			}
+			pr.TestSelections = append(pr.TestSelections, ts)
+		}
+	} else {
+		// Fall back to SelectedTests (no detailed reasons).
+		for _, t := range result.SelectedTests {
+			pr.RecommendedTests = append(pr.RecommendedTests, t.Path)
+			pr.TestSelections = append(pr.TestSelections, TestSelection{
+				Path:        t.Path,
+				Confidence:  string(t.ImpactConfidence),
+				Relevance:   t.Relevance,
+				CoversUnits: t.CoversUnits,
+			})
+		}
+	}
+
+	// Build change-scoped findings from protection gaps and signals.
+	pr.NewFindings = buildChangeScopedFindings(result, snap)
+
+	// Build posture delta.
+	pr.PostureDelta = buildPostureDelta(result)
+
+	// Build summary.
+	pr.Summary = buildPRSummary(pr)
+
+	return pr
+}
+
+// AnalyzePRFromChangeSet performs a PR/change-scoped analysis starting from
+// a ChangeSet. This is the preferred entry point for new code.
+func AnalyzePRFromChangeSet(cs *models.ChangeSet, snap *models.TestSuiteSnapshot) *PRAnalysis {
+	result := impact.AnalyzeChangeSet(cs, snap)
+
+	pr := &PRAnalysis{
+		Scope:        result.Scope,
+		ImpactResult: result,
+	}
+
+	for _, cf := range cs.ChangedFiles {
+		pr.ChangedFileCount++
+		if cf.IsTestFile {
+			pr.ChangedTestCount++
+		} else if impact.IsAnalyzableSourceFile(cf.Path) {
 			pr.ChangedSourceCount++
 		}
 	}
@@ -35,18 +104,36 @@ func AnalyzePR(scope *impact.ChangeScope, snap *models.TestSuiteSnapshot) *PRAna
 	pr.AffectedOwners = result.ImpactedOwners
 	pr.Limitations = result.Limitations
 
-	// Extract recommended tests.
-	for _, t := range result.SelectedTests {
-		pr.RecommendedTests = append(pr.RecommendedTests, t.Path)
+	if result.ProtectiveSet != nil {
+		pr.SelectionStrategy = result.ProtectiveSet.SetKind
+		pr.SelectionExplanation = result.ProtectiveSet.Explanation
+		for _, st := range result.ProtectiveSet.Tests {
+			pr.RecommendedTests = append(pr.RecommendedTests, st.Path)
+			ts := TestSelection{
+				Path:        st.Path,
+				Confidence:  string(st.ImpactConfidence),
+				Relevance:   st.Relevance,
+				CoversUnits: st.CoversUnits,
+			}
+			for _, r := range st.Reasons {
+				ts.Reasons = append(ts.Reasons, r.Reason)
+			}
+			pr.TestSelections = append(pr.TestSelections, ts)
+		}
+	} else {
+		for _, t := range result.SelectedTests {
+			pr.RecommendedTests = append(pr.RecommendedTests, t.Path)
+			pr.TestSelections = append(pr.TestSelections, TestSelection{
+				Path:        t.Path,
+				Confidence:  string(t.ImpactConfidence),
+				Relevance:   t.Relevance,
+				CoversUnits: t.CoversUnits,
+			})
+		}
 	}
 
-	// Build change-scoped findings from protection gaps and signals.
 	pr.NewFindings = buildChangeScopedFindings(result, snap)
-
-	// Build posture delta.
 	pr.PostureDelta = buildPostureDelta(result)
-
-	// Build summary.
 	pr.Summary = buildPRSummary(pr)
 
 	return pr
@@ -73,34 +160,37 @@ func buildChangeScopedFindings(result *impact.ImpactResult, snap *models.TestSui
 		})
 	}
 
-	// Check for signals on changed files.
+	// Check for signals on changed files, but skip signals that duplicate
+	// protection gaps already surfaced above (e.g., untestedExport signals
+	// overlap with untested_export protection gaps for the same path).
+	gapPaths := map[string]bool{}
+	for _, gap := range result.ProtectionGaps {
+		gapPaths[gap.Path] = true
+	}
+
 	changedPaths := map[string]bool{}
 	for _, cf := range result.Scope.ChangedFiles {
 		changedPaths[cf.Path] = true
 	}
 	for _, sig := range snap.Signals {
-		if changedPaths[sig.Location.File] {
-			findings = append(findings, ChangeScopedFinding{
-				Type:        "existing_signal",
-				Path:        sig.Location.File,
-				Severity:    string(sig.Severity),
-				Explanation: fmt.Sprintf("[%s] %s", sig.Type, sig.Explanation),
-			})
+		if !changedPaths[sig.Location.File] {
+			continue
 		}
+		// Skip untestedExport signals when a protection gap already covers this path.
+		if sig.Type == "untestedExport" && gapPaths[sig.Location.File] {
+			continue
+		}
+		findings = append(findings, ChangeScopedFinding{
+			Type:        "existing_signal",
+			Path:        sig.Location.File,
+			Severity:    string(sig.Severity),
+			Explanation: fmt.Sprintf("[%s] %s", sig.Type, sig.Explanation),
+		})
 	}
 
-	// Check for untested exported units in changed area.
-	for _, iu := range result.ImpactedUnits {
-		if iu.Exported && iu.ProtectionStatus == impact.ProtectionNone {
-			findings = append(findings, ChangeScopedFinding{
-				Type:            "untested_export_in_change",
-				Path:            iu.Path,
-				Severity:        "high",
-				Explanation:     fmt.Sprintf("Exported %s has no test coverage.", iu.Name),
-				SuggestedAction: fmt.Sprintf("Add unit tests for %s before merging.", iu.Name),
-			})
-		}
-	}
+	// Note: untested exported units are already surfaced via protection gaps
+	// (gapType "untested_export" with severity "high"). We don't duplicate
+	// them here to avoid showing the same issue twice in PR comments.
 
 	return findings
 }

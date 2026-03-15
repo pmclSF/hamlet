@@ -1,6 +1,6 @@
 # Moat
 
-Hamlet's moat is not the CLI.
+Terrain's moat is not the CLI.
 
 The moat is the accumulated intelligence graph and the benchmark dataset built on top of snapshots and signals.
 
@@ -37,7 +37,7 @@ Enable:
 - migration success prediction
 
 ### 5. Workflow entrenchment
-Hamlet becomes sticky when it is:
+Terrain becomes sticky when it is:
 - in the CLI
 - in the IDE
 - in CI
@@ -52,4 +52,4 @@ Hamlet becomes sticky when it is:
 
 ## Strategic implication
 
-V3 must be snapshot-first and signal-first so the data needed for the moat can accumulate immediately.
+The current engine must be snapshot-first and signal-first so the data needed for the moat can accumulate immediately.

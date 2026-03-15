@@ -1,5 +1,5 @@
 /**
- * Hamlet — Legacy test converter module.
+ * Terrain — Legacy test converter module.
  *
  * Public API surface:
  *   Functions: convertFile, convertRepository, convertConfig,
@@ -9,7 +9,7 @@
  *   Constants: VERSION, SUPPORTED_TEST_TYPES, DEFAULT_OPTIONS
  *
  * Internal/advanced classes and utilities are available via the
- * "hamlet-testframework/internals" subpath export.
+ * "terrain-testframework/internals" subpath export.
  */
 
 // Core orchestration

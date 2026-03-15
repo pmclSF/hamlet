@@ -10,7 +10,7 @@ import (
 )
 
 // PolicyFileName is the expected policy file path relative to repo root.
-const PolicyFileName = ".hamlet/policy.yaml"
+const PolicyFileName = ".terrain/policy.yaml"
 
 // LoadResult contains the outcome of attempting to load a policy file.
 type LoadResult struct {
@@ -24,7 +24,7 @@ type LoadResult struct {
 	Found bool
 }
 
-// Load reads .hamlet/policy.yaml from the given repository root.
+// Load reads .terrain/policy.yaml from the given repository root.
 //
 // Behavior:
 //   - If the file does not exist, returns a LoadResult with Found=false and no error.

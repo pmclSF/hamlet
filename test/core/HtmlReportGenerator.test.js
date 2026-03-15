@@ -7,7 +7,7 @@ describe('HtmlReportGenerator', () => {
   let tmpDir;
 
   beforeEach(async () => {
-    tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'hamlet-html-'));
+    tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'terrain-html-'));
   });
 
   afterEach(async () => {
@@ -17,7 +17,7 @@ describe('HtmlReportGenerator', () => {
   const sampleReport = {
     schemaVersion: 1,
     meta: {
-      hamletVersion: '1.0.0',
+      terrainVersion: '1.0.0',
       generatedAt: '2025-01-01T00:00:00.000Z',
       root: '/tmp/project',
     },
@@ -88,7 +88,7 @@ describe('HtmlReportGenerator', () => {
       const parsed = JSON.parse(jsonContent);
 
       expect(parsed.schemaVersion).toBe(1);
-      expect(parsed.meta.hamletVersion).toBe('1.0.0');
+      expect(parsed.meta.terrainVersion).toBe('1.0.0');
       expect(parsed.summary.fileCount).toBe(3);
       expect(parsed.files).toHaveLength(3);
     });

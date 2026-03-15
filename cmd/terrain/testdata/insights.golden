@@ -1,0 +1,19 @@
+{
+  "duplicateClusters": 0,
+  "findingCount": 2,
+  "healthGrade": "D",
+  "highFanoutNodes": 5,
+  "recommendationCount": 2,
+  "repoProfile": {
+    "testVolume": "small",
+    "ciPressure": "low",
+    "coverageConfidence": "low",
+    "redundancyLevel": "low",
+    "fanoutBurden": "low",
+    "skipBurden": "low",
+    "flakeBurden": "low",
+    "manualCoveragePresence": "none",
+    "graphDensity": 0.00746489283074649
+  },
+  "weakCoverageCount": 13
+}

@@ -28,11 +28,11 @@ export function buildOutputFilename(sourceBasename, toFramework) {
 }
 
 /**
- * Count HAMLET-TODO markers in converted content.
+ * Count TERRAIN-TODO markers in converted content.
  * @param {string} content - Converted file content
  * @returns {number} Number of TODO markers
  */
 export function countTodos(content) {
-  const matches = content.match(/HAMLET-TODO/g);
+  const matches = content.match(/TERRAIN-TODO/g);
   return matches ? matches.length : 0;
 }

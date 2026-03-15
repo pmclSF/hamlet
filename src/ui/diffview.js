@@ -103,7 +103,7 @@ function highlightLine(html) {
 
 function highlightTodo(html) {
   return html.replace(
-    /(HAMLET-TODO[^<]*)/g,
+    /(TERRAIN-TODO[^<]*)/g,
     '<mark class="todo-marker">$1</mark>'
   );
 }

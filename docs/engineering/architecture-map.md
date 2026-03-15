@@ -1,26 +1,26 @@
 # Contributor Architecture Map
 
-This document provides a visual map of how Hamlet's components connect.
+This document provides a visual map of how Terrain's components connect.
 Use it to orient yourself when adding a new detector, report, or command.
 
 ## Command Surface
 
 ```
-hamlet analyze       -->  engine.RunPipeline  -->  reporting.RenderAnalyzeReport
-hamlet summary       -->  engine.RunPipeline  -->  summary.Build  -->  reporting.RenderExecutiveSummary
-hamlet posture       -->  engine.RunPipeline  -->  reporting.RenderPostureReport
-hamlet metrics       -->  engine.RunPipeline  -->  metrics.Derive  -->  reporting.RenderMetricsReport
-hamlet impact        -->  engine.RunPipeline  -->  impact.Analyze  -->  reporting.RenderImpactReport
-hamlet compare       -->  loadSnapshot x2  -->  comparison.Compare  -->  reporting.RenderComparisonReport
-hamlet migration *   -->  engine.RunPipeline  -->  migration.*  -->  reporting.RenderMigration*
-hamlet policy check  -->  analysis + quality  -->  governance.Evaluate  -->  reporting.RenderPolicyReport
-hamlet export bench  -->  engine.RunPipeline  -->  benchmark.BuildExport
+terrain analyze       -->  engine.RunPipeline  -->  reporting.RenderAnalyzeReport
+terrain summary       -->  engine.RunPipeline  -->  summary.Build  -->  reporting.RenderExecutiveSummary
+terrain posture       -->  engine.RunPipeline  -->  reporting.RenderPostureReport
+terrain metrics       -->  engine.RunPipeline  -->  metrics.Derive  -->  reporting.RenderMetricsReport
+terrain impact        -->  engine.RunPipeline  -->  impact.Analyze  -->  reporting.RenderImpactReport
+terrain compare       -->  loadSnapshot x2  -->  comparison.Compare  -->  reporting.RenderComparisonReport
+terrain migration *   -->  engine.RunPipeline  -->  migration.*  -->  reporting.RenderMigration*
+terrain policy check  -->  analysis + quality  -->  governance.Evaluate  -->  reporting.RenderPolicyReport
+terrain export bench  -->  engine.RunPipeline  -->  benchmark.BuildExport
 ```
 
 ## Pipeline Flow
 
 ```
-cmd/hamlet/main.go
+cmd/terrain/main.go
   |
   v
 engine.RunPipeline(root)
@@ -112,7 +112,7 @@ Key renderers in internal/reporting/:
 
 ```
 extension/vscode/
-  extension.ts  -->  execFile("hamlet", ["analyze", "--json"])
+  extension.ts  -->  execFile("terrain", ["analyze", "--json"])
                       |
                       v
                  TestSuiteSnapshot (parsed JSON)
@@ -127,7 +127,7 @@ It reads the snapshot and renders. That is the boundary.
 ## Package Map
 
 ```
-cmd/hamlet/          CLI entry point and command routing
+cmd/terrain/          CLI entry point and command routing
 internal/
   analysis/          Repository scanning, framework detection, test file/case discovery
   benchmark/         Privacy-safe benchmark export and segmentation

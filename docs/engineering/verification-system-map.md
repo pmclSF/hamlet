@@ -1,6 +1,6 @@
 # Verification System Map
 
-This document maps how Hamlet's verification components connect across test
+This document maps how Terrain's verification components connect across test
 layers, fixture flows, and CI integration points.
 
 ## Test Layer Architecture

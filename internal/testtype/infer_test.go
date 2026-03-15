@@ -3,7 +3,7 @@ package testtype
 import (
 	"testing"
 
-	"github.com/pmclSF/hamlet/internal/models"
+	"github.com/pmclSF/terrain/internal/models"
 )
 
 func TestInfer_E2EFramework(t *testing.T) {

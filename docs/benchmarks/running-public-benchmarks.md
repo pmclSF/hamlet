@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- Go 1.23+ (to build Hamlet)
+- Go 1.23+ (to build Terrain)
 - Python 3.9+ (for YAML parsing and summarization)
 - `pyyaml` Python package: `pip3 install pyyaml`
 - Git
@@ -147,8 +147,8 @@ cat artifacts/public-benchmarks/express/analyze_json.stdout  # raw output
 
 ### Failure types
 
-- **Command failure (exit != 0)**: Hamlet crashed or errored. This is likely a bug.
-- **Expectation miss**: Fewer tests/units than expected. Either the repo changed or Hamlet regressed.
+- **Command failure (exit != 0)**: Terrain crashed or errored. This is likely a bug.
+- **Expectation miss**: Fewer tests/units than expected. Either the repo changed or Terrain regressed.
 - **Determinism failure**: Two runs of the same command produced different structured output. Investigate — could be map ordering, timestamps leaking, or non-deterministic logic.
 - **Degraded**: Not a hard failure, but something is off (usually determinism).
 

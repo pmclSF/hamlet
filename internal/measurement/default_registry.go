@@ -5,19 +5,19 @@ package measurement
 func DefaultRegistry() *Registry {
 	r := NewRegistry()
 	for _, def := range HealthMeasurements() {
-		r.Register(def)
+		r.MustRegister(def)
 	}
 	for _, def := range CoverageDepthMeasurements() {
-		r.Register(def)
+		r.MustRegister(def)
 	}
 	for _, def := range CoverageDiversityMeasurements() {
-		r.Register(def)
+		r.MustRegister(def)
 	}
 	for _, def := range StructuralRiskMeasurements() {
-		r.Register(def)
+		r.MustRegister(def)
 	}
 	for _, def := range OperationalRiskMeasurements() {
-		r.Register(def)
+		r.MustRegister(def)
 	}
 	return r
 }

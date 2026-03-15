@@ -1,8 +1,8 @@
 # Roadmap
 
-## V3 Objective
+## Current Objective
 
-Refactor Hamlet into a signal-first test intelligence platform while preserving the migration wedge.
+Refactor Terrain into a signal-first test intelligence platform while preserving the migration wedge.
 
 ---
 
@@ -80,7 +80,7 @@ Translate signals into engineering risk surfaces.
 
 ---
 
-## Milestone F -- `hamlet analyze`
+## Milestone F -- `terrain analyze`
 
 Deliverables:
 - human-readable CLI output
@@ -109,10 +109,10 @@ Render snapshot intelligence inside VS Code / Cursor.
 ## Milestone H -- Policy and CI checks [DONE]
 
 Deliverables:
-- policy config model (.hamlet/policy.yaml)
+- policy config model (.terrain/policy.yaml)
 - policy loader with graceful missing-file handling
 - governance signal evaluator
-- `hamlet policy check` command with CI-friendly exit codes
+- `terrain policy check` command with CI-friendly exit codes
 - governance signals: policyViolation, legacyFrameworkUsage, runtimeBudgetExceeded
 - policy rules: disallow_skipped_tests, disallow_frameworks, max_test_runtime_ms, minimum_coverage_percent, max_weak_assertions, max_mock_heavy_tests
 
@@ -145,7 +145,7 @@ Deliverables:
   framework-helper, unsupported-setup
 - migration readiness summary model (ReadinessSummary)
 - migration reporting
-- integrated into `hamlet analyze` pipeline
+- integrated into `terrain analyze` pipeline
 
 Goal:
 Make migration intelligence concrete and actionable.
@@ -158,7 +158,7 @@ Deliverables:
 - UnsupportedSetupDetector (5th migration detector)
 - migration preview model (PreviewResult, PreviewBlocker)
 - file-level and scope-level preview functions
-- `hamlet migration preview` CLI command (--file, --scope, --json)
+- `terrain migration preview` CLI command (--file, --scope, --json)
 - migration preview reporting (human-readable and JSON)
 - extension Migration view upgraded with area assessments and preview affordances
 - extension Review view now includes migration blockers as first-class grouping
@@ -166,16 +166,16 @@ Deliverables:
 - example artifacts: migration-readiness.txt, migration-preview.txt, migration-preview.json
 
 Goal:
-Make Hamlet a credible modernization assistant with honest, conservative preview.
+Make Terrain a credible modernization assistant with honest, conservative preview.
 
 ---
 
 ## Milestone K -- Historical comparison and trend detection [DONE]
 
 Deliverables:
-- timestamped snapshot archiving (.hamlet/snapshots/)
+- timestamped snapshot archiving (.terrain/snapshots/)
 - comparison model (SnapshotComparison, SignalDelta, RiskDelta, FrameworkChange)
-- `hamlet compare` command with --from/--to/--json flags
+- `terrain compare` command with --from/--to/--json flags
 - human-readable and JSON comparison output
 - representative new/resolved signal examples
 
@@ -189,7 +189,7 @@ Enable local visibility into whether the test system is improving or deteriorati
 Deliverables:
 - aggregate metrics model (internal/metrics/metrics.go)
 - metrics derivation from TestSuiteSnapshot (Derive function)
-- `hamlet metrics` command with --root/--json flags
+- `terrain metrics` command with --root/--json flags
 - human-readable metrics scorecard (RenderMetricsReport)
 - privacy boundary: aggregate counts and ratios only, no raw paths or symbols
 - metrics categories: structure, health, quality, change readiness, governance, risk
@@ -207,7 +207,7 @@ Deliverables:
 - directory and owner hotspot concentration
 - overall posture band and summary
 - leadership-oriented summary report (RenderSummaryReport)
-- `hamlet summary` command with --root/--json flags
+- `terrain summary` command with --root/--json flags
 - tests for heatmap building, hotspot sorting, posture computation
 
 Goal:
@@ -222,7 +222,7 @@ Deliverables:
 - benchmark export model (internal/benchmark/export.go)
 - segmentation primitives (language, framework, size bucket, coverage/runtime/policy presence)
 - benchmark-safe export builder (BuildExport)
-- `hamlet export benchmark` command with --root flag
+- `terrain export benchmark` command with --root flag
 - privacy boundary enforced: aggregate-only, no raw paths or symbols
 - tests for export building, segmentation, bucket computation
 
@@ -238,7 +238,7 @@ Deliverables:
 - executive summary model (internal/summary/executive.go)
 - summary builder synthesizing heatmap + trends + benchmark readiness
 - executive summary report renderer (RenderExecutiveSummary)
-- `hamlet summary` enhanced with trend integration and benchmark readiness
+- `terrain summary` enhanced with trend integration and benchmark readiness
 - JSON executive summary output for future UI consumption
 - trend highlights from local snapshot comparison (graceful degradation)
 - benchmark readiness section (ready/limited dimensions, segmentation)

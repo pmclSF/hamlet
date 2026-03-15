@@ -2,7 +2,7 @@
 
 ## What Is Posture?
 
-Posture is Hamlet's answer to "how is our test suite doing?" — not as a single score, but as a set of meaningful dimensions that map directly to action.
+Posture is Terrain's answer to "how is our test suite doing?" — not as a single score, but as a set of meaningful dimensions that map directly to action.
 
 Each dimension answers a specific question:
 
@@ -60,7 +60,7 @@ Every measurement carries evidence strength:
 | **Weak** | Limited data, best-effort |
 | **None** | No data for this measurement |
 
-A "strong" posture with no evidence is flagged differently from a "strong" posture with rich runtime data. Hamlet never pretends to know more than it does.
+A "strong" posture with no evidence is flagged differently from a "strong" posture with rich runtime data. Terrain never pretends to know more than it does.
 
 ## Posture in Practice
 
@@ -77,7 +77,7 @@ Posture: MODERATE
 
 ### Drill-Down
 
-`hamlet posture` shows the full evidence:
+`terrain posture` shows the full evidence:
 
 ```
 COVERAGE_DEPTH
@@ -93,7 +93,7 @@ COVERAGE_DEPTH
 
 ### Trends
 
-`hamlet compare` shows how posture changed:
+`terrain compare` shows how posture changed:
 
 ```
 Posture Changes

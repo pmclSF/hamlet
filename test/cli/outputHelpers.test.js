@@ -67,9 +67,9 @@ describe('outputHelpers', () => {
   });
 
   describe('countTodos', () => {
-    it('should count HAMLET-TODO markers', () => {
+    it('should count TERRAIN-TODO markers', () => {
       expect(
-        countTodos('// HAMLET-TODO: fix this\n// HAMLET-TODO: and this')
+        countTodos('// TERRAIN-TODO: fix this\n// TERRAIN-TODO: and this')
       ).toBe(2);
     });
 

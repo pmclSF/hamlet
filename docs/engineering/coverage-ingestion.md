@@ -1,6 +1,6 @@
 # Coverage Ingestion
 
-Hamlet ingests structured coverage artifacts and normalizes them into an internal model suitable for attribution to code units and test types.
+Terrain ingests structured coverage artifacts and normalizes them into an internal model suitable for attribution to code units and test types.
 
 ## Supported Formats
 

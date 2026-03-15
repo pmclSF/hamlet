@@ -2,7 +2,7 @@
 
 ## Supported Versions
 
-Security updates are provided for the latest published major version of Hamlet, covering both the Go CLI (`hamlet`) and the JavaScript converter package.
+Security updates are provided for the latest published major version of Terrain, covering both the Go CLI (`terrain`) and the JavaScript converter package.
 
 ## Reporting a Vulnerability
 

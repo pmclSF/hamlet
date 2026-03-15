@@ -3,7 +3,7 @@ package portfolio
 import (
 	"testing"
 
-	"github.com/pmclSF/hamlet/internal/models"
+	"github.com/pmclSF/terrain/internal/models"
 )
 
 // makeSnap creates a minimal snapshot for testing.

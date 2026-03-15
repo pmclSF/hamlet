@@ -28,7 +28,7 @@ benchmarks/
 
 # Large untracked dirs (defense-in-depth)
 testing/
-hamlet/
+terrain/
 
 # IDE/Editor
 .vscode/

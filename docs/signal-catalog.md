@@ -1,6 +1,6 @@
 # Signal Catalog
 
-This file defines the initial V3 signal catalog.
+This file defines the initial signal catalog for the current engine.
 
 Each signal includes:
 - category
@@ -307,7 +307,7 @@ Suggested remediation direction:
 Category: governance
 
 Description:
-Current repository state violates declared Hamlet policy.
+Current repository state violates declared Terrain policy.
 
 Why it matters:
 Policy violations indicate drift or unmanaged risk.

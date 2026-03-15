@@ -1,4 +1,4 @@
-// Package impact implements Hamlet's impact analysis framework.
+// Package impact implements Terrain's impact analysis framework.
 //
 // Impact analysis answers: "If this code changes, which tests matter,
 // what protection exists, and where are the gaps?"
@@ -24,7 +24,11 @@
 //   - Portfolio intelligence: portfolio is cross-repo; impact is intra-repo
 package impact
 
-import "github.com/pmclSF/hamlet/internal/models"
+import (
+	"fmt"
+
+	"github.com/pmclSF/terrain/internal/models"
+)
 
 // ChangeKind describes how an entity was changed.
 type ChangeKind string
@@ -186,10 +190,85 @@ type ChangeRiskDimension struct {
 	Explanation string `json:"explanation"`
 }
 
+// ChangedArea groups changed code surfaces by domain area.
+type ChangedArea struct {
+	// Area is the domain area label (package, directory, or module name).
+	Area string `json:"area"`
+
+	// Surfaces lists the changed code surfaces in this area.
+	Surfaces []ChangedSurface `json:"surfaces"`
+}
+
+// ChangedSurface is a code surface affected by the change.
+type ChangedSurface struct {
+	// SurfaceID is the stable surface identifier.
+	SurfaceID string `json:"surfaceId"`
+
+	// Name is the human-readable surface name.
+	Name string `json:"name"`
+
+	// Path is the file path.
+	Path string `json:"path"`
+
+	// Kind is the surface kind (function, method, handler, route, class).
+	Kind string `json:"kind"`
+
+	// ChangeKind is how the surface was affected.
+	ChangeKind ChangeKind `json:"changeKind"`
+}
+
+// AffectedBehavior is a behavior surface impacted by the change.
+type AffectedBehavior struct {
+	// BehaviorID is the stable behavior identifier.
+	BehaviorID string `json:"behaviorId"`
+
+	// Label is the human-readable behavior label.
+	Label string `json:"label"`
+
+	// Kind is the derivation strategy (route_prefix, class, module, domain, naming).
+	Kind string `json:"kind"`
+
+	// ChangedSurfaceCount is how many of this behavior's surfaces were changed.
+	ChangedSurfaceCount int `json:"changedSurfaceCount"`
+
+	// TotalSurfaceCount is the total surfaces in this behavior group.
+	TotalSurfaceCount int `json:"totalSurfaceCount"`
+}
+
+// ReasonCategories counts impacted tests by reason category.
+type ReasonCategories struct {
+	DirectDependency  int `json:"directDependency"`
+	FixtureDependency int `json:"fixtureDependency"`
+	DirectlyChanged   int `json:"directlyChanged"`
+	DirectoryProximity int `json:"directoryProximity"`
+}
+
+// FallbackInfo describes the fallback strategy used, if any.
+type FallbackInfo struct {
+	// Level is the fallback strategy used ("none", "package", "directory", "all").
+	Level string `json:"level"`
+
+	// Reason explains why fallback was triggered.
+	Reason string `json:"reason,omitempty"`
+
+	// AdditionalTests is the count of tests added by fallback.
+	AdditionalTests int `json:"additionalTests"`
+}
+
 // ImpactResult is the output of impact analysis.
 type ImpactResult struct {
-	// Scope is the input change scope.
+	// ChangeSet is the normalized change input when constructed via AnalyzeChangeSet.
+	// Nil when constructed via the legacy Analyze() path.
+	ChangeSet *models.ChangeSet `json:"changeSet,omitempty"`
+
+	// Scope is the input change scope (legacy; preserved for backward compatibility).
 	Scope ChangeScope `json:"scope"`
+
+	// ChangedAreas groups changed code surfaces by domain area.
+	ChangedAreas []ChangedArea `json:"changedAreas,omitempty"`
+
+	// AffectedBehaviors lists behavior surfaces impacted by the change.
+	AffectedBehaviors []AffectedBehavior `json:"affectedBehaviors,omitempty"`
 
 	// ImpactedUnits lists affected code units.
 	ImpactedUnits []ImpactedCodeUnit `json:"impactedUnits,omitempty"`
@@ -212,6 +291,16 @@ type ImpactResult struct {
 	// Posture is the change-risk assessment.
 	Posture ChangeRiskPosture `json:"posture"`
 
+	// CoverageConfidence is the overall coverage confidence band for the change.
+	// Values: "high", "medium", "low".
+	CoverageConfidence string `json:"coverageConfidence"`
+
+	// ReasonCategories counts impacted tests by reason category.
+	ReasonCategories ReasonCategories `json:"reasonCategories"`
+
+	// Fallback describes the fallback strategy used, if any.
+	Fallback FallbackInfo `json:"fallback"`
+
 	// ImpactedOwners lists owners with impacted code.
 	ImpactedOwners []string `json:"impactedOwners,omitempty"`
 
@@ -220,13 +309,124 @@ type ImpactResult struct {
 
 	// Limitations describes data gaps affecting the analysis.
 	Limitations []string `json:"limitations,omitempty"`
+
+	// PolicyApplied indicates whether an edge-case policy was applied.
+	PolicyApplied bool `json:"policyApplied,omitempty"`
+
+	// PolicyNotes explains how the policy affected this result.
+	PolicyNotes []string `json:"policyNotes,omitempty"`
+}
+
+// ApplyEdgeCasePolicy adjusts an ImpactResult based on repo-level edge case
+// policy. This is called after analysis to downgrade confidence and add
+// warnings when the repo profile indicates reduced analysis reliability.
+func (r *ImpactResult) ApplyEdgeCasePolicy(confidenceAdjustment float64, riskElevated bool, recommendations []string) {
+	if confidenceAdjustment >= 1.0 && !riskElevated && len(recommendations) == 0 {
+		return
+	}
+
+	r.PolicyApplied = true
+
+	// Downgrade coverage confidence if adjustment is significant.
+	if confidenceAdjustment < 0.7 {
+		if r.CoverageConfidence == "high" {
+			r.CoverageConfidence = "medium"
+			r.PolicyNotes = append(r.PolicyNotes,
+				"Coverage confidence downgraded from high to medium due to repo edge cases.")
+		} else if r.CoverageConfidence == "medium" {
+			r.CoverageConfidence = "low"
+			r.PolicyNotes = append(r.PolicyNotes,
+				"Coverage confidence downgraded from medium to low due to repo edge cases.")
+		}
+	}
+
+	if riskElevated {
+		r.PolicyNotes = append(r.PolicyNotes,
+			"Risk elevated due to repo structural anomalies. Recommendations may be conservative.")
+	}
+
+	// Add policy recommendations as limitations.
+	for _, rec := range recommendations {
+		r.Limitations = append(r.Limitations, rec)
+	}
+}
+
+// ApplyManualCoverageOverlay annotates the impact result with manual
+// coverage information for changed areas. Manual coverage does NOT
+// participate as executable CI validation — it is informational only,
+// indicating that human QA covers areas where automated tests may be weak.
+func (r *ImpactResult) ApplyManualCoverageOverlay(artifacts []models.ManualCoverageArtifact) {
+	if len(artifacts) == 0 || len(r.ProtectionGaps) == 0 {
+		return
+	}
+
+	// Build area index from manual coverage artifacts.
+	areaArtifacts := map[string][]models.ManualCoverageArtifact{}
+	for _, mc := range artifacts {
+		if mc.Area != "" {
+			areaArtifacts[mc.Area] = append(areaArtifacts[mc.Area], mc)
+		}
+	}
+
+	// Check if any protection gaps overlap with manually covered areas.
+	for _, gap := range r.ProtectionGaps {
+		for area, mcs := range areaArtifacts {
+			if matchesArea(gap.Path, area) {
+				for _, mc := range mcs {
+					r.PolicyNotes = append(r.PolicyNotes,
+						fmt.Sprintf("Manual coverage exists for %s: %q (%s, %s criticality). Not executable — verify manually.",
+							area, mc.Name, mc.Source, mc.Criticality))
+				}
+				break
+			}
+		}
+	}
+}
+
+// matchesArea checks if a file path falls within a coverage area.
+// Areas can be exact prefixes ("billing-core") or glob-like ("checkout/*").
+func matchesArea(filePath, area string) bool {
+	// Strip trailing wildcard for prefix match.
+	prefix := area
+	if len(prefix) > 0 && prefix[len(prefix)-1] == '*' {
+		prefix = prefix[:len(prefix)-1]
+	}
+	// Prefix match on the file path or any of its directory components.
+	return len(filePath) >= len(prefix) && filePath[:len(prefix)] == prefix
+}
+
+// AnalyzeChangeSet performs impact analysis starting from a ChangeSet.
+// This is the preferred entry point — it normalizes the change input and
+// carries ChangeSet metadata (SHAs, packages, services, limitations)
+// through to the result.
+func AnalyzeChangeSet(cs *models.ChangeSet, snap *models.TestSuiteSnapshot) *ImpactResult {
+	scope := ChangeSetToScope(cs)
+	result := analyzeFromScope(scope, snap)
+	result.ChangeSet = cs
+
+	// Merge ChangeSet limitations into result limitations.
+	if len(cs.Limitations) > 0 {
+		result.Limitations = append(cs.Limitations, result.Limitations...)
+	}
+
+	return result
 }
 
 // Analyze performs impact analysis given a change scope and snapshot.
+// For new code, prefer AnalyzeChangeSet which provides richer metadata.
 func Analyze(scope *ChangeScope, snap *models.TestSuiteSnapshot) *ImpactResult {
+	return analyzeFromScope(scope, snap)
+}
+
+// analyzeFromScope is the shared implementation for both entry points.
+func analyzeFromScope(scope *ChangeScope, snap *models.TestSuiteSnapshot) *ImpactResult {
 	result := &ImpactResult{
 		Scope: *scope,
 	}
+
+	// Map changed files to code surfaces and behavior surfaces.
+	result.ChangedAreas = mapChangedSurfaces(scope, snap)
+	result.AffectedBehaviors = mapAffectedBehaviors(result.ChangedAreas, snap)
 
 	// Build impact graph for relationship lookups.
 	result.Graph = BuildImpactGraph(snap)
@@ -248,6 +448,15 @@ func Analyze(scope *ChangeScope, snap *models.TestSuiteSnapshot) *ImpactResult {
 
 	// Compute change-risk posture.
 	result.Posture = computeChangeRiskPosture(result)
+
+	// Compute coverage confidence band.
+	result.CoverageConfidence = computeCoverageConfidence(result)
+
+	// Compute reason categories.
+	result.ReasonCategories = computeReasonCategories(result.ImpactedTests)
+
+	// Compute fallback info.
+	result.Fallback = computeFallbackInfo(result)
 
 	// Collect impacted owners.
 	result.ImpactedOwners = collectOwners(result.ImpactedUnits)

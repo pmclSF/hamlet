@@ -1,9 +1,9 @@
-// Package analysis implements Hamlet's static analysis engine.
+// Package analysis implements Terrain's static analysis engine.
 //
 // This package is responsible for scanning a repository, discovering test
 // files, detecting frameworks, and producing the initial snapshot foundation.
 //
-// Limitations (V3 nucleus):
+// Limitations (current detector stage):
 //   - Framework detection uses file naming heuristics and simple content
 //     patterns rather than full AST analysis.
 //   - Code unit extraction uses regex patterns, not full AST analysis.
@@ -20,10 +20,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/pmclSF/hamlet/internal/models"
-	"github.com/pmclSF/hamlet/internal/ownership"
-	"github.com/pmclSF/hamlet/internal/testcase"
-	"github.com/pmclSF/hamlet/internal/testtype"
+	"github.com/pmclSF/terrain/internal/models"
+	"github.com/pmclSF/terrain/internal/ownership"
+	"github.com/pmclSF/terrain/internal/testcase"
+	"github.com/pmclSF/terrain/internal/testtype"
 )
 
 // Analyzer performs static analysis on a repository root to produce
@@ -70,17 +70,19 @@ func (a *Analyzer) Analyze() (*models.TestSuiteSnapshot, error) {
 	ciSystems := detectCISystems(absRoot)
 	commitSHA, branch := gitInfo(absRoot)
 
-	// Run two independent I/O stages concurrently:
+	// Run three independent I/O stages concurrently:
 	//   1. Extract exported code units (reads source files)
 	//   2. Build import graph (reads test file imports)
+	//   3. Infer code surfaces (reads source files for behavior anchors)
 	var (
-		codeUnits   []models.CodeUnit
-		importGraph *ImportGraph
-		testCases   []models.TestCase
-		stageWG     sync.WaitGroup
+		codeUnits    []models.CodeUnit
+		codeSurfaces []models.CodeSurface
+		importGraph  *ImportGraph
+		testCases    []models.TestCase
+		stageWG      sync.WaitGroup
 	)
 
-	stageWG.Add(2)
+	stageWG.Add(3)
 	go func() {
 		defer stageWG.Done()
 		codeUnits = extractExportedCodeUnits(absRoot, testFiles)
@@ -88,6 +90,10 @@ func (a *Analyzer) Analyze() (*models.TestSuiteSnapshot, error) {
 	go func() {
 		defer stageWG.Done()
 		importGraph = BuildImportGraph(absRoot, testFiles)
+	}()
+	go func() {
+		defer stageWG.Done()
+		codeSurfaces = InferCodeSurfaces(absRoot, testFiles)
 	}()
 	stageWG.Wait()
 
@@ -110,6 +116,9 @@ func (a *Analyzer) Analyze() (*models.TestSuiteSnapshot, error) {
 		testFiles[i].Owner = resolver.Resolve(testFiles[i].Path)
 	}
 
+	// Derive behavior surfaces from code surfaces (optional layer).
+	behaviorSurfaces := DeriveBehaviorSurfaces(codeSurfaces)
+
 	snapshot := &models.TestSuiteSnapshot{
 		Repository: models.RepositoryMetadata{
 			Name:              filepath.Base(absRoot),
@@ -121,11 +130,13 @@ func (a *Analyzer) Analyze() (*models.TestSuiteSnapshot, error) {
 			CommitSHA:         commitSHA,
 			Branch:            branch,
 		},
-		Frameworks:  frameworks,
-		TestFiles:   testFiles,
-		TestCases:   testCases,
-		CodeUnits:   codeUnits,
-		ImportGraph: importGraph.TestImports,
+		Frameworks:       frameworks,
+		TestFiles:        testFiles,
+		TestCases:        testCases,
+		CodeUnits:        codeUnits,
+		CodeSurfaces:     codeSurfaces,
+		BehaviorSurfaces: behaviorSurfaces,
+		ImportGraph:      importGraph.TestImports,
 		// Signals: populated by detectors after snapshot creation.
 		// Risk: populated by risk engine after signal generation.
 		GeneratedAt: analyzedAt,
@@ -283,16 +294,13 @@ func detectCISystems(root string) []string {
 }
 
 // gitInfo attempts to read the current commit SHA and branch.
+// Returns empty strings if git is unavailable or the directory is not a repo.
 func gitInfo(root string) (sha, branch string) {
-	if cmd := exec.Command("git", "-C", root, "rev-parse", "HEAD"); cmd != nil {
-		if out, err := cmd.Output(); err == nil {
-			sha = strings.TrimSpace(string(out))
-		}
+	if out, err := exec.Command("git", "-C", root, "rev-parse", "HEAD").Output(); err == nil {
+		sha = strings.TrimSpace(string(out))
 	}
-	if cmd := exec.Command("git", "-C", root, "rev-parse", "--abbrev-ref", "HEAD"); cmd != nil {
-		if out, err := cmd.Output(); err == nil {
-			branch = strings.TrimSpace(string(out))
-		}
+	if out, err := exec.Command("git", "-C", root, "rev-parse", "--abbrev-ref", "HEAD").Output(); err == nil {
+		branch = strings.TrimSpace(string(out))
 	}
 	return
 }

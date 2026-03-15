@@ -1,8 +1,8 @@
-Hamlet Policy Check
+Terrain Policy Check
 ========================================
 
 Policy file
-  .hamlet/policy.yaml
+  .terrain/policy.yaml
 
 Violations
 ----------------------------------------

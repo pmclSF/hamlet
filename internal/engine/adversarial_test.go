@@ -3,10 +3,10 @@ package engine
 import (
 	"testing"
 
-	"github.com/pmclSF/hamlet/internal/measurement"
-	"github.com/pmclSF/hamlet/internal/models"
-	"github.com/pmclSF/hamlet/internal/scoring"
-	"github.com/pmclSF/hamlet/internal/testdata"
+	"github.com/pmclSF/terrain/internal/measurement"
+	"github.com/pmclSF/terrain/internal/models"
+	"github.com/pmclSF/terrain/internal/scoring"
+	"github.com/pmclSF/terrain/internal/testdata"
 )
 
 func runPipelineSteps(t *testing.T, snap *models.TestSuiteSnapshot) {

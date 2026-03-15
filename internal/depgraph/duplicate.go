@@ -1,6 +1,7 @@
 package depgraph
 
 import (
+	"fmt"
 	"sort"
 	"strings"
 )
@@ -15,6 +16,12 @@ type DuplicateResult struct {
 
 	// Number of tests flagged as potential duplicates.
 	DuplicateCount int `json:"duplicateCount"`
+
+	// Indicates duplicate analysis was skipped for scale-safety.
+	Skipped bool `json:"skipped,omitempty"`
+
+	// Human-readable reason when duplicate analysis is skipped.
+	SkipReason string `json:"skipReason,omitempty"`
 }
 
 // DuplicateCluster is a group of structurally similar tests.
@@ -54,6 +61,11 @@ const (
 	// and would generate O(n²) candidate pairs. Tests sharing specific fixtures
 	// or helpers will still be paired via their more specific blocking keys.
 	maxBlockSize = 500
+
+	// maxDuplicateTests is a hard safety cap for duplicate clustering.
+	// Above this threshold, full pairwise-style clustering is too expensive for
+	// interactive CLI usage and benchmark runs.
+	maxDuplicateTests = 25000
 )
 
 // testFingerprint captures the structural signature of a test.
@@ -79,6 +91,14 @@ func DetectDuplicates(g *Graph) DuplicateResult {
 	tests := g.NodesByType(NodeTest)
 	if len(tests) == 0 {
 		return DuplicateResult{Clusters: []DuplicateCluster{}}
+	}
+	if len(tests) > maxDuplicateTests {
+		return DuplicateResult{
+			Clusters:      []DuplicateCluster{},
+			TestsAnalyzed: len(tests),
+			Skipped:       true,
+			SkipReason:    fmt.Sprintf("skipped duplicate clustering for %d tests (limit %d)", len(tests), maxDuplicateTests),
+		}
 	}
 
 	// Step 1: Build fingerprints.

@@ -100,3 +100,218 @@ func TestApplyEdgeCasePolicy_NoEdgeCases(t *testing.T) {
 		t.Errorf("expected DirectDeps fallback, got %s", policy.FallbackLevel)
 	}
 }
+
+func TestDetectEdgeCases_ExternalServiceHeavy(t *testing.T) {
+	t.Parallel()
+	g := buildTestGraph()
+	// Add 6 external service nodes to the graph.
+	for i := 0; i < 6; i++ {
+		g.AddNode(&Node{ID: "extsvc:" + string(rune('a'+i)), Type: NodeExternalService})
+	}
+
+	profile := RepoProfile{}
+	cases := DetectEdgeCases(profile, g, ProfileInsights{})
+
+	found := false
+	for _, c := range cases {
+		if c.Type == EdgeCaseExternalServiceHeavy {
+			found = true
+			if c.Severity != "caution" {
+				t.Errorf("expected caution severity, got %s", c.Severity)
+			}
+		}
+	}
+	if !found {
+		t.Error("expected EXTERNAL_SERVICE_HEAVY edge case when >5 external service nodes")
+	}
+}
+
+func TestDetectEdgeCases_GeneratedArtifacts(t *testing.T) {
+	t.Parallel()
+	g := buildTestGraph()
+	g.AddNode(&Node{ID: "gen:proto.go", Type: NodeGeneratedArtifact})
+
+	profile := RepoProfile{}
+	cases := DetectEdgeCases(profile, g, ProfileInsights{})
+
+	found := false
+	for _, c := range cases {
+		if c.Type == EdgeCaseGeneratedArtifacts {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("expected GENERATED_ARTIFACT_CHANGES edge case when generated artifacts present")
+	}
+}
+
+func TestDetectEdgeCases_MigrationOverlap(t *testing.T) {
+	t.Parallel()
+	g := buildTestGraph()
+
+	profile := RepoProfile{}
+	spd := SnapshotProfileData{MigrationSignalCount: 15}
+	cases := DetectEdgeCases(profile, g, ProfileInsights{Snapshot: spd})
+
+	found := false
+	for _, c := range cases {
+		if c.Type == EdgeCaseMigrationOverlap {
+			found = true
+			if c.Severity != "caution" {
+				t.Errorf("expected caution severity, got %s", c.Severity)
+			}
+		}
+	}
+	if !found {
+		t.Error("expected MIGRATION_OVERLAP edge case when migration signals > 10")
+	}
+}
+
+func TestDetectEdgeCases_SnapshotHeavy(t *testing.T) {
+	t.Parallel()
+	g := buildTestGraph()
+
+	profile := RepoProfile{}
+	spd := SnapshotProfileData{
+		SnapshotAssertionCount: 50,
+		TotalAssertionCount:    100,
+	}
+	cases := DetectEdgeCases(profile, g, ProfileInsights{Snapshot: spd})
+
+	found := false
+	for _, c := range cases {
+		if c.Type == EdgeCaseSnapshotHeavy {
+			found = true
+			if c.Severity != "warning" {
+				t.Errorf("expected warning severity, got %s", c.Severity)
+			}
+		}
+	}
+	if !found {
+		t.Error("expected SNAPSHOT_HEAVY_SUITE edge case when >40% snapshot assertions")
+	}
+}
+
+func TestDetectEdgeCases_SnapshotHeavy_BelowThreshold(t *testing.T) {
+	t.Parallel()
+	g := buildTestGraph()
+
+	profile := RepoProfile{}
+	// 30% snapshot ratio — below 40% threshold.
+	spd := SnapshotProfileData{
+		SnapshotAssertionCount: 30,
+		TotalAssertionCount:    100,
+	}
+	cases := DetectEdgeCases(profile, g, ProfileInsights{Snapshot: spd})
+
+	for _, c := range cases {
+		if c.Type == EdgeCaseSnapshotHeavy {
+			t.Error("did not expect SNAPSHOT_HEAVY_SUITE edge case at 30% snapshot ratio")
+		}
+	}
+}
+
+func TestDetectEdgeCases_LegacyZone(t *testing.T) {
+	t.Parallel()
+	g := buildTestGraph()
+
+	profile := RepoProfile{}
+	spd := SnapshotProfileData{LegacyFrameworkSignalCount: 8}
+	cases := DetectEdgeCases(profile, g, ProfileInsights{Snapshot: spd})
+
+	found := false
+	for _, c := range cases {
+		if c.Type == EdgeCaseLegacyZone {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("expected LEGACY_ZONE edge case when legacy signals > 5")
+	}
+}
+
+func TestDetectEdgeCases_MixedTestCultures(t *testing.T) {
+	t.Parallel()
+	g := buildTestGraph()
+
+	profile := RepoProfile{}
+	spd := SnapshotProfileData{
+		FrameworkCount: 4,
+		FrameworkTypes: []string{"unit", "integration", "e2e", "contract"},
+	}
+	cases := DetectEdgeCases(profile, g, ProfileInsights{Snapshot: spd})
+
+	found := false
+	for _, c := range cases {
+		if c.Type == EdgeCaseMixedTestCultures {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("expected MIXED_TEST_CULTURES edge case when >=4 frameworks")
+	}
+}
+
+func TestDetectEdgeCases_LargeManualSuite(t *testing.T) {
+	t.Parallel()
+	g := buildTestGraph()
+
+	profile := RepoProfile{ManualCoveragePresence: "significant"}
+	cases := DetectEdgeCases(profile, g, ProfileInsights{})
+
+	found := false
+	for _, c := range cases {
+		if c.Type == EdgeCaseLargeManualSuite {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("expected LARGE_MANUAL_SUITE edge case when manual coverage is significant")
+	}
+}
+
+func TestApplyEdgeCasePolicy_MultipleEdgeCases(t *testing.T) {
+	t.Parallel()
+	cases := []EdgeCase{
+		{Type: EdgeCaseHighFlakeBurden, Severity: "caution"},
+		{Type: EdgeCaseHighFanoutFixture, Severity: "caution"},
+		{Type: EdgeCaseExternalServiceHeavy, Severity: "caution"},
+	}
+	profile := RepoProfile{}
+
+	policy := ApplyEdgeCasePolicy(cases, profile)
+
+	if !policy.RiskElevated {
+		t.Error("expected risk elevated with high flake burden")
+	}
+	// 1.0 * 0.75 * 0.7 * 0.85 = 0.44625
+	if policy.ConfidenceAdjustment > 0.45 || policy.ConfidenceAdjustment < 0.44 {
+		t.Errorf("expected confidence ~0.45, got %f", policy.ConfidenceAdjustment)
+	}
+	if policy.FallbackLevel < FallbackPackageTests {
+		t.Errorf("expected at least PackageTests fallback, got %s", policy.FallbackLevel)
+	}
+	if len(policy.Recommendations) != 3 {
+		t.Errorf("expected 3 recommendations, got %d", len(policy.Recommendations))
+	}
+}
+
+func TestApplyEdgeCasePolicy_ConfidenceClamp(t *testing.T) {
+	t.Parallel()
+	// Stack many edge cases to drive confidence very low.
+	cases := []EdgeCase{
+		{Type: EdgeCaseFewTests, Severity: "critical"},
+		{Type: EdgeCaseHighFlakeBurden, Severity: "caution"},
+		{Type: EdgeCaseHighFanoutFixture, Severity: "caution"},
+		{Type: EdgeCaseLowGraphVisibility, Severity: "warning"},
+		{Type: EdgeCaseRedundantSuite, Severity: "caution"},
+		{Type: EdgeCaseMigrationOverlap, Severity: "caution"},
+	}
+	profile := RepoProfile{}
+
+	policy := ApplyEdgeCasePolicy(cases, profile)
+
+	if policy.ConfidenceAdjustment < 0.1 {
+		t.Errorf("confidence should be clamped at 0.1, got %f", policy.ConfidenceAdjustment)
+	}
+}

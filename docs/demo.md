@@ -1,15 +1,15 @@
 # Demo Walkthrough
 
-This guide walks through Hamlet's core commands on a real repository.
+This guide walks through Terrain's core commands on a real repository.
 
 ## Prerequisites
 
 ```bash
-# Build Hamlet
-go build -o hamlet ./cmd/hamlet
+# Build Terrain
+go build -o terrain ./cmd/terrain
 
 # Or use go run
-alias hamlet="go run ./cmd/hamlet"
+alias terrain="go run ./cmd/terrain"
 ```
 
 ## 1. Analyze
@@ -17,7 +17,7 @@ alias hamlet="go run ./cmd/hamlet"
 Run a full analysis of the current repository:
 
 ```bash
-hamlet analyze
+terrain analyze
 ```
 
 This produces a human-readable report showing:
@@ -31,7 +31,7 @@ This produces a human-readable report showing:
 For JSON output:
 
 ```bash
-hamlet analyze --json
+terrain analyze --json
 ```
 
 ## 2. Executive Summary
@@ -39,7 +39,7 @@ hamlet analyze --json
 Get a leadership-oriented summary:
 
 ```bash
-hamlet summary
+terrain summary
 ```
 
 This produces:
@@ -54,7 +54,7 @@ This produces:
 For JSON:
 
 ```bash
-hamlet summary --json
+terrain summary --json
 ```
 
 ## 3. Metrics
@@ -62,7 +62,7 @@ hamlet summary --json
 Get an aggregate metrics scorecard:
 
 ```bash
-hamlet metrics
+terrain metrics
 ```
 
 This shows privacy-safe aggregate counts and ratios across structure, health, quality, change readiness, governance, and risk.
@@ -72,26 +72,26 @@ This shows privacy-safe aggregate counts and ratios across structure, health, qu
 Save a snapshot for trend tracking:
 
 ```bash
-hamlet analyze --write-snapshot
+terrain analyze --write-snapshot
 ```
 
 Make changes, then save another:
 
 ```bash
-hamlet analyze --write-snapshot
+terrain analyze --write-snapshot
 ```
 
 Compare the two most recent snapshots:
 
 ```bash
-hamlet compare
+terrain compare
 ```
 
 This shows signal count changes, risk band changes, framework changes, and representative new/resolved findings.
 
 ## 5. Policy Check
 
-Create a policy file at `.hamlet/policy.yaml`:
+Create a policy file at `.terrain/policy.yaml`:
 
 ```yaml
 rules:
@@ -102,7 +102,7 @@ rules:
 Then check compliance:
 
 ```bash
-hamlet policy check
+terrain policy check
 ```
 
 Exit code 0 means pass, 1 means violations found. Use `--json` for CI integration.
@@ -113,19 +113,19 @@ Assess migration readiness and inspect blockers:
 
 ```bash
 # Overall readiness assessment
-hamlet migration readiness
+terrain migration readiness
 
 # List specific blockers by type and area
-hamlet migration blockers
+terrain migration blockers
 
 # Preview migration difficulty for a single file
-hamlet migration preview --file test/auth/login.test.js
+terrain migration preview --file test/auth/login.test.js
 
 # Preview migration difficulty across a directory
-hamlet migration preview --scope test/
+terrain migration preview --scope test/
 ```
 
-The migration workflow bridges old Hamlet pain ("how hard will this migration be?") with V3 intelligence ("where is the risk and what should we fix first?").
+The migration workflow bridges old Terrain pain ("how hard will this migration be?") with current intelligence ("where is the risk and what should we fix first?").
 
 ## 7. Impact Analysis
 
@@ -133,14 +133,14 @@ See what your recent changes affect:
 
 ```bash
 # Impact against the last commit
-hamlet impact
+terrain impact
 
 # Impact against a specific base ref
-hamlet impact --base main
+terrain impact --base main
 
 # Drill down into specific views
-hamlet impact --show gaps     # untested changed code
-hamlet impact --show owners   # impact by team
+terrain impact --show gaps     # untested changed code
+terrain impact --show owners   # impact by team
 ```
 
 ## 8. Benchmark Export
@@ -148,7 +148,7 @@ hamlet impact --show owners   # impact by team
 Export a benchmark-safe artifact:
 
 ```bash
-hamlet export benchmark
+terrain export benchmark
 ```
 
 This outputs JSON with aggregate metrics and segmentation tags — no raw file paths or source code. Designed for future cross-repo comparison.
@@ -164,11 +164,11 @@ make demo
 Or manually:
 
 ```bash
-hamlet analyze
-hamlet summary
-hamlet metrics
-hamlet migration readiness
-hamlet policy check
+terrain analyze
+terrain summary
+terrain metrics
+terrain migration readiness
+terrain policy check
 ```
 
 ## Migration Journey
@@ -177,28 +177,28 @@ A complete migration workflow from assessment to verification:
 
 ```bash
 # 1. Understand what you're working with
-hamlet analyze
+terrain analyze
 
 # 2. Check migration readiness
-hamlet migration readiness
+terrain migration readiness
 
 # 3. Inspect blockers
-hamlet migration blockers
+terrain migration blockers
 
 # 4. Preview specific files
-hamlet migration preview --file test/auth/login.test.js
+terrain migration preview --file test/auth/login.test.js
 
 # 5. Save a baseline snapshot
-hamlet analyze --write-snapshot
+terrain analyze --write-snapshot
 
 # 6. Fix blockers and quality issues...
 
 # 7. Save another snapshot and compare
-hamlet analyze --write-snapshot
-hamlet compare
+terrain analyze --write-snapshot
+terrain compare
 
 # 8. Verify governance compliance
-hamlet policy check
+terrain policy check
 ```
 
 ## Sample Outputs

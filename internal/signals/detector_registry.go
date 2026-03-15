@@ -1,10 +1,11 @@
 package signals
 
 import (
+	"fmt"
 	"sort"
 	"sync"
 
-	"github.com/pmclSF/hamlet/internal/models"
+	"github.com/pmclSF/terrain/internal/models"
 )
 
 // Domain classifies a detector's area of concern.
@@ -75,15 +76,26 @@ func NewRegistry() *DetectorRegistry {
 }
 
 // Register adds a detector to the registry.
-func (r *DetectorRegistry) Register(reg DetectorRegistration) {
+// Returns an error if a non-signal-dependent detector is registered after a
+// signal-dependent one, since dependent detectors must run last.
+func (r *DetectorRegistry) Register(reg DetectorRegistration) error {
 	if !reg.Meta.DependsOnSignals {
 		for _, existing := range r.registrations {
 			if existing.Meta.DependsOnSignals {
-				panic("signals: cannot register a detector with DependsOnSignals=false after a dependent detector")
+				return fmt.Errorf("signals: cannot register detector %q (DependsOnSignals=false) after dependent detector %q", reg.Meta.ID, existing.Meta.ID)
 			}
 		}
 	}
 	r.registrations = append(r.registrations, reg)
+	return nil
+}
+
+// MustRegister adds a detector to the registry, panicking on error.
+// Use only for compile-time-known registrations (e.g., in DefaultRegistry).
+func (r *DetectorRegistry) MustRegister(reg DetectorRegistration) {
+	if err := r.Register(reg); err != nil {
+		panic(err)
+	}
 }
 
 // All returns all registrations in registration order.

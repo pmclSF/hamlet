@@ -192,7 +192,7 @@ describe('ConversionReporter', () => {
     let tmpDir;
 
     beforeEach(async () => {
-      tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'hamlet-reporter-'));
+      tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'terrain-reporter-'));
     });
 
     afterEach(async () => {

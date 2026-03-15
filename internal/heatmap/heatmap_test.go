@@ -3,7 +3,7 @@ package heatmap
 import (
 	"testing"
 
-	"github.com/pmclSF/hamlet/internal/models"
+	"github.com/pmclSF/terrain/internal/models"
 )
 
 func TestBuild_Empty(t *testing.T) {

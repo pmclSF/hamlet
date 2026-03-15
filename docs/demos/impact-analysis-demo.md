@@ -5,8 +5,8 @@ This document walks through an end-to-end impact analysis workflow. It demonstra
 ## Prerequisites
 
 ```bash
-cd hamlet
-go build -o hamlet ./cmd/hamlet
+cd terrain
+go build -o terrain ./cmd/terrain
 ```
 
 ## Step 1: Analyze a Repository
@@ -14,7 +14,7 @@ go build -o hamlet ./cmd/hamlet
 Start with a full analysis:
 
 ```bash
-hamlet analyze --root /path/to/your-repo
+terrain analyze --root /path/to/your-repo
 ```
 
 This produces the baseline snapshot with code units, test files, signals, and coverage data.
@@ -24,13 +24,13 @@ This produces the baseline snapshot with code units, test files, signals, and co
 After making changes on a branch, run impact analysis against main:
 
 ```bash
-hamlet impact --base origin/main
+terrain impact --base origin/main
 ```
 
 Expected output (abbreviated):
 
 ```
-Hamlet Impact Analysis
+Terrain Impact Analysis
 ============================================================
 
 Summary: 3 file(s) changed, 2 code unit(s) impacted, 2 test(s) relevant, 1 protection gap(s). Posture: partially_protected.
@@ -66,7 +66,7 @@ Recommended Tests (2)
 Drill into the code units:
 
 ```bash
-hamlet impact --base origin/main --show units
+terrain impact --base origin/main --show units
 ```
 
 ```
@@ -87,7 +87,7 @@ Impacted Code Units (2)
 ## Step 4: Inspect Protection Gaps
 
 ```bash
-hamlet impact --base origin/main --show gaps
+terrain impact --base origin/main --show gaps
 ```
 
 ```
@@ -104,7 +104,7 @@ Protection Gaps (1)
 ## Step 5: Select Protective Tests
 
 ```bash
-hamlet select-tests --base origin/main
+terrain select-tests --base origin/main
 ```
 
 ```
@@ -132,7 +132,7 @@ Consider adding tests or running the full suite.
 ## Step 6: View Impact Graph
 
 ```bash
-hamlet impact --base origin/main --show graph
+terrain impact --base origin/main --show graph
 ```
 
 ```
@@ -158,7 +158,7 @@ Edges for impacted units
 ## Step 7: Generate PR Comment
 
 ```bash
-hamlet pr --base origin/main --format markdown
+terrain pr --base origin/main --format markdown
 ```
 
 Produces GitHub-ready markdown with posture badge, metrics table, findings, recommended tests, and affected owners.
@@ -166,31 +166,31 @@ Produces GitHub-ready markdown with posture badge, metrics table, findings, reco
 ## CI Integration
 
 ```yaml
-name: Hamlet Impact Analysis
+name: Terrain Impact Analysis
 on: [pull_request]
 
 jobs:
-  hamlet:
+  terrain:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Build Hamlet
-        run: go build -o hamlet ./cmd/hamlet
+      - name: Build Terrain
+        run: go build -o terrain ./cmd/terrain
 
       - name: Impact Annotations
-        run: ./hamlet pr --base origin/${{ github.base_ref }} --format annotation
+        run: ./terrain pr --base origin/${{ github.base_ref }} --format annotation
         continue-on-error: true
 
       - name: Select Tests
-        run: ./hamlet select-tests --base origin/${{ github.base_ref }} --json > /tmp/tests.json
+        run: ./terrain select-tests --base origin/${{ github.base_ref }} --json > /tmp/tests.json
 
       - name: PR Comment
         if: github.event_name == 'pull_request'
         run: |
-          ./hamlet pr --base origin/${{ github.base_ref }} --format markdown > /tmp/comment.md
+          ./terrain pr --base origin/${{ github.base_ref }} --format markdown > /tmp/comment.md
           gh pr comment ${{ github.event.number }} --body-file /tmp/comment.md
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -200,14 +200,14 @@ jobs:
 
 | Command | Purpose |
 |---------|---------|
-| `hamlet impact` | Full impact analysis |
-| `hamlet impact --show units` | Impacted code units |
-| `hamlet impact --show gaps` | Protection gaps |
-| `hamlet impact --show tests` | Impacted tests |
-| `hamlet impact --show owners` | Owner impact |
-| `hamlet impact --show graph` | Impact graph |
-| `hamlet impact --show selected` | Protective test set |
-| `hamlet impact --owner NAME` | Filter by owner |
-| `hamlet select-tests` | Recommend protective tests |
-| `hamlet pr --format markdown` | PR comment |
-| `hamlet pr --format annotation` | CI annotations |
+| `terrain impact` | Full impact analysis |
+| `terrain impact --show units` | Impacted code units |
+| `terrain impact --show gaps` | Protection gaps |
+| `terrain impact --show tests` | Impacted tests |
+| `terrain impact --show owners` | Owner impact |
+| `terrain impact --show graph` | Impact graph |
+| `terrain impact --show selected` | Protective test set |
+| `terrain impact --owner NAME` | Filter by owner |
+| `terrain select-tests` | Recommend protective tests |
+| `terrain pr --format markdown` | PR comment |
+| `terrain pr --format annotation` | CI annotations |

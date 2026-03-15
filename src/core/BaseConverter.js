@@ -1,3 +1,5 @@
+import vm from 'vm';
+
 /**
  * Abstract base class for all framework converters
  * All converter implementations must extend this class
@@ -65,9 +67,9 @@ export class BaseConverter {
   validate(content) {
     const errors = [];
 
-    // Basic syntax check
+    // Basic syntax check (validation only, not execution)
     try {
-      new Function(content);
+      vm.compileFunction(content);
     } catch (e) {
       errors.push(`Syntax error: ${e.message}`);
     }

@@ -82,7 +82,7 @@ Each `Cluster` includes:
 ## Usage
 
 ```go
-import "github.com/pmclSF/hamlet/internal/clustering"
+import "github.com/pmclSF/terrain/internal/clustering"
 
 result := clustering.Detect(snapshot)
 for _, c := range result.Clusters {

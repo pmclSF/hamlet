@@ -5,7 +5,7 @@ import (
 	"io"
 	"strings"
 
-	"github.com/pmclSF/hamlet/internal/metrics"
+	"github.com/pmclSF/terrain/internal/metrics"
 )
 
 // RenderMetricsReport writes a human-readable metrics scorecard to w.
@@ -15,7 +15,7 @@ func RenderMetricsReport(w io.Writer, ms *metrics.Snapshot) {
 	}
 	blank := func() { fmt.Fprintln(w) }
 
-	line("Hamlet Metrics")
+	line("Terrain Metrics")
 	line(strings.Repeat("=", 40))
 	blank()
 

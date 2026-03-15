@@ -7,7 +7,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/pmclSF/hamlet/internal/models"
+	"github.com/pmclSF/terrain/internal/models"
 )
 
 // ChangeScopeFromGitDiff creates a ChangeScope from git diff against a base ref.
@@ -145,11 +145,11 @@ func isTestFilePath(path string) bool {
 	if strings.HasSuffix(base, "_test.go") {
 		return true
 	}
-	// Test directories.
+	// Test directories — match both embedded ("/test/") and top-level ("test/").
 	dir := strings.ToLower(path)
-	testDirs := []string{"/test/", "/tests/", "/__tests__/", "/e2e/", "/cypress/", "/spec/"}
+	testDirs := []string{"test/", "tests/", "__tests__/", "e2e/", "cypress/", "spec/"}
 	for _, d := range testDirs {
-		if strings.Contains(dir, d) {
+		if strings.HasPrefix(dir, d) || strings.Contains(dir, "/"+d) {
 			return true
 		}
 	}

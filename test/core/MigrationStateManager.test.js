@@ -8,7 +8,7 @@ describe('MigrationStateManager', () => {
   let manager;
 
   beforeEach(async () => {
-    tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'hamlet-state-'));
+    tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'terrain-state-'));
     manager = new MigrationStateManager(tmpDir);
   });
 
@@ -17,10 +17,10 @@ describe('MigrationStateManager', () => {
   });
 
   describe('init', () => {
-    it('should create .hamlet directory', async () => {
+    it('should create .terrain directory', async () => {
       await manager.init();
 
-      const exists = await fs.access(path.join(tmpDir, '.hamlet'))
+      const exists = await fs.access(path.join(tmpDir, '.terrain'))
         .then(() => true).catch(() => false);
       expect(exists).toBe(true);
     });
@@ -28,7 +28,7 @@ describe('MigrationStateManager', () => {
     it('should create state.json with initial schema', async () => {
       await manager.init({ source: 'jest', target: 'vitest' });
 
-      const raw = await fs.readFile(path.join(tmpDir, '.hamlet', 'state.json'), 'utf8');
+      const raw = await fs.readFile(path.join(tmpDir, '.terrain', 'state.json'), 'utf8');
       const state = JSON.parse(raw);
 
       expect(state.version).toBe(1);
@@ -59,12 +59,12 @@ describe('MigrationStateManager', () => {
       await manager.save();
 
       // tmp file should not exist after save
-      const tmpExists = await fs.access(path.join(tmpDir, '.hamlet', 'state.tmp.json'))
+      const tmpExists = await fs.access(path.join(tmpDir, '.terrain', 'state.tmp.json'))
         .then(() => true).catch(() => false);
       expect(tmpExists).toBe(false);
 
       // state.json should exist
-      const stateExists = await fs.access(path.join(tmpDir, '.hamlet', 'state.json'))
+      const stateExists = await fs.access(path.join(tmpDir, '.terrain', 'state.json'))
         .then(() => true).catch(() => false);
       expect(stateExists).toBe(true);
     });
@@ -113,13 +113,13 @@ describe('MigrationStateManager', () => {
   });
 
   describe('load error handling', () => {
-    it('should throw when .hamlet directory does not exist', async () => {
+    it('should throw when .terrain directory does not exist', async () => {
       await expect(manager.load()).rejects.toThrow('No migration state found');
     });
 
     it('should re-initialize on corrupted state.json', async () => {
-      await fs.mkdir(path.join(tmpDir, '.hamlet'), { recursive: true });
-      await fs.writeFile(path.join(tmpDir, '.hamlet', 'state.json'), '{invalid json!!!');
+      await fs.mkdir(path.join(tmpDir, '.terrain'), { recursive: true });
+      await fs.writeFile(path.join(tmpDir, '.terrain', 'state.json'), '{invalid json!!!');
 
       const originalWarn = console.warn;
       const warnings = [];
@@ -161,7 +161,7 @@ describe('MigrationStateManager', () => {
   });
 
   describe('exists', () => {
-    it('should return false when no .hamlet directory', async () => {
+    it('should return false when no .terrain directory', async () => {
       expect(await manager.exists()).toBe(false);
     });
 
@@ -172,7 +172,7 @@ describe('MigrationStateManager', () => {
   });
 
   describe('reset', () => {
-    it('should remove .hamlet directory', async () => {
+    it('should remove .terrain directory', async () => {
       await manager.init();
       expect(await manager.exists()).toBe(true);
 

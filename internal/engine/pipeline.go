@@ -12,16 +12,16 @@ import (
 	"sync"
 	"time"
 
-	"github.com/pmclSF/hamlet/internal/analysis"
-	"github.com/pmclSF/hamlet/internal/coverage"
-	"github.com/pmclSF/hamlet/internal/health"
-	"github.com/pmclSF/hamlet/internal/measurement"
-	"github.com/pmclSF/hamlet/internal/models"
-	"github.com/pmclSF/hamlet/internal/ownership"
-	"github.com/pmclSF/hamlet/internal/policy"
-	"github.com/pmclSF/hamlet/internal/portfolio"
-	"github.com/pmclSF/hamlet/internal/runtime"
-	"github.com/pmclSF/hamlet/internal/scoring"
+	"github.com/pmclSF/terrain/internal/analysis"
+	"github.com/pmclSF/terrain/internal/coverage"
+	"github.com/pmclSF/terrain/internal/health"
+	"github.com/pmclSF/terrain/internal/measurement"
+	"github.com/pmclSF/terrain/internal/models"
+	"github.com/pmclSF/terrain/internal/ownership"
+	"github.com/pmclSF/terrain/internal/policy"
+	"github.com/pmclSF/terrain/internal/portfolio"
+	"github.com/pmclSF/terrain/internal/runtime"
+	"github.com/pmclSF/terrain/internal/scoring"
 )
 
 // DefaultEngineVersion is used when PipelineOptions.EngineVersion is not set.
@@ -118,12 +118,15 @@ func RunPipelineContext(ctx context.Context, root string, opts ...PipelineOption
 	// Group 1: perform independent preparation work concurrently.
 	// - static analysis (required for all downstream stages)
 	// - policy loading
+	// - terrain.yaml config loading (manual coverage, CI duration)
 	// - runtime artifact ingestion (if provided)
 	// - coverage artifact ingestion (if provided)
 	var (
 		snapshot          *models.TestSuiteSnapshot
 		policyResult      *policy.LoadResult
 		policyErr         error
+		terrainCfg        *policy.TerrainConfig
+		terrainCfgErr     error
 		ownerResolver     *ownership.Resolver
 		runtimeResults    []runtime.TestResult
 		runtimeIngestErr  error
@@ -192,6 +195,13 @@ func RunPipelineContext(ctx context.Context, root string, opts ...PipelineOption
 		if err := taskCtx.Err(); err != nil {
 			return err
 		}
+		terrainCfg, terrainCfgErr = policy.LoadTerrainConfig(root)
+		return nil
+	})
+	startTask(&prepWG, func(taskCtx context.Context) error {
+		if err := taskCtx.Err(); err != nil {
+			return err
+		}
 		stepStart := time.Now()
 		ownerResolver = ownership.NewResolver(root)
 		ownershipLoadDuration = time.Since(stepStart)
@@ -254,7 +264,7 @@ func RunPipelineContext(ctx context.Context, root string, opts ...PipelineOption
 		snapshot.DataSources = append(snapshot.DataSources, models.DataSource{
 			Name:   "policy",
 			Status: models.DataSourceAvailable,
-			Detail: ".hamlet/policy.yaml",
+			Detail: ".terrain/policy.yaml",
 		})
 	} else if policyErr != nil {
 		snapshot.DataSources = append(snapshot.DataSources, models.DataSource{
@@ -267,8 +277,18 @@ func RunPipelineContext(ctx context.Context, root string, opts ...PipelineOption
 		snapshot.DataSources = append(snapshot.DataSources, models.DataSource{
 			Name:   "policy",
 			Status: models.DataSourceUnavailable,
-			Impact: "No .hamlet/policy.yaml found. Governance checks will not run.",
+			Impact: "No .terrain/policy.yaml found. Governance checks will not run.",
 		})
+	}
+
+	// Step 2b: Load manual coverage from terrain.yaml (if present).
+	if terrainCfgErr != nil {
+		fmt.Fprintf(os.Stderr, "warning: failed to load terrain.yaml: %v\n", terrainCfgErr)
+	} else if terrainCfg != nil {
+		mcArtifacts := terrainCfg.ToManualCoverageArtifacts()
+		if len(mcArtifacts) > 0 {
+			snapshot.ManualCoverage = append(snapshot.ManualCoverage, mcArtifacts...)
+		}
 	}
 
 	// Step 3: Runtime ingestion and health detection (optional).
@@ -478,7 +498,7 @@ func attachSignalsToTestFiles(snapshot *models.TestSuiteSnapshot) {
 		}
 		signals := byFile[path]
 		if len(signals) == 0 {
-			snapshot.TestFiles[i].Signals = nil
+			snapshot.TestFiles[i].Signals = []models.Signal{}
 			continue
 		}
 		snapshot.TestFiles[i].Signals = append([]models.Signal(nil), signals...)
@@ -516,16 +536,16 @@ func populateSnapshotMetadata(snapshot *models.TestSuiteSnapshot, opt PipelineOp
 	}
 
 	snapshot.Metadata = map[string]any{
-		"runtimeArtifactsProvided":  len(opt.RuntimePaths),
-		"coverageInputProvided":     opt.CoveragePath != "",
-		"coverageRunLabel":          strings.TrimSpace(opt.CoverageRunLabel),
-		"policyConfigLoaded":        hasPolicy,
-		"dataSourcesAvailable":      available,
-		"dataSourcesUnavailable":    unavailable,
-		"dataSourcesError":          errors,
-		"testFilesWithLinkedUnits":  testFilesWithLinkedUnits,
-		"testFilesWithFileSignals":  testFilesWithSignals,
-		"detectorsWithSignalOutput": len(snapshot.Signals),
+		"runtimeArtifactsProvided": len(opt.RuntimePaths),
+		"coverageInputProvided":    opt.CoveragePath != "",
+		"coverageRunLabel":         strings.TrimSpace(opt.CoverageRunLabel),
+		"policyConfigLoaded":       hasPolicy,
+		"dataSourcesAvailable":     available,
+		"dataSourcesUnavailable":   unavailable,
+		"dataSourcesError":         errors,
+		"testFilesWithLinkedUnits": testFilesWithLinkedUnits,
+		"testFilesWithFileSignals": testFilesWithSignals,
+		"totalSignals":             len(snapshot.Signals),
 	}
 }
 
@@ -692,16 +712,6 @@ func deriveDataCompleteness(snapshot *models.TestSuiteSnapshot, opt PipelineOpti
 	return dc
 }
 
-// ingestRuntime parses runtime artifact files and runs health detectors.
-func ingestRuntime(snapshot *models.TestSuiteSnapshot, paths []string, slowThreshold float64) error {
-	allResults, err := ingestRuntimeArtifacts(context.Background(), paths)
-	if err != nil {
-		return err
-	}
-	applyRuntimeResults(snapshot, allResults, slowThreshold)
-	return nil
-}
-
 func ingestRuntimeArtifacts(ctx context.Context, paths []string) ([]runtime.TestResult, error) {
 	var allResults []runtime.TestResult
 	for _, p := range paths {
@@ -755,16 +765,6 @@ func applyRuntimeResults(snapshot *models.TestSuiteSnapshot, allResults []runtim
 	snapshot.Signals = append(snapshot.Signals, skippedDetector.Detect(allResults)...)
 	snapshot.Signals = append(snapshot.Signals, deadDetector.Detect(allResults)...)
 	snapshot.Signals = append(snapshot.Signals, unstableDetector.Detect(allResults)...)
-}
-
-// ingestCoverage loads coverage data and populates the snapshot's coverage fields.
-func ingestCoverage(snapshot *models.TestSuiteSnapshot, coveragePath string) error {
-	artifacts, err := ingestCoverageArtifacts(context.Background(), coveragePath, "")
-	if err != nil {
-		return err
-	}
-	applyCoverageArtifacts(snapshot, artifacts)
-	return nil
 }
 
 func ingestCoverageArtifacts(ctx context.Context, coveragePath string, runLabel string) ([]coverage.CoverageArtifact, error) {

@@ -1,0 +1,43 @@
+{
+  "changedAreas": [
+    {
+      "area": "src",
+      "surfaces": [
+        {
+          "surfaceId": "surface:src/auth.js:login",
+          "name": "login",
+          "path": "src/auth.js",
+          "kind": "function",
+          "changeKind": "modified"
+        },
+        {
+          "surfaceId": "surface:src/auth.js:logout",
+          "name": "logout",
+          "path": "src/auth.js",
+          "kind": "function",
+          "changeKind": "modified"
+        }
+      ]
+    }
+  ],
+  "impactedUnitCount": 2,
+  "impactedTestCount": 1,
+  "protectionGapCount": 0,
+  "selectedTestCount": 1,
+  "coverageConfidence": "high",
+  "reasonCategories": {
+    "directDependency": 1,
+    "fixtureDependency": 0,
+    "directlyChanged": 0,
+    "directoryProximity": 0
+  },
+  "fallback": {
+    "level": "none",
+    "additionalTests": 0
+  },
+  "postureBand": "partially_protected",
+  "summary": "1 file(s) changed, 2 code unit(s) impacted, 1 test(s) relevant. Posture: partially_protected.",
+  "limitations": [
+    "No ownership data available; coordination risk may be underestimated."
+  ]
+}

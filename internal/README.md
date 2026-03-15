@@ -1,6 +1,6 @@
 # internal/
 
-V3 engine packages. See [docs/architecture.md](../docs/architecture.md) for the layer model.
+Go engine packages. See [docs/architecture.md](../docs/architecture.md) for the layer model.
 
 ## Packages
 

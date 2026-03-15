@@ -1,6 +1,6 @@
 # Writing a Detector
 
-This guide explains how to add a new signal detector to Hamlet.
+This guide explains how to add a new signal detector to Terrain.
 
 ## 1. Implement the Detector Interface
 
@@ -9,7 +9,7 @@ Create a new file in the appropriate domain package (e.g., `internal/quality/`, 
 ```go
 package quality
 
-import "github.com/pmclSF/hamlet/internal/models"
+import "github.com/pmclSF/terrain/internal/models"
 
 type MyNewDetector struct {
     // Add fields only if the detector needs runtime config (e.g., RepoRoot).

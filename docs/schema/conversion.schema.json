@@ -1,8 +1,8 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://hamlet.dev/schemas/conversion/v1",
-  "title": "Hamlet Conversion Report",
-  "description": "Output of `hamlet convert --report-json`. Describes the result of a conversion run.",
+  "$id": "https://terrain.dev/schemas/conversion/v1",
+  "title": "Terrain Conversion Report",
+  "description": "Output of `terrain convert --report-json`. Describes the result of a conversion run.",
   "type": "object",
   "required": ["schemaVersion", "meta", "plan", "results", "files"],
   "additionalProperties": false,
@@ -14,12 +14,12 @@
     },
     "meta": {
       "type": "object",
-      "required": ["hamletVersion", "nodeVersion", "startedAt", "finishedAt"],
+      "required": ["terrainVersion", "nodeVersion", "startedAt", "finishedAt"],
       "additionalProperties": false,
       "properties": {
-        "hamletVersion": {
+        "terrainVersion": {
           "type": "string",
-          "description": "Hamlet CLI version that produced this report."
+          "description": "Terrain CLI version that produced this report."
         },
         "nodeVersion": {
           "type": "string",
@@ -78,7 +78,7 @@
         "todosAdded": {
           "type": "integer",
           "minimum": 0,
-          "description": "Total HAMLET-TODO comments across all converted files."
+          "description": "Total TERRAIN-TODO comments across all converted files."
         }
       }
     },
@@ -109,7 +109,7 @@
           "todosAdded": {
             "type": "integer",
             "minimum": 0,
-            "description": "Number of HAMLET-TODO comments in the output."
+            "description": "Number of TERRAIN-TODO comments in the output."
           },
           "warnings": {
             "type": "array",

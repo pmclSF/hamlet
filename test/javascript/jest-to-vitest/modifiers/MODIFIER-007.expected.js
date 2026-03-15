@@ -1,4 +1,4 @@
-// HAMLET-WARNING: Vitest uses `retry` in config or per-describe options instead of jest.retryTimes(3). Configure retry in vitest.config.ts or use describe("suite", () => {}, { retry: 3 }).
+// TERRAIN-WARNING: Vitest uses `retry` in config or per-describe options instead of jest.retryTimes(3). Configure retry in vitest.config.ts or use describe("suite", () => {}, { retry: 3 }).
 // Original: jest.retryTimes(3);
 // jest.retryTimes(3);
 

@@ -1,4 +1,4 @@
-Hamlet Portfolio Intelligence
+Terrain Portfolio Intelligence
 ==================================================
 
 Overview
@@ -42,7 +42,7 @@ Evidence
   Runtime and coverage data available. Findings are high-confidence.
 
 Next steps:
-  hamlet portfolio --json     full portfolio data as JSON
-  hamlet posture              see measurement-level evidence
-  hamlet summary              leadership-ready overview
+  terrain portfolio --json     full portfolio data as JSON
+  terrain posture              see measurement-level evidence
+  terrain summary              leadership-ready overview
 

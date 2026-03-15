@@ -1,0 +1,3 @@
+minimum_coverage_percent: 60
+disallow_skipped_tests: false
+max_weak_assertions: 5

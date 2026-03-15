@@ -170,12 +170,12 @@ function parse(source) {
 function emit(_ir, source) {
   let result = source;
 
-  // Strip incoming HAMLET-TODO blocks (from previous round-trip step)
+  // Strip incoming TERRAIN-TODO blocks (from previous round-trip step)
   result = result.replace(
-    /^[ \t]*\/\/ HAMLET-TODO \[[^\]]+\]:.*\n(?:[ \t]*\n)*(?:[ \t]*\/\/ (?:Original|Manual action required):.*\n(?:[ \t]*\n)*)*/gm,
+    /^[ \t]*\/\/ TERRAIN-TODO \[[^\]]+\]:.*\n(?:[ \t]*\n)*(?:[ \t]*\/\/ (?:Original|Manual action required):.*\n(?:[ \t]*\n)*)*/gm,
     ''
   );
-  result = result.replace(/^[ \t]*\/\*\s*HAMLET-TODO:.*?\*\/\s*\n?/gm, '');
+  result = result.replace(/^[ \t]*\/\*\s*TERRAIN-TODO:.*?\*\/\s*\n?/gm, '');
 
   // Detect source framework
   const isPlaywrightSource =
@@ -685,67 +685,70 @@ function convertTestCafeStructure(content) {
 function convertPlaywrightToCypress(content) {
   let result = content;
 
-  // --- Restore HAMLET-TODO blocks back to original cy.* calls ---
+  // --- Restore TERRAIN-TODO blocks back to original cy.* calls ---
 
   // Catch-all 2-line format:
-  // /* HAMLET-TODO: cy.xxx() has no Playwright equivalent — rewrite manually */
+  // /* TERRAIN-TODO: cy.xxx() has no Playwright equivalent — rewrite manually */
   // // cy.xxx(...)
   result = result.replace(
-    /\/\* HAMLET-TODO: cy\.\w+\(\) has no Playwright equivalent[^*]*\*\/\s*\n\s*\/\/ (cy\.[^\n]+)/g,
+    /\/\* TERRAIN-TODO: cy\.\w+\(\) has no Playwright equivalent[^*]*\*\/\s*\n\s*\/\/ (cy\.[^\n]+)/g,
     '$1'
   );
 
   // TodoFormatter 3-line format:
-  // // HAMLET-TODO [TYPE]: description
+  // // TERRAIN-TODO [TYPE]: description
   // // Original: cy.xxx(...)
   // // Manual action required: ...
   result = result.replace(
-    /\/\/ HAMLET-TODO \[[^\]]+\]:[^\n]*\n\s*\/\/ Original: (cy\.[^\n]+)\n\s*\/\/ Manual action[^\n]*/g,
+    /\/\/ TERRAIN-TODO \[[^\]]+\]:[^\n]*\n\s*\/\/ Original: (cy\.[^\n]+)\n\s*\/\/ Manual action[^\n]*/g,
     '$1'
   );
 
   // --- Restore annotated custom commands ---
 
-  // page.getByTestId("x") /* @hamlet:getBySel */ → cy.getBySel("x")
+  // page.getByTestId("x") /* @terrain:getBySel */ → cy.getBySel("x")
   result = result.replace(
-    /page\.getByTestId\(([^)]+)\)\s*\/\* @hamlet:getBySel \*\//g,
+    /page\.getByTestId\(([^)]+)\)\s*\/\* @terrain:getBySel \*\//g,
     'cy.getBySel($1)'
   );
 
-  // page.locator(`[data-test*=${x}]`) /* @hamlet:getBySelLike */ → cy.getBySelLike(x)
+  // page.locator(`[data-test*=${x}]`) /* @terrain:getBySelLike */ → cy.getBySelLike(x)
   result = result.replace(
-    /page\.locator\(`\[data-test\*=\$\{([^}]+)\}\]`\)\s*\/\* @hamlet:getBySelLike \*\//g,
+    /page\.locator\(`\[data-test\*=\$\{([^}]+)\}\]`\)\s*\/\* @terrain:getBySelLike \*\//g,
     'cy.getBySelLike($1)'
   );
 
-  // await page.screenshot({ path: x }) /* @hamlet:visualSnapshot */ → cy.visualSnapshot(x)
+  // await page.screenshot({ path: x }) /* @terrain:visualSnapshot */ → cy.visualSnapshot(x)
   result = result.replace(
-    /await page\.screenshot\(\{\s*path:\s*([^}]+?)\s*\}\)\s*\/\* @hamlet:visualSnapshot \*\//g,
+    /await page\.screenshot\(\{\s*path:\s*([^}]+?)\s*\}\)\s*\/\* @terrain:visualSnapshot \*\//g,
     'cy.visualSnapshot($1)'
   );
 
-  // route(url, ...) /* @hamlet:intercept(method).as("alias") */ → cy.intercept(method, url).as("alias")
+  // route(url, ...) /* @terrain:intercept(method).as("alias") */ → cy.intercept(method, url).as("alias")
   result = result.replace(
-    /await page\.route\(([^,\n]+),\s*route\s*=>\s*route\.continue\(\)\)\s*\/\* @hamlet:intercept\(([^)]+)\)\.as\("([^"]+)"\) \*\//g,
+    /await page\.route\(([^,\n]+),\s*route\s*=>\s*route\.continue\(\)\)\s*\/\* @terrain:intercept\(([^)]+)\)\.as\("([^"]+)"\) \*\//g,
     'cy.intercept($2, $1).as("$3")'
   );
-  // route(url, ...) /* @hamlet:as("alias") */ → cy.intercept(url).as("alias")
+  // route(url, ...) /* @terrain:as("alias") */ → cy.intercept(url).as("alias")
   result = result.replace(
-    /await page\.route\(([^,\n]+),\s*route\s*=>\s*route\.continue\(\)\)\s*\/\* @hamlet:as\("([^"]+)"\) \*\//g,
+    /await page\.route\(([^,\n]+),\s*route\s*=>\s*route\.continue\(\)\)\s*\/\* @terrain:as\("([^"]+)"\) \*\//g,
     'cy.intercept($1).as("$2")'
   );
-  // route(url, route => route.fulfill(resp)) /* @hamlet:intercept(method).as("alias") */ → cy.intercept(method, url, resp).as("alias")
+  // route(url, route => route.fulfill(resp)) /* @terrain:intercept(method).as("alias") */ → cy.intercept(method, url, resp).as("alias")
   result = result.replace(
-    /await page\.route\(([^,\n]+),\s*route\s*=>\s*route\.fulfill\(([^)]+)\)\)\s*\/\* @hamlet:intercept\(([^)]+)\)\.as\("([^"]+)"\) \*\//g,
+    /await page\.route\(([^,\n]+),\s*route\s*=>\s*route\.fulfill\(([^)]+)\)\)\s*\/\* @terrain:intercept\(([^)]+)\)\.as\("([^"]+)"\) \*\//g,
     'cy.intercept($3, $1, $2).as("$4")'
   );
-  // route(url, route => route.fulfill(resp)) /* @hamlet:as("alias") */ → cy.intercept(url, resp).as("alias")
+  // route(url, route => route.fulfill(resp)) /* @terrain:as("alias") */ → cy.intercept(url, resp).as("alias")
   result = result.replace(
-    /await page\.route\(([^,\n]+),\s*route\s*=>\s*route\.fulfill\(([^)]+)\)\)\s*\/\* @hamlet:as\("([^"]+)"\) \*\//g,
+    /await page\.route\(([^,\n]+),\s*route\s*=>\s*route\.fulfill\(([^)]+)\)\)\s*\/\* @terrain:as\("([^"]+)"\) \*\//g,
     'cy.intercept($1, $2).as("$3")'
   );
   // Generic .as() annotation fallback
-  result = result.replace(/\s*\/\* @hamlet:as\("([^"]+)"\) \*\//g, '.as("$1")');
+  result = result.replace(
+    /\s*\/\* @terrain:as\("([^"]+)"\) \*\//g,
+    '.as("$1")'
+  );
 
   // --- Assertions (most specific first) ---
 
@@ -868,11 +871,11 @@ function convertPlaywrightToCypress(content) {
   result = result.replace(/await page\.goto\(([^)]+)\)/g, 'cy.visit($1)');
   // Restore numeric go() from annotation before generic conversion
   result = result.replace(
-    /await page\.goBack\(\)\s*\/\* @hamlet:go\((-?\d+)\) \*\//g,
+    /await page\.goBack\(\)\s*\/\* @terrain:go\((-?\d+)\) \*\//g,
     'cy.go($1)'
   );
   result = result.replace(
-    /await page\.goForward\(\)\s*\/\* @hamlet:go\((\d+)\) \*\//g,
+    /await page\.goForward\(\)\s*\/\* @terrain:go\((\d+)\) \*\//g,
     'cy.go($1)'
   );
   result = result.replace(/await page\.goBack\(\)/g, "cy.go('back')");
@@ -953,7 +956,7 @@ function convertPlaywrightToCypress(content) {
 
   // localStorage/sessionStorage
   result = result.replace(
-    /await page\.evaluate\(\(key\) => localStorage\.removeItem\(key\),\s*([^)]+)\)\s*\/\* @hamlet:clearLocalStorage\([^)]*\) \*\//g,
+    /await page\.evaluate\(\(key\) => localStorage\.removeItem\(key\),\s*([^)]+)\)\s*\/\* @terrain:clearLocalStorage\([^)]*\) \*\//g,
     'cy.clearLocalStorage($1)'
   );
   result = result.replace(
@@ -1009,7 +1012,7 @@ function convertPlaywrightToCypress(content) {
   // Generic waitForResponse fallback
   result = result.replace(
     /await page\.waitForResponse\([^)]+\)/g,
-    "cy.wait('@alias') /* HAMLET-TODO: map response matcher to named alias */"
+    "cy.wait('@alias') /* TERRAIN-TODO: map response matcher to named alias */"
   );
 
   // page.on → cy.on
@@ -1024,9 +1027,9 @@ function convertPlaywrightToCypress(content) {
     (match, method, url, body) =>
       `cy.request('${method.toUpperCase()}', ${url.trim()}, ${body.trim()})`
   );
-  // request.method(url) /* @hamlet:explicit-method */ → cy.request('METHOD', url) (preserve explicit method)
+  // request.method(url) /* @terrain:explicit-method */ → cy.request('METHOD', url) (preserve explicit method)
   result = result.replace(
-    /await request\.(get|post|put|patch|delete)\(([^)]+)\)\s*\/\* @hamlet:explicit-method \*\//g,
+    /await request\.(get|post|put|patch|delete)\(([^)]+)\)\s*\/\* @terrain:explicit-method \*\//g,
     (match, method, url) =>
       `cy.request("${method.toUpperCase()}", ${url.trim()})`
   );
@@ -1094,9 +1097,9 @@ function convertPlaywrightToCypress(content) {
     /await page\.route\(([^,\n]+),\s*route\s*=>\s*route\.continue\(\)\)/g,
     'cy.intercept($1)'
   );
-  // page.route(url, (route) => { /* @hamlet:intercept(method) */ → cy.intercept(method, url, (req) => {
+  // page.route(url, (route) => { /* @terrain:intercept(method) */ → cy.intercept(method, url, (req) => {
   result = result.replace(
-    /await page\.route\(([^,\n]+),\s*\(route\)\s*=>\s*\{\s*\/\* @hamlet:intercept\(([^)]+)\) \*\//g,
+    /await page\.route\(([^,\n]+),\s*\(route\)\s*=>\s*\{\s*\/\* @terrain:intercept\(([^)]+)\) \*\//g,
     'cy.intercept($2, $1, (req) => {'
   );
   // page.route(url, (route) => { ... }) → cy.intercept(url, (req) => { ... })
@@ -1143,7 +1146,7 @@ function convertPlaywrightStructure(content) {
   result = result.replace(/test\.describe\.skip\(/g, 'describe.skip(');
   // Restore context() from annotated test.describe (before generic conversion)
   result = result.replace(
-    /test\.describe\(\s*\/\* @hamlet:was-context \*\//g,
+    /test\.describe\(\s*\/\* @terrain:was-context \*\//g,
     'context('
   );
   result = result.replace(/test\.describe\(/g, 'describe(');

@@ -1,13 +1,13 @@
 # Product Concept
 
-Hamlet is a developer-first intelligence layer for test suites.
+Terrain is a developer-first intelligence layer for test suites.
 
 Its goal is not simply to convert tests.
 Its goal is to reveal how much confidence the test system actually provides.
 
 ## Core Product Model
 
-Hamlet operates across four dimensions.
+Terrain operates across four dimensions.
 
 ### Structure
 What exists?

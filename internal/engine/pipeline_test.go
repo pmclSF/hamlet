@@ -8,11 +8,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/pmclSF/hamlet/internal/analysis"
-	"github.com/pmclSF/hamlet/internal/measurement"
-	"github.com/pmclSF/hamlet/internal/models"
-	"github.com/pmclSF/hamlet/internal/scoring"
-	"github.com/pmclSF/hamlet/internal/testdata"
+	"github.com/pmclSF/terrain/internal/analysis"
+	"github.com/pmclSF/terrain/internal/measurement"
+	"github.com/pmclSF/terrain/internal/models"
+	"github.com/pmclSF/terrain/internal/scoring"
+	"github.com/pmclSF/terrain/internal/testdata"
 )
 
 // TestPipelineSteps_Integration verifies each pipeline step works with
@@ -147,13 +147,13 @@ func TestRunPipeline_EngineVersionStamp_Default(t *testing.T) {
 func TestRunPipeline_EngineVersionStamp_FromOptions(t *testing.T) {
 	t.Parallel()
 	result, err := RunPipeline("../analysis/testdata/sample-repo", PipelineOptions{
-		EngineVersion: "v3.2.1-test",
+		EngineVersion: "engine-test-version",
 	})
 	if err != nil {
 		t.Fatalf("RunPipeline failed: %v", err)
 	}
-	if result.Snapshot.SnapshotMeta.EngineVersion != "v3.2.1-test" {
-		t.Fatalf("engine version = %q, want %q", result.Snapshot.SnapshotMeta.EngineVersion, "v3.2.1-test")
+	if result.Snapshot.SnapshotMeta.EngineVersion != "engine-test-version" {
+		t.Fatalf("engine version = %q, want %q", result.Snapshot.SnapshotMeta.EngineVersion, "engine-test-version")
 	}
 }
 
