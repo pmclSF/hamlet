@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"flag"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -23,7 +24,49 @@ var updateGolden = flag.Bool("update-golden", false, "update golden snapshot fil
 func fixtureRoot(t *testing.T) string {
 	t.Helper()
 	_, thisFile, _, _ := runtime.Caller(0)
-	return filepath.Join(filepath.Dir(thisFile), "..", "..", "tests", "fixtures", "sample-repo")
+	root := filepath.Join(filepath.Dir(thisFile), "..", "..", "tests", "fixtures", "sample-repo")
+	ensureFixtureGit(t, root)
+	return root
+}
+
+// ensureFixtureGit initializes a git repo in the fixture directory if one
+// doesn't already exist. The impact snapshot test requires HEAD~1 to show
+// exactly 2 changed files (login-extended.test.ts and register-v2.test.ts).
+func ensureFixtureGit(t *testing.T, root string) {
+	t.Helper()
+	if _, err := os.Stat(filepath.Join(root, ".git")); err == nil {
+		return // already initialized
+	}
+
+	cmds := [][]string{
+		{"git", "init"},
+		{"git", "config", "user.email", "test@test.com"},
+		{"git", "config", "user.name", "Test"},
+	}
+	for _, args := range cmds {
+		cmd := exec.Command(args[0], args[1:]...)
+		cmd.Dir = root
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("fixture git setup (%v): %v\n%s", args, err, out)
+		}
+	}
+
+	// First commit: everything except the 2 extended test files.
+	run := func(args ...string) {
+		t.Helper()
+		cmd := exec.Command(args[0], args[1:]...)
+		cmd.Dir = root
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("fixture git setup (%v): %v\n%s", args, err, out)
+		}
+	}
+	run("git", "add", ".")
+	run("git", "rm", "--cached", "tests/unit/register-v2.test.ts", "tests/unit/login-extended.test.ts")
+	run("git", "commit", "-m", "initial commit")
+
+	// Second commit: add the 2 files so HEAD~1 diff shows exactly 2 changes.
+	run("git", "add", "tests/unit/register-v2.test.ts", "tests/unit/login-extended.test.ts")
+	run("git", "commit", "-m", "add extended test files")
 }
 
 func goldenPath(t *testing.T, name string) string {

@@ -745,7 +745,10 @@ function convertPlaywrightToCypress(content) {
     'cy.intercept($1, $2).as("$3")'
   );
   // Generic .as() annotation fallback
-  result = result.replace(/\s*\/\* @terrain:as\("([^"]+)"\) \*\//g, '.as("$1")');
+  result = result.replace(
+    /\s*\/\* @terrain:as\("([^"]+)"\) \*\//g,
+    '.as("$1")'
+  );
 
   // --- Assertions (most specific first) ---
 

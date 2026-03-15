@@ -122,7 +122,9 @@ async function convertAction(source, options) {
     } else {
       console.error(chalk.red('Error:'), msg);
       console.error(
-        chalk.gray('Next steps: Run `terrain list` to see supported frameworks.')
+        chalk.gray(
+          'Next steps: Run `terrain list` to see supported frameworks.'
+        )
       );
     }
     process.exit(2);
@@ -135,7 +137,9 @@ async function convertAction(source, options) {
     } else {
       console.error(chalk.red('Error:'), msg);
       console.error(
-        chalk.gray('Next steps: Run `terrain list` to see supported frameworks.')
+        chalk.gray(
+          'Next steps: Run `terrain list` to see supported frameworks.'
+        )
       );
     }
     process.exit(2);
@@ -186,7 +190,9 @@ async function convertAction(source, options) {
     } else {
       console.error(chalk.red('Error:'), msg);
       console.error(
-        chalk.gray('Next steps: Run `terrain list` to see supported frameworks.')
+        chalk.gray(
+          'Next steps: Run `terrain list` to see supported frameworks.'
+        )
       );
     }
     process.exit(2);

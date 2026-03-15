@@ -366,7 +366,9 @@ async function _runConversionJob(jobId) {
         if (outputMode === 'out-dir') {
           const relDir = path.dirname(relPath);
           outputPath = path.join(
-            path.resolve(outputDir || path.join(resolvedRoot, 'terrain-output')),
+            path.resolve(
+              outputDir || path.join(resolvedRoot, 'terrain-output')
+            ),
             relDir === '.' ? '' : relDir,
             newFilename
           );
