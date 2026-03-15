@@ -147,10 +147,14 @@ benchmarks/run-benchmark.sh
 # Public benchmark repos and artifacts (generated, not committed)
 benchmarks/repos/
 artifacts/public-benchmarks/
-terrain-bench
+
+# Compiled Go binaries
+/terrain
+/terrain.exe
+/terrain/
+/terrain-bench
 
 # Large local-only directories
-/terrain/
 testing/
 
 # Test output (generated during test runs)
