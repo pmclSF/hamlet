@@ -541,6 +541,12 @@ func TestChangeSetFromGitDiff_ShallowClone(t *testing.T) {
 	t.Parallel()
 	clone := initShallowClone(t)
 
+	// Some CI environments or git versions don't produce true shallow clones
+	// from file:// protocol. Skip if the clone isn't actually shallow.
+	if !isShallowClone(clone) {
+		t.Skip("git did not produce a shallow clone from file:// (CI git version may not support this)")
+	}
+
 	// Modify a file.
 	if err := os.WriteFile(filepath.Join(clone, "b.txt"), []byte("v2\n"), 0o644); err != nil {
 		t.Fatal(err)
