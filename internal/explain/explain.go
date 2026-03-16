@@ -539,3 +539,69 @@ func buildSelectionSummary(sel *SelectionExplanation, result *impact.ImpactResul
 
 	return strings.Join(parts, ", ") + "."
 }
+
+// ScenarioExplanation is the structured explanation for why a scenario
+// is impacted by a change.
+type ScenarioExplanation struct {
+	// ScenarioID is the scenario identifier.
+	ScenarioID string `json:"scenarioId"`
+
+	// Name is the human-readable scenario name.
+	Name string `json:"name"`
+
+	// Category is the scenario classification (safety, accuracy, etc.).
+	Category string `json:"category,omitempty"`
+
+	// Framework is the eval framework (promptfoo, deepeval, etc.).
+	Framework string `json:"framework,omitempty"`
+
+	// Verdict is a one-line summary of why this scenario is impacted.
+	Verdict string `json:"verdict"`
+
+	// ChangedSurfaces lists the specific code surfaces that triggered the impact.
+	ChangedSurfaces []string `json:"changedSurfaces"`
+
+	// Confidence is the impact confidence.
+	Confidence string `json:"confidence"`
+
+	// Relevance explains the impact relationship.
+	Relevance string `json:"relevance"`
+}
+
+// ExplainScenario produces a structured explanation for why a specific
+// scenario is impacted by the change described by the ImpactResult.
+//
+// The target can be a scenario ID or name.
+func ExplainScenario(target string, result *impact.ImpactResult) (*ScenarioExplanation, error) {
+	if result == nil {
+		return nil, fmt.Errorf("no impact result available")
+	}
+
+	target = strings.TrimSpace(target)
+
+	for _, sc := range result.ImpactedScenarios {
+		if sc.ScenarioID == target || sc.Name == target {
+			verdict := fmt.Sprintf(
+				"Scenario %q is impacted because %d of its covered code surfaces changed.",
+				sc.Name, len(sc.CoversSurfaces))
+			if len(sc.CoversSurfaces) == 1 {
+				verdict = fmt.Sprintf(
+					"Scenario %q is impacted because its covered surface %s changed.",
+					sc.Name, sc.CoversSurfaces[0])
+			}
+
+			return &ScenarioExplanation{
+				ScenarioID:      sc.ScenarioID,
+				Name:            sc.Name,
+				Category:        sc.Category,
+				Framework:       sc.Framework,
+				Verdict:         verdict,
+				ChangedSurfaces: sc.CoversSurfaces,
+				Confidence:      string(sc.ImpactConfidence),
+				Relevance:       sc.Relevance,
+			}, nil
+		}
+	}
+
+	return nil, fmt.Errorf("scenario not found in impact analysis: %s", target)
+}

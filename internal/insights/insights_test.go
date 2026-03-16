@@ -305,3 +305,108 @@ func TestBuild_CategorySummary(t *testing.T) {
 		t.Error("expected non-empty category summary")
 	}
 }
+
+// --- AI Scenario Duplication ---
+
+func TestBuild_ScenarioDuplication(t *testing.T) {
+	t.Parallel()
+	snap := &models.TestSuiteSnapshot{
+		Scenarios: []models.Scenario{
+			{
+				ScenarioID:        "scenario:safety",
+				Name:              "safety-check",
+				CoveredSurfaceIDs: []string{"surface:prompts.ts:system", "surface:prompts.ts:user"},
+			},
+			{
+				ScenarioID:        "scenario:accuracy",
+				Name:              "accuracy-check",
+				CoveredSurfaceIDs: []string{"surface:prompts.ts:system", "surface:prompts.ts:user"},
+			},
+			{
+				ScenarioID:        "scenario:latency",
+				Name:              "latency-check",
+				CoveredSurfaceIDs: []string{"surface:api.ts:predict"},
+			},
+		},
+	}
+	input := &BuildInput{
+		Snapshot: snap,
+		Coverage: depgraph.CoverageResult{BandCounts: map[depgraph.CoverageBand]int{}},
+	}
+
+	r := Build(input)
+
+	// safety and accuracy overlap 100% (2/2 shared surfaces).
+	// latency has no overlap with either.
+	found := false
+	for _, f := range r.Findings {
+		if f.Category == CategoryOptimization && f.Title != "" {
+			if contains(f.Title, "scenario pair") {
+				found = true
+				if f.Severity != SeverityLow && f.Severity != SeverityMedium {
+					t.Errorf("expected low or medium severity, got %s", f.Severity)
+				}
+			}
+		}
+	}
+	if !found {
+		t.Error("expected scenario duplication finding when 2 scenarios share >50% surfaces")
+	}
+}
+
+func TestBuild_ScenarioDuplication_NoOverlap(t *testing.T) {
+	t.Parallel()
+	snap := &models.TestSuiteSnapshot{
+		Scenarios: []models.Scenario{
+			{ScenarioID: "scenario:a", CoveredSurfaceIDs: []string{"s1"}},
+			{ScenarioID: "scenario:b", CoveredSurfaceIDs: []string{"s2"}},
+		},
+	}
+	input := &BuildInput{
+		Snapshot: snap,
+		Coverage: depgraph.CoverageResult{BandCounts: map[depgraph.CoverageBand]int{}},
+	}
+
+	r := Build(input)
+
+	for _, f := range r.Findings {
+		if contains(f.Title, "scenario pair") {
+			t.Error("should not report scenario duplication when no surfaces overlap")
+		}
+	}
+}
+
+func TestBuild_ScenarioDuplication_SingleScenario(t *testing.T) {
+	t.Parallel()
+	snap := &models.TestSuiteSnapshot{
+		Scenarios: []models.Scenario{
+			{ScenarioID: "scenario:only", CoveredSurfaceIDs: []string{"s1", "s2"}},
+		},
+	}
+	input := &BuildInput{
+		Snapshot: snap,
+		Coverage: depgraph.CoverageResult{BandCounts: map[depgraph.CoverageBand]int{}},
+	}
+
+	r := Build(input)
+
+	for _, f := range r.Findings {
+		if contains(f.Title, "scenario pair") {
+			t.Error("should not report scenario duplication with only 1 scenario")
+		}
+	}
+}
+
+func contains(s, substr string) bool {
+	return len(s) >= len(substr) && (s == substr || len(substr) == 0 ||
+		(len(s) > 0 && len(substr) > 0 && searchString(s, substr)))
+}
+
+func searchString(s, substr string) bool {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
+}

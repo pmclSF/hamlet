@@ -1294,3 +1294,194 @@ func TestMatchesArea(t *testing.T) {
 		}
 	}
 }
+
+// --- AI impact path: prompt/dataset change → scenarios ---
+
+func TestAnalyze_PromptChangeImpactsScenarios(t *testing.T) {
+	t.Parallel()
+
+	snap := &models.TestSuiteSnapshot{
+		CodeSurfaces: []models.CodeSurface{
+			{SurfaceID: "surface:src/ai/prompts.ts:systemPrompt", Name: "systemPrompt", Path: "src/ai/prompts.ts", Kind: models.SurfacePrompt, Language: "typescript", Exported: true},
+			{SurfaceID: "surface:src/ai/prompts.ts:userTemplate", Name: "userTemplate", Path: "src/ai/prompts.ts", Kind: models.SurfacePrompt, Language: "typescript", Exported: true},
+			{SurfaceID: "surface:src/utils/helper.ts:formatDate", Name: "formatDate", Path: "src/utils/helper.ts", Kind: models.SurfaceFunction, Language: "typescript", Exported: true},
+		},
+		Scenarios: []models.Scenario{
+			{
+				ScenarioID:        "scenario:eval:safety",
+				Name:              "safety-check",
+				Category:          "safety",
+				Framework:         "promptfoo",
+				CoveredSurfaceIDs: []string{"surface:src/ai/prompts.ts:systemPrompt"},
+			},
+			{
+				ScenarioID:        "scenario:eval:accuracy",
+				Name:              "accuracy-check",
+				Category:          "accuracy",
+				Framework:         "deepeval",
+				CoveredSurfaceIDs: []string{"surface:src/ai/prompts.ts:systemPrompt", "surface:src/ai/prompts.ts:userTemplate"},
+			},
+			{
+				ScenarioID:        "scenario:eval:unrelated",
+				Name:              "unrelated-check",
+				Category:          "regression",
+				CoveredSurfaceIDs: []string{"surface:src/utils/helper.ts:formatDate"},
+			},
+		},
+		TestFiles: []models.TestFile{
+			{Path: "tests/prompts.test.ts", Framework: "vitest"},
+		},
+	}
+
+	scope := &ChangeScope{
+		ChangedFiles: []ChangedFile{
+			{Path: "src/ai/prompts.ts", ChangeKind: ChangeModified, IsTestFile: false},
+		},
+		Source: "explicit",
+	}
+
+	result := Analyze(scope, snap)
+
+	// Should detect changed surfaces with prompt kind.
+	if len(result.ChangedAreas) == 0 {
+		t.Fatal("expected changed areas for prompt file")
+	}
+	foundPromptSurface := false
+	for _, area := range result.ChangedAreas {
+		for _, s := range area.Surfaces {
+			if s.Kind == "prompt" {
+				foundPromptSurface = true
+			}
+		}
+	}
+	if !foundPromptSurface {
+		t.Error("expected prompt surface in changed areas")
+	}
+
+	// Should impact 2 scenarios (safety and accuracy), but not the unrelated one.
+	if len(result.ImpactedScenarios) != 2 {
+		t.Fatalf("expected 2 impacted scenarios, got %d", len(result.ImpactedScenarios))
+	}
+
+	scenarioIDs := map[string]bool{}
+	for _, sc := range result.ImpactedScenarios {
+		scenarioIDs[sc.ScenarioID] = true
+		if sc.ImpactConfidence == "" {
+			t.Errorf("scenario %s: missing confidence", sc.ScenarioID)
+		}
+		if sc.Relevance == "" {
+			t.Errorf("scenario %s: missing relevance", sc.ScenarioID)
+		}
+		if len(sc.CoversSurfaces) == 0 {
+			t.Errorf("scenario %s: missing covered surfaces", sc.ScenarioID)
+		}
+	}
+	if !scenarioIDs["scenario:eval:safety"] {
+		t.Error("expected safety scenario to be impacted")
+	}
+	if !scenarioIDs["scenario:eval:accuracy"] {
+		t.Error("expected accuracy scenario to be impacted")
+	}
+	if scenarioIDs["scenario:eval:unrelated"] {
+		t.Error("unrelated scenario should NOT be impacted")
+	}
+
+	// Summary should mention scenarios.
+	if !strings.Contains(result.Summary, "scenario") {
+		t.Errorf("summary should mention scenarios: %s", result.Summary)
+	}
+}
+
+func TestAnalyze_DatasetChangeImpactsScenarios(t *testing.T) {
+	t.Parallel()
+
+	snap := &models.TestSuiteSnapshot{
+		CodeSurfaces: []models.CodeSurface{
+			{SurfaceID: "surface:data/loader.py:trainingDataset", Name: "trainingDataset", Path: "data/loader.py", Kind: models.SurfaceDataset, Language: "python", Exported: true},
+		},
+		Scenarios: []models.Scenario{
+			{
+				ScenarioID:        "scenario:eval:data-quality",
+				Name:              "data-quality",
+				Category:          "quality",
+				Framework:         "custom",
+				CoveredSurfaceIDs: []string{"surface:data/loader.py:trainingDataset"},
+			},
+		},
+	}
+
+	scope := &ChangeScope{
+		ChangedFiles: []ChangedFile{
+			{Path: "data/loader.py", ChangeKind: ChangeModified, IsTestFile: false},
+		},
+		Source: "explicit",
+	}
+
+	result := Analyze(scope, snap)
+
+	if len(result.ImpactedScenarios) != 1 {
+		t.Fatalf("expected 1 impacted scenario for dataset change, got %d", len(result.ImpactedScenarios))
+	}
+	if result.ImpactedScenarios[0].ScenarioID != "scenario:eval:data-quality" {
+		t.Errorf("expected data-quality scenario, got %s", result.ImpactedScenarios[0].ScenarioID)
+	}
+}
+
+func TestAnalyze_NoScenariosProducesEmptyList(t *testing.T) {
+	t.Parallel()
+
+	snap := &models.TestSuiteSnapshot{
+		CodeSurfaces: []models.CodeSurface{
+			{SurfaceID: "surface:src/auth.ts:login", Name: "login", Path: "src/auth.ts", Kind: models.SurfaceFunction},
+		},
+	}
+
+	scope := &ChangeScope{
+		ChangedFiles: []ChangedFile{
+			{Path: "src/auth.ts", ChangeKind: ChangeModified, IsTestFile: false},
+		},
+		Source: "explicit",
+	}
+
+	result := Analyze(scope, snap)
+
+	if len(result.ImpactedScenarios) != 0 {
+		t.Errorf("expected 0 scenarios when none defined, got %d", len(result.ImpactedScenarios))
+	}
+}
+
+func TestFindImpactedScenarios_Deterministic(t *testing.T) {
+	t.Parallel()
+
+	changedAreas := []ChangedArea{
+		{
+			Area: "src/ai",
+			Surfaces: []ChangedSurface{
+				{SurfaceID: "surface:src/ai/prompts.ts:buildPrompt", Kind: "prompt"},
+			},
+		},
+	}
+
+	snap := &models.TestSuiteSnapshot{
+		Scenarios: []models.Scenario{
+			{ScenarioID: "scenario:b", Name: "b-check", CoveredSurfaceIDs: []string{"surface:src/ai/prompts.ts:buildPrompt"}},
+			{ScenarioID: "scenario:a", Name: "a-check", CoveredSurfaceIDs: []string{"surface:src/ai/prompts.ts:buildPrompt"}},
+		},
+	}
+
+	r1 := findImpactedScenarios(changedAreas, snap)
+	r2 := findImpactedScenarios(changedAreas, snap)
+
+	if len(r1) != len(r2) {
+		t.Fatalf("non-deterministic: %d vs %d", len(r1), len(r2))
+	}
+	for i := range r1 {
+		if r1[i].ScenarioID != r2[i].ScenarioID {
+			t.Errorf("non-deterministic order at %d: %s vs %s", i, r1[i].ScenarioID, r2[i].ScenarioID)
+		}
+	}
+	// Should be sorted by ScenarioID.
+	if r1[0].ScenarioID != "scenario:a" {
+		t.Errorf("expected scenario:a first, got %s", r1[0].ScenarioID)
+	}
+}

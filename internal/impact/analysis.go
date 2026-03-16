@@ -223,6 +223,67 @@ func pathTreesOverlap(a, b string) bool {
 	return strings.HasPrefix(a, b+"/") || strings.HasPrefix(b, a+"/")
 }
 
+// findImpactedScenarios identifies AI/eval scenarios whose covered surfaces
+// overlap with the changed surfaces. This is the prompt/dataset → scenario
+// impact path.
+func findImpactedScenarios(changedAreas []ChangedArea, snap *models.TestSuiteSnapshot) []ImpactedScenario {
+	if len(snap.Scenarios) == 0 {
+		return nil
+	}
+
+	// Collect all changed surface IDs.
+	changedSurfaceIDs := map[string]bool{}
+	for _, area := range changedAreas {
+		for _, cs := range area.Surfaces {
+			changedSurfaceIDs[cs.SurfaceID] = true
+		}
+	}
+	if len(changedSurfaceIDs) == 0 {
+		return nil
+	}
+
+	var scenarios []ImpactedScenario
+	for _, sc := range snap.Scenarios {
+		var matchedSurfaces []string
+		for _, sid := range sc.CoveredSurfaceIDs {
+			if changedSurfaceIDs[sid] {
+				matchedSurfaces = append(matchedSurfaces, sid)
+			}
+		}
+		if len(matchedSurfaces) == 0 {
+			continue
+		}
+
+		confidence := ConfidenceInferred
+		if len(matchedSurfaces) > 0 {
+			// Scenarios explicitly declare covered surfaces → higher confidence.
+			confidence = ConfidenceExact
+		}
+
+		sort.Strings(matchedSurfaces)
+		scenarios = append(scenarios, ImpactedScenario{
+			ScenarioID:       sc.ScenarioID,
+			Name:             sc.Name,
+			Category:         sc.Category,
+			Framework:        sc.Framework,
+			Relevance:        fmt.Sprintf("covers %d changed surface(s)", len(matchedSurfaces)),
+			ImpactConfidence: confidence,
+			CoversSurfaces:   matchedSurfaces,
+		})
+	}
+
+	// Sort by confidence then name for determinism.
+	sort.Slice(scenarios, func(i, j int) bool {
+		ci, cj := confidenceOrder(scenarios[i].ImpactConfidence), confidenceOrder(scenarios[j].ImpactConfidence)
+		if ci != cj {
+			return ci < cj
+		}
+		return scenarios[i].ScenarioID < scenarios[j].ScenarioID
+	})
+
+	return scenarios
+}
+
 // findProtectionGaps identifies where changed code lacks adequate coverage.
 func findProtectionGaps(units []ImpactedCodeUnit, tests []ImpactedTest, snap *models.TestSuiteSnapshot) []ProtectionGap {
 	var gaps []ProtectionGap
@@ -526,6 +587,9 @@ func buildImpactSummary(result *ImpactResult) string {
 	}
 	if len(result.ImpactedTests) > 0 {
 		parts = append(parts, fmt.Sprintf("%d test(s) relevant", len(result.ImpactedTests)))
+	}
+	if len(result.ImpactedScenarios) > 0 {
+		parts = append(parts, fmt.Sprintf("%d scenario(s) impacted", len(result.ImpactedScenarios)))
 	}
 	if len(result.ProtectionGaps) > 0 {
 		parts = append(parts, fmt.Sprintf("%d protection gap(s)", len(result.ProtectionGaps)))

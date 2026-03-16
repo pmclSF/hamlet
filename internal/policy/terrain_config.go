@@ -23,9 +23,34 @@ type TerrainConfig struct {
 	// and risk reporting but never participate as executable CI validation.
 	ManualCoverage []ManualCoverageEntry `yaml:"manual_coverage"`
 
+	// Scenarios declares AI/eval scenarios that validate code surfaces.
+	// Scenarios are first-class validation targets alongside tests.
+	Scenarios []ScenarioEntry `yaml:"scenarios"`
+
 	// CIDurationSeconds is the known CI duration in seconds.
 	// Used by edge-case detection (FAST_CI_ALREADY).
 	CIDurationSeconds *int `yaml:"ci_duration_seconds"`
+}
+
+// ScenarioEntry is a single scenario declaration in terrain.yaml.
+type ScenarioEntry struct {
+	// Name is a human-readable label (required).
+	Name string `yaml:"name"`
+
+	// Category classifies the scenario (safety, accuracy, regression, etc.).
+	Category string `yaml:"category"`
+
+	// Framework is the eval framework (promptfoo, deepeval, ragas, custom).
+	Framework string `yaml:"framework"`
+
+	// Owner is the team or individual responsible.
+	Owner string `yaml:"owner"`
+
+	// Surfaces lists CodeSurface IDs this scenario validates.
+	Surfaces []string `yaml:"surfaces"`
+
+	// Path is the file path of the scenario definition, if any.
+	Path string `yaml:"path"`
 }
 
 // ManualCoverageEntry is a single manual coverage declaration in terrain.yaml.
@@ -67,9 +92,13 @@ type ManualCoverageEntry struct {
 //   - If the file exists but is malformed, returns an actionable error.
 //   - If the file is valid, returns the parsed TerrainConfig.
 func LoadTerrainConfig(repoRoot string) (*TerrainConfig, error) {
-	path := filepath.Join(repoRoot, TerrainConfigFileName)
-
+	// Check .terrain/terrain.yaml first (preferred), then root terrain.yaml.
+	path := filepath.Join(repoRoot, ".terrain", TerrainConfigFileName)
 	data, err := os.ReadFile(path)
+	if err != nil && errors.Is(err, os.ErrNotExist) {
+		path = filepath.Join(repoRoot, TerrainConfigFileName)
+		data, err = os.ReadFile(path)
+	}
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return nil, nil
@@ -132,7 +161,41 @@ func manualArtifactID(source, name string) string {
 	return fmt.Sprintf("manual:%s:%s", source, fmt.Sprintf("%x", h[:8]))
 }
 
+// ToScenarios converts scenario entries into model Scenarios suitable
+// for inclusion in the snapshot.
+func (c *TerrainConfig) ToScenarios() []models.Scenario {
+	if c == nil || len(c.Scenarios) == 0 {
+		return nil
+	}
+
+	scenarios := make([]models.Scenario, 0, len(c.Scenarios))
+	for _, entry := range c.Scenarios {
+		if entry.Name == "" {
+			continue
+		}
+
+		framework := entry.Framework
+		if framework == "" {
+			framework = "custom"
+		}
+
+		scenarioID := fmt.Sprintf("scenario:%s:%s", framework, strings.ToLower(strings.ReplaceAll(entry.Name, " ", "-")))
+
+		scenarios = append(scenarios, models.Scenario{
+			ScenarioID:        scenarioID,
+			Name:              entry.Name,
+			Category:          entry.Category,
+			Path:              entry.Path,
+			Framework:         framework,
+			Owner:             entry.Owner,
+			CoveredSurfaceIDs: entry.Surfaces,
+		})
+	}
+
+	return scenarios
+}
+
 // IsEmpty returns true if no configuration is present.
 func (c *TerrainConfig) IsEmpty() bool {
-	return c == nil || (len(c.ManualCoverage) == 0 && c.CIDurationSeconds == nil)
+	return c == nil || (len(c.ManualCoverage) == 0 && len(c.Scenarios) == 0 && c.CIDurationSeconds == nil)
 }

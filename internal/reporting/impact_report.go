@@ -101,6 +101,25 @@ func RenderImpactReport(w io.Writer, result *impact.ImpactResult) {
 		blank()
 	}
 
+	// Impacted scenarios (AI/eval)
+	if len(result.ImpactedScenarios) > 0 {
+		line("Impacted Scenarios (%d)", len(result.ImpactedScenarios))
+		line(strings.Repeat("-", 60))
+		for _, sc := range result.ImpactedScenarios {
+			conf := ""
+			if sc.ImpactConfidence != "" {
+				conf = fmt.Sprintf(" [%s]", sc.ImpactConfidence)
+			}
+			label := sc.Name
+			if sc.Category != "" {
+				label += " (" + sc.Category + ")"
+			}
+			line("  %s%s", label, conf)
+			line("    %s", sc.Relevance)
+		}
+		blank()
+	}
+
 	// Fallback
 	if result.Fallback.Level != "none" && result.Fallback.Level != "" {
 		line("Fallback:")
