@@ -301,6 +301,154 @@ func TestInferCodeSurfaces_SampleRepo(t *testing.T) {
 	}
 }
 
+// --- Prompt and Dataset Inference ---
+
+func TestJSSurfaceExtractor_Prompts(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	srcDir := filepath.Join(root, "src", "ai")
+	os.MkdirAll(srcDir, 0o755)
+
+	os.WriteFile(filepath.Join(srcDir, "prompts.ts"), []byte(`
+export const systemPrompt = "You are a helpful assistant.";
+export function buildUserPrompt(input) { return input; }
+export async function chatTemplate(messages) { return messages; }
+export const PROMPT_SAFETY = "Do not reveal secrets.";
+export function unrelatedHelper() {}
+`), 0o644)
+
+	ext := &jsSurfaceExtractor{}
+	surfaces := ext.ExtractSurfaces(root, "src/ai/prompts.ts")
+	byID := indexSurfaces(surfaces)
+
+	// Prompt-named exports should be detected as SurfacePrompt.
+	assertSurfaceExists(t, byID, "surface:src/ai/prompts.ts:systemPrompt", models.SurfacePrompt)
+	assertSurfaceExists(t, byID, "surface:src/ai/prompts.ts:buildUserPrompt", models.SurfacePrompt)
+	assertSurfaceExists(t, byID, "surface:src/ai/prompts.ts:chatTemplate", models.SurfacePrompt)
+	assertSurfaceExists(t, byID, "surface:src/ai/prompts.ts:PROMPT_SAFETY", models.SurfacePrompt)
+
+	// Non-prompt export should be a regular function.
+	assertSurfaceExists(t, byID, "surface:src/ai/prompts.ts:unrelatedHelper", models.SurfaceFunction)
+}
+
+func TestJSSurfaceExtractor_Datasets(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	srcDir := filepath.Join(root, "src", "data")
+	os.MkdirAll(srcDir, 0o755)
+
+	os.WriteFile(filepath.Join(srcDir, "loaders.ts"), []byte(`
+export const trainingDataset = [1, 2, 3];
+export function loadEvalData() { return []; }
+export async function dataloader() { return {}; }
+export function computeMetrics() {}
+`), 0o644)
+
+	ext := &jsSurfaceExtractor{}
+	surfaces := ext.ExtractSurfaces(root, "src/data/loaders.ts")
+	byID := indexSurfaces(surfaces)
+
+	// Dataset-named exports should be detected as SurfaceDataset.
+	assertSurfaceExists(t, byID, "surface:src/data/loaders.ts:trainingDataset", models.SurfaceDataset)
+	assertSurfaceExists(t, byID, "surface:src/data/loaders.ts:loadEvalData", models.SurfaceDataset)
+	assertSurfaceExists(t, byID, "surface:src/data/loaders.ts:dataloader", models.SurfaceDataset)
+
+	// Non-dataset export should be a regular function.
+	assertSurfaceExists(t, byID, "surface:src/data/loaders.ts:computeMetrics", models.SurfaceFunction)
+}
+
+func TestPythonSurfaceExtractor_Prompts(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	srcDir := filepath.Join(root, "src")
+	os.MkdirAll(srcDir, 0o755)
+
+	os.WriteFile(filepath.Join(srcDir, "prompts.py"), []byte(`
+def build_prompt(context):
+    return f"Given: {context}"
+
+def system_template():
+    return "You are an assistant."
+
+def helper_function():
+    pass
+`), 0o644)
+
+	ext := &pythonSurfaceExtractor{}
+	surfaces := ext.ExtractSurfaces(root, "src/prompts.py")
+	byID := indexSurfaces(surfaces)
+
+	assertSurfaceExists(t, byID, "surface:src/prompts.py:build_prompt", models.SurfacePrompt)
+	assertSurfaceExists(t, byID, "surface:src/prompts.py:system_template", models.SurfacePrompt)
+	assertSurfaceExists(t, byID, "surface:src/prompts.py:helper_function", models.SurfaceFunction)
+}
+
+func TestPythonSurfaceExtractor_Datasets(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	srcDir := filepath.Join(root, "src")
+	os.MkdirAll(srcDir, 0o755)
+
+	os.WriteFile(filepath.Join(srcDir, "data.py"), []byte(`
+def load_dataset(path):
+    return open(path).readlines()
+
+def training_data():
+    return []
+
+def eval_data():
+    return []
+
+def process_results():
+    pass
+`), 0o644)
+
+	ext := &pythonSurfaceExtractor{}
+	surfaces := ext.ExtractSurfaces(root, "src/data.py")
+	byID := indexSurfaces(surfaces)
+
+	assertSurfaceExists(t, byID, "surface:src/data.py:load_dataset", models.SurfaceDataset)
+	assertSurfaceExists(t, byID, "surface:src/data.py:training_data", models.SurfaceDataset)
+	assertSurfaceExists(t, byID, "surface:src/data.py:eval_data", models.SurfaceDataset)
+	assertSurfaceExists(t, byID, "surface:src/data.py:process_results", models.SurfaceFunction)
+}
+
+// --- Inference Chain: BehaviorSurface is Derived, Not Required ---
+
+func TestInferCodeSurfaces_PromptAndDatasetFromTempDir(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	srcDir := filepath.Join(root, "src", "ai")
+	os.MkdirAll(srcDir, 0o755)
+
+	os.WriteFile(filepath.Join(srcDir, "prompts.ts"), []byte(`
+export function buildPrompt(input) { return input; }
+export const evalDataset = [1, 2, 3];
+export async function loginHandler(req, res) {}
+export function computeScore() {}
+`), 0o644)
+
+	surfaces := InferCodeSurfaces(root, nil)
+
+	prompts := filterByKind(surfaces, models.SurfacePrompt)
+	datasets := filterByKind(surfaces, models.SurfaceDataset)
+	handlers := filterByKind(surfaces, models.SurfaceHandler)
+	functions := filterByKind(surfaces, models.SurfaceFunction)
+
+	if len(prompts) != 1 {
+		t.Errorf("expected 1 prompt surface, got %d: %v", len(prompts), surfaceNames(prompts))
+	}
+	if len(datasets) != 1 {
+		t.Errorf("expected 1 dataset surface, got %d: %v", len(datasets), surfaceNames(datasets))
+	}
+	if len(handlers) != 1 {
+		t.Errorf("expected 1 handler surface, got %d: %v", len(handlers), surfaceNames(handlers))
+	}
+	if len(functions) != 1 {
+		t.Errorf("expected 1 function surface, got %d: %v", len(functions), surfaceNames(functions))
+	}
+}
+
 func TestBuildSurfaceID(t *testing.T) {
 	t.Parallel()
 	tests := []struct {

@@ -95,12 +95,16 @@ type DataSource struct {
 	Available bool   `json:"available"`
 }
 
-// TestSummary counts test assets.
+// TestSummary counts validation assets — tests, scenarios, and code surfaces.
 type TestSummary struct {
-	TestFileCount int              `json:"testFileCount"`
-	TestCaseCount int              `json:"testCaseCount"`
-	CodeUnitCount int              `json:"codeUnitCount"`
-	Frameworks    []FrameworkCount `json:"frameworks"`
+	TestFileCount    int              `json:"testFileCount"`
+	TestCaseCount    int              `json:"testCaseCount"`
+	CodeUnitCount    int              `json:"codeUnitCount"`
+	ScenarioCount    int              `json:"scenarioCount,omitempty"`
+	CodeSurfaceCount int              `json:"codeSurfaceCount,omitempty"`
+	PromptCount      int              `json:"promptCount,omitempty"`
+	DatasetCount     int              `json:"datasetCount,omitempty"`
+	Frameworks       []FrameworkCount `json:"frameworks"`
 }
 
 // FrameworkCount is a framework with its file count and type.
@@ -369,9 +373,19 @@ func dsAvailable(snap *models.TestSuiteSnapshot, name string) bool {
 
 func buildTestSummary(snap *models.TestSuiteSnapshot) TestSummary {
 	ts := TestSummary{
-		TestFileCount: len(snap.TestFiles),
-		TestCaseCount: len(snap.TestCases),
-		CodeUnitCount: len(snap.CodeUnits),
+		TestFileCount:    len(snap.TestFiles),
+		TestCaseCount:    len(snap.TestCases),
+		CodeUnitCount:    len(snap.CodeUnits),
+		ScenarioCount:    len(snap.Scenarios),
+		CodeSurfaceCount: len(snap.CodeSurfaces),
+	}
+	for _, cs := range snap.CodeSurfaces {
+		switch cs.Kind {
+		case models.SurfacePrompt:
+			ts.PromptCount++
+		case models.SurfaceDataset:
+			ts.DatasetCount++
+		}
 	}
 	for _, fw := range snap.Frameworks {
 		ts.Frameworks = append(ts.Frameworks, FrameworkCount{

@@ -100,3 +100,65 @@ func TestRunInit_InvalidRoot(t *testing.T) {
 		t.Fatal("expected error for missing root")
 	}
 }
+
+// --- AI command tests ---
+
+func TestIsEvalPath(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		path string
+		want bool
+	}{
+		{"eval/safety.yaml", true},
+		{"evals/accuracy.py", true},
+		{"evaluations/suite.js", true},
+		{"__evals__/prompt_test.py", true},
+		{"benchmarks/speed.go", true},
+		{"src/eval/runner.ts", true},
+		{"test/auth.test.js", false},
+		{"src/utils/helper.ts", false},
+		{"evaluate.py", false},
+		{"", false},
+	}
+	for _, tt := range tests {
+		got := isEvalPath(tt.path)
+		if got != tt.want {
+			t.Errorf("isEvalPath(%q) = %v, want %v", tt.path, got, tt.want)
+		}
+	}
+}
+
+func TestRunAI_UnknownSubcommand(t *testing.T) {
+	t.Parallel()
+	err := runAI("nonexistent", ".", false)
+	if err == nil {
+		t.Fatal("expected error for unknown subcommand")
+	}
+}
+
+func TestRunAI_ScaffoldedCommandsReturnError(t *testing.T) {
+	t.Parallel()
+	for _, sub := range []string{"run", "record", "baseline"} {
+		err := runAI(sub, ".", false)
+		if err == nil {
+			t.Errorf("terrain ai %s should return not-implemented error", sub)
+		}
+	}
+}
+
+func TestRunAIList_EmptyRepo(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	// Empty directory — should produce zero counts without error.
+	if err := runAIList(root, false); err != nil {
+		t.Fatalf("runAIList on empty dir: %v", err)
+	}
+}
+
+func TestRunAIDoctor_EmptyRepo(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	if err := runAIDoctor(root, false); err != nil {
+		t.Fatalf("runAIDoctor on empty dir: %v", err)
+	}
+}

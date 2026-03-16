@@ -1,0 +1,67 @@
+scenarios:
+  - name: prompt-safety
+    category: safety
+    framework: custom
+    owner: ai-team
+    surfaces:
+      - "surface:src/ai-assistant/prompt.ts:buildSafetyPrompt"
+      - "surface:src/ai-assistant/prompt.ts:systemPrompt"
+    path: tests/eval/safety/prompt-safety.test.ts
+
+  - name: safety-regression
+    category: safety
+    framework: custom
+    owner: ai-team
+    surfaces:
+      - "surface:src/ai-assistant/prompt.ts:buildSafetyPrompt"
+      - "surface:src/ai-assistant/prompt.ts:systemPrompt"
+    path: tests/eval/safety/safety-regression.test.ts
+
+  - name: intent-accuracy
+    category: accuracy
+    framework: custom
+    owner: ai-team
+    surfaces:
+      - "surface:src/ai-assistant/model.ts:detectIntent"
+      - "surface:src/ai-assistant/model.ts:classifySentiment"
+    path: tests/eval/accuracy/intent-accuracy.test.ts
+
+  - name: model-regression
+    category: regression
+    framework: custom
+    owner: ai-team
+    surfaces:
+      - "surface:src/ai-assistant/model.ts:predict"
+      - "surface:src/ai-assistant/dataset.ts:loadEvalDataset"
+    path: tests/eval/regression/model-regression.test.ts
+
+manual_coverage:
+  - name: notification-email-manual
+    area: src/notifications
+    source: checklist
+    owner: qa-team
+    criticality: high
+    frequency: per-release
+    last_executed: "2026-03-01"
+
+  - name: notification-push-manual
+    area: src/notifications
+    source: exploratory
+    owner: qa-team
+    criticality: medium
+    frequency: weekly
+
+  - name: refund-approval-flow
+    area: src/refunds
+    source: testrail
+    owner: qa-team
+    criticality: high
+    frequency: per-release
+    last_executed: "2026-02-15"
+
+  - name: subscription-upgrade-manual
+    area: src/payments/subscription
+    source: checklist
+    owner: qa-team
+    criticality: medium
+    frequency: monthly

@@ -150,6 +150,31 @@ type ImpactedTest struct {
 	IsDirectlyChanged bool `json:"isDirectlyChanged"`
 }
 
+// ImpactedScenario represents an AI/eval scenario whose covered surfaces
+// were changed. This enables the prompt/dataset → scenario impact path.
+type ImpactedScenario struct {
+	// ScenarioID is the scenario identifier.
+	ScenarioID string `json:"scenarioId"`
+
+	// Name is the human-readable scenario name.
+	Name string `json:"name"`
+
+	// Category is the scenario classification (safety, accuracy, etc.).
+	Category string `json:"category,omitempty"`
+
+	// Framework is the eval framework (promptfoo, deepeval, etc.).
+	Framework string `json:"framework,omitempty"`
+
+	// Relevance explains why this scenario is impacted.
+	Relevance string `json:"relevance"`
+
+	// ImpactConfidence describes mapping confidence.
+	ImpactConfidence Confidence `json:"impactConfidence"`
+
+	// CoversSurfaces lists the changed surface IDs this scenario validates.
+	CoversSurfaces []string `json:"coversSurfaces,omitempty"`
+}
+
 // ProtectionGap identifies where changed code lacks adequate coverage.
 type ProtectionGap struct {
 	// GapType describes the kind of protection gap.
@@ -275,6 +300,9 @@ type ImpactResult struct {
 
 	// ImpactedTests lists tests relevant to the change.
 	ImpactedTests []ImpactedTest `json:"impactedTests,omitempty"`
+
+	// ImpactedScenarios lists AI/eval scenarios whose covered surfaces were changed.
+	ImpactedScenarios []ImpactedScenario `json:"impactedScenarios,omitempty"`
 
 	// ProtectionGaps identifies coverage gaps in the changed area.
 	ProtectionGaps []ProtectionGap `json:"protectionGaps,omitempty"`
@@ -436,6 +464,9 @@ func analyzeFromScope(scope *ChangeScope, snap *models.TestSuiteSnapshot) *Impac
 
 	// Find impacted tests (using graph when available).
 	result.ImpactedTests = findImpactedTests(scope, snap, result.ImpactedUnits)
+
+	// Find impacted scenarios (prompt/dataset → scenario path).
+	result.ImpactedScenarios = findImpactedScenarios(result.ChangedAreas, snap)
 
 	// Identify protection gaps (enhanced with coverage diversity).
 	result.ProtectionGaps = findProtectionGaps(result.ImpactedUnits, result.ImpactedTests, snap)

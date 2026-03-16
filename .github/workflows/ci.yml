@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main]
   pull_request:
-    branches: [main, develop]
+    branches: [main]
 
 permissions:
   contents: read
@@ -82,6 +82,21 @@ jobs:
             echo "--- fixture: $fixture ---"
             ./terrain analyze --root "tests/fixtures/$fixture" --json > /dev/null
           done
+
+      - name: Benchmark smoke tests (4 canonical commands)
+        run: |
+          echo "=== benchmark: sample-repo ==="
+          ./terrain analyze --root tests/fixtures/sample-repo --json | python3 -c "import sys,json; d=json.load(sys.stdin); assert d['testsDetected']['testFileCount'] > 0, 'analyze: no test files'"
+          ./terrain insights --root tests/fixtures/sample-repo --json | python3 -c "import sys,json; d=json.load(sys.stdin); assert 'healthGrade' in d, 'insights: no health grade'"
+
+          echo "=== benchmark: ai-eval-suite ==="
+          ./terrain analyze --root tests/fixtures/ai-eval-suite --json | python3 -c "import sys,json; d=json.load(sys.stdin); assert d['testsDetected']['testFileCount'] > 0, 'analyze: no test files'"
+          ./terrain ai list --root tests/fixtures/ai-eval-suite --json | python3 -c "import sys,json; d=json.load(sys.stdin); assert d['summary']['scenarioCount'] > 0, 'ai list: no scenarios'"
+
+          echo "=== benchmark: backend-api ==="
+          ./terrain analyze --root tests/fixtures/backend-api --json | python3 -c "import sys,json; d=json.load(sys.stdin); assert len(d.get('riskPosture',[])) == 5, 'analyze: expected 5 posture dimensions'"
+
+          echo "All benchmark smoke tests passed."
 
   # ── Go benchmark comparison (PRs only) ──────────────────────
   go-bench-compare:

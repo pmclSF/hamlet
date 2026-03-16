@@ -40,12 +40,24 @@ func RenderAnalyzeReportV2(w io.Writer, r *analyze.Report) {
 	}
 	blank()
 
-	// Tests detected
-	line("Tests Detected")
+	// Validation inventory
+	line("Validation Inventory")
 	line(strings.Repeat("-", 60))
 	line("  Test files:     %d", r.TestsDetected.TestFileCount)
 	line("  Test cases:     %d", r.TestsDetected.TestCaseCount)
 	line("  Code units:     %d", r.TestsDetected.CodeUnitCount)
+	if r.TestsDetected.CodeSurfaceCount > 0 {
+		line("  Code surfaces:  %d", r.TestsDetected.CodeSurfaceCount)
+	}
+	if r.TestsDetected.ScenarioCount > 0 {
+		line("  Scenarios:      %d", r.TestsDetected.ScenarioCount)
+	}
+	if r.TestsDetected.PromptCount > 0 {
+		line("  Prompts:        %d", r.TestsDetected.PromptCount)
+	}
+	if r.TestsDetected.DatasetCount > 0 {
+		line("  Datasets:       %d", r.TestsDetected.DatasetCount)
+	}
 	if len(r.TestsDetected.Frameworks) > 0 {
 		line("  Frameworks:")
 		for _, fw := range r.TestsDetected.Frameworks {
@@ -200,10 +212,10 @@ func RenderAnalyzeReportV2(w io.Writer, r *analyze.Report) {
 		blank()
 	}
 
-	// Stability clusters
+	// Stability hints
 	if r.StabilityClusters != nil && len(r.StabilityClusters.Clusters) > 0 {
 		sc := r.StabilityClusters
-		line("Stability Clusters")
+		line("Stability")
 		line(strings.Repeat("-", 60))
 		line("  Unstable tests:  %d (%d clustered around shared dependencies)", sc.UnstableTestCount, sc.ClusteredTestCount)
 		limit := 5
@@ -218,6 +230,19 @@ func RenderAnalyzeReportV2(w io.Writer, r *analyze.Report) {
 		if len(sc.Clusters) > 5 {
 			line("  ... and %d more cluster(s)", len(sc.Clusters)-5)
 		}
+		blank()
+	} else if r.SkippedTestBurden.SkippedCount > 0 {
+		// When we have skip data but no clusters, show skip-based stability hint.
+		line("Stability")
+		line(strings.Repeat("-", 60))
+		line("  %d skipped test(s) detected. Skipped tests may mask instability.", r.SkippedTestBurden.SkippedCount)
+		line("  Provide --runtime artifacts to unlock flaky/slow test detection and root-cause clustering.")
+		blank()
+	} else if !hasDataSource(r.DataCompleteness, "runtime") {
+		line("Stability")
+		line(strings.Repeat("-", 60))
+		line("  No runtime data provided. Provide --runtime (JUnit XML or Jest JSON)")
+		line("  to unlock: flaky test detection, slow test flagging, stability clustering.")
 		blank()
 	}
 
@@ -338,4 +363,14 @@ func pct(n, total int) int {
 		return 0
 	}
 	return 100 * n / total
+}
+
+// hasDataSource returns true if a data source with the given name is available.
+func hasDataSource(sources []analyze.DataSource, name string) bool {
+	for _, ds := range sources {
+		if ds.Name == name && ds.Available {
+			return true
+		}
+	}
+	return false
 }

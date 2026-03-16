@@ -43,6 +43,7 @@ func Build(snap *models.TestSuiteSnapshot) *Graph {
 	buildDeviceConfigs(g, snap)
 	buildEnvironmentEdges(g, snap)
 
+	g.Seal() // Enable query caching — graph is now read-only.
 	return g
 }
 
@@ -489,12 +490,11 @@ func buildManualCoverage(g *Graph, snap *models.TestSuiteSnapshot) {
 	}
 }
 
-// resolveAreaToGraphNodes matches an area string against packages, services,
-// and behavior surfaces in the graph. When a match is found, an
+// resolveAreaToGraphNodes matches an area string against behavior surfaces
+// and code surfaces in the graph. When a match is found, an
 // EdgeManualCovers edge is created with confidence based on match specificity.
 func resolveAreaToGraphNodes(g *Graph, artifactID, area string) {
-	// Attachable node types: packages, services, behavior surfaces, code surfaces.
-	attachableTypes := []NodeType{NodePackage, NodeService, NodeBehaviorSurface, NodeCodeSurface}
+	attachableTypes := []NodeType{NodeBehaviorSurface, NodeCodeSurface}
 
 	// Strip trailing wildcard for prefix matching.
 	prefix := area

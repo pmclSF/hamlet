@@ -46,8 +46,8 @@ Each layer adds depth without requiring the previous one. Users can enter at any
 ### Not Yet Available
 
 - **Hosted benchmarking.** Benchmark exports are local JSON files. Cross-repository comparison requires manual aggregation. A hosted service for anonymous comparison is planned but not built.
-- **CI plugin.** No native GitHub Action, GitLab CI template, or Jenkins plugin. Users integrate via raw CLI commands in their pipeline scripts.
-- **IDE extension.** The VS Code extension concept exists in design docs but is not implemented. No inline annotations, no editor integration.
+- **CI plugin.** A GitHub Actions composite action exists at `.github/actions/terrain-impact/` (builds Go binary, runs impact analysis, posts PR comments, uploads artifacts). GitLab CI and Jenkins do not have native integrations — users integrate via raw CLI commands.
+- **IDE extension.** A VS Code extension exists at `extension/vscode/` with complete TypeScript source (views, signal rendering, snapshot types). It has not been compiled or published — `npm run compile` is required to build it. No marketplace listing exists.
 
 ### Thin but Functional
 

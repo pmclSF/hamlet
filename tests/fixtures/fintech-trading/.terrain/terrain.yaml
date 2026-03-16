@@ -1,0 +1,26 @@
+scenarios:
+  - name: risk-accuracy
+    category: accuracy
+    framework: custom
+    owner: quant-team
+    surfaces: ["surface:src/risk/model.ts:predictRisk","surface:src/risk/model.ts:classifyAsset"]
+    path: tests/eval/risk-model/risk-accuracy.test.ts
+  - name: risk-safety
+    category: safety
+    framework: custom
+    owner: quant-team
+    surfaces: ["surface:src/risk/prompt.ts:buildSafetyPrompt","surface:src/risk/prompt.ts:riskSystemPrompt"]
+    path: tests/eval/safety/risk-safety.test.ts
+  - name: safety-regression
+    category: safety
+    framework: custom
+    owner: quant-team
+    surfaces: ["surface:src/risk/prompt.ts:buildSafetyPrompt","surface:src/risk/prompt.ts:riskSystemPrompt"]
+    path: tests/eval/safety/safety-regression.test.ts
+manual_coverage:
+  - name: alerts-manual
+    area: src/alerts
+    source: checklist
+    owner: ops-team
+    criticality: high
+    frequency: per-release

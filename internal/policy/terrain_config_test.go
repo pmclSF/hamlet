@@ -164,3 +164,97 @@ func TestManualArtifactID_Deterministic(t *testing.T) {
 		t.Error("different sources should produce different IDs")
 	}
 }
+
+func TestToScenarios(t *testing.T) {
+	t.Parallel()
+	cfg := &TerrainConfig{
+		Scenarios: []ScenarioEntry{
+			{
+				Name:      "safety-check",
+				Category:  "safety",
+				Framework: "promptfoo",
+				Owner:     "ml-team",
+				Surfaces:  []string{"surface:prompts.ts:system"},
+				Path:      "evals/safety.yaml",
+			},
+			{
+				Name:     "accuracy-test",
+				Category: "accuracy",
+				Surfaces: []string{"surface:model.py:predict"},
+			},
+			{Name: ""}, // empty name — should be skipped
+		},
+	}
+
+	scenarios := cfg.ToScenarios()
+	if len(scenarios) != 2 {
+		t.Fatalf("expected 2 scenarios (skip empty name), got %d", len(scenarios))
+	}
+
+	sc := scenarios[0]
+	if sc.Name != "safety-check" {
+		t.Errorf("name = %s, want safety-check", sc.Name)
+	}
+	if sc.Category != "safety" {
+		t.Errorf("category = %s, want safety", sc.Category)
+	}
+	if sc.Framework != "promptfoo" {
+		t.Errorf("framework = %s, want promptfoo", sc.Framework)
+	}
+	if sc.Owner != "ml-team" {
+		t.Errorf("owner = %s, want ml-team", sc.Owner)
+	}
+	if len(sc.CoveredSurfaceIDs) != 1 {
+		t.Errorf("surfaces = %d, want 1", len(sc.CoveredSurfaceIDs))
+	}
+	if sc.ScenarioID == "" {
+		t.Error("expected non-empty scenario ID")
+	}
+
+	// Second scenario should default framework to "custom".
+	if scenarios[1].Framework != "custom" {
+		t.Errorf("default framework = %s, want custom", scenarios[1].Framework)
+	}
+}
+
+func TestToScenarios_Nil(t *testing.T) {
+	t.Parallel()
+	var cfg *TerrainConfig
+	scenarios := cfg.ToScenarios()
+	if len(scenarios) != 0 {
+		t.Errorf("expected 0 scenarios for nil config, got %d", len(scenarios))
+	}
+}
+
+func TestLoadTerrainConfig_FromDotTerrainDir(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	dir := filepath.Join(root, ".terrain")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	content := `
+scenarios:
+  - name: test-scenario
+    category: regression
+    surfaces:
+      - "surface:model.py:predict"
+`
+	if err := os.WriteFile(filepath.Join(dir, "terrain.yaml"), []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := LoadTerrainConfig(root)
+	if err != nil {
+		t.Fatalf("load error: %v", err)
+	}
+	if cfg == nil {
+		t.Fatal("expected non-nil config")
+	}
+	if len(cfg.Scenarios) != 1 {
+		t.Fatalf("expected 1 scenario, got %d", len(cfg.Scenarios))
+	}
+	if cfg.Scenarios[0].Name != "test-scenario" {
+		t.Errorf("name = %s, want test-scenario", cfg.Scenarios[0].Name)
+	}
+}

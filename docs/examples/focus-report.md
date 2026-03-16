@@ -1,8 +1,46 @@
-# Example: `terrain posture` Output
+# Example: `terrain focus` and `terrain posture` Output
 
-This document shows representative output from `terrain posture` (the detailed posture breakdown with measurement evidence) run against a repository with E2E-heavy test distribution and limited unit test coverage.
+## `terrain focus` — Prioritized Next Actions
 
-## Terminal Output
+```
+Terrain Focus
+
+Now: Address quality risk in src/auth; reduce untestedExport findings.
+
+Top Risk Areas
+  1. src/auth (high)
+     risk: quality (7 signal(s))
+  2. src/api (medium)
+     risk: quality (3 signal(s))
+  3. src/models (medium)
+     risk: quality (3 signal(s))
+
+Recommended Actions
+  1. Reduce quality findings in src/auth (7 signals)
+     why: High risk band with weak-confidence evidence
+     where: src/auth
+  2. Reduce quality findings in src/api (3 signals)
+     why: Medium risk band with weak-confidence evidence
+     where: src/api
+  3. Reduce quality findings in src/models (3 signals)
+     why: Medium risk band with weak-confidence evidence
+     where: src/models
+
+Next steps:
+  terrain posture       evidence behind each dimension
+  terrain analyze       full signal-level detail
+  terrain explain <test-path>   understand why
+```
+
+`terrain focus` surfaces the single most impactful action ("Now" line) and lists risk areas with recommended actions sorted by severity. It is designed for quick triage — "where should I look first?"
+
+---
+
+## `terrain posture` — Measurement Evidence
+
+This section shows representative output from `terrain posture` (the detailed posture breakdown with measurement evidence) run against a repository with E2E-heavy test distribution and limited unit test coverage.
+
+### Terminal Output
 
 ```
 Terrain Posture Report
@@ -121,13 +159,13 @@ Next steps:
   terrain posture --json   machine-readable posture data
 ```
 
-## Section Annotations
+### Section Annotations
 
-### Dimension Headers
+#### Dimension Headers
 
 Each dimension is displayed in uppercase with its resolved posture band and a one-line explanation. The "driving measurements" line identifies which specific measurements determined the dimension's band. For example, coverage depth is WEAK because `coverage_depth.uncovered_exports` scored in the weak band.
 
-### Measurement Rows
+#### Measurement Rows
 
 Each measurement shows:
 
@@ -136,16 +174,16 @@ Each measurement shows:
 - **Explanation**: A sentence describing the finding in concrete terms -- counts, percentages, and what was measured.
 - **Limitations** (marked with `*`): Stated constraints on the measurement. These appear when evidence is partial or weak, explaining what additional data would improve confidence.
 
-### Reading the Evidence
+#### Reading the Evidence
 
 In this example, the health dimension is STRONG but two of its four measurements have weak evidence (flaky share and slow test share) because no runtime artifacts were provided. The measurements show 0% for both, but the limitations note that this is based on code-level heuristics only. Providing `--runtime` with JUnit XML or Jest JSON would give high-confidence runtime-backed signals.
 
 Coverage depth is WEAK with partial evidence on uncovered exports. The 35.7% ratio is computed from heuristic test linkage, and the limitation explicitly states that "some coverage may exist but not be detected." This is an honest assessment -- the finding is likely directionally correct but the exact number may improve with coverage artifact ingestion.
 
-### Dimensions Without Issues
+#### Dimensions Without Issues
 
 Structural risk and operational risk are both STRONG with strong evidence across all measurements. When a dimension has no issues, the output is compact -- just the measurements with their zero values. This keeps the report scannable: problem areas get detail, clean areas get confirmation.
 
-### Unknown Bands
+#### Unknown Bands
 
 Coverage diversity shows two measurements with `[unknown]` bands and `none` evidence. These are coverage-by-type measurements that require labeled coverage artifacts to compute. Rather than guessing or omitting them, Terrain shows them explicitly with a remediation hint. This transparency helps users understand what additional data would unlock.

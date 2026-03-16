@@ -1,0 +1,27 @@
+scenarios:
+  - name: classifier-accuracy
+    category: accuracy
+    framework: custom
+    owner: ml-team
+    surfaces:
+      - "surface:src/models/classifier.py:classify"
+      - "surface:src/models/classifier.py:batch_classify"
+    path: tests/eval/test_classifier_accuracy.py
+
+  - name: embeddings-similarity
+    category: quality
+    framework: custom
+    owner: ml-team
+    surfaces:
+      - "surface:src/models/embeddings.py:embed"
+      - "surface:src/models/embeddings.py:similarity"
+    path: tests/eval/test_embeddings_similarity.py
+
+  - name: dataset-integrity
+    category: regression
+    framework: custom
+    owner: data-team
+    surfaces:
+      - "surface:src/eval/dataset.py:load_eval_dataset"
+      - "surface:src/eval/dataset.py:split_dataset"
+    path: tests/eval/test_regression.py

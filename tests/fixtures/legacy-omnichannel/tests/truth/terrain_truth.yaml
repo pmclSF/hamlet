@@ -1,0 +1,67 @@
+impact:
+  description: "Change impact should trace through mixed JS/TS dependency graph"
+  cases:
+    - change: "src/checkout/checkout.ts"
+      expected_impacted_tests:
+        - "tests/unit/checkout/checkout.test.ts"
+        - "tests/unit/checkout/checkout-v2.test.ts"
+        - "tests/integration/checkout/checkout-flow.test.ts"
+        - "tests/e2e/checkout/full-checkout.test.ts"
+        - "tests/e2e/checkout/express-checkout.test.ts"
+      notes: "Checkout changes cascade to unit, integration, and e2e"
+
+    - change: "src/recommendations/prompt.ts"
+      expected_impacted_tests:
+        - "tests/eval/safety/prompt-safety.test.ts"
+        - "tests/eval/safety/safety-regression.test.ts"
+      expected_impacted_scenarios:
+        - "recommendation-safety"
+        - "safety-regression"
+      notes: "Prompt changes reach eval tests and scenarios"
+
+    - change: "src/fraud/detector.ts"
+      expected_impacted_tests:
+        - "tests/unit/fraud/detector.test.ts"
+        - "tests/integration/fraud/fraud-screening.test.ts"
+        - "tests/integration/checkout/checkout-flow.test.ts"
+        - "tests/e2e/checkout/full-checkout.test.ts"
+        - "tests/e2e/checkout/express-checkout.test.ts"
+      notes: "Fraud detector imported by unit, integration, and e2e tests"
+
+coverage:
+  description: "Coverage should identify uncovered source files"
+  expected_uncovered:
+    - path: "src/mobile/app.ts"
+      reason: "No automated tests for mobile module"
+    - path: "src/refunds/refund.ts"
+      reason: "No automated tests for refunds module"
+
+redundancy:
+  description: "Redundancy detection should find overlapping eval clusters"
+  expected_clusters:
+    - tests:
+        - "tests/eval/safety/prompt-safety.test.ts"
+        - "tests/eval/safety/safety-regression.test.ts"
+      reason: "Overlapping safety eval files exercising same behavior surfaces"
+
+fanout:
+  description: "Fanout should flag shared helper"
+  expected_flagged:
+    - node: "src/shared/db-helper.ts"
+      expected_min_dependents: 3
+      reason: "Shared DB helper imported by integration and e2e tests"
+
+ai:
+  description: "AI scenario and surface detection"
+  expected_scenarios: 3
+  expected_prompt_surfaces:
+    - "src/recommendations/prompt.ts:merchandisingPrompt"
+    - "src/recommendations/prompt.ts:buildRecommendationPrompt"
+    - "src/recommendations/prompt.ts:buildSafetyPrompt"
+  expected_dataset_surfaces:
+    - "src/recommendations/dataset.ts:productDataset"
+    - "src/recommendations/dataset.ts:loadProductDataset"
+
+environment:
+  description: "No environment classes declared"
+  notes: "Legacy commerce fixture focuses on migration patterns, not environment matrix."

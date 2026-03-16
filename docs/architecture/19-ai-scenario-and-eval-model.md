@@ -1,16 +1,85 @@
 # AI Scenario and Evaluation Model
 
-> **Status:** Partially Implemented (Scenario model and graph integration implemented; eval suite inference planned)
+> **Status:** Implemented (graph model, reasoning path, CLI namespace, prompt/dataset inference; eval execution planned)
 > **Purpose:** Define how Terrain models AI/ML evaluation suites, behavioral scenarios, and model validation as part of the test terrain — treating evals as first-class validation alongside traditional tests.
 > **Key decisions:**
 > - Evaluation suites are first-class validation in the graph, not a separate analysis domain
 > - Behavior scenarios are derived coverage targets, analogous to how source files are coverage targets for traditional tests
 > - Model version is metadata on eval nodes, not a separate identity dimension — the graph models the test system, not the model lifecycle
-> - Inference detects eval frameworks from config files and directory conventions (zero-config principle)
+> - Prompt and dataset surfaces are inferred from code via naming conventions (zero-config principle)
 > - Conservative under uncertainty: unknown eval frameworks are flagged but not force-classified
 > - Scenarios implement `ValidationTarget` — the shared interface that unifies tests, scenarios, and manual coverage artifacts (see `internal/models/validation_target.go`)
+> - `terrain ai` CLI namespace provides list, run, record, baseline, and doctor commands
 
-**See also:** [02-graph-schema.md](02-graph-schema.md), [16-unified-graph-schema.md](16-unified-graph-schema.md), [12-risk-and-coverage-taxonomy.md](12-risk-and-coverage-taxonomy.md)
+**See also:** [02-graph-schema.md](02-graph-schema.md), [16-unified-graph-schema.md](16-unified-graph-schema.md), [12-risk-and-coverage-taxonomy.md](12-risk-and-coverage-taxonomy.md), [behavior-inference.md](behavior-inference.md)
+
+## Implemented: Graph Model, Reasoning Path, and CLI
+
+### Graph Nodes
+
+Five node types support AI validation in the dependency graph:
+
+| Node Type | Family | Status | Purpose |
+|-----------|--------|--------|---------|
+| `Scenario` | Validation | Active (via `buildScenarios`) | Behavioral or eval scenario |
+| `Prompt` | Environment | Reserved | AI prompt template |
+| `Dataset` | Environment | Reserved | ML/AI dataset resource |
+| `Model` | Environment | Reserved | ML/AI model resource |
+| `EvalMetric` | Environment | Reserved | Evaluation metric |
+
+Scenario nodes implement `ValidationTarget` and participate in all validation queries (`ValidationTargets()`, `ValidationsForSurface()`).
+
+### Reasoning Path
+
+The full AI validation reasoning path traverses five graph families:
+
+```
+CodeSurface → BehaviorSurface → Scenario → Environment → ExecutionRun
+  (system)      (behavior)      (validation)  (environment)  (execution)
+```
+
+**Edges in this path:**
+
+| From | To | Edge Type | Confidence |
+|------|-----|-----------|-----------|
+| BehaviorSurface | CodeSurface | `behavior_derived_from` | 0.7 (inferred) |
+| Scenario | CodeSurface | `covers_code_surface` | 0.8 (inferred) |
+| Scenario | Environment | `targets_environment` | 0.8 (convention) |
+| ExecutionRun | Scenario | `execution_runs_test` | 1.0 (execution) |
+
+This path enables end-to-end explanation traces: a change to a prompt function surfaces the scenarios that validate it, the environments they run in, and the execution history.
+
+### Code Surface Inference
+
+Prompt and dataset code surfaces are inferred automatically from source code via naming conventions:
+
+| Surface Kind | Detection Pattern (JS/TS) | Detection Pattern (Python) |
+|-------------|---------------------------|---------------------------|
+| `prompt` | Exports matching `*Prompt*`, `*Template*`, `*PROMPT*` | Functions matching `*prompt*`, `*template*` |
+| `dataset` | Exports matching `*Dataset*`, `*Dataloader*`, `*TrainingData*`, `*EvalData*` | Functions matching `*dataset*`, `*dataloader*`, `*training_data*`, `*eval_data*` |
+
+These surfaces participate in BehaviorSurface grouping and can be linked to Scenarios via `CoveredSurfaceIDs`.
+
+### CLI Namespace: `terrain ai`
+
+| Command | Status | Purpose |
+|---------|--------|---------|
+| `terrain ai list` | Implemented | List detected scenarios, prompt surfaces, dataset surfaces, and eval files |
+| `terrain ai doctor` | Implemented | Validate AI/eval setup: check for scenarios, prompts, datasets, eval files, graph wiring |
+| `terrain ai run` | Scaffolded | Execute eval scenarios and collect results |
+| `terrain ai record` | Scaffolded | Record eval run results as a baseline snapshot |
+| `terrain ai baseline` | Scaffolded | Manage eval baselines (show, compare, promote) |
+
+`terrain ai list` supports `--json` for machine-readable output. `terrain ai doctor` runs 5 diagnostic checks and reports pass/warn status for each.
+
+### Test Coverage
+
+- `TestAIReasoningPath` (depgraph/build_inference_test.go) — verifies the full CodeSurface → BehaviorSurface → Scenario → Environment path
+- `TestBuild_Scenarios` (depgraph/graph_test.go) — verifies scenario node creation, metadata, and edge wiring
+- `TestBuildEnvironmentEdges_ScenarioToEnvironment` — verifies scenario-to-environment edges
+- `TestIsEvalPath`, `TestRunAI*` (cmd/terrain/main_test.go) — CLI command tests
+
+---
 
 ## Problem
 

@@ -380,3 +380,89 @@ func TestAnalyzeImpact_ReasonChain(t *testing.T) {
 		}
 	}
 }
+
+// --- Determinism tests for parallelized operations ---
+
+func TestDetectDuplicates_Deterministic(t *testing.T) {
+	t.Parallel()
+	g := buildTestGraph()
+
+	r1 := DetectDuplicates(g)
+	r2 := DetectDuplicates(g)
+
+	if r1.TestsAnalyzed != r2.TestsAnalyzed {
+		t.Fatalf("non-deterministic: tests analyzed %d vs %d", r1.TestsAnalyzed, r2.TestsAnalyzed)
+	}
+	if len(r1.Clusters) != len(r2.Clusters) {
+		t.Fatalf("non-deterministic: clusters %d vs %d", len(r1.Clusters), len(r2.Clusters))
+	}
+	for i := range r1.Clusters {
+		if r1.Clusters[i].Similarity != r2.Clusters[i].Similarity {
+			t.Errorf("non-deterministic similarity at cluster %d: %f vs %f",
+				i, r1.Clusters[i].Similarity, r2.Clusters[i].Similarity)
+		}
+	}
+}
+
+func TestAnalyzeCoverage_Deterministic(t *testing.T) {
+	t.Parallel()
+	g := buildTestGraph()
+
+	r1 := AnalyzeCoverage(g)
+	r2 := AnalyzeCoverage(g)
+
+	if r1.SourceCount != r2.SourceCount {
+		t.Fatalf("non-deterministic source count: %d vs %d", r1.SourceCount, r2.SourceCount)
+	}
+	for i := range r1.Sources {
+		if r1.Sources[i].SourceID != r2.Sources[i].SourceID {
+			t.Errorf("non-deterministic source ordering at %d: %s vs %s",
+				i, r1.Sources[i].SourceID, r2.Sources[i].SourceID)
+		}
+		if r1.Sources[i].TestCount != r2.Sources[i].TestCount {
+			t.Errorf("non-deterministic test count for %s: %d vs %d",
+				r1.Sources[i].SourceID, r1.Sources[i].TestCount, r2.Sources[i].TestCount)
+		}
+	}
+}
+
+func TestAnalyzeImpact_Deterministic(t *testing.T) {
+	t.Parallel()
+	g := buildTestGraph()
+	changed := []string{"src/auth.js"}
+
+	r1 := AnalyzeImpact(g, changed)
+	r2 := AnalyzeImpact(g, changed)
+
+	if len(r1.Tests) != len(r2.Tests) {
+		t.Fatalf("non-deterministic test count: %d vs %d", len(r1.Tests), len(r2.Tests))
+	}
+	for i := range r1.Tests {
+		if r1.Tests[i].TestID != r2.Tests[i].TestID {
+			t.Errorf("non-deterministic test ordering at %d: %s vs %s",
+				i, r1.Tests[i].TestID, r2.Tests[i].TestID)
+		}
+		if r1.Tests[i].Confidence != r2.Tests[i].Confidence {
+			t.Errorf("non-deterministic confidence for %s: %f vs %f",
+				r1.Tests[i].TestID, r1.Tests[i].Confidence, r2.Tests[i].Confidence)
+		}
+	}
+}
+
+func TestAnalyzeFanout_Deterministic(t *testing.T) {
+	t.Parallel()
+	g := buildTestGraph()
+
+	r1 := AnalyzeFanout(g, DefaultFanoutThreshold)
+	r2 := AnalyzeFanout(g, DefaultFanoutThreshold)
+
+	if r1.NodeCount != r2.NodeCount {
+		t.Fatalf("non-deterministic node count: %d vs %d", r1.NodeCount, r2.NodeCount)
+	}
+	for i := range r1.Entries {
+		if r1.Entries[i].NodeID != r2.Entries[i].NodeID {
+			t.Errorf("non-deterministic fanout ordering at %d: %s vs %s",
+				i, r1.Entries[i].NodeID, r2.Entries[i].NodeID)
+		}
+	}
+}

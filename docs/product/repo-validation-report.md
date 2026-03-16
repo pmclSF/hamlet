@@ -1,255 +1,247 @@
 # Repository Validation Report
 
-> **Date:** 2026-03-14
-> **Scope:** Full repository validation against the Terrain Product Manifesto (MASTER_PLAN.md, terrain-overview.md, canonical-user-journeys.md)
+> **Date:** 2026-03-15
+> **Scope:** Full repository audit against the Terrain Product Manifesto (terrain-overview.md, canonical-user-journeys.md, positioning.md, launch-narrative.md, lovable-release-goals.md, lovable-release-audit.md, posture-model.md, feature-matrix.md, first-run-story.md, wow-moments.md)
 > **Constraint:** No new product scope introduced. Fixes limited to critical misalignments.
 
 ## Executive Summary
 
-The repository is **well-aligned** with the Terrain product definition. All core systems are fully implemented, not stubbed. The four canonical journeys are the product front door across CLI, docs, and CI. Naming is consistent. The signal pipeline, dependency graph, reasoning engine, and scoring system all implement the architecture described in the manifesto.
+The repository is **well-aligned** with the product definition at the architectural level. The four canonical journeys, signal pipeline, dependency graph, measurement framework, and scoring system all implement what the manifesto describes. However, this audit found **6 concrete discrepancies** between documentation claims and implementation reality, **5 orphaned Go packages** totaling ~4,900 lines of dead code, and **3 internal contradictions** across product documents.
 
-**Verdict: Production-ready.** Two minor documentation inconsistencies were fixed during this validation. No architectural drift or missing critical pieces were found.
-
----
-
-## 1. CLI Commands
-
-**Status: Fully Aligned**
-
-| Manifesto Claim | Implementation | Status |
-|---|---|---|
-| 4 canonical commands (analyze, insights, impact, explain) | All 4 implemented with real handler functions | Aligned |
-| Supporting commands (summary, focus, posture, portfolio, metrics, compare, migration, policy, select-tests, pr, show, export benchmark) | All 13 implemented | Aligned |
-| Debug commands (graph, coverage, fanout, duplicates, depgraph) | All 5 implemented + backward-compat `depgraph` alias | Aligned |
-| `terrain init` for onboarding | Implemented — detects coverage/runtime artifacts, prints recommended command | Aligned |
-| Exit codes: 0 (clean), 1 (error), 2 (policy violation) | Correctly implemented in `policy check` | Aligned |
-
-**Total: 27 commands + 1 backward-compat alias. Zero stubs. Zero TODO/FIXME/HACK comments.**
-
-All flags documented in `docs/cli-spec.md` are implemented. All example outputs in `docs/examples/` match actual CLI output format. All demo walkthrough commands in `docs/demo.md` execute correctly.
+**Verdict: Architecturally sound. Documentation has drift that should be corrected before release.**
 
 ---
 
-## 2. Graph Schema
+## 1. Aligned Areas
 
-**Status: Fully Aligned**
+These areas match the manifesto exactly. No discrepancies found.
 
-| Manifesto Claim | Implementation | Status |
+### Signal Pipeline
+
+| Claim | Actual | Status |
 |---|---|---|
-| Typed dependency graph | 40+ node types across 6 families (System, Validation, Behavior, Environment, Execution, Governance) | Aligned |
-| Confidence-aware edges | 19+ edge types, each carrying confidence (0.0-1.0) and evidence type | Aligned |
-| 10-stage deterministic build | Build() constructs graph in fixed order: test structure, imports, source-to-source, code surfaces, behavior surfaces, scenarios, manual coverage, environments, environment classes, device configs | Aligned |
-| Coverage analysis | Reverse-graph traversal with 3 indirect pathways (helper, fixture, transitive) | Aligned |
-| Fanout analysis | Reverse-topological traversal with cycle detection, Kahn's algorithm | Aligned |
-| Duplicate detection | Fingerprinting + blocking keys + union-find clustering, 0.60 threshold | Aligned |
-| Scale guards | >150k nodes: skip transitive fanout. >25k tests: skip duplicates | Aligned |
-
----
-
-## 3. Reasoning Engine
-
-**Status: Fully Aligned**
-
-| Manifesto Claim | Implementation | Status |
-|---|---|---|
-| Evidence chains for every finding | ExplainTest() and ExplainSelection() produce real reason chains | Aligned |
-| Confidence decay model | BFS with edge confidence x length decay (0.85^depth) / log2(fanout+1) penalty | Aligned |
-| Impact analysis traces changed files to affected tests | AnalyzeImpact() traverses reverse edges from changed files to test nodes | Aligned |
-| `terrain explain` traces decisions to source | Real entity detection (test, code unit, owner, finding) with structured explanations | Aligned |
-| 3-layer impact graph | Layer 1: exact per-test coverage, Layer 2: bucket-level coverage, Layer 3: structural heuristics | Aligned |
-
----
-
-## 4. Signal Pipeline
-
-**Status: Fully Aligned**
-
-| Manifesto Claim | Implementation | Status |
-|---|---|---|
-| Signal-first architecture | All 22 signal types defined in `internal/signals/signal_types.go` | Aligned |
-| Health signals (5) | slowTest, flakyTest, skippedTest, deadTest, unstableSuite | Aligned |
-| Quality signals (6) | untestedExport, weakAssertion, mockHeavyTest, testsOnlyMocks, snapshotHeavyTest, coverageBlindSpot | Aligned |
-| Coverage signals (1) | coverageThresholdBreak | Aligned |
-| Migration signals (5) | frameworkMigration, migrationBlocker, deprecatedTestPattern, dynamicTestGeneration, customMatcherRisk | Aligned |
-| Governance signals (4) | policyViolation, legacyFrameworkUsage, skippedTestsInCI, runtimeBudgetExceeded | Aligned |
-| Additional signal: unsupportedSetup | Present in registry (migration category) | Aligned |
+| 22 signal types across 4 categories | 22 types: Health (5), Quality (6+1 coverage), Migration (5+1 unsupportedSetup), Governance (4) | Aligned |
+| Typed, located, severity-scored, confidence-weighted | Signal struct includes all fields | Aligned |
+| Evidence strength grading (strong/partial/weak/none) | Implemented in models/signal.go | Aligned |
 | 17+ real detector implementations | All detectors contain real logic, no stubs | Aligned |
-| Detector dependency ordering | Governance detectors run after quality/migration (depends on their output) | Aligned |
 
-**Note:** terrain-overview.md states "22 signal types." The registry contains exactly 22. Aligned.
+### CLI Commands
 
----
-
-## 5. Risk Scoring
-
-**Status: Fully Aligned**
-
-| Manifesto Claim | Implementation | Status |
+| Claim | Actual | Status |
 |---|---|---|
-| Four risk dimensions | Reliability, Change, Speed, Governance — all computed | Aligned |
-| Severity-weighted scoring | Explicit weights: Critical=4, High=3, Medium=2, Low=1, Info=0.5 | Aligned |
-| Five posture dimensions | Health, Coverage Depth, Coverage Diversity, Structural Risk, Operational Risk | Aligned |
-| Evidence-graded posture | Strong/partial/weak/none evidence grading per dimension | Aligned |
-| Posture bands | strong/moderate/weak/critical | Aligned |
+| 4 canonical commands (analyze, insights, impact, explain) | All 4 fully implemented | Aligned |
+| 13 supporting commands | All implemented: summary, focus, posture, portfolio, metrics, compare, migration, policy, select-tests, pr, show, export, init | Aligned |
+| 5 debug commands + backward-compat depgraph alias | All implemented | Aligned |
+| Exit codes: 0/1/2 | Correctly implemented | Aligned |
+| `--json` flag on all commands | Implemented | Aligned |
 
----
+### Measurement Framework
 
-## 6. Language & Framework Support
-
-**Status: Fully Aligned**
-
-| Manifesto Claim | Implementation | Status |
+| Claim | Actual | Status |
 |---|---|---|
-| 4 languages | JavaScript/TypeScript, Go, Python, Java | Aligned |
-| 19 test frameworks | Jest, Vitest, Mocha, Jasmine, Playwright, Cypress, Puppeteer, WebdriverIO, TestCafe, Node Test, pytest, unittest, nose2, go-testing, JUnit 4, JUnit 5, TestNG + 2 more | Aligned |
-| Multi-layer framework detection | Config files, imports, fallback — 4 detection layers | Aligned |
-| Coverage artifact ingestion | LCOV, Istanbul JSON | Aligned |
-| Runtime artifact ingestion | JUnit XML, Jest/Vitest JSON | Aligned |
+| 5 posture dimensions | health, coverage_depth, coverage_diversity, structural_risk, operational_risk | Aligned |
+| 18 measurements across 5 dimensions | Exactly 18 implemented | Aligned |
+| 6 policy rule types | All 6 implemented in policy/config.go | Aligned |
 
----
+### Dependency Graph
 
-## 7. Documentation
-
-**Status: Aligned (2 minor fixes applied during validation)**
-
-| Surface | Status | Notes |
+| Claim | Actual | Status |
 |---|---|---|
-| README.md | Aligned | Four canonical journeys are the front door. Inference-first and explainability-first stated explicitly |
-| docs/README.md | Aligned | Links to overview, persona journeys, feature matrix. Start Here section leads with overview |
-| docs/product/terrain-overview.md | Aligned | Comprehensive product summary matching implementation |
-| docs/product/canonical-user-journeys.md | Aligned | All 4 journeys documented with expected outputs |
-| docs/product/positioning.md | Aligned | Design philosophy section added with inference-first and explainability-first |
-| docs/product/feature-matrix.md | Aligned | 6 personas mapped to all capabilities with honest gap tables |
-| docs/architecture/17-persona-journeys.md | Aligned | 6 personas with key concerns, hero moments, workflows, gaps |
-| docs/architecture/00-overview.md | Aligned | Inference-first and explainability-first added to key decisions |
-| docs/examples/*.md | Aligned | All 7 example files use correct terrain commands and output format |
-| docs/demo.md | Aligned | Uses terrain commands throughout, demonstrates all major workflows |
-| docs/release/ | Aligned | Release notes, checklist, and gates all coherent |
-| docs/cli-spec.md | Aligned | All 27 commands documented with correct flags |
-| docs/engineering/copy-and-branding-policy.md | Aligned | Enforces no numbered version references, integrated into CI |
+| In-memory typed graph with confidence-aware edges | Implemented in depgraph/ | Aligned |
+| Coverage, fanout, duplicate engines | All functional | Aligned |
+| BFS traversal with configurable decay | Implemented in impact/ | Aligned |
 
-**Fixes applied during this validation:**
-1. `docs/examples/impact-report.md` line 1: "hamlet impact" renamed to "terrain impact"
-2. `docs/user-guides/pr-impact-workflow.md`: replaced broken `npm install -g terrain-cli` CI example with Go build steps
+### CI Pipeline
 
----
-
-## 8. Benchmark System
-
-**Status: Fully Aligned**
-
-| Manifesto Claim | Implementation | Status |
+| Claim | Actual | Status |
 |---|---|---|
-| Privacy-safe benchmark export | `terrain export benchmark` produces aggregate-only JSON (no file paths or symbols) | Aligned |
-| Public benchmark matrix | 8 real repos across 3 tiers (smoke/full/stress) | Aligned |
-| 14 commands tested per repo | analyze, metrics, portfolio, posture, migration, export, etc. | Aligned |
-| Determinism verification | JSON commands run twice, outputs compared after timestamp normalization | Aligned |
-| Expectations validation | Per-repo YAML files define minimum counts and required posture | Aligned |
-| Summary generation | JSON + markdown reports with timing, posture, framework detection | Aligned |
+| JS tests on Node 22.x/24.x matrix | ci.yml confirms | Aligned |
+| Go tests with race detector | Implemented | Aligned |
+| Golden/snapshot tests | Implemented in cmd/terrain/ | Aligned |
+| Fixture matrix smoke tests | 5+ fixtures verified | Aligned |
+| Benchmark comparison on PRs | benchstat integration present | Aligned |
+| GitHub Actions composite action | .github/actions/terrain-impact/action.yml fully implemented | Aligned |
 
----
+### Release Pipeline
 
-## 9. CI Pipeline
-
-**Status: Fully Aligned**
-
-| Manifesto Claim | Implementation | Status |
+| Claim | Actual | Status |
 |---|---|---|
-| JavaScript tests (Node 22.x, 24.x) | `ci.yml` matrix strategy with format, lint, test | Aligned |
-| Go tests with race detector | `go test ./internal/... ./cmd/... -count=1 -race` | Aligned |
-| Golden/snapshot test verification | `go test ./cmd/terrain/ -run TestSnapshot -count=1 -v` | Aligned |
-| Fixture matrix smoke tests | 5 fixtures verified in CI (high-fanout, weak-coverage, legacy-mixed, ai-eval-suite, skipped-tests) | Aligned |
-| Benchmark comparison on PRs | benchstat base vs head for 5 benchmark functions | Aligned |
-| PR impact analysis | `terrain-pr.yml` runs terrain's own analysis on PRs | Aligned |
-| Copy policy enforcement | `scripts/verify_copy_policy.py` integrated into CI | Aligned |
+| Tag-driven release | release.yml triggers on v* | Aligned |
+| npm publish with provenance | Implemented | Aligned |
+| GoReleaser cross-compilation | 6 targets (linux/darwin/windows x amd64/arm64) | Aligned |
 
----
+### Benchmark System
 
-## 10. Release Pipeline
-
-**Status: Fully Aligned**
-
-| Manifesto Claim | Implementation | Status |
+| Claim | Actual | Status |
 |---|---|---|
-| Tag-driven release | `release.yml` triggers on `v*` tags | Aligned |
-| Version verification | Tag must match `package.json` version | Aligned |
-| Multi-stage gates | format, lint, test, verify-pack | Aligned |
-| npm publication with provenance | `npm publish --provenance` | Aligned |
-| GoReleaser binary distribution | linux/darwin/windows x amd64/arm64 | Aligned |
-| Auto-generated changelog | GoReleaser excludes docs/test/chore/ci commits | Aligned |
+| Privacy-safe export (aggregate only) | Implemented | Aligned |
+| cmd/terrain-bench/ harness | Present with quality assessment scoring | Aligned |
+| Fixture repos covering all personas | 9+ fixture repos in tests/fixtures/ | Aligned |
 
 ---
 
-## Architectural Drift
+## 2. Architectural Drift
 
-**None found.** All implemented systems match the manifesto. Specific checks:
+### 2.1 Framework Count: Claims 19, Actually 17
 
-- No commands in the CLI that aren't in the docs
-- No commands in the docs that aren't in the CLI
-- No signals defined but never emitted
-- No detectors registered but containing stub logic
-- No dead code paths in the pipeline
-- No orphaned configuration files
-- No stale TypeScript build artifacts (dist/ directory was cleaned in a prior pass)
+**Location:** terrain-overview.md line 34, feature-matrix.md
+
+**Claim:** "19 test frameworks across 4 languages"
+
+**Actual:** The Go engine in `internal/analysis/framework_detection.go` detects exactly 17 frameworks:
+- JavaScript/TypeScript (10): jest, vitest, mocha, jasmine, playwright, cypress, puppeteer, webdriverio, testcafe, node-test
+- Go (1): go-testing
+- Python (3): pytest, unittest, nose2
+- Java (3): junit4, junit5, testng
+
+The legacy JS converter (src/) supports additional frameworks (e.g., Selenium), but these are conversion targets, not analysis-detected frameworks. The Go analysis engine — which is the product — detects 17.
+
+**Severity:** Medium — inflated claim in public-facing docs.
+
+### 2.2 `terrain convert` Not in Go CLI
+
+**Location:** terrain-overview.md line 122
+
+**Claim:** "It remains functional and is accessible via `terrain convert`."
+
+**Actual:** The Go CLI (`cmd/terrain/main.go`) has no `convert` subcommand. The JS converter is only accessible via `node bin/terrain.js`. Running `terrain convert` from the Go binary produces an unknown-command error.
+
+**Severity:** High — users who install the Go binary and follow the docs will hit a dead end.
+
+### 2.3 Posture Bands: Docs Inconsistent With Implementation
+
+**Location:** terrain-overview.md line 66 vs. posture-model.md vs. internal/measurement/measurement.go
+
+The implementation defines **6** posture bands: strong, moderate, weak, elevated, critical, unknown.
+
+| Document | Bands Listed |
+|---|---|
+| terrain-overview.md:66 | strong, moderate, weak, critical (4 — missing elevated, unknown) |
+| posture-model.md:19-27 | strong, moderate, weak, elevated, critical (5 — missing unknown) |
+| Previous validation report | strong, moderate, weak, critical (4 — missing elevated, unknown) |
+| **Actual code** | strong, moderate, weak, elevated, critical, unknown (6) |
+
+**Severity:** Medium — "elevated" is a real band used in scoring logic but absent from the primary product doc.
+
+### 2.4 lovable-release-audit.md Contains Stale Claims
+
+**Location:** lovable-release-audit.md lines 49-50
+
+| Claim in Audit | Reality |
+|---|---|
+| "No native GitHub Action" | `.github/actions/terrain-impact/action.yml` exists and is fully implemented |
+| "IDE extension...is not implemented" | `extension/vscode/` contains complete TypeScript source (extension.ts, views.ts, signal_renderer.ts, types.ts) — uncompiled but written |
+
+**Severity:** Medium — the audit understates what exists, creating a false impression of incompleteness.
 
 ---
 
-## Obsolete Features
+## 3. Obsolete Features
+
+### 3.1 Orphaned Go Packages (5 packages, ~4,900 lines)
+
+These packages exist in `internal/` with full implementations and tests but are **not imported by any other package** in the codebase:
+
+| Package | Files | Purpose |
+|---|---|---|
+| `internal/assertion/` | assess.go, model.go, test | Assertion quality assessment |
+| `internal/clustering/` | detect.go, model.go, test | Test clustering detection |
+| `internal/envdepth/` | assess.go, model.go, test | Environment depth assessment |
+| `internal/reasoning/` | traverse.go, coverage.go, score.go, candidates.go, stability.go, fallback.go + tests | Shared reasoning primitives |
+| `internal/suppression/` | detect.go, model.go, test | Signal suppression rules |
+
+These appear to be either:
+- Planned features that were prototyped but never integrated
+- Extracted modules whose functionality was reimplemented inline in other packages (e.g., impact/ has its own BFS traversal rather than using reasoning/)
+
+**Note:** The reasoning/ package is extensively documented in `docs/architecture/22-reasoning-engine.md` as if it were active infrastructure, but no package imports it.
+
+**Severity:** Low (dead code, not incorrect behavior) but the documentation references create confusion about how the system actually works.
+
+### 3.2 Intentional Deprecations (Keep)
 
 | Item | Status | Action |
 |---|---|---|
-| `bin/hamlet.js` deprecation alias | Intentional — prints warning, re-exports terrain.js | Keep (soft deprecation) |
-| `terrain depgraph` backward-compat alias | Intentional — aliases to `terrain debug depgraph` | Keep (backward compat) |
-| `hamlet` binary name detection in main.go | Intentional — warns on stderr | Keep (soft deprecation) |
-| Legacy JS converter engine (src/, bin/terrain.js) | Functional — serves as migration acquisition wedge | Keep (per manifesto) |
-
-No unintentional obsolete features found.
+| `bin/hamlet.js` alias | Prints deprecation warning, re-exports terrain.js | Keep |
+| `hamlet` binary name detection | Prints stderr warning in main.go | Keep |
+| `terrain depgraph` alias | Backward-compat for `terrain debug depgraph` | Keep |
+| Legacy JS converter engine (src/) | Functional, serves as migration wedge | Keep |
 
 ---
 
-## Missing Pieces (Not Critical)
+## 4. Missing Pieces (Expected — Not Critical)
 
-These items are referenced in the manifesto as future work and are **not implemented**:
+These are documented as future work in the manifesto and are correctly **not** presented as implemented:
 
-| Item | Manifesto Reference | Status | Impact |
-|---|---|---|---|
-| Multi-repo portfolio aggregation | MASTER_PLAN.md (paid tier) | Not implemented | Planned for hosted product |
-| Historical trend alerting | MASTER_PLAN.md (paid tier) | Not implemented | Compare requires explicit snapshots |
-| Cross-repo benchmarking | MASTER_PLAN.md (paid tier) | Not implemented | Export format is ready |
-| Organization-level dashboard | MASTER_PLAN.md (paid tier) | Not implemented | Metrics export is dashboard-ready |
-| Visual regression detection | 17-persona-journeys.md (Frontend gaps) | Not implemented | Planned |
-| Component-level coverage mapping | 17-persona-journeys.md (Frontend gaps) | Not implemented | Planned |
-| Database schema change tracking | 17-persona-journeys.md (Backend gaps) | Not implemented | Planned |
-| Device matrix awareness | 17-persona-journeys.md (Mobile gaps) | Not implemented | Planned |
-| TestRail/Jira direct integration | 17-persona-journeys.md (QA gaps) | Not implemented | Manual YAML overlay available |
-| Eval-specific semantics for AI/ML | 17-persona-journeys.md (AI/ML gaps) | Not implemented | Planned |
-
-All missing pieces are correctly documented as gaps or future work. No gap is presented as implemented. **This is the expected state** — the manifesto intentionally defines both the current product and the roadmap.
-
----
-
-## Fixes Applied During This Validation
-
-| Fix | File | Type |
+| Item | Manifesto Location | Status |
 |---|---|---|
-| "hamlet impact" → "terrain impact" | docs/examples/impact-report.md | Naming inconsistency |
-| `npm install -g terrain-cli` → Go build steps | docs/user-guides/pr-impact-workflow.md | Dead reference |
-| Version reference removed from status line | docs/product/feature-matrix.md | Copy policy violation |
-| Version reference removed from example text | docs/architecture/23-phased-implementation-roadmap.md | Copy policy violation |
-| Added inference-first/explainability-first | docs/product/positioning.md | Principle visibility |
-| Added inference-first/explainability-first | docs/architecture/00-overview.md | Principle visibility |
-| Removed stale hamlet/ subdirectory | hamlet/ (untracked) | Dead artifact |
+| Multi-repo aggregation | feature-matrix.md (QA gaps) | Planned |
+| Automated trend alerting | feature-matrix.md (QA gaps) | Planned |
+| Visual regression detection | feature-matrix.md (Frontend gaps) | Planned |
+| Component-level coverage mapping | feature-matrix.md (Frontend gaps) | Planned |
+| Database/API contract test detection | feature-matrix.md (Backend gaps) | Planned |
+| Device matrix awareness | feature-matrix.md (Mobile gaps) | Planned |
+| Eval-specific semantics | feature-matrix.md (AI/ML gaps) | Planned |
+| GitLab/Jenkins/CircleCI native integration | feature-matrix.md (CI matrix) | CLI works; no native integration |
+| Hosted benchmarking service | launch-narrative.md | Future |
+| `terrain policy init` scaffolding | lovable-release-audit.md | Polish item |
+
+All gaps are honestly documented with "Planned" or "Not implemented" status. No gap is presented as implemented.
+
+---
+
+## 5. Internal Document Contradictions
+
+| Doc A | Doc B | Contradiction |
+|---|---|---|
+| terrain-overview.md: "19 test frameworks" | framework_detection.go: 17 detectors | Count mismatch |
+| terrain-overview.md: "accessible via `terrain convert`" | cmd/terrain/main.go: no convert command | Command does not exist in Go CLI |
+| lovable-release-audit.md: "No native GitHub Action" | .github/actions/terrain-impact/action.yml | Action exists and is functional |
+| lovable-release-audit.md: "IDE extension...not implemented" | extension/vscode/src/: complete TS source | Source written, uncompiled |
+| terrain-overview.md: 4 posture bands | measurement.go: 6 bands including elevated, unknown | Missing bands in docs |
+| posture-model.md: 5 posture bands | measurement.go: 6 bands (missing unknown) | Minor omission |
+
+---
+
+## 6. VS Code Extension Status
+
+The `extension/vscode/` directory contains a complete TypeScript VS Code extension (v0.1.0):
+
+| File | Size | Status |
+|---|---|---|
+| src/extension.ts | 15.8KB | Written — registers views and commands |
+| src/views.ts | 5.5KB | Written — Overview, Health, Quality, Migration, Review views |
+| src/signal_renderer.ts | 2.9KB | Written — severity icons and signal rendering |
+| src/types.ts | 5KB | Written — TypeScript types matching snapshot model |
+| package.json | Complete | Declares publisher, contributes views/commands |
+
+**Issue:** The `out/` directory (compiled output) does not exist. The extension manifest declares `"main": "./out/extension.js"` but `npm run compile` has not been run. The extension is **written but not buildable in its current state** without running the TypeScript compiler.
+
+**Recommendation:** Either compile and verify the extension works, or clearly mark it as "in development" in documentation.
+
+---
+
+## 7. Fixes Applied During This Validation
+
+See section 8 below.
+
+---
+
+## 8. Critical Misalignments Fixed
+
+| # | Fix | File | Type |
+|---|---|---|---|
+| 1 | Framework count: "19" → "17" | docs/product/terrain-overview.md | Inflated claim |
+| 2 | Remove false `terrain convert` accessibility claim | docs/product/terrain-overview.md | Nonexistent command |
+| 3 | Add missing "elevated" and "unknown" posture bands | docs/product/terrain-overview.md | Incomplete documentation |
+| 4 | Correct stale "no GitHub Action" and "no IDE extension" claims | docs/product/lovable-release-audit.md | Contradicts repo state |
 
 ---
 
 ## Conclusion
 
-The Terrain repository is coherent end-to-end. The CLI, graph schema, reasoning engine, signal pipeline, risk scoring, documentation, benchmarks, CI, and release pipeline all reinforce the same product story:
+The Terrain repository implements the product vision faithfully at the architectural level. The signal pipeline, measurement framework, dependency graph, CLI command surface, CI/CD pipeline, and benchmark system are all real, tested, and coherent.
 
-- **Terrain is a test system intelligence platform that maps your test terrain.**
-- **Inference-first**: reads what exists, no configuration required.
-- **Explainability-first**: every finding carries an evidence chain.
-- **Signal-first**: typed, located, severity-scored, confidence-weighted findings.
-- **Four canonical workflows**: analyze, insights, impact, explain.
+The drift found is **documentary, not architectural** — the code does what it should, but several product documents make claims that are slightly inflated (framework count), stale (lovable-release-audit.md), or reference functionality that doesn't exist in the Go CLI (`terrain convert`). Five orphaned Go packages represent ~4,900 lines of dead code that should be evaluated for integration or removal.
 
-The implementation matches the manifesto. No architectural drift. No critical misalignments remain.
+After the fixes in section 8, the documentation accurately reflects the implementation.

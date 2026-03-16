@@ -339,6 +339,23 @@ Flags:
 
 ---
 
+### `terrain ai`
+Purpose:
+AI/eval validation namespace. List detected scenarios, run evals, manage baselines, and validate setup.
+
+Subcommands:
+- `terrain ai list` — list detected AI/eval scenarios, prompt surfaces, dataset surfaces, and eval files
+- `terrain ai run` — execute eval scenarios and collect results (planned)
+- `terrain ai record` — record eval run results as a baseline snapshot (planned)
+- `terrain ai baseline` — manage eval baselines: show, compare, promote (planned)
+- `terrain ai doctor` — validate AI/eval setup: scenarios, prompts, datasets, eval files, graph wiring
+
+Flags (all subcommands):
+- `--root PATH` — repository root (default: current directory)
+- `--json` — output JSON
+
+---
+
 ## Output rules
 
 ### Human-readable output

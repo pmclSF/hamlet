@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 // IngestFile reads a coverage artifact file and returns normalized records.
@@ -54,28 +55,80 @@ func IngestFile(artifactPath string, runLabel string) (*CoverageArtifact, error)
 }
 
 // IngestDirectory scans a directory for coverage artifacts and ingests them.
+// Files are parsed in parallel using a worker pool. Results are merged in
+// filesystem order for deterministic output.
 func IngestDirectory(dir string, runLabel string) ([]CoverageArtifact, error) {
-	var artifacts []CoverageArtifact
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return nil, err
 	}
-	var warnings []string
 
+	// Collect candidate file paths.
+	var candidatePaths []string
 	for _, e := range entries {
 		if e.IsDir() {
 			continue
 		}
-		name := strings.ToLower(e.Name())
-		if isCoverageFile(name) {
-			art, err := IngestFile(filepath.Join(dir, e.Name()), runLabel)
-			if err != nil {
-				warnings = append(warnings, fmt.Sprintf("%s: %v", e.Name(), err))
-				continue
-			}
-			artifacts = append(artifacts, *art)
+		if isCoverageFile(strings.ToLower(e.Name())) {
+			candidatePaths = append(candidatePaths, filepath.Join(dir, e.Name()))
 		}
 	}
+
+	if len(candidatePaths) == 0 {
+		return nil, nil
+	}
+
+	// Single file fast path.
+	if len(candidatePaths) == 1 {
+		art, err := IngestFile(candidatePaths[0], runLabel)
+		if err != nil {
+			return nil, err
+		}
+		return []CoverageArtifact{*art}, nil
+	}
+
+	// Parallel ingestion: each file is independent.
+	type indexedResult struct {
+		art *CoverageArtifact
+		err error
+	}
+	perFile := make([]indexedResult, len(candidatePaths))
+
+	workers := len(candidatePaths)
+	if workers > 8 {
+		workers = 8
+	}
+	indexCh := make(chan int, len(candidatePaths))
+	var wg sync.WaitGroup
+	for w := 0; w < workers; w++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for idx := range indexCh {
+				art, err := IngestFile(candidatePaths[idx], runLabel)
+				perFile[idx] = indexedResult{art: art, err: err}
+			}
+		}()
+	}
+	for i := range candidatePaths {
+		indexCh <- i
+	}
+	close(indexCh)
+	wg.Wait()
+
+	// Merge in deterministic (filesystem) order.
+	var artifacts []CoverageArtifact
+	var warnings []string
+	for i, ir := range perFile {
+		if ir.err != nil {
+			warnings = append(warnings, fmt.Sprintf("%s: %v", filepath.Base(candidatePaths[i]), ir.err))
+			continue
+		}
+		if ir.art != nil {
+			artifacts = append(artifacts, *ir.art)
+		}
+	}
+
 	if len(warnings) > 0 {
 		if len(artifacts) == 0 {
 			return nil, errors.New("failed to ingest any coverage artifacts: " + strings.Join(warnings, "; "))

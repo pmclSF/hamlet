@@ -199,7 +199,10 @@ func Build(input *BuildInput) *Report {
 	// 8. Matrix coverage findings.
 	findings = append(findings, matrixFindings(input)...)
 
-	// 9. Depgraph skipped warning.
+	// 9. AI scenario duplication.
+	findings = append(findings, scenarioDuplicationFindings(input)...)
+
+	// 10. Depgraph skipped warning.
 	if input.DepgraphSkipped {
 		findings = append(findings, Finding{
 			Title:       "Depgraph analysis skipped",
@@ -646,6 +649,82 @@ func matrixFindings(input *BuildInput) []Finding {
 			Metric:   fmt.Sprintf("%.0f%% concentration", top.DominantShare*100),
 		})
 	}
+
+	return findings
+}
+
+func scenarioDuplicationFindings(input *BuildInput) []Finding {
+	var findings []Finding
+	snap := input.Snapshot
+	if snap == nil || len(snap.Scenarios) < 2 {
+		return findings
+	}
+
+	// Build surface→scenarios index to detect overlap.
+	surfaceToScenarios := map[string][]string{}
+	for _, sc := range snap.Scenarios {
+		for _, sid := range sc.CoveredSurfaceIDs {
+			surfaceToScenarios[sid] = append(surfaceToScenarios[sid], sc.ScenarioID)
+		}
+	}
+
+	// Count scenario pairs that share surfaces.
+	type pair struct{ a, b string }
+	pairOverlap := map[pair]int{}
+	for _, scenarioIDs := range surfaceToScenarios {
+		if len(scenarioIDs) < 2 {
+			continue
+		}
+		for i := 0; i < len(scenarioIDs); i++ {
+			for j := i + 1; j < len(scenarioIDs); j++ {
+				a, b := scenarioIDs[i], scenarioIDs[j]
+				if a > b {
+					a, b = b, a
+				}
+				pairOverlap[pair{a, b}]++
+			}
+		}
+	}
+
+	if len(pairOverlap) == 0 {
+		return findings
+	}
+
+	// Build scenario surface counts for overlap ratio.
+	scenarioSurfaceCount := map[string]int{}
+	for _, sc := range snap.Scenarios {
+		scenarioSurfaceCount[sc.ScenarioID] = len(sc.CoveredSurfaceIDs)
+	}
+
+	// Find high-overlap pairs.
+	highOverlapPairs := 0
+	for p, shared := range pairOverlap {
+		minSurfaces := scenarioSurfaceCount[p.a]
+		if scenarioSurfaceCount[p.b] < minSurfaces {
+			minSurfaces = scenarioSurfaceCount[p.b]
+		}
+		if minSurfaces > 0 && float64(shared)/float64(minSurfaces) >= 0.5 {
+			highOverlapPairs++
+		}
+	}
+
+	if highOverlapPairs == 0 {
+		return findings
+	}
+
+	sev := SeverityLow
+	if highOverlapPairs > 3 {
+		sev = SeverityMedium
+	}
+
+	findings = append(findings, Finding{
+		Title: fmt.Sprintf("%d AI scenario pair(s) share >50%% of covered surfaces", highOverlapPairs),
+		Description: "Overlapping eval scenarios may duplicate validation effort. " +
+			"Review whether scenarios can be consolidated or differentiated by coverage target.",
+		Category: CategoryOptimization,
+		Severity: sev,
+		Metric:   fmt.Sprintf("%d overlapping pairs across %d scenarios", highOverlapPairs, len(snap.Scenarios)),
+	})
 
 	return findings
 }

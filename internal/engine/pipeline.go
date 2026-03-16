@@ -7,13 +7,16 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	goruntime "runtime"
 	"sort"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/pmclSF/terrain/internal/aidetect"
 	"github.com/pmclSF/terrain/internal/analysis"
 	"github.com/pmclSF/terrain/internal/coverage"
+	"github.com/pmclSF/terrain/internal/gauntlet"
 	"github.com/pmclSF/terrain/internal/health"
 	"github.com/pmclSF/terrain/internal/measurement"
 	"github.com/pmclSF/terrain/internal/models"
@@ -45,6 +48,11 @@ type DataCompleteness struct {
 	PolicyAvailable   bool
 }
 
+// ProgressFunc is called by the pipeline to report step-based progress.
+// step is the 1-based step number (e.g., 1 of 5), total is the total
+// number of steps, and label describes the current step.
+type ProgressFunc func(step, total int, label string)
+
 // PipelineOptions configures optional pipeline behavior.
 type PipelineOptions struct {
 	// CoveragePath is the path to a coverage file or directory.
@@ -60,6 +68,10 @@ type PipelineOptions struct {
 	// When set, runtime data is ingested for health signal detection.
 	RuntimePaths []string
 
+	// GauntletPaths are paths to Gauntlet AI eval result artifacts (JSON).
+	// When set, Gauntlet results are ingested and applied to scenarios.
+	GauntletPaths []string
+
 	// SlowTestThresholdMs overrides the default slow test threshold.
 	SlowTestThresholdMs float64
 
@@ -69,6 +81,11 @@ type PipelineOptions struct {
 	// EngineVersion is stamped into SnapshotMeta.EngineVersion.
 	// If empty, DefaultEngineVersion is used.
 	EngineVersion string
+
+	// OnProgress is called at each pipeline step to report progress.
+	// If nil, no progress is reported. Progress is always written to
+	// stderr (not stdout) to avoid interfering with JSON or report output.
+	OnProgress ProgressFunc
 }
 
 // RunPipeline executes the full analysis pipeline:
@@ -115,6 +132,16 @@ func RunPipelineContext(ctx context.Context, root string, opts ...PipelineOption
 		return nil, err
 	}
 
+	// Progress reporting. totalSteps is fixed at 5 user-visible stages.
+	const totalSteps = 5
+	progress := func(step int, label string) {
+		if opt.OnProgress != nil {
+			opt.OnProgress(step, totalSteps, label)
+		}
+	}
+
+	progress(1, "Scanning repository")
+
 	// Group 1: perform independent preparation work concurrently.
 	// - static analysis (required for all downstream stages)
 	// - policy loading
@@ -132,6 +159,8 @@ func RunPipelineContext(ctx context.Context, root string, opts ...PipelineOption
 		runtimeIngestErr  error
 		coverageArtifacts []coverage.CoverageArtifact
 		coverageIngestErr error
+		gauntletArtifacts []*gauntlet.Artifact
+		gauntletIngestErr error
 
 		staticAnalysisDuration  time.Duration
 		policyLoadDuration      time.Duration
@@ -229,6 +258,15 @@ func RunPipelineContext(ctx context.Context, root string, opts ...PipelineOption
 			return nil
 		})
 	}
+	if len(opt.GauntletPaths) > 0 {
+		startTask(&prepWG, func(taskCtx context.Context) error {
+			if err := taskCtx.Err(); err != nil {
+				return err
+			}
+			gauntletArtifacts, gauntletIngestErr = ingestGauntletArtifacts(opt.GauntletPaths)
+			return nil
+		})
+	}
 	prepWG.Wait()
 	select {
 	case err := <-fatalErrCh:
@@ -281,13 +319,35 @@ func RunPipelineContext(ctx context.Context, root string, opts ...PipelineOption
 		})
 	}
 
-	// Step 2b: Load manual coverage from terrain.yaml (if present).
+	// Step 2b: Load manual coverage and scenarios from terrain.yaml (if present).
 	if terrainCfgErr != nil {
 		fmt.Fprintf(os.Stderr, "warning: failed to load terrain.yaml: %v\n", terrainCfgErr)
 	} else if terrainCfg != nil {
 		mcArtifacts := terrainCfg.ToManualCoverageArtifacts()
 		if len(mcArtifacts) > 0 {
 			snapshot.ManualCoverage = append(snapshot.ManualCoverage, mcArtifacts...)
+		}
+		scenarios := terrainCfg.ToScenarios()
+		if len(scenarios) > 0 {
+			snapshot.Scenarios = append(snapshot.Scenarios, scenarios...)
+		}
+	}
+
+	// Step 2c: Auto-derive AI scenarios from code (no YAML required).
+	// Detects eval frameworks (promptfoo, deepeval, langchain, etc.) and
+	// derives scenarios from eval test files and AI import patterns.
+	aiDetection := aidetect.Detect(root)
+	derivedScenarios := aidetect.DeriveScenarios(root, aiDetection, snapshot.CodeSurfaces, snapshot.TestFiles)
+	if len(derivedScenarios) > 0 {
+		// Merge with manual scenarios, avoiding duplicates by ID.
+		existingIDs := map[string]bool{}
+		for _, s := range snapshot.Scenarios {
+			existingIDs[s.ScenarioID] = true
+		}
+		for _, ds := range derivedScenarios {
+			if !existingIDs[ds.ScenarioID] {
+				snapshot.Scenarios = append(snapshot.Scenarios, ds)
+			}
 		}
 	}
 
@@ -354,11 +414,33 @@ func RunPipelineContext(ctx context.Context, root string, opts ...PipelineOption
 			Impact: "Coverage measurements will report unknown. Portfolio breadth estimates use module heuristics. No coverage-based insights will be generated.",
 		})
 	}
+	// Step 4c: Apply Gauntlet artifacts.
+	if len(opt.GauntletPaths) > 0 {
+		if gauntletIngestErr != nil {
+			snapshot.DataSources = append(snapshot.DataSources, models.DataSource{
+				Name:   "gauntlet",
+				Status: models.DataSourceError,
+				Detail: gauntletIngestErr.Error(),
+				Impact: "Gauntlet eval results are unavailable. Scenario execution status will not be reflected.",
+			})
+		} else {
+			for _, art := range gauntletArtifacts {
+				gauntlet.ApplyToSnapshot(snapshot, art)
+			}
+			snapshot.DataSources = append(snapshot.DataSources, models.DataSource{
+				Name:   "gauntlet",
+				Status: models.DataSourceAvailable,
+				Detail: fmt.Sprintf("%d artifact(s) ingested", len(opt.GauntletPaths)),
+			})
+		}
+	}
+
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
 
 	// Step 5: Build detector registry and run all detectors.
+	progress(2, "Building graph")
 	stepStart = time.Now()
 	registry := DefaultRegistry(Config{
 		RepoRoot:     root,
@@ -387,6 +469,7 @@ func RunPipelineContext(ctx context.Context, root string, opts ...PipelineOption
 
 	// Step 6: Propagate ownership after all signal-producing stages so
 	// runtime and coverage-derived signals receive owners consistently.
+	progress(3, "Inferring validations")
 	stepStart = time.Now()
 	if ownerResolver == nil {
 		ownerResolver = ownership.NewResolver(root)
@@ -405,6 +488,7 @@ func RunPipelineContext(ctx context.Context, root string, opts ...PipelineOption
 	attachSignalsToTestFiles(snapshot)
 
 	// Step 7: Compute risk surfaces from signals.
+	progress(4, "Computing insights")
 	stepStart = time.Now()
 	snapshot.Risk = scoring.ComputeRisk(snapshot)
 	if diag != nil {
@@ -443,6 +527,7 @@ func RunPipelineContext(ctx context.Context, root string, opts ...PipelineOption
 	populateSnapshotMetadata(snapshot, opt, hasPolicy)
 
 	// Step 10: Sort all snapshot slices into canonical order for determinism.
+	progress(5, "Writing report")
 	models.SortSnapshot(snapshot)
 
 	if err := models.ValidateSnapshot(snapshot); err != nil {
@@ -713,16 +798,62 @@ func deriveDataCompleteness(snapshot *models.TestSuiteSnapshot, opt PipelineOpti
 }
 
 func ingestRuntimeArtifacts(ctx context.Context, paths []string) ([]runtime.TestResult, error) {
-	var allResults []runtime.TestResult
-	for _, p := range paths {
-		if err := ctx.Err(); err != nil {
-			return nil, err
+	if len(paths) <= 1 {
+		// Fast path: single artifact, no parallelism overhead.
+		if len(paths) == 0 {
+			return nil, nil
 		}
-		result, err := runtime.Ingest(p)
+		result, err := runtime.Ingest(paths[0])
 		if err != nil {
 			return nil, err
 		}
-		allResults = append(allResults, result.Results...)
+		return result.Results, nil
+	}
+
+	// Parallel ingestion: each artifact is independent.
+	// Results collected per-index to preserve deterministic ordering.
+	type indexedResult struct {
+		results []runtime.TestResult
+		err     error
+	}
+	perFile := make([]indexedResult, len(paths))
+
+	workers := goruntime.GOMAXPROCS(0)
+	if workers > len(paths) {
+		workers = len(paths)
+	}
+	indexCh := make(chan int, len(paths))
+	var wg sync.WaitGroup
+	for w := 0; w < workers; w++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for idx := range indexCh {
+				if ctx.Err() != nil {
+					return
+				}
+				r, err := runtime.Ingest(paths[idx])
+				if err != nil {
+					perFile[idx] = indexedResult{err: err}
+				} else {
+					perFile[idx] = indexedResult{results: r.Results}
+				}
+			}
+		}()
+	}
+	for i := range paths {
+		indexCh <- i
+	}
+	close(indexCh)
+	wg.Wait()
+
+	// Merge in deterministic order.
+	var allResults []runtime.TestResult
+	for _, ir := range perFile {
+		if ir.err != nil {
+			return nil, ir.err
+		}
+		allResults = append(allResults, ir.results...)
 	}
 	return allResults, nil
 }
@@ -795,6 +926,18 @@ func ingestCoverageArtifacts(ctx context.Context, coveragePath string, runLabel 
 	}
 	if err != nil {
 		return nil, err
+	}
+	return artifacts, nil
+}
+
+func ingestGauntletArtifacts(paths []string) ([]*gauntlet.Artifact, error) {
+	var artifacts []*gauntlet.Artifact
+	for _, p := range paths {
+		art, err := gauntlet.Ingest(p)
+		if err != nil {
+			return nil, fmt.Errorf("gauntlet artifact %s: %w", p, err)
+		}
+		artifacts = append(artifacts, art)
 	}
 	return artifacts, nil
 }

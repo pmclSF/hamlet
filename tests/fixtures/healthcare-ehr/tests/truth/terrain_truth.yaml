@@ -1,0 +1,49 @@
+impact:
+  description: "Change impact through EHR dependency graph"
+  cases:
+    - change: "src/patients/registry.ts"
+      expected_impacted_tests:
+        - "tests/unit/patients/registry.test.ts"
+        - "tests/integration/appointments/booking.test.ts"
+        - "tests/e2e/patient-journey/full-visit.test.ts"
+        - "tests/e2e/patient-journey/checkup-flow.test.ts"
+      notes: "Patient registry imported by appointments, integration, and e2e"
+    - change: "src/ai-triage/prompt.ts"
+      expected_impacted_tests:
+        - "tests/eval/safety/triage-safety.test.ts"
+        - "tests/eval/safety/safety-regression.test.ts"
+      expected_impacted_scenarios:
+        - "triage-safety"
+        - "safety-regression"
+coverage:
+  description: "Coverage gaps in EHR"
+  expected_uncovered:
+    - path: "src/notifications/alerts.ts"
+      reason: "Manual-only zone"
+    - path: "src/patients/records.ts"
+      reason: "No direct test imports"
+redundancy:
+  description: "Duplicate patient journey e2e flows"
+  expected_clusters:
+    - tests:
+        - "tests/e2e/patient-journey/full-visit.test.ts"
+        - "tests/e2e/patient-journey/checkup-flow.test.ts"
+      reason: "Overlapping patient visit flows"
+fanout:
+  description: "Shared DB helper fanout"
+  expected_flagged:
+    - node: "src/shared/db.ts"
+      expected_min_dependents: 3
+ai:
+  description: "AI triage scenario detection"
+  expected_scenarios: 3
+  expected_prompt_surfaces:
+    - "src/ai-triage/prompt.ts:triageSystemPrompt"
+    - "src/ai-triage/prompt.ts:buildTriagePrompt"
+    - "src/ai-triage/prompt.ts:buildSafetyPrompt"
+  expected_dataset_surfaces:
+    - "src/ai-triage/dataset.ts:triageDataset"
+    - "src/ai-triage/dataset.ts:loadTriageDataset"
+environment:
+  description: "No environment classes"
+  notes: "Healthcare fixture focuses on clinical workflows."

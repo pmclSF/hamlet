@@ -1,0 +1,44 @@
+impact:
+  cases:
+    - change: "src/courses/service.ts"
+      expected_impacted_tests:
+        - "tests/unit/courses/service.test.ts"
+        - "tests/integration/courses/flow.test.ts"
+        - "tests/e2e/main/full-flow.test.ts"
+        - "tests/e2e/main/quick-flow.test.ts"
+    - change: "src/ai-tutor/prompt.ts"
+      expected_impacted_tests:
+        - "tests/eval/safety/safety-eval.test.ts"
+        - "tests/eval/safety/safety-regression.test.ts"
+      expected_impacted_scenarios:
+        - "safety-eval"
+        - "safety-regression"
+coverage:
+  expected_uncovered:
+    - path: "src/content/service.ts"
+      reason: "No test imports"
+    - path: "src/grading/service.ts"
+      reason: "No test imports"
+redundancy:
+  expected_clusters:
+    - tests:
+        - "tests/e2e/main/full-flow.test.ts"
+        - "tests/e2e/main/quick-flow.test.ts"
+      reason: "Overlapping e2e"
+fanout:
+  expected_flagged:
+    - node: "shared"
+      expected_min_dependents: 3
+ai:
+  expected_scenarios: 3
+  expected_prompt_surfaces:
+    - "src/ai-tutor/prompt.ts:systemPrompt"
+    - "src/ai-tutor/prompt.ts:buildPrompt"
+    - "src/ai-tutor/prompt.ts:buildSafetyPrompt"
+  expected_dataset_surfaces:
+    - "src/ai-tutor/dataset.ts:evalDataset"
+    - "src/ai-tutor/dataset.ts:loadEvalDataset"
+    - "src/ai-tutor/dataset.ts:splitEvalData"
+environment:
+  description: "No env"
+  notes: "edtech-lms"

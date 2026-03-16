@@ -10,26 +10,81 @@ import (
 // After construction via Build(), the graph is read-only and safe for
 // concurrent reads. All query methods return deterministically ordered
 // results.
+//
+// Performance characteristics:
+//   - Node/edge lookup by ID: O(1)
+//   - NodesByType/NodesByFamily: O(k) where k = matching nodes (indexed)
+//   - Neighbors/ReverseNeighbors: O(1) after first call (cached)
+//   - Nodes() sorted: O(1) after first call (cached)
 type Graph struct {
 	nodes map[string]*Node  // id → node
-	edges []*Edge           // all edges
+	edges []*Edge           // all edges (insertion order)
 	adj   map[string][]*Edge // outgoing: from → edges
 	radj  map[string][]*Edge // incoming: to → edges
+
+	// Indexes built incrementally during construction.
+	typeIndex   map[NodeType][]*Node   // type → nodes (unsorted during build)
+	familyIndex map[NodeFamily][]*Node // family → nodes (unsorted during build)
+
+	// Caches populated lazily after Build(). These are nil during
+	// construction and populated on first read-path access.
+	sortedNodes      []*Node            // cached sorted node list
+	neighborCache    map[string][]string // cached deduplicated+sorted neighbor lists
+	revNeighborCache map[string][]string // cached deduplicated+sorted reverse neighbors
+	outDegreeCache   map[string]int      // cached out-degree per node
+	sealed           bool               // true after Seal() — enables caching
 }
 
 // NewGraph creates an empty graph.
 func NewGraph() *Graph {
 	return &Graph{
-		nodes: make(map[string]*Node),
-		adj:   make(map[string][]*Edge),
-		radj:  make(map[string][]*Edge),
+		nodes:       make(map[string]*Node),
+		adj:         make(map[string][]*Edge),
+		radj:        make(map[string][]*Edge),
+		typeIndex:   make(map[NodeType][]*Node),
+		familyIndex: make(map[NodeFamily][]*Node),
 	}
 }
 
 // AddNode adds a node to the graph. If a node with the same ID already
-// exists, it is replaced.
+// exists, it is replaced (indexes are rebuilt for the replaced node).
 func (g *Graph) AddNode(n *Node) {
+	if old, exists := g.nodes[n.ID]; exists && old.Type != n.Type {
+		// Remove from old type/family indexes on type change.
+		g.removeFromIndexes(old)
+	}
+	if _, exists := g.nodes[n.ID]; !exists {
+		// Only add to indexes for genuinely new nodes.
+		g.typeIndex[n.Type] = append(g.typeIndex[n.Type], n)
+		fam := NodeTypeFamily(n.Type)
+		if fam != "" {
+			g.familyIndex[fam] = append(g.familyIndex[fam], n)
+		}
+	}
 	g.nodes[n.ID] = n
+	g.sortedNodes = nil // invalidate cache
+}
+
+func (g *Graph) removeFromIndexes(n *Node) {
+	if idx, ok := g.typeIndex[n.Type]; ok {
+		for i, existing := range idx {
+			if existing.ID == n.ID {
+				g.typeIndex[n.Type] = append(idx[:i], idx[i+1:]...)
+				break
+			}
+		}
+	}
+	fam := NodeTypeFamily(n.Type)
+	if fam != "" {
+		if idx, ok := g.familyIndex[fam]; ok {
+			for i, existing := range idx {
+				if existing.ID == n.ID {
+					g.familyIndex[fam] = append(idx[:i], idx[i+1:]...)
+					break
+				}
+			}
+		}
+	}
 }
 
 // AddEdge adds a directed edge. Both endpoints should already exist as
@@ -38,6 +93,23 @@ func (g *Graph) AddEdge(e *Edge) {
 	g.edges = append(g.edges, e)
 	g.adj[e.From] = append(g.adj[e.From], e)
 	g.radj[e.To] = append(g.radj[e.To], e)
+	// Invalidate neighbor caches.
+	g.neighborCache = nil
+	g.revNeighborCache = nil
+	g.outDegreeCache = nil
+}
+
+// Seal marks the graph as read-only, enabling query result caching.
+// Called automatically at the end of Build().
+func (g *Graph) Seal() {
+	g.sealed = true
+	// Sort type and family indexes for deterministic iteration.
+	for t := range g.typeIndex {
+		sortNodesByID(g.typeIndex[t])
+	}
+	for f := range g.familyIndex {
+		sortNodesByID(g.familyIndex[f])
+	}
 }
 
 // Node returns the node with the given ID, or nil.
@@ -56,12 +128,19 @@ func (g *Graph) EdgeCount() int {
 }
 
 // Nodes returns all nodes, sorted by ID for determinism.
+// Result is cached after first call on a sealed graph.
 func (g *Graph) Nodes() []*Node {
+	if g.sealed && g.sortedNodes != nil {
+		return g.sortedNodes
+	}
 	out := make([]*Node, 0, len(g.nodes))
 	for _, n := range g.nodes {
 		out = append(out, n)
 	}
-	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
+	sortNodesByID(out)
+	if g.sealed {
+		g.sortedNodes = out
+	}
 	return out
 }
 
@@ -81,56 +160,100 @@ func (g *Graph) Incoming(id string) []*Edge {
 }
 
 // Neighbors returns the IDs of nodes reachable via outgoing edges,
-// deduplicated and sorted.
+// deduplicated and sorted. Result is cached on sealed graphs.
 func (g *Graph) Neighbors(id string) []string {
+	if g.sealed && g.neighborCache != nil {
+		if cached, ok := g.neighborCache[id]; ok {
+			return cached
+		}
+	}
 	seen := map[string]bool{}
 	for _, e := range g.adj[id] {
 		seen[e.To] = true
 	}
 	out := make([]string, 0, len(seen))
-	for id := range seen {
-		out = append(out, id)
+	for nid := range seen {
+		out = append(out, nid)
 	}
 	sort.Strings(out)
+	if g.sealed {
+		if g.neighborCache == nil {
+			g.neighborCache = make(map[string][]string)
+		}
+		g.neighborCache[id] = out
+	}
 	return out
 }
 
 // ReverseNeighbors returns the IDs of nodes with edges pointing to
-// the given node, deduplicated and sorted.
+// the given node, deduplicated and sorted. Result is cached on sealed graphs.
 func (g *Graph) ReverseNeighbors(id string) []string {
+	if g.sealed && g.revNeighborCache != nil {
+		if cached, ok := g.revNeighborCache[id]; ok {
+			return cached
+		}
+	}
 	seen := map[string]bool{}
 	for _, e := range g.radj[id] {
 		seen[e.From] = true
 	}
 	out := make([]string, 0, len(seen))
-	for id := range seen {
-		out = append(out, id)
+	for nid := range seen {
+		out = append(out, nid)
 	}
 	sort.Strings(out)
+	if g.sealed {
+		if g.revNeighborCache == nil {
+			g.revNeighborCache = make(map[string][]string)
+		}
+		g.revNeighborCache[id] = out
+	}
 	return out
 }
 
-// NodesByType returns all nodes of the given type, sorted by ID.
-func (g *Graph) NodesByType(t NodeType) []*Node {
-	var out []*Node
-	for _, n := range g.nodes {
-		if n.Type == t {
-			out = append(out, n)
+// OutDegree returns the number of unique outgoing neighbors for a node.
+// Result is cached on sealed graphs.
+func (g *Graph) OutDegree(id string) int {
+	if g.sealed && g.outDegreeCache != nil {
+		if deg, ok := g.outDegreeCache[id]; ok {
+			return deg
 		}
 	}
-	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
+	deg := len(g.Neighbors(id))
+	if g.sealed {
+		if g.outDegreeCache == nil {
+			g.outDegreeCache = make(map[string]int)
+		}
+		g.outDegreeCache[id] = deg
+	}
+	return deg
+}
+
+// NodesByType returns all nodes of the given type, sorted by ID.
+// Uses the type index for O(k) performance where k = matching nodes.
+func (g *Graph) NodesByType(t NodeType) []*Node {
+	indexed := g.typeIndex[t]
+	if g.sealed {
+		// Index is pre-sorted after Seal().
+		return indexed
+	}
+	// During construction, return a sorted copy.
+	out := make([]*Node, len(indexed))
+	copy(out, indexed)
+	sortNodesByID(out)
 	return out
 }
 
 // NodesByFamily returns all nodes belonging to the given family, sorted by ID.
+// Uses the family index for O(k) performance where k = matching nodes.
 func (g *Graph) NodesByFamily(f NodeFamily) []*Node {
-	var out []*Node
-	for _, n := range g.nodes {
-		if NodeTypeFamily(n.Type) == f {
-			out = append(out, n)
-		}
+	indexed := g.familyIndex[f]
+	if g.sealed {
+		return indexed
 	}
-	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
+	out := make([]*Node, len(indexed))
+	copy(out, indexed)
+	sortNodesByID(out)
 	return out
 }
 
@@ -156,18 +279,16 @@ func IsValidationNode(t NodeType) bool {
 // "all things that validate behavior" without caring about the concrete type.
 func (g *Graph) ValidationTargets() []*Node {
 	var out []*Node
-	for _, n := range g.nodes {
-		if validationNodeTypes[n.Type] {
-			out = append(out, n)
-		}
+	for t := range validationNodeTypes {
+		out = append(out, g.NodesByType(t)...)
 	}
-	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
+	sortNodesByID(out)
 	return out
 }
 
 // ValidationsForSurface returns all validation-bearing nodes that validate
-// a given code surface or behavior surface, following EdgeCoversCodeSurface,
-// EdgeTestExercises, EdgeManualCovers, and EdgeValidates edges in reverse.
+// a given code surface or behavior surface, following
+// EdgeCoversCodeSurface and EdgeManualCovers edges in reverse.
 //
 // This answers: "what tests, scenarios, and manual coverage exist for this
 // surface?" — the fundamental coverage question.
@@ -176,7 +297,7 @@ func (g *Graph) ValidationsForSurface(surfaceID string) []*Node {
 	seen := map[string]bool{}
 	for _, e := range g.radj[surfaceID] {
 		switch e.Type {
-		case EdgeCoversCodeSurface, EdgeTestExercises, EdgeManualCovers, EdgeValidates:
+		case EdgeCoversCodeSurface, EdgeManualCovers:
 			n := g.nodes[e.From]
 			if n != nil && validationNodeTypes[n.Type] && !seen[n.ID] {
 				seen[n.ID] = true
@@ -184,7 +305,7 @@ func (g *Graph) ValidationsForSurface(surfaceID string) []*Node {
 			}
 		}
 	}
-	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
+	sortNodesByID(out)
 	return out
 }
 
@@ -201,27 +322,28 @@ func (g *Graph) EdgesByType(t EdgeType) []*Edge {
 
 // Stats returns summary statistics about the graph.
 type Stats struct {
-	NodeCount       int            `json:"nodeCount"`
-	EdgeCount       int            `json:"edgeCount"`
-	NodesByType     map[string]int `json:"nodesByType"`
-	EdgesByType     map[string]int `json:"edgesByType"`
-	NodesByFamily   map[string]int `json:"nodesByFamily,omitempty"`
-	Density         float64        `json:"density"`
+	NodeCount     int            `json:"nodeCount"`
+	EdgeCount     int            `json:"edgeCount"`
+	NodesByType   map[string]int `json:"nodesByType"`
+	EdgesByType   map[string]int `json:"edgesByType"`
+	NodesByFamily map[string]int `json:"nodesByFamily,omitempty"`
+	Density       float64        `json:"density"`
 }
 
 func (g *Graph) Stats() Stats {
 	s := Stats{
 		NodeCount:     len(g.nodes),
 		EdgeCount:     len(g.edges),
-		NodesByType:   map[string]int{},
+		NodesByType:   make(map[string]int, len(g.typeIndex)),
 		EdgesByType:   map[string]int{},
-		NodesByFamily: map[string]int{},
+		NodesByFamily: make(map[string]int, len(g.familyIndex)),
 	}
-	for _, n := range g.nodes {
-		s.NodesByType[string(n.Type)]++
-		if fam := NodeTypeFamily(n.Type); fam != "" {
-			s.NodesByFamily[string(fam)]++
-		}
+	// Use indexes instead of scanning all nodes.
+	for t, nodes := range g.typeIndex {
+		s.NodesByType[string(t)] = len(nodes)
+	}
+	for f, nodes := range g.familyIndex {
+		s.NodesByFamily[string(f)] = len(nodes)
 	}
 	for _, e := range g.edges {
 		s.EdgesByType[string(e.Type)]++
@@ -233,7 +355,8 @@ func (g *Graph) Stats() Stats {
 	return s
 }
 
-// serializedGraph is the JSON-serializable representation of a Graph.
+// --- Serialization ---
+
 type serializedGraph struct {
 	Version string  `json:"version"`
 	Nodes   []*Node `json:"nodes"`
@@ -257,7 +380,7 @@ func (g *Graph) MarshalJSON() ([]byte, error) {
 	return json.Marshal(sg)
 }
 
-// UnmarshalJSON deserializes a graph from JSON, rebuilding adjacency indexes.
+// UnmarshalJSON deserializes a graph from JSON, rebuilding all indexes.
 func (g *Graph) UnmarshalJSON(data []byte) error {
 	var sg serializedGraph
 	if err := json.Unmarshal(data, &sg); err != nil {
@@ -267,15 +390,29 @@ func (g *Graph) UnmarshalJSON(data []byte) error {
 	g.nodes = make(map[string]*Node, len(sg.Nodes))
 	g.adj = make(map[string][]*Edge)
 	g.radj = make(map[string][]*Edge)
+	g.typeIndex = make(map[NodeType][]*Node)
+	g.familyIndex = make(map[NodeFamily][]*Node)
 	g.edges = sg.Edges
 
 	for _, n := range sg.Nodes {
 		g.nodes[n.ID] = n
+		g.typeIndex[n.Type] = append(g.typeIndex[n.Type], n)
+		fam := NodeTypeFamily(n.Type)
+		if fam != "" {
+			g.familyIndex[fam] = append(g.familyIndex[fam], n)
+		}
 	}
 	for _, e := range sg.Edges {
 		g.adj[e.From] = append(g.adj[e.From], e)
 		g.radj[e.To] = append(g.radj[e.To], e)
 	}
 
+	g.Seal()
 	return nil
+}
+
+// --- Helpers ---
+
+func sortNodesByID(nodes []*Node) {
+	sort.Slice(nodes, func(i, j int) bool { return nodes[i].ID < nodes[j].ID })
 }

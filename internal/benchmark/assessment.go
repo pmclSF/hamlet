@@ -37,19 +37,19 @@ type sectionCheck struct {
 // expectedSections defines what output sections to look for per command.
 var expectedSections = map[string][]sectionCheck{
 	"analyze": {
-		{name: "tests detected", patterns: []string{"testcases", "testfiles", "testcount", "test_count", "suites"}},
+		{name: "validation inventory", patterns: []string{"testcases", "testfiles", "testcount", "test_count", "codesurface", "scenariocount"}},
 		{name: "repo profile", patterns: []string{"repoprofile", "repo_profile", "volume"}},
 		{name: "coverage confidence", patterns: []string{"coverageconfidence", "coverage_confidence"}},
 		{name: "duplicates", patterns: []string{"duplicatetests", "duplicatecount", "redundan"}},
-		{name: "fanout", patterns: []string{"highfanout", "high-fanout", "fan-out"}},
+		{name: "fanout", patterns: []string{"highfanout", "high-fanout", "fan-out", "fanoutburden"}},
 		{name: "weak coverage", patterns: []string{"weakcoverage", "weak_coverage", "uncovered"}},
 	},
 	"impact": {
-		{name: "changed files", patterns: []string{"changedfiles", "changed_files"}},
-		{name: "impacted tests", patterns: []string{"impactedtests", "selectedtests", "\"impacted\""}},
+		{name: "changed files", patterns: []string{"changedfiles", "changed_files", "changedareas", "changedAreas"}},
+		{name: "impacted validations", patterns: []string{"impactedtests", "selectedtests", "impactedscenarios", "\"impacted\""}},
 		{name: "coverage confidence", patterns: []string{"confidence", "coverageconfidence"}},
-		{name: "risk signal", patterns: []string{"risklevel", "risk_level", "severity", "\"risk\""}},
-		{name: "dependency reasoning", patterns: []string{"reasonchain", "reason_chain", "\"reason\"", "dependency"}},
+		{name: "risk signal", patterns: []string{"risklevel", "risk_level", "severity", "\"risk\"", "posture"}},
+		{name: "dependency reasoning", patterns: []string{"reasonchain", "reason_chain", "\"reason\"", "dependency", "relevance"}},
 	},
 	"insights": {
 		{name: "duplicate clusters", patterns: []string{"duplicatecluster", "\"cluster\"", "redundan"}},
@@ -58,10 +58,9 @@ var expectedSections = map[string][]sectionCheck{
 		{name: "recommendations", patterns: []string{"recommend", "suggestion", "action", "insight"}},
 	},
 	"explain": {
-		{name: "test identifier", patterns: []string{"testid", "testId", "canonicalidentity", "canonicalIdentity"}},
-		{name: "test location", patterns: []string{"filepath", "filePath", "line"}},
-		{name: "confidence", patterns: []string{"confidence"}},
-		{name: "framework", patterns: []string{"framework"}},
+		{name: "entity identified", patterns: []string{"testid", "testId", "path", "scenarioid", "scenarioId", "target"}},
+		{name: "evidence", patterns: []string{"confidence", "verdict", "reason", "relevance"}},
+		{name: "framework or kind", patterns: []string{"framework", "kind", "category"}},
 	},
 	"depgraph:stats": {
 		{name: "node count", patterns: []string{"nodecount", "nodesByType"}},

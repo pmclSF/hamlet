@@ -3,6 +3,7 @@
     "testFileCount": 3,
     "testCaseCount": 5,
     "codeUnitCount": 4,
+    "codeSurfaceCount": 1,
     "frameworks": [
       {
         "name": "jest",

@@ -104,13 +104,10 @@ func TestApplyEdgeCasePolicy_NoEdgeCases(t *testing.T) {
 func TestDetectEdgeCases_ExternalServiceHeavy(t *testing.T) {
 	t.Parallel()
 	g := buildTestGraph()
-	// Add 6 external service nodes to the graph.
-	for i := 0; i < 6; i++ {
-		g.AddNode(&Node{ID: "extsvc:" + string(rune('a'+i)), Type: NodeExternalService})
-	}
 
 	profile := RepoProfile{}
-	cases := DetectEdgeCases(profile, g, ProfileInsights{})
+	spd := SnapshotProfileData{ExternalServiceNodeCount: 6}
+	cases := DetectEdgeCases(profile, g, ProfileInsights{Snapshot: spd})
 
 	found := false
 	for _, c := range cases {
@@ -129,10 +126,10 @@ func TestDetectEdgeCases_ExternalServiceHeavy(t *testing.T) {
 func TestDetectEdgeCases_GeneratedArtifacts(t *testing.T) {
 	t.Parallel()
 	g := buildTestGraph()
-	g.AddNode(&Node{ID: "gen:proto.go", Type: NodeGeneratedArtifact})
 
 	profile := RepoProfile{}
-	cases := DetectEdgeCases(profile, g, ProfileInsights{})
+	spd := SnapshotProfileData{GeneratedArtifactNodeCount: 1}
+	cases := DetectEdgeCases(profile, g, ProfileInsights{Snapshot: spd})
 
 	found := false
 	for _, c := range cases {
@@ -267,6 +264,132 @@ func TestDetectEdgeCases_LargeManualSuite(t *testing.T) {
 	}
 	if !found {
 		t.Error("expected LARGE_MANUAL_SUITE edge case when manual coverage is significant")
+	}
+}
+
+func TestDetectEdgeCases_RedundantTestSuite(t *testing.T) {
+	t.Parallel()
+	g := buildTestGraph()
+
+	profile := RepoProfile{RedundancyLevel: "high"}
+	cases := DetectEdgeCases(profile, g, ProfileInsights{})
+
+	found := false
+	for _, c := range cases {
+		if c.Type == EdgeCaseRedundantSuite {
+			found = true
+			if c.Severity != "caution" {
+				t.Errorf("expected caution severity, got %s", c.Severity)
+			}
+		}
+	}
+	if !found {
+		t.Error("expected REDUNDANT_TEST_SUITE edge case when redundancy is high")
+	}
+}
+
+func TestDetectEdgeCases_HighSkipBurden(t *testing.T) {
+	t.Parallel()
+	g := buildTestGraph()
+
+	profile := RepoProfile{SkipBurden: "high"}
+	cases := DetectEdgeCases(profile, g, ProfileInsights{})
+
+	found := false
+	for _, c := range cases {
+		if c.Type == EdgeCaseHighSkipBurden {
+			found = true
+			if c.Severity != "caution" {
+				t.Errorf("expected caution severity, got %s", c.Severity)
+			}
+		}
+	}
+	if !found {
+		t.Error("expected HIGH_SKIP_BURDEN edge case when skip burden is high")
+	}
+}
+
+func TestDetectEdgeCases_HighFlakeBurden(t *testing.T) {
+	t.Parallel()
+	g := buildTestGraph()
+
+	profile := RepoProfile{FlakeBurden: "high"}
+	cases := DetectEdgeCases(profile, g, ProfileInsights{})
+
+	found := false
+	for _, c := range cases {
+		if c.Type == EdgeCaseHighFlakeBurden {
+			found = true
+			if c.Severity != "caution" {
+				t.Errorf("expected caution severity, got %s", c.Severity)
+			}
+		}
+	}
+	if !found {
+		t.Error("expected HIGH_FLAKE_BURDEN edge case when flake burden is high")
+	}
+}
+
+func TestDetectEdgeCases_HighFanoutFixture(t *testing.T) {
+	t.Parallel()
+	g := buildTestGraph()
+
+	// Need a profile with high fanout burden.
+	profile := RepoProfile{FanoutBurden: "high"}
+	fanout := FanoutResult{
+		NodeCount:    10,
+		FlaggedCount: 4, // 40% > 30% threshold
+		Threshold:    DefaultFanoutThreshold,
+	}
+	cases := DetectEdgeCases(profile, g, ProfileInsights{Fanout: &fanout})
+
+	found := false
+	for _, c := range cases {
+		if c.Type == EdgeCaseHighFanoutFixture {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("expected HIGH_FANOUT_FIXTURE edge case when >30% nodes flagged")
+	}
+}
+
+func TestDetectEdgeCases_LowGraphVisibility(t *testing.T) {
+	t.Parallel()
+	g := buildTestGraph()
+
+	profile := RepoProfile{CoverageConfidence: "low"}
+	cases := DetectEdgeCases(profile, g, ProfileInsights{})
+
+	found := false
+	for _, c := range cases {
+		if c.Type == EdgeCaseLowGraphVisibility {
+			found = true
+			if c.Severity != "warning" {
+				t.Errorf("expected warning severity, got %s", c.Severity)
+			}
+		}
+	}
+	if !found {
+		t.Error("expected LOW_GRAPH_VISIBILITY edge case when coverage confidence is low")
+	}
+}
+
+func TestDetectEdgeCases_FastCIAlready(t *testing.T) {
+	t.Parallel()
+	g := buildTestGraph()
+
+	profile := RepoProfile{CIPressure: "low"}
+	cases := DetectEdgeCases(profile, g, ProfileInsights{})
+
+	found := false
+	for _, c := range cases {
+		if c.Type == EdgeCaseFastCIAlready {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("expected FAST_CI_ALREADY edge case when CI pressure is low")
 	}
 }
 

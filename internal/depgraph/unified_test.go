@@ -16,9 +16,6 @@ func TestNodeTypeFamily(t *testing.T) {
 	}{
 		// System
 		{NodeSourceFile, FamilySystem},
-		{NodePackage, FamilySystem},
-		{NodeService, FamilySystem},
-		{NodeGeneratedArtifact, FamilySystem},
 		{NodeCodeSurface, FamilySystem},
 
 		// Validation
@@ -28,8 +25,6 @@ func TestNodeTypeFamily(t *testing.T) {
 		{NodeManualCoverage, FamilyValidation},
 		{NodeSuite, FamilyValidation},
 		{NodeTestFile, FamilyValidation},
-		{NodeFixture, FamilyValidation},
-		{NodeHelper, FamilyValidation},
 
 		// Behavior
 		{NodeBehaviorSurface, FamilyBehavior},
@@ -38,7 +33,6 @@ func TestNodeTypeFamily(t *testing.T) {
 		{NodeEnvironment, FamilyEnvironment},
 		{NodeEnvironmentClass, FamilyEnvironment},
 		{NodeDeviceConfig, FamilyEnvironment},
-		{NodeExternalService, FamilyEnvironment},
 		{NodeDataset, FamilyEnvironment},
 		{NodeModel, FamilyEnvironment},
 		{NodePrompt, FamilyEnvironment},
@@ -111,7 +105,7 @@ func TestNodesByFamily(t *testing.T) {
 	g := NewGraph()
 
 	g.AddNode(&Node{ID: "file:src/auth.go", Type: NodeSourceFile})
-	g.AddNode(&Node{ID: "pkg:auth", Type: NodePackage})
+	g.AddNode(&Node{ID: "surface:auth:login", Type: NodeCodeSurface})
 	g.AddNode(&Node{ID: "test:a:1:login", Type: NodeTest})
 	g.AddNode(&Node{ID: "file:a.test.go", Type: NodeTestFile})
 	g.AddNode(&Node{ID: "env:staging", Type: NodeEnvironment})
@@ -154,7 +148,7 @@ func TestGraphMarshalJSON(t *testing.T) {
 	g.AddEdge(&Edge{
 		From:         "test:a:1:login",
 		To:           "file:src/auth.go",
-		Type:         EdgeValidates,
+		Type:         EdgeCoversCodeSurface,
 		Confidence:   0.9,
 		EvidenceType: EvidenceStaticAnalysis,
 	})
@@ -190,7 +184,7 @@ func TestGraphUnmarshalJSON(t *testing.T) {
 			{"id": "test:a:1:login", "type": "test", "path": "a.test.go", "name": "login", "line": 1}
 		],
 		"edges": [
-			{"from": "test:a:1:login", "to": "file:src/auth.go", "type": "validates", "confidence": 0.9, "evidenceType": "static_analysis"}
+			{"from": "test:a:1:login", "to": "file:src/auth.go", "type": "covers_code_surface", "confidence": 0.9, "evidenceType": "static_analysis"}
 		]
 	}`
 
@@ -211,7 +205,7 @@ func TestGraphUnmarshalJSON(t *testing.T) {
 	if len(out) != 1 {
 		t.Fatalf("expected 1 outgoing edge, got %d", len(out))
 	}
-	if out[0].Type != EdgeValidates {
+	if out[0].Type != EdgeCoversCodeSurface {
 		t.Errorf("expected validates edge, got %s", out[0].Type)
 	}
 
@@ -227,7 +221,7 @@ func TestGraphSerializationRoundTrip(t *testing.T) {
 
 	// Add nodes from multiple families.
 	original.AddNode(&Node{ID: "file:src/auth.go", Type: NodeSourceFile, Path: "src/auth.go"})
-	original.AddNode(&Node{ID: "svc:auth-api", Type: NodeService, Name: "auth-api"})
+	original.AddNode(&Node{ID: "surface:auth-api", Type: NodeCodeSurface, Name: "auth-api"})
 	original.AddNode(&Node{ID: "test:a:1:login", Type: NodeTest, Path: "a.test.go", Name: "login", Line: 1, Framework: "go"})
 	original.AddNode(&Node{ID: "env:staging", Type: NodeEnvironment, Name: "staging", Metadata: map[string]string{"region": "us-east-1"}})
 	original.AddNode(&Node{ID: "behavior:auth-flow", Type: NodeBehaviorSurface, Name: "auth-flow"})
@@ -235,7 +229,7 @@ func TestGraphSerializationRoundTrip(t *testing.T) {
 	original.AddNode(&Node{ID: "run:ci-123", Type: NodeExecutionRun, Name: "ci-123"})
 
 	// Add cross-family edges.
-	original.AddEdge(&Edge{From: "test:a:1:login", To: "file:src/auth.go", Type: EdgeValidates, Confidence: 0.95, EvidenceType: EvidenceStaticAnalysis})
+	original.AddEdge(&Edge{From: "test:a:1:login", To: "file:src/auth.go", Type: EdgeCoversCodeSurface, Confidence: 0.95, EvidenceType: EvidenceStaticAnalysis})
 	original.AddEdge(&Edge{From: "test:a:1:login", To: "env:staging", Type: EdgeTargetsEnvironment, Confidence: 0.8, EvidenceType: EvidenceConvention})
 	original.AddEdge(&Edge{From: "behavior:auth-flow", To: "file:src/auth.go", Type: EdgeBehaviorDerivedFrom, Confidence: 0.7, EvidenceType: EvidenceInferred})
 	original.AddEdge(&Edge{From: "owner:team-alpha", To: "file:src/auth.go", Type: EdgeOwns, Confidence: 1.0, EvidenceType: EvidenceManual})
@@ -473,7 +467,7 @@ func buildUnifiedTestGraph() *Graph {
 
 	// System nodes.
 	g.AddNode(&Node{ID: "file:src/auth.go", Type: NodeSourceFile, Path: "src/auth.go", Package: "auth"})
-	g.AddNode(&Node{ID: "svc:auth-api", Type: NodeService, Name: "auth-api"})
+	g.AddNode(&Node{ID: "surface:auth-api", Type: NodeCodeSurface, Name: "auth-api"})
 
 	// Validation nodes.
 	g.AddNode(&Node{ID: "test:a:1:login", Type: NodeTest, Path: "a.test.go", Name: "login", Line: 1})
@@ -493,8 +487,8 @@ func buildUnifiedTestGraph() *Graph {
 	g.AddNode(&Node{ID: "owner:team-alpha", Type: NodeOwner, Name: "team-alpha"})
 
 	// Validation → System edges.
-	g.AddEdge(&Edge{From: "test:a:1:login", To: "file:src/auth.go", Type: EdgeValidates, Confidence: 0.95, EvidenceType: EvidenceStaticAnalysis})
-	g.AddEdge(&Edge{From: "test:a:10:logout", To: "file:src/auth.go", Type: EdgeValidates, Confidence: 0.9, EvidenceType: EvidenceStaticAnalysis})
+	g.AddEdge(&Edge{From: "test:a:1:login", To: "file:src/auth.go", Type: EdgeCoversCodeSurface, Confidence: 0.95, EvidenceType: EvidenceStaticAnalysis})
+	g.AddEdge(&Edge{From: "test:a:10:logout", To: "file:src/auth.go", Type: EdgeCoversCodeSurface, Confidence: 0.9, EvidenceType: EvidenceStaticAnalysis})
 
 	// Validation → Environment edges.
 	g.AddEdge(&Edge{From: "test:a:1:login", To: "env:staging", Type: EdgeTargetsEnvironment, Confidence: 0.8, EvidenceType: EvidenceConvention})

@@ -46,6 +46,8 @@ Expected outcome by step:
 - Weak coverage areas
 - CI optimization potential
 - Top insight / biggest improvement opportunity
+- Risk posture (5 dimensions: health, coverage_depth, coverage_diversity, structural_risk, operational_risk)
+- Signal summary (total, by severity, by category)
 
 **Engines involved:**
 - Signal detection pipeline (framework detection, quality signals, health signals)
@@ -188,3 +190,18 @@ Internal engine views accessible via `terrain debug <engine>`:
 | `terrain debug depgraph` | Full dependency graph analysis (all engines) |
 
 These are intended for development and debugging, not end-user workflows. The legacy `terrain depgraph` command remains as a backward-compatible alias for `terrain debug depgraph`.
+
+## Output Determinism
+
+All four canonical commands produce deterministic output for a given repository state:
+
+| Command | JSON Determinism | Notes |
+|---------|-----------------|-------|
+| `terrain analyze` | Fully deterministic | Same repo state → identical JSON |
+| `terrain insights` | Fully deterministic | Same repo state → identical JSON |
+| `terrain impact` | Deterministic except `changeSet.createdAt` | Timestamp records when analysis ran; all analysis fields are stable |
+| `terrain explain` | Fully deterministic | Same repo state + target → identical JSON |
+
+Golden snapshot tests (`cmd/terrain/testdata/*.golden`) validate determinism by extracting stable aggregate fields and comparing against known-good baselines. The tests run against `tests/fixtures/sample-repo/` with a controlled 2-commit git history.
+
+Deterministic ordering is enforced throughout: signals are sorted by severity then type, test files by path, code units by path then name, risk dimensions by canonical order. All floating-point values use fixed precision.

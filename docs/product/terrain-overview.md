@@ -31,7 +31,7 @@ These four commands are the product front door. All other commands — `summary`
 
 **Languages:** JavaScript/TypeScript, Go, Python, Java.
 
-**Frameworks:** 19 test frameworks across 4 languages — Jest, Vitest, Mocha, Jasmine, Playwright, Cypress, Puppeteer, WebdriverIO, TestCafe, Node Test, pytest, unittest, nose2, go-testing, JUnit 4, JUnit 5, TestNG.
+**Frameworks:** 17 test frameworks across 4 languages — Jest, Vitest, Mocha, Jasmine, Playwright, Cypress, Puppeteer, WebdriverIO, TestCafe, Node Test, pytest, unittest, nose2, go-testing, JUnit 4, JUnit 5, TestNG.
 
 **Data sources:**
 - Source code and test code (static analysis — always available)
@@ -63,7 +63,7 @@ Terrain computes posture across five dimensions:
 4. **Structural Risk** — Fanout burden (high-dependency modules), duplicate test clusters
 5. **Operational Risk** — Policy violations, governance compliance
 
-These dimensions roll up into a posture band (strong, moderate, weak, critical) with explicit evidence grading for each dimension.
+These dimensions roll up into a posture band (strong, moderate, weak, elevated, critical) with explicit evidence grading for each dimension. When insufficient data is available, a dimension may report as unknown.
 
 ## Who Uses Terrain
 
@@ -119,18 +119,37 @@ The pipeline runs in a fixed order: scan → analyze → detect signals → buil
 
 ## Legacy Converter Engine
 
-The JavaScript converter engine (`src/`, `bin/terrain.js`) provides multi-framework test conversion across 16 frameworks and 25 conversion directions. It remains functional and is accessible via `terrain convert`. This engine predates the Go analysis engine and serves as the migration acquisition wedge — the pain of framework migration is what brings teams to Terrain, and the analysis engine turns that pain into broader test intelligence.
+The JavaScript converter engine (`src/`, `bin/terrain.js`) provides multi-framework test conversion across 16 frameworks and 25 conversion directions. It remains functional and is accessible via `node bin/terrain.js` (the npm package entry point). The converter is not currently wired into the Go CLI binary. This engine predates the Go analysis engine and serves as the migration acquisition wedge — the pain of framework migration is what brings teams to Terrain, and the analysis engine turns that pain into broader test intelligence.
 
 ## Current State
 
-- **22 signal types** across 4 categories, all implemented
-- **17 analysis detectors** registered in the engine
-- **19 test frameworks** detected across 4 languages
+**Analysis Engine:**
+- **22 signal types** across 4 categories (health, quality, migration, governance)
+- **17 test frameworks** detected across 4 languages (JS/TS, Go, Python, Java)
+- **7 code surface kinds** — function, method, handler, route, class, prompt, dataset
+- **5 posture dimensions** with 18 measurements and evidence grading
 - **6 policy rule types** with size-aware thresholds
-- **4 canonical commands** with full JSON and terminal output
-- **12 supporting commands** covering summary, posture, portfolio, metrics, comparison, migration, policy, test selection, PR analysis, entity drill-down, focus, and benchmark export
-- **6 debug commands** for graph, coverage, fanout, duplicates, depgraph, and impact profiling
+- **14 edge case detectors** with adaptive confidence adjustment
+
+**Graph & Reasoning:**
+- **20 node types** across 6 families (system, validation, behavior, environment, execution, governance)
+- **15 edge types** with confidence scoring and evidence types
+- **5 reasoning pipelines** — impact, coverage, redundancy, stability, environment
+
+**CLI:**
+- **4 canonical commands** — analyze, impact, insights, explain
+- **13 supporting commands** — init, summary, focus, posture, portfolio, metrics, compare, migration, policy, select-tests, pr, show, export benchmark
+- **5 AI commands** — ai list, ai doctor, ai run (scaffolded), ai record (scaffolded), ai baseline (scaffolded)
+- **5 debug commands** — debug graph, coverage, fanout, duplicates, depgraph
+
+**AI Validation:**
+- **Scenario model** — first-class validation targets alongside tests
+- **Prompt and dataset inference** — naming convention detection in JS/TS and Python
+- **Scenario impact detection** — changed prompt/dataset surfaces mapped to impacted scenarios
+- **Gauntlet integration** — artifact ingestion via `--gauntlet` flag
+
+**Infrastructure:**
 - **CI integration** via GitHub Actions composite action with PR comments and artifact upload
 - **Golden/snapshot tests** validating all 4 canonical journeys
-- **12 fixture repositories** covering all 6 personas and key edge cases
-- **Benchmark matrix** against real open-source repositories (pandas, fastapi, express, etc.)
+- **20 benchmark repositories** — 10 real-world (express, flask, vue, jest, playwright, storybook, next.js, fastify, gauntlet, terrain) + 10 fixture repos
+- **Benchmark smoke tests** in CI validating 4 canonical commands across 3 fixture types

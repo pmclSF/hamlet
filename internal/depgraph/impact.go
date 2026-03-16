@@ -85,11 +85,7 @@ func AnalyzeImpact(g *Graph, changedFiles []string) ImpactResult {
 		return result
 	}
 
-	// Compute out-degree for fanout penalty.
-	outDegree := map[string]int{}
-	for _, n := range g.Nodes() {
-		outDegree[n.ID] = len(g.Neighbors(n.ID))
-	}
+	// Out-degree is computed lazily via g.OutDegree() with caching.
 
 	// Track best confidence per test ID.
 	bestTests := map[string]*ImpactedTest{}
@@ -182,7 +178,7 @@ func AnalyzeImpact(g *Graph, changedFiles []string) ImpactResult {
 				newConf *= lengthDecay
 
 				// Fanout penalty.
-				if od := outDegree[e.From]; od > fanoutThreshold {
+				if od := g.OutDegree(e.From); od > fanoutThreshold {
 					newConf /= math.Log2(float64(od) + 1)
 				}
 

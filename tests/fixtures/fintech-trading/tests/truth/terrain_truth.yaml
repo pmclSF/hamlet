@@ -1,0 +1,44 @@
+impact:
+  description: "Trading platform impact chains"
+  cases:
+    - change: "src/orders/engine.ts"
+      expected_impacted_tests:
+        - "tests/unit/orders/engine.test.ts"
+        - "tests/integration/orders/order-flow.test.ts"
+        - "tests/e2e/trading/full-trade.test.ts"
+        - "tests/e2e/trading/quick-trade.test.ts"
+    - change: "src/risk/prompt.ts"
+      expected_impacted_tests:
+        - "tests/eval/safety/risk-safety.test.ts"
+        - "tests/eval/safety/safety-regression.test.ts"
+      expected_impacted_scenarios:
+        - "risk-safety"
+        - "safety-regression"
+coverage:
+  expected_uncovered:
+    - path: "src/alerts/notifier.ts"
+      reason: "Manual-only zone"
+    - path: "src/market-data/feed.ts"
+      reason: "No test imports"
+redundancy:
+  expected_clusters:
+    - tests:
+        - "tests/e2e/trading/full-trade.test.ts"
+        - "tests/e2e/trading/quick-trade.test.ts"
+      reason: "Overlapping trading e2e flows"
+fanout:
+  expected_flagged:
+    - node: "src/shared/db.ts"
+      expected_min_dependents: 3
+ai:
+  expected_scenarios: 3
+  expected_prompt_surfaces:
+    - "src/risk/prompt.ts:riskSystemPrompt"
+    - "src/risk/prompt.ts:buildRiskPrompt"
+    - "src/risk/prompt.ts:buildSafetyPrompt"
+  expected_dataset_surfaces:
+    - "src/risk/dataset.ts:tradingDataset"
+    - "src/risk/dataset.ts:loadTradingDataset"
+environment:
+  description: "No env classes"
+  notes: "Trading fixture."

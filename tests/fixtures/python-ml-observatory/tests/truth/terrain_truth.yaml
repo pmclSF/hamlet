@@ -1,0 +1,66 @@
+impact:
+  description: "Change impact should trace through imports correctly"
+  cases:
+    - change: "src/models/classifier.py"
+      expected_impacted_tests:
+        - "tests/unit/models/test_classifier.py"
+        - "tests/eval/accuracy/test_classifier_accuracy.py"
+        - "tests/eval/accuracy/test_classifier_eval_v2.py"
+        - "tests/eval/regression/test_model_regression.py"
+      expected_impacted_scenarios:
+        - "classifier-accuracy"
+        - "classifier-eval-v2"
+        - "model-regression"
+      notes: "Classifier changes should reach all accuracy and regression evals"
+
+    - change: "src/prompts/builder.py"
+      expected_impacted_tests:
+        - "tests/eval/safety/test_prompt_safety.py"
+        - "tests/eval/safety/test_safety_regression.py"
+      expected_impacted_scenarios:
+        - "prompt-safety"
+        - "safety-regression"
+      notes: "Prompt changes should reach both safety eval files"
+
+coverage:
+  description: "Coverage should identify untested source files"
+  expected_uncovered:
+    - path: "src/data/augment.py"
+      reason: "No test file imports augment.py"
+    - path: "src/scoring/batch.py"
+      reason: "No test file imports batch.py directly"
+
+redundancy:
+  description: "Redundancy detection should find duplicate eval clusters"
+  expected_clusters:
+    - tests:
+        - "tests/eval/accuracy/test_classifier_accuracy.py"
+        - "tests/eval/accuracy/test_classifier_eval_v2.py"
+      reason: "Near-identical classifier accuracy eval files"
+    - tests:
+        - "tests/eval/safety/test_prompt_safety.py"
+        - "tests/eval/safety/test_safety_regression.py"
+      reason: "Overlapping safety eval files"
+
+fanout:
+  description: "Fanout should flag shared test helpers"
+  expected_flagged:
+    - node: "src/conftest_helpers.py"
+      expected_min_dependents: 3
+      reason: "Shared helpers imported by multiple test files"
+
+ai:
+  description: "AI scenario and surface detection"
+  expected_scenarios: 5
+  expected_prompt_surfaces:
+    - "src/prompts/builder.py:build_classification_prompt"
+    - "src/prompts/builder.py:build_safety_prompt"
+    - "src/prompts/builder.py:build_retrieval_prompt"
+  expected_dataset_surfaces:
+    - "src/data/loader.py:load_training_data"
+    - "src/data/loader.py:load_eval_dataset"
+    - "src/data/loader.py:split_dataset"
+
+environment:
+  description: "No environment classes in this ML fixture"
+  notes: "Python ML fixture focuses on model evaluation, not environment matrix."

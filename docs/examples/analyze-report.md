@@ -15,13 +15,13 @@ Repository Profile
   Coverage confidence:  medium
   Redundancy level:     medium
   Fanout burden:        high
-  Skip burden:          low
 
-Tests Detected
+Validation Inventory
 ------------------------------------------------------------
   Test files:     1847
   Test cases:     18204
   Code units:     3612
+  Code surfaces:  4200
   Frameworks:
     jest                 1145 files [unit]
     vitest                443 files [unit]
@@ -69,10 +69,11 @@ Top Insight
 
 Risk Posture
 ------------------------------------------------------------
-  Quality:                 HIGH
-  Reliability:             MEDIUM
-  Speed:                   HIGH
-  Governance:              LOW
+  health:                  STRONG
+  coverage_depth:          WEAK
+  coverage_diversity:      MODERATE
+  structural_risk:         MODERATE
+  operational_risk:        STRONG
 
 Signals: 847 total
   42 critical, 156 high, 312 medium, 337 low
@@ -120,6 +121,7 @@ terrain analyze --json
     "testFileCount": 1847,
     "testCaseCount": 18204,
     "codeUnitCount": 3612,
+    "codeSurfaceCount": 4200,
     "frameworks": [
       { "name": "jest", "fileCount": 1145, "type": "unit" },
       { "name": "vitest", "fileCount": 443, "type": "unit" },
@@ -132,7 +134,7 @@ terrain analyze --json
     "coverageConfidence": "medium",
     "redundancyLevel": "medium",
     "fanoutBurden": "high",
-    "skipBurden": "low",
+    "manualCoveragePresence": "none",
     "graphDensity": 0.0023
   },
   "coverageConfidence": {
@@ -173,10 +175,11 @@ terrain analyze --json
   },
   "topInsight": "fixtures/authSession.js fans out to 2400 transitive dependents — changes here trigger wide test impact. Consider splitting or isolating.",
   "riskPosture": [
-    { "dimension": "Quality", "band": "high" },
-    { "dimension": "Reliability", "band": "medium" },
-    { "dimension": "Speed", "band": "high" },
-    { "dimension": "Governance", "band": "low" }
+    { "dimension": "health", "band": "strong" },
+    { "dimension": "coverage_depth", "band": "weak" },
+    { "dimension": "coverage_diversity", "band": "moderate" },
+    { "dimension": "structural_risk", "band": "moderate" },
+    { "dimension": "operational_risk", "band": "strong" }
   ],
   "signalSummary": {
     "total": 847,
@@ -186,8 +189,8 @@ terrain analyze --json
     "low": 337,
     "byCategory": {
       "quality": 312,
-      "reliability": 198,
-      "speed": 187,
+      "health": 198,
+      "migration": 187,
       "governance": 150
     }
   },
@@ -202,7 +205,7 @@ terrain analyze --json
 | Section | Engine |
 |---------|--------|
 | Repository profile | `depgraph.AnalyzeProfile()` |
-| Tests detected | `engine.RunPipeline()` snapshot |
+| Validation inventory | `engine.RunPipeline()` snapshot (tests, scenarios, surfaces) |
 | Coverage confidence | `depgraph.AnalyzeCoverage()` |
 | Duplicate clusters | `depgraph.DetectDuplicates()` |
 | High-fanout nodes | `depgraph.AnalyzeFanout()` |
@@ -210,6 +213,6 @@ terrain analyze --json
 | Weak coverage areas | `depgraph.AnalyzeCoverage()` low-band sources |
 | CI optimization | Aggregation of duplicates, fanout, and skips |
 | Top insight | `analyze.deriveTopInsight()` priority chain |
-| Risk posture | `scoring.ScoreRisk()` via pipeline measurements |
+| Risk posture | `measurement.ComputePosture()` via pipeline measurements |
 | Signals | Signal detection across all categories |
 | Data completeness | Pipeline data source tracking |

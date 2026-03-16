@@ -2,8 +2,10 @@ package depgraph
 
 import (
 	"fmt"
+	goruntime "runtime"
 	"sort"
 	"strings"
+	"sync"
 )
 
 // DuplicateResult contains the structural duplicate analysis.
@@ -107,33 +109,89 @@ func DetectDuplicates(g *Graph) DuplicateResult {
 	// Step 2: Generate candidate pairs.
 	pairs := generateCandidates(fps)
 
-	// Step 3: Score pairs and cluster.
+	// Step 3: Score pairs in parallel, then cluster sequentially.
+	// Scoring is pure (no mutation) so safe to parallelize. Union-find
+	// mutation happens in the sequential merge phase.
+	type scoredPair struct {
+		pair    [2]int
+		score   float64
+		signals SimilaritySignals
+	}
+
+	var scored []scoredPair
+	if len(pairs) <= 100 {
+		// Small pair count: score sequentially to avoid goroutine overhead.
+		for _, pair := range pairs {
+			i, j := pair[0], pair[1]
+			if len(fps[i].fixtures) == 0 && len(fps[j].fixtures) == 0 &&
+				len(fps[i].helpers) == 0 && len(fps[j].helpers) == 0 {
+				continue
+			}
+			if !hasSetOverlap(fps[i].fixtures, fps[j].fixtures) &&
+				!hasSetOverlap(fps[i].helpers, fps[j].helpers) {
+				continue
+			}
+			score, signals := scoreSimilarity(fps[i], fps[j])
+			if score >= similarityThreshold {
+				scored = append(scored, scoredPair{pair, score, signals})
+			}
+		}
+	} else {
+		// Large pair count: score in parallel via worker pool.
+		// Results collected per-index for deterministic ordering.
+		perPair := make([]scoredPair, len(pairs))
+		keep := make([]bool, len(pairs))
+
+		workers := goruntime.GOMAXPROCS(0)
+		if workers > len(pairs) {
+			workers = len(pairs)
+		}
+		indexCh := make(chan int, len(pairs))
+		var wg sync.WaitGroup
+		for w := 0; w < workers; w++ {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				for idx := range indexCh {
+					pair := pairs[idx]
+					i, j := pair[0], pair[1]
+					if len(fps[i].fixtures) == 0 && len(fps[j].fixtures) == 0 &&
+						len(fps[i].helpers) == 0 && len(fps[j].helpers) == 0 {
+						continue
+					}
+					if !hasSetOverlap(fps[i].fixtures, fps[j].fixtures) &&
+						!hasSetOverlap(fps[i].helpers, fps[j].helpers) {
+						continue
+					}
+					score, signals := scoreSimilarity(fps[i], fps[j])
+					if score >= similarityThreshold {
+						perPair[idx] = scoredPair{pair, score, signals}
+						keep[idx] = true
+					}
+				}
+			}()
+		}
+		for i := range pairs {
+			indexCh <- i
+		}
+		close(indexCh)
+		wg.Wait()
+
+		for i, sp := range perPair {
+			if keep[i] {
+				scored = append(scored, sp)
+			}
+		}
+	}
+
+	// Sequential union-find merge (order-independent for union-find correctness).
 	uf := newUnionFind(len(fps))
 	pairScores := map[[2]int]float64{}
 	pairSignals := map[[2]int]SimilaritySignals{}
-
-	for _, pair := range pairs {
-		i, j := pair[0], pair[1]
-
-		// Skip pairs where neither test has fixtures or helpers — with
-		// empty-set Jaccard = 0.0, max composite score is 0.50 < threshold.
-		if len(fps[i].fixtures) == 0 && len(fps[j].fixtures) == 0 &&
-			len(fps[i].helpers) == 0 && len(fps[j].helpers) == 0 {
-			continue
-		}
-
-		// Skip pairs with zero overlap on both structural dimensions.
-		if !hasSetOverlap(fps[i].fixtures, fps[j].fixtures) &&
-			!hasSetOverlap(fps[i].helpers, fps[j].helpers) {
-			continue
-		}
-
-		score, signals := scoreSimilarity(fps[i], fps[j])
-		if score >= similarityThreshold {
-			uf.union(i, j)
-			pairScores[pair] = score
-			pairSignals[pair] = signals
-		}
+	for _, sp := range scored {
+		uf.union(sp.pair[0], sp.pair[1])
+		pairScores[sp.pair] = sp.score
+		pairSignals[sp.pair] = sp.signals
 	}
 
 	// Step 4: Build clusters from union-find.
@@ -219,37 +277,13 @@ func DetectDuplicates(g *Graph) DuplicateResult {
 func buildFingerprints(g *Graph, tests []*Node) []testFingerprint {
 	fps := make([]testFingerprint, len(tests))
 
-	// Build file→fixtures/helpers index.
-	fileFixtures := map[string]map[string]bool{}
-	fileHelpers := map[string]map[string]bool{}
-
-	for _, e := range g.Edges() {
-		switch e.Type {
-		case EdgeTestUsesFixture:
-			if fileFixtures[e.From] == nil {
-				fileFixtures[e.From] = map[string]bool{}
-			}
-			fileFixtures[e.From][e.To] = true
-		case EdgeTestUsesHelper:
-			if fileHelpers[e.From] == nil {
-				fileHelpers[e.From] = map[string]bool{}
-			}
-			fileHelpers[e.From][e.To] = true
-		}
-	}
-
 	for i, test := range tests {
-		fileID := "file:" + test.Path
-
-		// Collect fixtures and helpers for this test's file.
+		// Fixture and helper maps are reserved for future use when
+		// fixture/helper nodes are populated in the graph. Currently
+		// empty — scoring relies on package, suite path, and assertion
+		// pattern dimensions.
 		fixtures := map[string]bool{}
-		for f := range fileFixtures[fileID] {
-			fixtures[f] = true
-		}
 		helpers := map[string]bool{}
-		for h := range fileHelpers[fileID] {
-			helpers[h] = true
-		}
 
 		// Extract suite path from the graph.
 		suitePath := extractSuitePath(g, test.ID)

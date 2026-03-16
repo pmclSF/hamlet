@@ -1,34 +1,49 @@
-# Test files
+# === npm publish exclusions (defense-in-depth) ===
+# The package.json "files" field is the primary allowlist.
+# This file provides a safety net against accidental inclusion.
+
+# Go source (not part of npm package)
+internal/
+cmd/
+go.mod
+go.sum
+.goreleaser.yaml
+Makefile
+
+# Test and fixture infrastructure
 test/
+tests/
+benchmarks/
+fixtures/
 *.test.js
 *.spec.js
 jest.config.js
-coverage/
+playwright.config.js
 
-# Development files
+# Development config
 .github/
+.husky/
 .eslintrc*
 .prettierrc*
 .editorconfig
-.husky/
-commitlint.config.js
 commitlint.config.cjs
 tsconfig.json
-playwright.config.js
 
-# Internal / agent docs
+# Documentation (shipped separately, not in npm package)
+docs/
 CLAUDE.md
 DESIGN.md
+CONTRIBUTING.md
+CHANGELOG.md
 
-# Dev-only directories
-docs/
-config/
-scripts/
-benchmarks/
+# Extension source (separate distribution)
+extension/
 
-# Large untracked dirs (defense-in-depth)
-testing/
-terrain/
+# Example/demo files
+examples/
+
+# CI helpers
+ci/
 
 # IDE/Editor
 .vscode/
@@ -40,11 +55,16 @@ terrain/
 .DS_Store
 Thumbs.db
 
-# Logs
+# Logs and temp
 *.log
 npm-debug.log*
-
-# Temporary files
 tmp/
 temp/
 *.tmp
+*.backup
+
+# Generated output
+artifacts/
+reports/
+coverage/
+dist/

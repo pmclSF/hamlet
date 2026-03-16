@@ -1,0 +1,26 @@
+scenarios:
+  - name: model-accuracy
+    category: accuracy
+    framework: custom
+    owner: ai-team
+    surfaces: ["surface:src/ai-anomaly/model.ts:predict","surface:src/ai-anomaly/model.ts:classify"]
+    path: tests/eval/accuracy/model-accuracy.test.ts
+  - name: safety-eval
+    category: safety
+    framework: custom
+    owner: ai-team
+    surfaces: ["surface:src/ai-anomaly/prompt.ts:buildSafetyPrompt","surface:src/ai-anomaly/prompt.ts:systemPrompt"]
+    path: tests/eval/safety/safety-eval.test.ts
+  - name: safety-regression
+    category: safety
+    framework: custom
+    owner: ai-team
+    surfaces: ["surface:src/ai-anomaly/prompt.ts:buildSafetyPrompt","surface:src/ai-anomaly/prompt.ts:systemPrompt"]
+    path: tests/eval/safety/safety-regression.test.ts
+manual_coverage:
+  - name: dashboards-manual
+    area: src/dashboards
+    source: checklist
+    owner: qa-team
+    criticality: high
+    frequency: per-release

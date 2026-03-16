@@ -1,0 +1,44 @@
+impact:
+  cases:
+    - change: "src/devices/service.ts"
+      expected_impacted_tests:
+        - "tests/unit/devices/service.test.ts"
+        - "tests/integration/devices/flow.test.ts"
+        - "tests/e2e/main/full-flow.test.ts"
+        - "tests/e2e/main/quick-flow.test.ts"
+    - change: "src/ai-anomaly/prompt.ts"
+      expected_impacted_tests:
+        - "tests/eval/safety/safety-eval.test.ts"
+        - "tests/eval/safety/safety-regression.test.ts"
+      expected_impacted_scenarios:
+        - "safety-eval"
+        - "safety-regression"
+coverage:
+  expected_uncovered:
+    - path: "src/dashboards/service.ts"
+      reason: "No test imports"
+    - path: "src/firmware/service.ts"
+      reason: "No test imports"
+redundancy:
+  expected_clusters:
+    - tests:
+        - "tests/e2e/main/full-flow.test.ts"
+        - "tests/e2e/main/quick-flow.test.ts"
+      reason: "Overlapping e2e"
+fanout:
+  expected_flagged:
+    - node: "shared"
+      expected_min_dependents: 3
+ai:
+  expected_scenarios: 3
+  expected_prompt_surfaces:
+    - "src/ai-anomaly/prompt.ts:systemPrompt"
+    - "src/ai-anomaly/prompt.ts:buildPrompt"
+    - "src/ai-anomaly/prompt.ts:buildSafetyPrompt"
+  expected_dataset_surfaces:
+    - "src/ai-anomaly/dataset.ts:evalDataset"
+    - "src/ai-anomaly/dataset.ts:loadEvalDataset"
+    - "src/ai-anomaly/dataset.ts:splitEvalData"
+environment:
+  description: "No env"
+  notes: "iot-device-hub"
