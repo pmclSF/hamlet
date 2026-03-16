@@ -24,8 +24,7 @@
     }
   },
   "bin": {
-    "terrain": "bin/terrain.js",
-    "hamlet": "bin/hamlet.js"
+    "terrain": "bin/terrain.js"
   },
   "files": [
     "bin",
