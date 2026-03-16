@@ -37,6 +37,12 @@ The legacy converter engine is preserved and functional. See [legacy/](legacy/) 
 - [Roadmap](roadmap.md) — milestone history and future work
 - [Implementation Workbook](implementation-workbook.md) — stage-by-stage implementation log
 
+## Benchmarks
+
+- [CLI Benchmarks](benchmarks/cli-benchmarks.md) — benchmark harness for primary Terrain commands
+- [Truth Validation](benchmarks/truth-validation.md) — ground-truth evaluator and scoring model
+- [Claude Ground-Truth Fixture Prompt](benchmarks/claude-ground-truth-fixture-prompt.md) — reusable prompt for generating and validating complex fixture repos
+
 ## Engineering
 
 - [Architecture Map](engineering/architecture-map.md) — contributor-facing component map

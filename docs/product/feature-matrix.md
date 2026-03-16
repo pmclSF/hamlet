@@ -1,9 +1,9 @@
 # Feature Matrix
 
-> **Status:** Current
-> **Purpose:** Map Terrain's capabilities to the personas who use them. Each cell shows whether the capability is implemented, partial, or planned — and at what support level for that persona's specific workflow.
+> **Status:** Current (validated against implementation 2026-03-15)
+> **Purpose:** Map Terrain's capabilities to the personas who use them. Each cell shows the support level for that persona's specific workflow. Status column distinguishes implemented, partial, and future.
 
-**See also:** [Persona Journeys](../architecture/17-persona-journeys.md), [Canonical User Journeys](canonical-user-journeys.md), [CLI Spec](../architecture/09-cli-spec.md)
+**See also:** [Persona Matrix](persona-matrix.md), [Persona Journeys](../architecture/17-persona-journeys.md), [Canonical User Journeys](canonical-user-journeys.md)
 
 ## Legend
 
@@ -12,73 +12,109 @@
 | **Strong** | Capability is fully implemented and directly serves this persona's key workflow |
 | **Useful** | Capability is implemented and relevant, but not purpose-built for this persona |
 | **Partial** | Capability exists but has gaps for this persona's specific needs |
-| **—** | Not relevant to this persona's primary workflows |
-| **Planned** | Not yet implemented; identified as a future extension |
+| **---** | Not relevant to this persona's primary workflows |
+| **Future** | Not yet implemented; identified as a future extension |
 
-## Core Capabilities × Personas
+## Core Capabilities x Personas
 
-| Capability | Frontend Engineer | Backend Engineer | Mobile / Device | QA / SDET | SRE / Platform | AI / ML Engineer |
+| Capability | Status | Frontend | Backend | AI / ML | SRE / Platform | QA / SDET |
 |---|---|---|---|---|---|---|
-| **Static analysis** (`analyze`) | Strong | Strong | Strong | Strong | Useful | Useful |
-| **Prioritized findings** (`insights`) | Strong | Strong | Strong | Strong | Useful | Useful |
-| **Change impact** (`impact`) | Strong | Strong | Strong | Strong | Strong | Useful |
-| **Explainability** (`explain`) | Strong | Strong | Strong | Strong | Strong | Useful |
-| **Test selection** (`select-tests`) | Strong | Strong | Useful | Useful | Strong | Partial |
-| **PR analysis** (`pr`) | Strong | Strong | Useful | Useful | Strong | Partial |
-| **Executive summary** (`summary`) | Useful | Useful | Useful | Strong | Useful | Useful |
-| **Quality posture** (`posture`) | Useful | Useful | Useful | Strong | Useful | Useful |
-| **Portfolio view** (`portfolio`) | — | — | — | Strong | Useful | — |
-| **Metrics export** (`metrics`) | — | — | — | Strong | Strong | — |
-| **Snapshot comparison** (`compare`) | Useful | Useful | Useful | Strong | Useful | Useful |
-| **Migration readiness** (`migration`) | Strong | Useful | Partial | Strong | — | — |
-| **Policy enforcement** (`policy`) | Useful | Useful | Useful | Strong | Useful | Useful |
-| **Focus / next actions** (`focus`) | Useful | Useful | Useful | Strong | Useful | Useful |
-| **Benchmark export** (`export benchmark`) | — | — | — | Strong | Useful | — |
+| **Static analysis** (`analyze`) | Implemented | Strong | Strong | Strong | Useful | Strong |
+| **Validation inventory** (in `analyze`) | Implemented | Strong | Strong | Strong | Useful | Strong |
+| **Prioritized findings** (`insights`) | Implemented | Strong | Strong | Strong | Useful | Strong |
+| **Change impact** (`impact`) | Implemented | Strong | Strong | Strong | Strong | Strong |
+| **Scenario impact** (in `impact`) | Implemented | --- | --- | Strong | --- | Useful |
+| **Explainability** (`explain`) | Implemented | Strong | Strong | Strong | Strong | Strong |
+| **Scenario explain** (in `explain`) | Implemented | --- | --- | Strong | --- | Useful |
+| **Test selection** (`select-tests`) | Implemented | Strong | Strong | Partial | Strong | Useful |
+| **PR analysis** (`pr`) | Implemented | Strong | Strong | Partial | Strong | Useful |
+| **Executive summary** (`summary`) | Implemented | Useful | Useful | Useful | Useful | Strong |
+| **Quality posture** (`posture`) | Implemented | Useful | Useful | Useful | Useful | Strong |
+| **Portfolio view** (`portfolio`) | Implemented | --- | --- | --- | Useful | Strong |
+| **Metrics export** (`metrics`) | Implemented | --- | --- | --- | Strong | Strong |
+| **Snapshot comparison** (`compare`) | Implemented | Useful | Useful | Useful | Useful | Strong |
+| **Migration readiness** (`migration`) | Implemented | Strong | Useful | --- | --- | Strong |
+| **Policy enforcement** (`policy`) | Implemented | Useful | Useful | Useful | Useful | Strong |
+| **Focus / next actions** (`focus`) | Implemented | Useful | Useful | Useful | Useful | Strong |
+| **Benchmark export** (`export benchmark`) | Implemented | --- | --- | --- | Useful | Strong |
+| **AI list** (`ai list`) | Implemented | --- | --- | Strong | --- | Useful |
+| **AI doctor** (`ai doctor`) | Implemented | --- | --- | Strong | --- | Useful |
+| **AI run** (`ai run`) | Future | --- | --- | Future | --- | --- |
+| **AI record** (`ai record`) | Future | --- | --- | Future | --- | --- |
+| **AI baseline** (`ai baseline`) | Future | --- | --- | Future | --- | --- |
 
-## Analysis Engines × Personas
+## Analysis Engines x Personas
 
-| Engine / Detector | Frontend Engineer | Backend Engineer | Mobile / Device | QA / SDET | SRE / Platform | AI / ML Engineer |
+| Engine / Detector | Status | Frontend | Backend | AI / ML | SRE / Platform | QA / SDET |
 |---|---|---|---|---|---|---|
-| **Weak assertion detection** | Strong | Strong | Useful | Strong | — | Useful |
-| **Mock-heavy detection** | Strong | Strong | Useful | Strong | — | Useful |
-| **Snapshot-heavy detection** | Strong | — | — | Strong | — | — |
-| **Untested export detection** | Strong | Strong | Strong | Strong | Useful | Useful |
-| **Coverage threshold check** | Strong | Strong | Strong | Strong | Strong | Useful |
-| **Coverage blind spot detection** | Strong | Strong | Useful | Strong | Useful | Useful |
-| **Slow test detection** | Useful | Strong | Strong | Strong | Strong | Useful |
-| **Flaky test detection** | Useful | Strong | Strong | Strong | Strong | Useful |
-| **Skipped test detection** | Useful | Useful | Strong | Strong | Strong | Useful |
-| **Dead test detection** | Useful | Useful | Useful | Strong | Useful | Useful |
-| **Unstable suite detection** | Useful | Strong | Strong | Strong | Strong | Useful |
-| **Deprecated pattern detection** | Strong | Useful | Useful | Strong | — | — |
-| **Dynamic test generation detection** | Useful | Useful | — | Useful | — | Useful |
-| **Custom matcher risk** | Strong | Useful | Useful | Strong | — | — |
-| **Policy evaluation** | Useful | Useful | Useful | Strong | Useful | Useful |
+| **Weak assertion detection** | Implemented | Strong | Strong | Useful | --- | Strong |
+| **Mock-heavy detection** | Implemented | Strong | Strong | Useful | --- | Strong |
+| **Snapshot-heavy detection** | Implemented | Strong | --- | --- | --- | Strong |
+| **Untested export detection** | Implemented | Strong | Strong | Useful | Useful | Strong |
+| **Coverage threshold check** | Implemented | Strong | Strong | Useful | Strong | Strong |
+| **Coverage blind spot detection** | Implemented | Strong | Strong | Useful | Useful | Strong |
+| **Slow test detection** | Implemented | Useful | Strong | Useful | Strong | Strong |
+| **Flaky test detection** | Implemented | Useful | Strong | Useful | Strong | Strong |
+| **Skipped test detection** | Implemented | Useful | Useful | Useful | Strong | Strong |
+| **Dead test detection** | Implemented | Useful | Useful | Useful | Useful | Strong |
+| **Unstable suite detection** | Implemented | Useful | Strong | Useful | Strong | Strong |
+| **Deprecated pattern detection** | Implemented | Strong | Useful | --- | --- | Strong |
+| **Dynamic test generation detection** | Implemented | Useful | Useful | Useful | --- | Useful |
+| **Custom matcher risk** | Implemented | Strong | Useful | --- | --- | Strong |
+| **Policy evaluation** | Implemented | Useful | Useful | Useful | Useful | Strong |
+| **Prompt surface detection** | Implemented | --- | --- | Strong | --- | Useful |
+| **Dataset surface detection** | Implemented | --- | --- | Strong | --- | Useful |
+| **Scenario duplication detection** | Implemented | --- | --- | Strong | --- | Useful |
+| **Behavior redundancy detection** | Implemented | Useful | Useful | Useful | Useful | Strong |
+| **Stability clustering** | Implemented | Useful | Strong | Useful | Strong | Strong |
+| **Environment matrix analysis** | Implemented | --- | --- | Useful | Strong | Strong |
 
-## Language & Framework Support × Personas
+## AI / ML Capabilities
 
-| Language / Framework | Frontend Engineer | Backend Engineer | Mobile / Device | QA / SDET | SRE / Platform | AI / ML Engineer |
+| Capability | Status | Details |
+|---|---|---|
+| Scenario model (`Scenario` type) | **Implemented** | First-class validation target alongside tests |
+| Scenario loading from `.terrain/terrain.yaml` | **Implemented** | Scenarios with name, category, framework, owner, surfaces |
+| Prompt surface inference | **Implemented** | JS/TS and Python naming convention detection |
+| Dataset surface inference | **Implemented** | JS/TS and Python naming convention detection |
+| Scenario impact detection | **Implemented** | `findImpactedScenarios()` — changed surfaces mapped to scenarios |
+| Scenario explain | **Implemented** | `ExplainScenario()` — verdict with changed surface list |
+| Scenario duplication insights | **Implemented** | Detects >50% surface overlap between scenario pairs |
+| Gauntlet artifact ingestion | **Implemented** | `--gauntlet` flag, signal generation for failures/regressions |
+| AI list command | **Implemented** | Lists scenarios, prompts, datasets, eval files |
+| AI doctor command | **Implemented** | 5-point diagnostic: scenarios, prompts, datasets, eval files, graph wiring |
+| Graph node types (Prompt, Dataset, Model, EvalMetric) | **Partial** | Types defined in schema; not yet populated by inference |
+| Eval framework auto-detection (deepeval, promptfoo) | **Future** | Config file + directory convention detection |
+| AI run / record / baseline | **Future** | Scaffolded with doc references |
+| Eval-specific signals | **Future** | eval_safety_failure, eval_accuracy_regression, etc. |
+| Model version tracking | **Future** | Correlate eval results to model versions |
+| Dataset drift detection | **Future** | Detect training/eval data divergence |
+
+## Language & Framework Support
+
+| Language / Framework | Status | Frontend | Backend | AI / ML | SRE / Platform | QA / SDET |
 |---|---|---|---|---|---|---|
-| **JavaScript / TypeScript** | Primary | — | Useful | Primary | — | — |
-| Jest | Strong | — | — | Strong | — | — |
-| Vitest | Strong | — | Useful | Strong | — | — |
-| Mocha | Strong | — | — | Strong | — | — |
-| Jasmine | Useful | — | — | Useful | — | — |
-| Playwright | Strong | — | — | Strong | — | — |
-| Cypress | Strong | — | — | Strong | — | — |
-| Puppeteer | Useful | — | — | Useful | — | — |
-| WebdriverIO | Useful | — | Useful | Useful | — | — |
-| TestCafe | Useful | — | — | Useful | — | — |
-| **Go** | — | Primary | — | Useful | Useful | — |
-| go-testing | — | Strong | — | Useful | Useful | — |
-| **Python** | — | Strong | — | Useful | — | Primary |
-| pytest | — | Strong | — | Useful | — | Strong |
-| unittest | — | Useful | — | Useful | — | Useful |
-| nose2 | — | Useful | — | Useful | — | Useful |
-| **Java** | — | Strong | Useful | Useful | — | — |
-| JUnit 4 | — | Strong | Useful | Useful | — | — |
-| JUnit 5 | — | Strong | Useful | Useful | — | — |
-| TestNG | — | Strong | Useful | Useful | — | — |
+| **JavaScript / TypeScript** | Implemented | Primary | --- | Useful | --- | Primary |
+| Jest | Implemented | Strong | --- | --- | --- | Strong |
+| Vitest | Implemented | Strong | --- | Useful | --- | Strong |
+| Mocha | Implemented | Strong | --- | --- | --- | Strong |
+| Jasmine | Implemented | Useful | --- | --- | --- | Useful |
+| Playwright | Implemented | Strong | --- | --- | --- | Strong |
+| Cypress | Implemented | Strong | --- | --- | --- | Strong |
+| Puppeteer | Implemented | Useful | --- | --- | --- | Useful |
+| WebdriverIO | Implemented | Useful | --- | --- | --- | Useful |
+| TestCafe | Implemented | Useful | --- | --- | --- | Useful |
+| Node Test | Implemented | Useful | --- | --- | --- | Useful |
+| **Go** | Implemented | --- | Primary | --- | Useful | Useful |
+| go-testing | Implemented | --- | Strong | --- | Useful | Useful |
+| **Python** | Implemented | --- | Strong | Primary | --- | Useful |
+| pytest | Implemented | --- | Strong | Strong | --- | Useful |
+| unittest | Implemented | --- | Useful | Useful | --- | Useful |
+| nose2 | Implemented | --- | Useful | Useful | --- | Useful |
+| **Java** | Implemented | --- | Strong | --- | --- | Useful |
+| JUnit 4 | Implemented | --- | Strong | --- | --- | Useful |
+| JUnit 5 | Implemented | --- | Strong | --- | --- | Useful |
+| TestNG | Implemented | --- | Strong | --- | --- | Useful |
 
 ## Data Source Support
 
@@ -89,8 +125,10 @@
 | Istanbul coverage | `coverage-final.json` | **Implemented** | Frontend, QA/SDET |
 | JUnit XML runtime | `*.xml` | **Implemented** | Backend, SRE, QA/SDET |
 | Jest/Vitest JSON runtime | `*.json` | **Implemented** | Frontend, SRE |
+| Gauntlet eval results | `*.json` (via `--gauntlet`) | **Implemented** | AI/ML |
 | CODEOWNERS | `CODEOWNERS`, `.github/CODEOWNERS` | **Implemented** | QA/SDET, SRE |
 | Manual coverage overlay | `.terrain/terrain.yaml` | **Implemented** | QA/SDET |
+| Scenario definitions | `.terrain/terrain.yaml` | **Implemented** | AI/ML, QA/SDET |
 | Policy rules | `.terrain/policy.yaml` | **Implemented** | QA/SDET, SRE |
 | Git history | Local `.git` | **Implemented** | All (for impact/PR) |
 
@@ -102,61 +140,53 @@
 | Transitive dependency tracing | **Implemented** | Backend |
 | High-fanout node detection | **Implemented** (threshold: 10 dependents) | Backend, SRE |
 | Duplicate test cluster detection | **Implemented** (0.60 similarity threshold) | QA/SDET, Frontend |
+| Behavior redundancy detection | **Implemented** | All |
 | Structural reverse coverage | **Implemented** | All |
 | Change-scoped impact profiling | **Implemented** | All (via `impact`) |
+| Scenario-to-surface coverage | **Implemented** | AI/ML (via `impact`) |
 | Confidence decay by path length | **Implemented** | Backend, SRE |
+| Environment matrix analysis | **Implemented** | SRE, QA/SDET |
 
 ## Current Gaps by Persona
-
-Terrain is honest about what it cannot do. These gaps are documented here so that users know the boundaries and so that future work is prioritized by real need.
 
 ### Frontend Engineer
 | Gap | Impact | Status |
 |---|---|---|
-| No visual regression framework detection (Storybook, Percy, Chromatic) | Cannot assess visual test coverage | Planned |
-| No component-level coverage mapping | Coverage is file-level, not component-level | Planned |
-| No React/Vue/Svelte component tree awareness | Import graph doesn't follow component composition | Planned |
+| No visual regression detection (Storybook, Percy, Chromatic) | Cannot assess visual test coverage | Future |
+| No component-level coverage mapping | Coverage is file-level, not component-level | Future |
+| No React/Vue/Svelte component tree awareness | Import graph doesn't follow component composition | Future |
 
 ### Backend Engineer
 | Gap | Impact | Status |
 |---|---|---|
-| No database schema change tracking | Cannot detect migration-related test gaps | Planned |
-| No API contract testing detection (OpenAPI, gRPC) | Cannot assess service boundary coverage | Planned |
-| No distributed system test topology | Cannot model cross-service test dependencies | Planned |
-| Code unit extraction is regex-based | May miss complex export patterns (destructured, re-exported) | Known limitation |
-
-### Mobile / Device-Sensitive Engineer
-| Gap | Impact | Status |
-|---|---|---|
-| No device/environment matrix awareness | Cannot model "runs on iOS but not Android" | Planned |
-| No CI matrix analysis | Cannot parse GitHub Actions matrix or device farm configs | Planned |
-| No platform-conditional skip classification | Skip detection is pattern-matching only | Planned |
-| No test duration modeling by device type | Cannot estimate device farm cost impact | Planned |
-
-### QA / SDET
-| Gap | Impact | Status |
-|---|---|---|
-| No direct TestRail/Jira/Xray integration | Manual coverage is declared in YAML, not synced | Planned |
-| No automated trend alerting | Compare requires two explicit snapshots | Planned |
-| No multi-repo aggregation dashboard | Portfolio view is single-repo only | Planned |
-| No test case management system sync | No bidirectional link to external QA tools | Planned |
-
-### SRE / Platform Engineer
-| Gap | Impact | Status |
-|---|---|---|
-| No CI plugin model | Terrain is invoked as a CLI step, not a native plugin | By design |
-| No test parallelization recommendations | Cannot suggest optimal shard strategies | Planned |
-| No historical CI duration tracking | Runtime data is per-snapshot, not time-series | Planned |
-| No cost modeling (compute minutes, device farm billing) | Cannot estimate CI cost savings | Planned |
+| No database schema change tracking | Cannot detect migration-related test gaps | Future |
+| No API contract testing detection (OpenAPI, gRPC) | Cannot assess service boundary coverage | Future |
+| No distributed system test topology | Cannot model cross-service test dependencies | Future |
+| Code unit extraction is regex-based | May miss complex export patterns | Known limitation |
 
 ### AI / ML Engineer
 | Gap | Impact | Status |
 |---|---|---|
-| No eval-specific semantics | Eval suites are treated as regular test suites | Planned |
-| No accuracy/metric threshold tracking | Cannot monitor model performance thresholds | Planned |
-| No model version awareness | Cannot correlate eval results to model versions | Planned |
-| No dataset drift detection | Cannot detect training/eval data divergence | Planned |
-| No LLM-specific patterns (prompt testing, safety evals) | Cannot distinguish behavioral evals from functional tests | Planned |
+| No eval framework auto-detection | Must declare scenarios in YAML | Future |
+| No eval-specific signals | No accuracy_regression, safety_failure signals | Future |
+| No model version tracking | Cannot correlate evals to model versions | Future |
+| No dataset drift detection | Cannot detect data divergence | Future |
+| Graph node types (Prompt, Dataset, Model, EvalMetric) not populated | Types exist but not wired into inference | Partial |
+
+### SRE / Platform Engineer
+| Gap | Impact | Status |
+|---|---|---|
+| No CI plugin model | CLI step, not native plugin | By design |
+| No test parallelization recommendations | Cannot suggest shard strategies | Future |
+| No historical CI duration tracking | Per-snapshot only | Future |
+| No cost modeling | Cannot estimate CI cost savings | Future |
+
+### QA / SDET
+| Gap | Impact | Status |
+|---|---|---|
+| No TestRail/Jira/Xray integration | Manual coverage via YAML only | Future |
+| No automated trend alerting | Compare requires explicit snapshots | Future |
+| No multi-repo aggregation | Portfolio is single-repo | Future |
 
 ## CI Integration Matrix
 
@@ -166,30 +196,33 @@ Terrain is honest about what it cannot do. These gaps are documented here so tha
 | PR comment with impact summary | **Implemented** | Via `peter-evans/create-or-update-comment` |
 | Job summary output | **Implemented** | Writes to `$GITHUB_STEP_SUMMARY` |
 | Artifact upload | **Implemented** | `terrain-impact.json` via `actions/upload-artifact` |
-| Test selection for PR builds | **Implemented** | `terrain select-tests` with 5-level fallback |
+| Test selection for PR builds | **Implemented** | `terrain select-tests` with fallback ladder |
 | Exit code signaling | **Implemented** | 0 (clean), 1 (error), 2 (policy violation) |
-| GitLab CI | **Not implemented** | CLI works; no native integration |
-| Jenkins | **Not implemented** | CLI works; no native integration |
-| CircleCI | **Not implemented** | CLI works; no native integration |
+| GitLab CI | **Future** | CLI works; no native integration |
+| Jenkins | **Future** | CLI works; no native integration |
+| CircleCI | **Future** | CLI works; no native integration |
 
 ## Output Format Matrix
 
-| Command | Terminal | JSON | Markdown | Comment | Annotation |
-|---|---|---|---|---|---|
-| `analyze` | Yes | Yes | — | — | — |
-| `insights` | Yes | Yes | — | — | — |
-| `impact` | Yes | Yes | — | — | — |
-| `explain` | Yes | Yes | — | — | — |
-| `pr` | Yes | Yes | Yes | Yes | Yes |
-| `summary` | Yes | Yes | — | — | — |
-| `posture` | Yes | Yes | — | — | — |
-| `portfolio` | Yes | Yes | — | — | — |
-| `metrics` | Yes | Yes | — | — | — |
-| `compare` | Yes | Yes | — | — | — |
-| `select-tests` | Yes | Yes | — | — | — |
-| `policy check` | Yes | Yes | — | — | — |
-| `migration *` | Yes | Yes | — | — | — |
-| `focus` | Yes | Yes | — | — | — |
-| `show` | Yes | Yes | — | — | — |
-| `export benchmark` | — | Yes | — | — | — |
-| `debug *` | Yes | Yes | — | — | — |
+| Command | Terminal | JSON | Status |
+|---|---|---|---|
+| `analyze` | Yes | Yes | Implemented |
+| `insights` | Yes | Yes | Implemented |
+| `impact` | Yes | Yes | Implemented |
+| `explain` | Yes | Yes | Implemented |
+| `pr` | Yes | Yes | Implemented |
+| `summary` | Yes | Yes | Implemented |
+| `posture` | Yes | Yes | Implemented |
+| `portfolio` | Yes | Yes | Implemented |
+| `metrics` | Yes | Yes | Implemented |
+| `compare` | Yes | Yes | Implemented |
+| `select-tests` | Yes | Yes | Implemented |
+| `policy check` | Yes | Yes | Implemented |
+| `migration *` | Yes | Yes | Implemented |
+| `focus` | Yes | Yes | Implemented |
+| `show` | Yes | Yes | Implemented |
+| `export benchmark` | --- | Yes | Implemented |
+| `debug *` | Yes | Yes | Implemented |
+| `ai list` | Yes | Yes | Implemented |
+| `ai doctor` | Yes | Yes | Implemented |
+| `ai run` | --- | --- | Future |

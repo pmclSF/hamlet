@@ -23,24 +23,26 @@ Pipeline:
 ```
 Repository scan
   → Framework detection + test file discovery
-    → Signal detection (quality, health, migration, governance)
-      → Risk scoring (reliability, change, speed)
-        → Snapshot (TestSuiteSnapshot)
-          → Reporting (human-readable, JSON, executive summary)
+    → Code surface inference (functions, handlers, routes, prompts, datasets)
+      → Behavior surface derivation (grouping by route, class, domain, naming, module)
+        → Signal detection (quality, health, migration, governance)
+          → Measurement + posture assessment (5 dimensions, 18 measurements)
+            → Snapshot (TestSuiteSnapshot)
+              → Reporting (human-readable, JSON, executive summary)
 ```
 
-### Dependency Graph Layer (Go, `internal/depgraph/` and `internal/graph/`)
+### Dependency Graph Layer (Go, `internal/depgraph/`)
 
-The dependency graph layer constructs a typed dependency graph connecting tests, fixtures, helpers, source files, packages, services, and artifacts. Insight engines traverse this graph to answer structural questions: what tests are impacted by a change? Which source files lack coverage? Where are the high-fanout bottlenecks?
+The dependency graph layer constructs a typed dependency graph with 20 node types across 6 families (system, validation, behavior, environment, execution, governance) and 15 edge types with confidence scoring. Insight engines traverse this graph to answer structural questions: what tests are impacted by a change? Which source files lack coverage? Where are the high-fanout bottlenecks? Which eval scenarios validate a changed prompt?
 
 Pipeline:
 
 ```
-Test discovery
+Test discovery + code surface inference
   → Graph construction (nodes + edges)
     → Import analysis (static + heuristic)
-      → Insight engines (coverage, duplicates, fanout, impact)
-        → Repository profiling + edge case detection
+      → Insight engines (coverage, duplicates, fanout, impact, redundancy)
+        → Repository profiling + edge case detection (14 types)
           → Reporting (human-readable, JSON, artifacts)
 ```
 
@@ -52,19 +54,28 @@ Test discovery
 | Quality signals (weak assertions, mock-heavy) | Primary | — |
 | Migration intelligence | Primary | — |
 | Policy and governance | Primary | — |
+| Code surface inference (functions, handlers, routes) | Primary | — |
+| Prompt and dataset inference | Primary | — |
+| Behavior surface derivation | Primary | — |
+| Scenario validation (AI/eval) | Primary | Graph wiring |
 | Dependency structure | — | Primary |
 | Change impact analysis | Coarse (git diff) | Precise (graph traversal) |
+| Scenario impact (prompt/dataset → scenarios) | — | Primary |
 | Coverage analysis | Ingested (LCOV) | Structural (reverse graph) |
 | Duplicate detection | — | Primary |
+| Behavior redundancy | — | Primary |
 | Fanout analysis | — | Primary |
-| Repository profiling | — | Primary |
+| Stability clustering | — | Primary |
+| Environment matrix | — | Primary |
+| Repository profiling + edge cases | — | Primary |
 
 ## Core Principles
 
+- **Inference-first.** Terrain infers structure from what already exists — import graphs, file naming, coverage artifacts, runtime results. No configuration required to get started.
 - **Signals are the core abstraction.** Every finding is a structured signal with type, severity, evidence, and location.
 - **The graph is the structural backbone.** Dependency relationships enable precise impact analysis and coverage mapping.
-- **Risk must be explainable.** No opaque scores. Every recommendation includes evidence chains.
-- **Conservative under uncertainty.** When confidence is low, run more tests, not fewer.
+- **Risk must be explainable.** No opaque scores. Every recommendation includes evidence chains. `terrain explain` traces any decision to its source.
+- **Conservative under uncertainty.** When confidence is low, run more tests, not fewer. Evidence gaps are surfaced, not hidden.
 - **Local-first.** Useful on a single machine without SaaS or network access.
 - **Privacy boundary.** Aggregate metrics never expose raw file paths or source code.
 
@@ -95,3 +106,7 @@ Test discovery
 | [21-behavior-surface-derivation.md](21-behavior-surface-derivation.md) | Deriving behavior surfaces from code structure |
 | [22-reasoning-engine.md](22-reasoning-engine.md) | Explainable, traceable reasoning chains for findings |
 | [23-phased-implementation-roadmap.md](23-phased-implementation-roadmap.md) | Implementation phases from current state to full vision |
+| [24-stability-reasoning.md](24-stability-reasoning.md) | Stability signal aggregation and cluster analysis |
+| [25-redundancy-reasoning.md](25-redundancy-reasoning.md) | Behavior-aware test redundancy detection |
+| [26-device-matrix-foundation.md](26-device-matrix-foundation.md) | Device and environment matrix analysis |
+| [behavior-inference.md](behavior-inference.md) | Code surface and behavior inference pipeline |

@@ -254,6 +254,16 @@ terrain analyze --json
 | `terrain policy check` | Evaluate local policy rules |
 | `terrain export benchmark` | Privacy-safe JSON export for benchmarking |
 
+### AI / eval
+
+| Command | Purpose |
+|---------|---------|
+| `terrain ai list` | List detected scenarios, prompts, datasets, eval files |
+| `terrain ai doctor` | Validate AI/eval setup and surface configuration issues |
+| `terrain ai run` | Execute eval scenarios and collect results (planned) |
+| `terrain ai record` | Record eval results as a baseline snapshot (planned) |
+| `terrain ai baseline` | Manage eval baselines (planned) |
+
 ### Advanced / debug
 
 | Command | Purpose |
@@ -288,31 +298,39 @@ Repository scan  →  Signal detection  →  Risk modeling  →  Reporting
 - **Reports** synthesize signals, risk, trends, and benchmark readiness into actionable output
 
 ```
-cmd/terrain/          CLI entry point
+cmd/terrain/          CLI entry point and command routing
+cmd/terrain-bench/    Benchmark harness for cross-repo CLI validation
 internal/
-├── analysis/        Repository scanning, framework detection, test file discovery
-├── benchmark/       Privacy-safe benchmark export and segmentation
+├── analysis/        Repository scanning, framework detection, code surface inference
+├── analyze/         Analyze report builder (depgraph aggregation)
+├── benchmark/       Privacy-safe benchmark export and assessment scoring
 ├── comparison/      Snapshot-to-snapshot trend comparison
 ├── coverage/        Coverage ingestion (LCOV, Istanbul) and attribution
-├── depgraph/        Dependency graph: coverage, duplicates, fanout, profiling
+├── depgraph/        Dependency graph: 20 node types, 15 edge types, 5 reasoning engines
 ├── engine/          Pipeline orchestration and detector registry
+├── explain/         Structured explanation builder (tests + scenarios)
+├── gauntlet/        Gauntlet AI eval artifact ingestion
 ├── governance/      Policy evaluation and governance signals
 ├── graph/           Import graph construction
 ├── health/          Runtime-backed health detectors (slow, flaky, skipped)
 ├── heatmap/         Risk concentration model (directory and owner hotspots)
 ├── identity/        Test identity hashing and normalization
-├── impact/          Change-scope impact analysis
-├── measurement/     Posture measurement framework
+├── impact/          Change-scope impact analysis (tests + scenarios)
+├── insights/        Prioritized health report and findings
+├── matrix/          Environment/device matrix analysis
+├── measurement/     Posture measurement framework (5 dimensions, 18 measurements)
 ├── metrics/         Aggregate metric derivation
 ├── migration/       Migration detectors, readiness model, preview boundary
-├── models/          Canonical data models (Signal, Snapshot, Risk, etc.)
+├── models/          Canonical data models (Signal, Snapshot, CodeSurface, Scenario, etc.)
 ├── ownership/       Ownership resolution (CODEOWNERS, config, directory)
-├── policy/          Policy config model and YAML loader
+├── policy/          Policy + terrain.yaml config (scenarios, manual coverage)
+├── portfolio/       Portfolio intelligence (cost, breadth, leverage, redundancy)
 ├── quality/         Quality signal detectors
-├── reporting/       Human-readable report renderers
+├── reporting/       Report renderers (analyze, impact, insights, posture, etc.)
 ├── runtime/         Runtime artifact ingestion (JUnit XML, Jest JSON)
 ├── scoring/         Explainable risk engine (reliability, change, speed)
 ├── signals/         Signal detector interface, registry, runner
+├── stability/       Stability clustering (shared root cause detection)
 ├── summary/         Executive summary builder
 ├── testcase/        Test case extraction and identity collision detection
 └── testtype/        Test type inference (unit, integration, e2e)
