@@ -18,6 +18,12 @@ const (
 
 	// SurfaceClass is a class or struct with public surface area.
 	SurfaceClass CodeSurfaceKind = "class"
+
+	// SurfacePrompt is an AI prompt template or prompt function.
+	SurfacePrompt CodeSurfaceKind = "prompt"
+
+	// SurfaceDataset is a dataset loader, fixture, or data pipeline entry point.
+	SurfaceDataset CodeSurfaceKind = "dataset"
 )
 
 // CodeSurface represents an inferred behavior anchor in source code.

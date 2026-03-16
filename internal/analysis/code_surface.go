@@ -91,6 +91,8 @@ func (e *jsSurfaceExtractor) Language() string { return "js" }
 var (
 	jsRoutePattern   = regexp.MustCompile(`\b(?:app|router|server)\.(get|post|put|patch|delete|all|use)\s*\(\s*['"]([^'"]+)['"]`)
 	jsHandlerPattern = regexp.MustCompile(`export\s+(?:async\s+)?function\s+(\w*(?:[Hh]andler|[Mm]iddleware|[Cc]ontroller)\w*)\s*\(`)
+	jsPromptPattern  = regexp.MustCompile(`export\s+(?:const|let|var|async\s+function|function)\s+(\w*(?:[Pp]rompt|[Tt]emplate|PROMPT)\w*)`)
+	jsDatasetPattern = regexp.MustCompile(`export\s+(?:const|let|var|async\s+function|function)\s+(\w*(?:[Dd]ataset|[Dd]ataloader|[Tt]raining[Dd]ata|[Ee]val[Dd]ata|[Ff]ixtures?Data)\w*)`)
 )
 
 func (e *jsSurfaceExtractor) ExtractSurfaces(root, relPath string) []models.CodeSurface {
@@ -152,7 +154,51 @@ func (e *jsSurfaceExtractor) ExtractSurfaces(root, relPath string) []models.Code
 		}
 	}
 
-	// Pass 3: Exported functions and classes (same patterns as code unit extraction).
+	// Pass 3: Detect prompt definitions.
+	for i, line := range lines {
+		if m := jsPromptPattern.FindStringSubmatch(line); m != nil {
+			name := m[1]
+			sid := models.BuildSurfaceID(relPath, name, "")
+			if seen[sid] {
+				continue
+			}
+			add(models.CodeSurface{
+				SurfaceID:      sid,
+				Name:           name,
+				Path:           relPath,
+				Kind:           models.SurfacePrompt,
+				Language:       "js",
+				Package:        pkg,
+				Line:           i + 1,
+				Exported:       true,
+				LinkedCodeUnit: buildUnitID(relPath, name, ""),
+			})
+		}
+	}
+
+	// Pass 4: Detect dataset definitions.
+	for i, line := range lines {
+		if m := jsDatasetPattern.FindStringSubmatch(line); m != nil {
+			name := m[1]
+			sid := models.BuildSurfaceID(relPath, name, "")
+			if seen[sid] {
+				continue
+			}
+			add(models.CodeSurface{
+				SurfaceID:      sid,
+				Name:           name,
+				Path:           relPath,
+				Kind:           models.SurfaceDataset,
+				Language:       "js",
+				Package:        pkg,
+				Line:           i + 1,
+				Exported:       true,
+				LinkedCodeUnit: buildUnitID(relPath, name, ""),
+			})
+		}
+	}
+
+	// Pass 5: Exported functions and classes (same patterns as code unit extraction).
 	for i, line := range lines {
 		if m := jsExportFuncPattern.FindStringSubmatch(line); m != nil {
 			name := m[1]
@@ -374,10 +420,12 @@ type pythonSurfaceExtractor struct{}
 
 func (e *pythonSurfaceExtractor) Language() string { return "python" }
 
-// Python route/handler patterns.
+// Python route/handler/prompt/dataset patterns.
 var (
 	pyRouteDecoratorPattern = regexp.MustCompile(`@(?:app|router|blueprint|bp)\.(route|get|post|put|patch|delete)\s*\(\s*['"]([^'"]+)['"]`)
 	pyHandlerPattern        = regexp.MustCompile(`^def\s+(\w*(?:handler|view|endpoint|controller)\w*)\s*\(`)
+	pyPromptPattern         = regexp.MustCompile(`^(?:def\s+(\w*(?:prompt|template|PROMPT)\w*)|(\w*(?:prompt|template|PROMPT)\w*)\s*=)`)
+	pyDatasetPattern        = regexp.MustCompile(`^(?:def\s+(\w*(?:dataset|dataloader|training_data|eval_data|load_data)\w*)|(\w*(?:dataset|dataloader|training_data|eval_data)\w*)\s*=)`)
 )
 
 func (e *pythonSurfaceExtractor) ExtractSurfaces(root, relPath string) []models.CodeSurface {
@@ -442,6 +490,10 @@ func (e *pythonSurfaceExtractor) ExtractSurfaces(root, relPath string) []models.
 			kind := models.SurfaceFunction
 			if pyHandlerPattern.MatchString(line) {
 				kind = models.SurfaceHandler
+			} else if pyPromptPattern.MatchString(line) {
+				kind = models.SurfacePrompt
+			} else if pyDatasetPattern.MatchString(line) {
+				kind = models.SurfaceDataset
 			}
 
 			add(models.CodeSurface{
