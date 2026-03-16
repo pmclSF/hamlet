@@ -37,10 +37,13 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
+	"github.com/pmclSF/terrain/internal/aidetect"
 	"github.com/pmclSF/terrain/internal/analysis"
 	"github.com/pmclSF/terrain/internal/analyze"
 	"github.com/pmclSF/terrain/internal/benchmark"
@@ -80,13 +83,6 @@ const (
 )
 
 func main() {
-	// Backwards-compatibility: warn if invoked as "hamlet" (deprecated alias).
-	if base := filepath.Base(os.Args[0]); base == "hamlet" || base == "hamlet.exe" {
-		fmt.Fprintln(os.Stderr, "WARNING: The 'hamlet' command has been renamed to 'terrain'.")
-		fmt.Fprintln(os.Stderr, "         The 'hamlet' alias is deprecated and will be removed in a future release.")
-		fmt.Fprintln(os.Stderr)
-	}
-
 	if len(os.Args) < 2 {
 		printUsage()
 		os.Exit(2)
@@ -103,9 +99,10 @@ func main() {
 		coverageFlag := analyzeCmd.String("coverage", "", "path to coverage file or directory (LCOV, Istanbul JSON)")
 		coverageRunLabelFlag := analyzeCmd.String("coverage-run-label", "", "coverage run label: unit, integration, or e2e")
 		runtimeFlag := analyzeCmd.String("runtime", "", "path to runtime artifact (JUnit XML, Jest JSON); comma-separated for multiple")
+		gauntletFlag := analyzeCmd.String("gauntlet", "", "path to Gauntlet eval result artifact (JSON); comma-separated for multiple")
 		slowThreshold := analyzeCmd.Float64("slow-threshold", defaultSlowThresholdMs, "slow test threshold in ms")
 		_ = analyzeCmd.Parse(os.Args[2:])
-		if err := runAnalyze(*rootFlag, *jsonFlag, *formatFlag, *verboseFlag, *writeSnapshot, *coverageFlag, *coverageRunLabelFlag, *runtimeFlag, *slowThreshold); err != nil {
+		if err := runAnalyze(*rootFlag, *jsonFlag, *formatFlag, *verboseFlag, *writeSnapshot, *coverageFlag, *coverageRunLabelFlag, *runtimeFlag, *gauntletFlag, *slowThreshold); err != nil {
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)
 			os.Exit(1)
 		}
@@ -381,6 +378,28 @@ func main() {
 			os.Exit(1)
 		}
 
+	case "ai":
+		if len(os.Args) < 3 {
+			fmt.Fprintln(os.Stderr, "Usage: terrain ai <list|run|record|baseline|doctor> [flags]")
+			fmt.Fprintln(os.Stderr)
+			fmt.Fprintln(os.Stderr, "Commands:")
+			fmt.Fprintln(os.Stderr, "  list       list detected AI/eval scenarios and surfaces")
+			fmt.Fprintln(os.Stderr, "  run        execute eval scenarios and collect results")
+			fmt.Fprintln(os.Stderr, "  record     record eval run results as a baseline snapshot")
+			fmt.Fprintln(os.Stderr, "  baseline   manage eval baselines (show, compare, promote)")
+			fmt.Fprintln(os.Stderr, "  doctor     validate AI/eval setup and surface configuration issues")
+			os.Exit(2)
+		}
+		aiSub := os.Args[2]
+		aiCmd := flag.NewFlagSet("ai "+aiSub, flag.ExitOnError)
+		rootFlag := aiCmd.String("root", ".", "repository root to analyze")
+		jsonFlag := aiCmd.Bool("json", false, "output JSON")
+		_ = aiCmd.Parse(os.Args[3:])
+		if err := runAI(aiSub, *rootFlag, *jsonFlag); err != nil {
+			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			os.Exit(1)
+		}
+
 	case "version", "--version", "-v":
 		fmt.Printf("terrain %s (commit %s, built %s)\n", version, commit, date)
 
@@ -425,6 +444,13 @@ func printUsage() {
 	fmt.Fprintln(os.Stderr, "  policy check [flags]     evaluate local policy rules")
 	fmt.Fprintln(os.Stderr, "  export benchmark [flags] privacy-safe JSON export for benchmarking")
 	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, "AI / eval:")
+	fmt.Fprintln(os.Stderr, "  ai list [flags]          list detected AI/eval scenarios and surfaces")
+	fmt.Fprintln(os.Stderr, "  ai run [flags]           execute eval scenarios and collect results")
+	fmt.Fprintln(os.Stderr, "  ai record [flags]        record eval run results as a baseline snapshot")
+	fmt.Fprintln(os.Stderr, "  ai baseline [flags]      manage eval baselines (show, compare, promote)")
+	fmt.Fprintln(os.Stderr, "  ai doctor [flags]        validate AI/eval setup and configuration")
+	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Advanced / debug:")
 	fmt.Fprintln(os.Stderr, "  debug graph [flags]      dependency graph statistics")
 	fmt.Fprintln(os.Stderr, "  debug coverage [flags]   structural coverage analysis")
@@ -458,6 +484,16 @@ func printShowUsage() {
 func defaultPipelineOptions() engine.PipelineOptions {
 	return engine.PipelineOptions{
 		EngineVersion: version,
+	}
+}
+
+// defaultPipelineOptionsWithProgress returns pipeline options with progress
+// reporting enabled for interactive terminals. Pass jsonOutput=true to
+// suppress progress (keeps stdout clean for JSON).
+func defaultPipelineOptionsWithProgress(jsonOutput bool) engine.PipelineOptions {
+	return engine.PipelineOptions{
+		EngineVersion: version,
+		OnProgress:    newProgressFunc(jsonOutput),
 	}
 }
 
@@ -553,8 +589,9 @@ func detectFirstExisting(root string, candidates []string) string {
 	return ""
 }
 
-func runAnalyze(root string, jsonOutput bool, format string, verbose bool, writeSnap bool, coveragePath, coverageRunLabel string, runtimePaths string, slowThreshold float64) error {
+func runAnalyze(root string, jsonOutput bool, format string, verbose bool, writeSnap bool, coveragePath, coverageRunLabel string, runtimePaths string, gauntletPaths string, slowThreshold float64) error {
 	parsedRuntime := parseRuntimePaths(runtimePaths)
+	parsedGauntlet := parseRuntimePaths(gauntletPaths) // same comma-split logic
 	if err := validateCommandInputs(root, coveragePath, parsedRuntime); err != nil {
 		return err
 	}
@@ -569,6 +606,8 @@ func runAnalyze(root string, jsonOutput bool, format string, verbose bool, write
 	}
 
 	opt := analysisPipelineOptions(coveragePath, coverageRunLabel, parsedRuntime, slowThreshold)
+	opt.GauntletPaths = parsedGauntlet
+	opt.OnProgress = newProgressFunc(jsonOutput)
 	result, err := engine.RunPipeline(root, opt)
 	if err != nil {
 		return fmt.Errorf("analysis failed: %w", err)
@@ -725,7 +764,7 @@ func policyStatusMessage(pass bool) string {
 
 // runImpact performs impact analysis against a git diff.
 func runImpact(root, baseRef string, jsonOutput bool, show, ownerFilter string) error {
-	result, err := engine.RunPipeline(root, defaultPipelineOptions())
+	result, err := engine.RunPipeline(root, defaultPipelineOptionsWithProgress(jsonOutput))
 	if err != nil {
 		return fmt.Errorf("analysis failed: %w", err)
 	}
@@ -848,7 +887,7 @@ func runPortfolio(root string, jsonOutput bool) error {
 
 // runPosture performs analysis and outputs a detailed posture breakdown.
 func runPosture(root string, jsonOutput bool) error {
-	result, err := engine.RunPipeline(root, defaultPipelineOptions())
+	result, err := engine.RunPipeline(root, defaultPipelineOptionsWithProgress(jsonOutput))
 	if err != nil {
 		return fmt.Errorf("analysis failed: %w", err)
 	}
@@ -885,7 +924,7 @@ func runMetrics(root string, jsonOutput bool) error {
 // runSummary performs analysis and outputs an executive summary with
 // trend highlights (if prior snapshots exist) and benchmark readiness.
 func runSummary(root string, jsonOutput bool) error {
-	result, err := engine.RunPipeline(root, defaultPipelineOptions())
+	result, err := engine.RunPipeline(root, defaultPipelineOptionsWithProgress(jsonOutput))
 	if err != nil {
 		return fmt.Errorf("analysis failed: %w", err)
 	}
@@ -934,7 +973,7 @@ func runSummary(root string, jsonOutput bool) error {
 
 // runFocus performs analysis and emits a compact action-first view.
 func runFocus(root string, jsonOutput bool) error {
-	result, err := engine.RunPipeline(root, defaultPipelineOptions())
+	result, err := engine.RunPipeline(root, defaultPipelineOptionsWithProgress(jsonOutput))
 	if err != nil {
 		return fmt.Errorf("analysis failed: %w", err)
 	}
@@ -1005,7 +1044,7 @@ func runFocus(root string, jsonOutput bool) error {
 // runInsights aggregates all insight engines into a single actionable report.
 // It combines executive summary, depgraph profile, and portfolio findings.
 func runInsights(root string, jsonOutput bool) error {
-	result, err := engine.RunPipeline(root, defaultPipelineOptions())
+	result, err := engine.RunPipeline(root, defaultPipelineOptionsWithProgress(jsonOutput))
 	if err != nil {
 		return fmt.Errorf("analysis failed: %w", err)
 	}
@@ -1104,7 +1143,7 @@ func runInsights(root string, jsonOutput bool) error {
 
 // runExplain auto-detects the entity type and shows detail with reasoning.
 func runExplain(target, root, baseRef string, jsonOutput bool) error {
-	result, err := engine.RunPipeline(root, defaultPipelineOptions())
+	result, err := engine.RunPipeline(root, defaultPipelineOptionsWithProgress(jsonOutput))
 	if err != nil {
 		return fmt.Errorf("analysis failed: %w", err)
 	}
@@ -1217,7 +1256,21 @@ func runExplain(target, root, baseRef string, jsonOutput bool) error {
 		}
 	}
 
-	return fmt.Errorf("entity not found: %s\n\nTry: a test file path, test ID, or 'selection'", target)
+	// Try scenario (requires impact data).
+	if impactErr == nil {
+		se, seErr := explain.ExplainScenario(target, impactResult)
+		if seErr == nil {
+			if jsonOutput {
+				enc := json.NewEncoder(os.Stdout)
+				enc.SetIndent("", "  ")
+				return enc.Encode(se)
+			}
+			renderScenarioExplanation(se)
+			return nil
+		}
+	}
+
+	return fmt.Errorf("entity not found: %s\n\nTry: a test file path, test ID, scenario ID, or 'selection'", target)
 }
 
 // computeImpactForExplain runs impact analysis using git diff to detect changes.
@@ -1237,6 +1290,622 @@ func computeImpactForExplain(root, baseRef string, snap *models.TestSuiteSnapsho
 	}
 
 	return impact.AnalyzeChangeSet(cs, snap), nil
+}
+
+// runAI handles the `terrain ai` command namespace.
+func runAI(subCmd, root string, jsonOutput bool) error {
+	switch subCmd {
+	case "list":
+		return runAIList(root, jsonOutput)
+	case "doctor":
+		return runAIDoctor(root, jsonOutput)
+	case "run":
+		return runAIRun(root, jsonOutput)
+	case "record":
+		return runAIRecord(root, jsonOutput)
+	case "baseline":
+		return runAIBaseline(root, jsonOutput)
+	default:
+		return fmt.Errorf("unknown ai subcommand: %q\nValid: list, run, record, baseline, doctor", subCmd)
+	}
+}
+
+// runAIList lists detected AI/eval scenarios and code surfaces with prompt/dataset kinds.
+func runAIList(root string, jsonOutput bool) error {
+	result, err := engine.RunPipeline(root, defaultPipelineOptions())
+	if err != nil {
+		return fmt.Errorf("analysis failed: %w", err)
+	}
+	snap := result.Snapshot
+
+	type aiFrameworkEntry struct {
+		Name       string  `json:"name"`
+		Source     string  `json:"source"`
+		Confidence float64 `json:"confidence"`
+	}
+	type aiListResult struct {
+		Frameworks   []aiFrameworkEntry `json:"frameworks"`
+		Scenarios    []aiScenarioEntry  `json:"scenarios"`
+		Prompts      []aiSurfaceEntry   `json:"prompts"`
+		Datasets     []aiSurfaceEntry   `json:"datasets"`
+		EvalFiles    []string           `json:"evalFiles"`
+		ModelFiles   []string           `json:"modelFiles,omitempty"`
+		Summary      aiListSummary      `json:"summary"`
+	}
+
+	var scenarios []aiScenarioEntry
+	for _, sc := range snap.Scenarios {
+		scenarios = append(scenarios, aiScenarioEntry{
+			ID:        sc.ScenarioID,
+			Name:      sc.Name,
+			Category:  sc.Category,
+			Path:      sc.Path,
+			Framework: sc.Framework,
+			Owner:     sc.Owner,
+			Surfaces:  len(sc.CoveredSurfaceIDs),
+		})
+	}
+
+	var prompts, datasets []aiSurfaceEntry
+	for _, cs := range snap.CodeSurfaces {
+		switch cs.Kind {
+		case models.SurfacePrompt:
+			prompts = append(prompts, aiSurfaceEntry{
+				SurfaceID: cs.SurfaceID,
+				Name:      cs.Name,
+				Path:      cs.Path,
+				Language:  cs.Language,
+				Line:      cs.Line,
+			})
+		case models.SurfaceDataset:
+			datasets = append(datasets, aiSurfaceEntry{
+				SurfaceID: cs.SurfaceID,
+				Name:      cs.Name,
+				Path:      cs.Path,
+				Language:  cs.Language,
+				Line:      cs.Line,
+			})
+		}
+	}
+
+	// Detect eval-related test files by path pattern.
+	var evalFiles []string
+	for _, tf := range snap.TestFiles {
+		if isEvalPath(tf.Path) {
+			evalFiles = append(evalFiles, tf.Path)
+		}
+	}
+
+	summary := aiListSummary{
+		ScenarioCount: len(scenarios),
+		PromptCount:   len(prompts),
+		DatasetCount:  len(datasets),
+		EvalFileCount: len(evalFiles),
+	}
+
+	// Detect AI frameworks.
+	aiDet := aidetect.Detect(root)
+	var frameworks []aiFrameworkEntry
+	for _, fw := range aiDet.Frameworks {
+		frameworks = append(frameworks, aiFrameworkEntry{
+			Name: fw.Name, Source: fw.Source, Confidence: fw.Confidence,
+		})
+	}
+
+	if jsonOutput {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(aiListResult{
+			Frameworks: frameworks,
+			Scenarios:  scenarios,
+			Prompts:    prompts,
+			Datasets:   datasets,
+			EvalFiles:  evalFiles,
+			ModelFiles: aiDet.ModelFiles,
+			Summary:    summary,
+		})
+	}
+
+	// Text output.
+	fmt.Println("Terrain AI — Detected Scenarios and Surfaces")
+	fmt.Println(strings.Repeat("=", 60))
+	fmt.Println()
+
+	if len(frameworks) > 0 {
+		fmt.Printf("AI Frameworks Detected (%d)\n", len(frameworks))
+		fmt.Println(strings.Repeat("-", 60))
+		for _, fw := range frameworks {
+			fmt.Printf("  %-20s via %s (%.0f%% confidence)\n", fw.Name, fw.Source, fw.Confidence*100)
+		}
+		fmt.Println()
+	}
+
+	if summary.ScenarioCount == 0 && summary.PromptCount == 0 && summary.DatasetCount == 0 && summary.EvalFileCount == 0 {
+		fmt.Println("No AI/eval scenarios, prompts, datasets, or eval files detected.")
+		fmt.Println()
+		fmt.Println("Scenarios are auto-derived from eval test files and AI framework imports.")
+		fmt.Println("No manual YAML configuration is required.")
+		fmt.Println()
+		fmt.Println("Run `terrain ai doctor` to diagnose your setup.")
+		return nil
+	}
+
+	if len(scenarios) > 0 {
+		fmt.Printf("Scenarios (%d)\n", len(scenarios))
+		fmt.Println(strings.Repeat("-", 60))
+		for _, sc := range scenarios {
+			fmt.Printf("  %-40s %s\n", sc.Name, sc.Category)
+			if sc.Path != "" {
+				fmt.Printf("    path: %s\n", sc.Path)
+			}
+			if sc.Framework != "" {
+				fmt.Printf("    framework: %s\n", sc.Framework)
+			}
+		}
+		fmt.Println()
+	}
+
+	if len(prompts) > 0 {
+		fmt.Printf("Prompt Surfaces (%d)\n", len(prompts))
+		fmt.Println(strings.Repeat("-", 60))
+		for _, p := range prompts {
+			fmt.Printf("  %-40s %s:%d\n", p.Name, p.Path, p.Line)
+		}
+		fmt.Println()
+	}
+
+	if len(datasets) > 0 {
+		fmt.Printf("Dataset Surfaces (%d)\n", len(datasets))
+		fmt.Println(strings.Repeat("-", 60))
+		for _, d := range datasets {
+			fmt.Printf("  %-40s %s:%d\n", d.Name, d.Path, d.Line)
+		}
+		fmt.Println()
+	}
+
+	if len(evalFiles) > 0 {
+		fmt.Printf("Eval-Related Test Files (%d)\n", len(evalFiles))
+		fmt.Println(strings.Repeat("-", 60))
+		for _, f := range evalFiles {
+			fmt.Printf("  %s\n", f)
+		}
+		fmt.Println()
+	}
+
+	fmt.Println("Next steps:")
+	fmt.Println("  terrain ai doctor        validate eval setup")
+	fmt.Println("  terrain explain <path>    explain a specific scenario")
+
+	return nil
+}
+
+// runAIDoctor validates AI/eval setup and surfaces configuration issues.
+// runAIRun detects eval frameworks and executes scenarios.
+func runAIRun(root string, jsonOutput bool) error {
+	// Detect frameworks.
+	det := aidetect.Detect(root)
+	if len(det.Frameworks) == 0 {
+		return fmt.Errorf("no AI/eval frameworks detected in %s.\n\nTerrain looks for: promptfoo, deepeval, ragas, langchain, langsmith, openai, anthropic.\nInstall an eval framework or add AI imports to your test files.", root)
+	}
+
+	// Run pipeline to get scenarios.
+	result, err := engine.RunPipeline(root, defaultPipelineOptionsWithProgress(jsonOutput))
+	if err != nil {
+		return fmt.Errorf("analysis failed: %w", err)
+	}
+	snap := result.Snapshot
+
+	if len(snap.Scenarios) == 0 {
+		return fmt.Errorf("no eval scenarios detected.\n\nTerrain auto-derives scenarios from eval test files and AI framework imports.\nAdd test files in an eval/ directory or import an AI framework in your tests.")
+	}
+
+	// Determine which framework to use for execution.
+	primary := det.Frameworks[0]
+
+	type runResult struct {
+		Framework  string `json:"framework"`
+		Scenarios  int    `json:"scenarios"`
+		Command    string `json:"command"`
+		Suggestion string `json:"suggestion"`
+	}
+
+	// Build the execution command based on the detected framework.
+	var cmd, suggestion string
+	switch primary.Name {
+	case "promptfoo":
+		cmd = "npx promptfoo eval"
+		if primary.ConfigFile != "" {
+			cmd += " -c " + primary.ConfigFile
+		}
+		suggestion = "Run: " + cmd
+	case "deepeval":
+		cmd = "deepeval test run"
+		suggestion = "Run: " + cmd
+	case "ragas":
+		cmd = "python -m ragas evaluate"
+		suggestion = "Run: " + cmd
+	case "langsmith":
+		cmd = "langsmith test run"
+		suggestion = "Run: " + cmd
+	default:
+		// For general AI frameworks, suggest running the eval test files directly.
+		evalFiles := []string{}
+		for _, sc := range snap.Scenarios {
+			if sc.Path != "" {
+				evalFiles = append(evalFiles, sc.Path)
+			}
+		}
+		if len(evalFiles) > 0 {
+			// Detect test runner from framework.
+			runner := "npx vitest run"
+			for _, tf := range snap.TestFiles {
+				if tf.Framework == "pytest" {
+					runner = "pytest"
+					break
+				}
+				if tf.Framework == "jest" {
+					runner = "npx jest"
+					break
+				}
+			}
+			cmd = runner + " " + strings.Join(evalFiles, " ")
+			suggestion = "Run eval tests: " + cmd
+		} else {
+			suggestion = "No specific eval command detected. Run your test suite targeting eval files."
+		}
+	}
+
+	rr := runResult{
+		Framework:  primary.Name,
+		Scenarios:  len(snap.Scenarios),
+		Command:    cmd,
+		Suggestion: suggestion,
+	}
+
+	if jsonOutput {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(rr)
+	}
+
+	fmt.Println("Terrain AI Run")
+	fmt.Println(strings.Repeat("=", 60))
+	fmt.Println()
+	fmt.Printf("Framework: %s (detected via %s)\n", primary.Name, primary.Source)
+	fmt.Printf("Scenarios: %d\n", len(snap.Scenarios))
+	fmt.Println()
+
+	if cmd != "" {
+		fmt.Println("Executing:")
+		fmt.Printf("  %s\n", cmd)
+		fmt.Println()
+
+		// Execute the command.
+		parts := strings.Fields(cmd)
+		execCmd := exec.Command(parts[0], parts[1:]...)
+		execCmd.Dir = root
+		execCmd.Stdout = os.Stdout
+		execCmd.Stderr = os.Stderr
+		if execErr := execCmd.Run(); execErr != nil {
+			return fmt.Errorf("eval execution failed: %w", execErr)
+		}
+		fmt.Println()
+		fmt.Println("Eval execution complete.")
+		fmt.Println("Next: terrain ai record    save results as baseline")
+	} else {
+		fmt.Println(suggestion)
+	}
+
+	return nil
+}
+
+// runAIRecord saves the latest eval run results as a baseline snapshot.
+func runAIRecord(root string, jsonOutput bool) error {
+	result, err := engine.RunPipeline(root, defaultPipelineOptionsWithProgress(jsonOutput))
+	if err != nil {
+		return fmt.Errorf("analysis failed: %w", err)
+	}
+	snap := result.Snapshot
+
+	if len(snap.Scenarios) == 0 {
+		return fmt.Errorf("no scenarios to record. Run `terrain ai list` to check detected scenarios.")
+	}
+
+	// Write baseline snapshot to .terrain/baselines/
+	baselineDir := filepath.Join(root, ".terrain", "baselines")
+	if err := os.MkdirAll(baselineDir, 0o755); err != nil {
+		return fmt.Errorf("creating baseline dir: %w", err)
+	}
+
+	type baseline struct {
+		RecordedAt string           `json:"recordedAt"`
+		Scenarios  []models.Scenario `json:"scenarios"`
+		Surfaces   struct {
+			Prompts  int `json:"prompts"`
+			Datasets int `json:"datasets"`
+		} `json:"surfaces"`
+	}
+
+	bl := baseline{RecordedAt: time.Now().UTC().Format(time.RFC3339)}
+	bl.Scenarios = snap.Scenarios
+	for _, cs := range snap.CodeSurfaces {
+		switch cs.Kind {
+		case models.SurfacePrompt:
+			bl.Surfaces.Prompts++
+		case models.SurfaceDataset:
+			bl.Surfaces.Datasets++
+		}
+	}
+
+	data, _ := json.MarshalIndent(bl, "", "  ")
+	blPath := filepath.Join(baselineDir, "latest.json")
+	if err := os.WriteFile(blPath, data, 0o644); err != nil {
+		return fmt.Errorf("writing baseline: %w", err)
+	}
+
+	if jsonOutput {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(bl)
+	}
+
+	fmt.Println("Terrain AI Record")
+	fmt.Println(strings.Repeat("=", 60))
+	fmt.Printf("Recorded %d scenarios to %s\n", len(bl.Scenarios), blPath)
+	fmt.Printf("Prompt surfaces: %d\n", bl.Surfaces.Prompts)
+	fmt.Printf("Dataset surfaces: %d\n", bl.Surfaces.Datasets)
+	fmt.Println()
+	fmt.Println("Next: terrain ai baseline    view or compare baselines")
+
+	return nil
+}
+
+// runAIBaseline manages eval baselines (show, compare).
+func runAIBaseline(root string, jsonOutput bool) error {
+	blPath := filepath.Join(root, ".terrain", "baselines", "latest.json")
+	data, err := os.ReadFile(blPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf("no baseline found. Run `terrain ai record` to create one.")
+		}
+		return fmt.Errorf("reading baseline: %w", err)
+	}
+
+	if jsonOutput {
+		os.Stdout.Write(data)
+		fmt.Println()
+		return nil
+	}
+
+	var bl struct {
+		RecordedAt string `json:"recordedAt"`
+		Scenarios  []struct {
+			ScenarioID string `json:"scenarioId"`
+			Name       string `json:"name"`
+			Category   string `json:"category"`
+		} `json:"scenarios"`
+		Surfaces struct {
+			Prompts  int `json:"prompts"`
+			Datasets int `json:"datasets"`
+		} `json:"surfaces"`
+	}
+	if err := json.Unmarshal(data, &bl); err != nil {
+		return fmt.Errorf("parsing baseline: %w", err)
+	}
+
+	fmt.Println("Terrain AI Baseline")
+	fmt.Println(strings.Repeat("=", 60))
+	fmt.Printf("Recorded: %s\n", bl.RecordedAt)
+	fmt.Printf("Scenarios: %d\n", len(bl.Scenarios))
+	fmt.Printf("Prompt surfaces: %d\n", bl.Surfaces.Prompts)
+	fmt.Printf("Dataset surfaces: %d\n", bl.Surfaces.Datasets)
+	fmt.Println()
+
+	if len(bl.Scenarios) > 0 {
+		fmt.Println("Scenarios:")
+		for _, sc := range bl.Scenarios {
+			fmt.Printf("  %-40s %s\n", sc.Name, sc.Category)
+		}
+	}
+
+	// Compare with current state.
+	fmt.Println()
+	fmt.Println("To compare with current state: terrain ai list --json")
+
+	return nil
+}
+
+func runAIDoctor(root string, jsonOutput bool) error {
+	result, err := engine.RunPipeline(root, defaultPipelineOptions())
+	if err != nil {
+		return fmt.Errorf("analysis failed: %w", err)
+	}
+	snap := result.Snapshot
+
+	type doctorCheck struct {
+		Name    string `json:"name"`
+		Status  string `json:"status"` // "pass", "warn", "fail"
+		Message string `json:"message"`
+	}
+
+	var checks []doctorCheck
+
+	// Check 1: Are there any scenarios?
+	if len(snap.Scenarios) > 0 {
+		checks = append(checks, doctorCheck{
+			Name:    "scenarios",
+			Status:  "pass",
+			Message: fmt.Sprintf("%d scenario(s) detected", len(snap.Scenarios)),
+		})
+	} else {
+		checks = append(checks, doctorCheck{
+			Name:    "scenarios",
+			Status:  "warn",
+			Message: "No scenarios detected. Add scenarios via .terrain/terrain.yaml or use an eval framework.",
+		})
+	}
+
+	// Check 2: Are there prompt surfaces?
+	promptCount := 0
+	datasetCount := 0
+	for _, cs := range snap.CodeSurfaces {
+		switch cs.Kind {
+		case models.SurfacePrompt:
+			promptCount++
+		case models.SurfaceDataset:
+			datasetCount++
+		}
+	}
+	if promptCount > 0 {
+		checks = append(checks, doctorCheck{
+			Name:    "prompts",
+			Status:  "pass",
+			Message: fmt.Sprintf("%d prompt surface(s) detected", promptCount),
+		})
+	} else {
+		checks = append(checks, doctorCheck{
+			Name:    "prompts",
+			Status:  "warn",
+			Message: "No prompt surfaces detected. Export functions with 'prompt' or 'template' in the name to enable prompt tracking.",
+		})
+	}
+
+	// Check 3: Are there dataset surfaces?
+	if datasetCount > 0 {
+		checks = append(checks, doctorCheck{
+			Name:    "datasets",
+			Status:  "pass",
+			Message: fmt.Sprintf("%d dataset surface(s) detected", datasetCount),
+		})
+	} else {
+		checks = append(checks, doctorCheck{
+			Name:    "datasets",
+			Status:  "warn",
+			Message: "No dataset surfaces detected. Export functions with 'dataset' or 'dataloader' in the name to enable dataset tracking.",
+		})
+	}
+
+	// Check 4: Are there eval-related test files?
+	evalFileCount := 0
+	for _, tf := range snap.TestFiles {
+		if isEvalPath(tf.Path) {
+			evalFileCount++
+		}
+	}
+	if evalFileCount > 0 {
+		checks = append(checks, doctorCheck{
+			Name:    "eval_files",
+			Status:  "pass",
+			Message: fmt.Sprintf("%d eval-related test file(s) found", evalFileCount),
+		})
+	} else {
+		checks = append(checks, doctorCheck{
+			Name:    "eval_files",
+			Status:  "warn",
+			Message: "No eval-related test files found. Files in eval/, evals/, or __evals__/ directories are detected automatically.",
+		})
+	}
+
+	// Check 5: Graph wiring — do scenarios connect to surfaces?
+	if len(snap.Scenarios) > 0 {
+		wired := 0
+		for _, sc := range snap.Scenarios {
+			if len(sc.CoveredSurfaceIDs) > 0 {
+				wired++
+			}
+		}
+		if wired == len(snap.Scenarios) {
+			checks = append(checks, doctorCheck{
+				Name:    "graph_wiring",
+				Status:  "pass",
+				Message: fmt.Sprintf("All %d scenario(s) linked to code surfaces", wired),
+			})
+		} else {
+			checks = append(checks, doctorCheck{
+				Name:    "graph_wiring",
+				Status:  "warn",
+				Message: fmt.Sprintf("%d of %d scenario(s) have no linked code surfaces", len(snap.Scenarios)-wired, len(snap.Scenarios)),
+			})
+		}
+	}
+
+	if jsonOutput {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(checks)
+	}
+
+	// Text output.
+	fmt.Println("Terrain AI Doctor")
+	fmt.Println(strings.Repeat("=", 60))
+	fmt.Println()
+
+	passCount := 0
+	warnCount := 0
+	for _, c := range checks {
+		icon := "  "
+		switch c.Status {
+		case "pass":
+			icon = "  [pass]"
+			passCount++
+		case "warn":
+			icon = "  [warn]"
+			warnCount++
+		case "fail":
+			icon = "  [FAIL]"
+		}
+		fmt.Printf("%s %-16s %s\n", icon, c.Name, c.Message)
+	}
+
+	fmt.Println()
+	if warnCount == 0 {
+		fmt.Println("All checks passed. AI/eval setup looks good.")
+	} else {
+		fmt.Printf("%d check(s) passed, %d warning(s).\n", passCount, warnCount)
+	}
+
+	return nil
+}
+
+// aiScenarioEntry is the JSON representation of a detected scenario.
+type aiScenarioEntry struct {
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	Category  string `json:"category,omitempty"`
+	Path      string `json:"path,omitempty"`
+	Framework string `json:"framework,omitempty"`
+	Owner     string `json:"owner,omitempty"`
+	Surfaces  int    `json:"surfaces"`
+}
+
+// aiSurfaceEntry is the JSON representation of a prompt/dataset surface.
+type aiSurfaceEntry struct {
+	SurfaceID string `json:"surfaceId"`
+	Name      string `json:"name"`
+	Path      string `json:"path"`
+	Language  string `json:"language"`
+	Line      int    `json:"line"`
+}
+
+// aiListSummary is the summary section of ai list output.
+type aiListSummary struct {
+	ScenarioCount int `json:"scenarioCount"`
+	PromptCount   int `json:"promptCount"`
+	DatasetCount  int `json:"datasetCount"`
+	EvalFileCount int `json:"evalFileCount"`
+}
+
+// isEvalPath returns true if a file path looks like an eval/benchmark file.
+func isEvalPath(path string) bool {
+	lower := strings.ToLower(path)
+	parts := strings.Split(strings.ReplaceAll(lower, "\\", "/"), "/")
+	for _, p := range parts {
+		switch p {
+		case "eval", "evals", "evaluations", "__evals__", "benchmarks":
+			return true
+		}
+	}
+	return false
 }
 
 // runMigration handles `terrain migration readiness`, `terrain migration blockers`,
@@ -1676,6 +2345,34 @@ func showFinding(id string, snap *models.TestSuiteSnapshot, jsonOutput bool) err
 		}
 	}
 	return fmt.Errorf("finding not found: %s", id)
+}
+
+func renderScenarioExplanation(se *explain.ScenarioExplanation) {
+	fmt.Println("Terrain Explain — Scenario")
+	fmt.Println(strings.Repeat("=", 60))
+	fmt.Println()
+	fmt.Printf("Scenario: %s\n", se.Name)
+	if se.Category != "" {
+		fmt.Printf("Category: %s\n", se.Category)
+	}
+	if se.Framework != "" {
+		fmt.Printf("Framework: %s\n", se.Framework)
+	}
+	fmt.Printf("Confidence: %s\n", se.Confidence)
+	fmt.Println()
+	fmt.Printf("Verdict: %s\n", se.Verdict)
+	fmt.Println()
+	if len(se.ChangedSurfaces) > 0 {
+		fmt.Printf("Changed surfaces (%d):\n", len(se.ChangedSurfaces))
+		for _, s := range se.ChangedSurfaces {
+			fmt.Printf("  %s\n", s)
+		}
+		fmt.Println()
+	}
+	fmt.Println("Next steps:")
+	fmt.Println("  terrain ai list              view all detected scenarios")
+	fmt.Println("  terrain impact --json         machine-readable impact data")
+	fmt.Println()
 }
 
 func renderTestDetail(tf models.TestFile, snap *models.TestSuiteSnapshot) {
