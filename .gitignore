@@ -143,18 +143,16 @@ benchmarks/java/
 benchmarks/python/
 benchmarks/results/
 benchmarks/run-benchmark.sh
+benchmarks/output/benchmark-results.json
+benchmarks/output/cli-benchmark-results.json
 
 # Public benchmark repos and artifacts (generated, not committed)
 benchmarks/repos/
 artifacts/public-benchmarks/
-
-# Compiled Go binaries
-/terrain
-/terrain.exe
-/terrain/
-/terrain-bench
+terrain-bench
 
 # Large local-only directories
+/terrain/
 testing/
 
 # Test output (generated during test runs)

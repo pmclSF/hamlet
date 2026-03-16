@@ -265,11 +265,9 @@ func RunExplain(ctx context.Context, terrainBin string, repoPath string) Command
 		}
 	}
 
+	// Step 2b: Fall back to "selection" which always works.
 	if testID == "" {
-		result.RuntimeMs = time.Since(start).Milliseconds()
-		result.Stdout = `{"error":"no test IDs found","detail":"neither impact nor analyze produced a test ID to explain"}`
-		result.ExitCode = 0
-		return result
+		testID = "selection"
 	}
 
 	// Step 3: Run explain --json --root <path> <id>.

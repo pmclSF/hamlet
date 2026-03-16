@@ -10,22 +10,39 @@ import (
 )
 
 // WriteResults writes benchmark results and assessments to the output directory.
+//
+// Output files:
+//   - benchmark-results.json — raw command execution data (canonical name)
+//   - benchmark-report.md — human-readable markdown report (canonical name)
+//   - cli-benchmark-results.json — raw results (legacy alias)
+//   - cli-benchmark-assessment.json — credibility scores
+//   - cli-benchmark-summary.md — markdown summary (legacy alias)
 func WriteResults(outputDir string, results []BenchResult, assessments []RepoAssessment) error {
 	if err := os.MkdirAll(outputDir, 0o755); err != nil {
 		return fmt.Errorf("creating output dir: %w", err)
 	}
 
+	// Write raw results.
+	if err := writeJSON(filepath.Join(outputDir, "benchmark-results.json"), results); err != nil {
+		return err
+	}
+	// Legacy alias.
 	if err := writeJSON(filepath.Join(outputDir, "cli-benchmark-results.json"), results); err != nil {
 		return err
 	}
+
+	// Write assessment.
 	if err := writeJSON(filepath.Join(outputDir, "cli-benchmark-assessment.json"), assessments); err != nil {
 		return err
 	}
 
+	// Write markdown report.
 	summary := GenerateSummary(assessments)
-	summaryPath := filepath.Join(outputDir, "cli-benchmark-summary.md")
-	if err := os.WriteFile(summaryPath, []byte(summary), 0o644); err != nil {
-		return fmt.Errorf("writing summary: %w", err)
+	for _, name := range []string{"benchmark-report.md", "cli-benchmark-summary.md"} {
+		path := filepath.Join(outputDir, name)
+		if err := os.WriteFile(path, []byte(summary), 0o644); err != nil {
+			return fmt.Errorf("writing %s: %w", name, err)
+		}
 	}
 
 	return nil
