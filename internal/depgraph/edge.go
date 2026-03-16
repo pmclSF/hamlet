@@ -15,12 +15,8 @@ const (
 //
 // Connect files and modules through import and usage relationships.
 const (
-	EdgeImportsModule        EdgeType = "imports_module"
-	EdgeSourceImportsSource  EdgeType = "source_imports_source"
-	EdgeTestUsesFixture      EdgeType = "test_uses_fixture"
-	EdgeTestUsesHelper       EdgeType = "test_uses_helper"
-	EdgeFixtureImportsSource EdgeType = "fixture_imports_source"
-	EdgeHelperImportsSource  EdgeType = "helper_imports_source"
+	EdgeImportsModule       EdgeType = "imports_module"
+	EdgeSourceImportsSource EdgeType = "source_imports_source"
 )
 
 // --- Package edges ---
@@ -32,18 +28,15 @@ const (
 //
 // Connect validation nodes to the system elements they validate.
 const (
-	EdgeValidates         EdgeType = "validates"
 	EdgeCoversCodeSurface EdgeType = "covers_code_surface"
 	EdgeManualCovers      EdgeType = "manual_covers"
 )
 
 // --- Behavior edges ---
 //
-// Connect behavior surfaces to the code they are derived from
-// and the validations that exercise them.
+// Connect behavior surfaces to the code they are derived from.
 const (
 	EdgeBehaviorDerivedFrom EdgeType = "behavior_derived_from"
-	EdgeTestExercises       EdgeType = "test_exercises"
 )
 
 // --- Environment edges ---
@@ -53,7 +46,6 @@ const (
 const (
 	EdgeTargetsEnvironment       EdgeType = "targets_environment"
 	EdgeEnvironmentClassContains EdgeType = "environment_class_contains"
-	EdgeDependsOnService         EdgeType = "depends_on_service"
 	EdgeUsesDataset              EdgeType = "uses_dataset"
 	EdgeUsesModel                EdgeType = "uses_model"
 	EdgeUsesPrompt               EdgeType = "uses_prompt"

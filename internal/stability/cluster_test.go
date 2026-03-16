@@ -7,17 +7,15 @@ import (
 	"github.com/pmclSF/terrain/internal/models"
 )
 
-// buildTestGraph creates a minimal graph with fixtures, helpers, and tests
-// for cluster detection testing.
+// buildTestGraph creates a minimal graph with shared environments and source
+// files for cluster detection testing.
 func buildTestGraph() *depgraph.Graph {
 	g := depgraph.NewGraph()
 
-	// Fixture shared by test-a and test-b.
-	g.AddNode(&depgraph.Node{ID: "fixture:db-setup", Type: depgraph.NodeFixture, Name: "db-setup", Path: "test/fixtures/db.js"})
-	// Helper shared by test-b and test-c.
-	g.AddNode(&depgraph.Node{ID: "helper:auth", Type: depgraph.NodeHelper, Name: "auth-helper", Path: "test/helpers/auth.js"})
-	// External service shared by test-a and test-c.
-	g.AddNode(&depgraph.Node{ID: "svc:payments-api", Type: depgraph.NodeExternalService, Name: "payments-api"})
+	// Shared environment targeted by test-a and test-b.
+	g.AddNode(&depgraph.Node{ID: "env:staging", Type: depgraph.NodeEnvironment, Name: "staging"})
+	// Shared source file imported by test-b and test-c.
+	g.AddNode(&depgraph.Node{ID: "file:src/db.js", Type: depgraph.NodeSourceFile, Name: "db.js", Path: "src/db.js"})
 
 	// Test files.
 	g.AddNode(&depgraph.Node{ID: "file:test/a.test.js", Type: depgraph.NodeTestFile, Path: "test/a.test.js"})
@@ -38,12 +36,12 @@ func buildTestGraph() *depgraph.Graph {
 	g.AddEdge(&depgraph.Edge{From: "test:d:1:testD", To: "file:test/d.test.js", Type: depgraph.EdgeTestDefinedInFile})
 
 	// Test/file → dependency edges.
-	g.AddEdge(&depgraph.Edge{From: "file:test/a.test.js", To: "fixture:db-setup", Type: depgraph.EdgeTestUsesFixture})
-	g.AddEdge(&depgraph.Edge{From: "file:test/b.test.js", To: "fixture:db-setup", Type: depgraph.EdgeTestUsesFixture})
-	g.AddEdge(&depgraph.Edge{From: "file:test/b.test.js", To: "helper:auth", Type: depgraph.EdgeTestUsesHelper})
-	g.AddEdge(&depgraph.Edge{From: "file:test/c.test.js", To: "helper:auth", Type: depgraph.EdgeTestUsesHelper})
-	g.AddEdge(&depgraph.Edge{From: "file:test/a.test.js", To: "svc:payments-api", Type: depgraph.EdgeDependsOnService})
-	g.AddEdge(&depgraph.Edge{From: "file:test/c.test.js", To: "svc:payments-api", Type: depgraph.EdgeDependsOnService})
+	// Tests A and B target the same environment.
+	g.AddEdge(&depgraph.Edge{From: "file:test/a.test.js", To: "env:staging", Type: depgraph.EdgeTargetsEnvironment})
+	g.AddEdge(&depgraph.Edge{From: "file:test/b.test.js", To: "env:staging", Type: depgraph.EdgeTargetsEnvironment})
+	// Tests B and C import the same source file.
+	g.AddEdge(&depgraph.Edge{From: "file:test/b.test.js", To: "file:src/db.js", Type: depgraph.EdgeImportsModule})
+	g.AddEdge(&depgraph.Edge{From: "file:test/c.test.js", To: "file:src/db.js", Type: depgraph.EdgeImportsModule})
 
 	return g
 }
@@ -59,11 +57,11 @@ func flakySignals(files ...string) []models.Signal {
 	return sigs
 }
 
-func TestDetectClusters_SharedFixture(t *testing.T) {
+func TestDetectClusters_SharedEnvironment(t *testing.T) {
 	t.Parallel()
 	g := buildTestGraph()
 
-	// Tests A and B are flaky — they share fixture:db-setup.
+	// Tests A and B are flaky — they share env:staging.
 	signals := flakySignals("test/a.test.js", "test/b.test.js")
 	result := DetectClusters(g, signals)
 
@@ -74,13 +72,13 @@ func TestDetectClusters_SharedFixture(t *testing.T) {
 		t.Fatal("expected at least one cluster")
 	}
 
-	// Should find the fixture cluster.
+	// Should find the environment cluster.
 	found := false
 	for _, c := range result.Clusters {
-		if c.CauseNodeID == "fixture:db-setup" {
+		if c.CauseNodeID == "env:staging" {
 			found = true
-			if c.CauseKind != CauseFixture {
-				t.Errorf("cause kind = %s, want shared_fixture", c.CauseKind)
+			if c.CauseKind != CauseEnvironment {
+				t.Errorf("cause kind = %s, want shared_environment", c.CauseKind)
 			}
 			if len(c.Members) < 2 {
 				t.Errorf("expected >= 2 members, got %d", len(c.Members))
@@ -94,33 +92,29 @@ func TestDetectClusters_SharedFixture(t *testing.T) {
 		}
 	}
 	if !found {
-		t.Error("expected cluster with cause fixture:db-setup")
+		t.Error("expected cluster with cause env:staging")
 	}
 }
 
-func TestDetectClusters_SharedExternalService(t *testing.T) {
+func TestDetectClusters_SharedSourceFile(t *testing.T) {
 	t.Parallel()
 	g := buildTestGraph()
 
-	// Tests A and C are flaky — they share svc:payments-api.
-	signals := flakySignals("test/a.test.js", "test/c.test.js")
+	// Tests B and C are flaky — they share file:src/db.js.
+	signals := flakySignals("test/b.test.js", "test/c.test.js")
 	result := DetectClusters(g, signals)
 
 	found := false
 	for _, c := range result.Clusters {
-		if c.CauseNodeID == "svc:payments-api" {
+		if c.CauseNodeID == "file:src/db.js" {
 			found = true
-			if c.CauseKind != CauseExternalService {
-				t.Errorf("cause kind = %s, want external_service", c.CauseKind)
-			}
-			// External services get high confidence.
-			if c.Confidence < 0.8 {
-				t.Errorf("confidence = %f, want >= 0.8", c.Confidence)
+			if c.CauseKind != CauseSourceFile {
+				t.Errorf("cause kind = %s, want shared_source", c.CauseKind)
 			}
 		}
 	}
 	if !found {
-		t.Error("expected cluster with cause svc:payments-api")
+		t.Error("expected cluster with cause file:src/db.js")
 	}
 }
 
@@ -132,16 +126,16 @@ func TestDetectClusters_MultipleClusters(t *testing.T) {
 	signals := flakySignals("test/a.test.js", "test/b.test.js", "test/c.test.js")
 	result := DetectClusters(g, signals)
 
-	// Should find clusters for: fixture:db-setup, helper:auth, svc:payments-api.
-	if len(result.Clusters) < 3 {
-		t.Errorf("expected >= 3 clusters, got %d", len(result.Clusters))
+	// Should find clusters for: env:staging and file:src/db.js.
+	if len(result.Clusters) < 2 {
+		t.Errorf("expected >= 2 clusters, got %d", len(result.Clusters))
 	}
 
 	kinds := map[CauseKind]bool{}
 	for _, c := range result.Clusters {
 		kinds[c.CauseKind] = true
 	}
-	for _, expected := range []CauseKind{CauseFixture, CauseHelper, CauseExternalService} {
+	for _, expected := range []CauseKind{CauseEnvironment, CauseSourceFile} {
 		if !kinds[expected] {
 			t.Errorf("expected cluster with cause kind %s", expected)
 		}
@@ -253,15 +247,15 @@ func TestDetectClusters_UnstableSuiteSignal(t *testing.T) {
 		t.Fatalf("expected >= 2 unstable tests, got %d", result.UnstableTestCount)
 	}
 
-	// Should still find the fixture cluster.
+	// Should still find the environment cluster.
 	found := false
 	for _, c := range result.Clusters {
-		if c.CauseNodeID == "fixture:db-setup" {
+		if c.CauseNodeID == "env:staging" {
 			found = true
 		}
 	}
 	if !found {
-		t.Error("expected fixture cluster from mixed signal types")
+		t.Error("expected environment cluster from mixed signal types")
 	}
 }
 
@@ -269,17 +263,17 @@ func TestClusterConfidence_Scales(t *testing.T) {
 	t.Parallel()
 
 	// Higher concentration → higher confidence.
-	c2of10 := clusterConfidence(CauseFixture, 2, 10)
-	c8of10 := clusterConfidence(CauseFixture, 8, 10)
+	c2of10 := clusterConfidence(CauseEnvironment, 2, 10)
+	c8of10 := clusterConfidence(CauseEnvironment, 8, 10)
 	if c8of10 <= c2of10 {
 		t.Errorf("expected higher confidence for larger concentration: %f <= %f", c8of10, c2of10)
 	}
 
-	// External service > source file base confidence.
-	cSvc := clusterConfidence(CauseExternalService, 3, 10)
+	// Environment > source file base confidence.
+	cEnv := clusterConfidence(CauseEnvironment, 3, 10)
 	cSrc := clusterConfidence(CauseSourceFile, 3, 10)
-	if cSvc <= cSrc {
-		t.Errorf("expected external_service > source_file: %f <= %f", cSvc, cSrc)
+	if cEnv <= cSrc {
+		t.Errorf("expected environment > source_file: %f <= %f", cEnv, cSrc)
 	}
 }
 

@@ -31,20 +31,17 @@ type NodeType string
 
 // --- System topology nodes ---
 //
-// Represent the structural elements of the codebase: source files,
-// packages, services, generated artifacts, and code surfaces.
+// Represent the structural elements of the codebase: source files
+// and code surfaces (functions, methods, endpoints).
 const (
-	NodeSourceFile        NodeType = "source_file"
-	NodePackage           NodeType = "package"
-	NodeService           NodeType = "service"
-	NodeGeneratedArtifact NodeType = "generated_artifact"
-	NodeCodeSurface       NodeType = "code_surface"
+	NodeSourceFile  NodeType = "source_file"
+	NodeCodeSurface NodeType = "code_surface"
 )
 
 // --- Validation topology nodes ---
 //
-// Represent the test system: tests, suites, fixtures, helpers,
-// and the files/targets they validate.
+// Represent the test system: tests, suites, validation targets,
+// and the files they validate.
 const (
 	NodeValidationTarget NodeType = "validation_target"
 	NodeTest             NodeType = "test"
@@ -52,8 +49,6 @@ const (
 	NodeManualCoverage   NodeType = "manual_coverage"
 	NodeSuite            NodeType = "suite"
 	NodeTestFile         NodeType = "test_file"
-	NodeFixture          NodeType = "fixture"
-	NodeHelper           NodeType = "helper"
 )
 
 // --- Behavior topology nodes ---
@@ -71,7 +66,6 @@ const (
 	NodeEnvironment      NodeType = "environment"
 	NodeEnvironmentClass NodeType = "environment_class"
 	NodeDeviceConfig     NodeType = "device_config"
-	NodeExternalService  NodeType = "external_service"
 	NodeDataset          NodeType = "dataset"
 	NodeModel            NodeType = "model"
 	NodePrompt           NodeType = "prompt"
@@ -97,13 +91,12 @@ const (
 func NodeTypeFamily(t NodeType) NodeFamily {
 	switch t {
 	// System
-	case NodeSourceFile, NodePackage, NodeService,
-		NodeGeneratedArtifact, NodeCodeSurface:
+	case NodeSourceFile, NodeCodeSurface:
 		return FamilySystem
 
 	// Validation
 	case NodeValidationTarget, NodeTest, NodeScenario, NodeManualCoverage,
-		NodeSuite, NodeTestFile, NodeFixture, NodeHelper:
+		NodeSuite, NodeTestFile:
 		return FamilyValidation
 
 	// Behavior
@@ -112,8 +105,7 @@ func NodeTypeFamily(t NodeType) NodeFamily {
 
 	// Environment
 	case NodeEnvironment, NodeEnvironmentClass, NodeDeviceConfig,
-		NodeExternalService, NodeDataset, NodeModel, NodePrompt,
-		NodeEvalMetric:
+		NodeDataset, NodeModel, NodePrompt, NodeEvalMetric:
 		return FamilyEnvironment
 
 	// Execution
@@ -134,20 +126,18 @@ func NodeTypeFamily(t NodeType) NodeFamily {
 func AllNodeTypes() map[NodeFamily][]NodeType {
 	return map[NodeFamily][]NodeType{
 		FamilySystem: {
-			NodeSourceFile, NodePackage, NodeService,
-			NodeGeneratedArtifact, NodeCodeSurface,
+			NodeSourceFile, NodeCodeSurface,
 		},
 		FamilyValidation: {
 			NodeValidationTarget, NodeTest, NodeScenario, NodeManualCoverage,
-			NodeSuite, NodeTestFile, NodeFixture, NodeHelper,
+			NodeSuite, NodeTestFile,
 		},
 		FamilyBehavior: {
 			NodeBehaviorSurface,
 		},
 		FamilyEnvironment: {
 			NodeEnvironment, NodeEnvironmentClass, NodeDeviceConfig,
-			NodeExternalService, NodeDataset, NodeModel, NodePrompt,
-			NodeEvalMetric,
+			NodeDataset, NodeModel, NodePrompt, NodeEvalMetric,
 		},
 		FamilyExecution: {
 			NodeExecutionRun, NodeValidationExecution,

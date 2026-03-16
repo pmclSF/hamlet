@@ -73,21 +73,15 @@ var causeCategory = map[depgraph.NodeType]struct {
 	Kind CauseKind
 	Rank int
 }{
-	depgraph.NodeFixture:         {CauseFixture, 1},
-	depgraph.NodeHelper:          {CauseHelper, 2},
-	depgraph.NodeExternalService: {CauseExternalService, 3},
-	depgraph.NodeEnvironment:     {CauseEnvironment, 4},
-	depgraph.NodeSourceFile:      {CauseSourceFile, 5},
+	depgraph.NodeEnvironment: {CauseEnvironment, 1},
+	depgraph.NodeSourceFile:  {CauseSourceFile, 2},
 }
 
 // edgeToSharedDep maps edge types to the dependency direction.
 // These are edges originating FROM a test/test-file node.
 var edgeToSharedDep = map[depgraph.EdgeType]bool{
-	depgraph.EdgeTestUsesFixture:    true,
-	depgraph.EdgeTestUsesHelper:     true,
 	depgraph.EdgeImportsModule:      true,
 	depgraph.EdgeTargetsEnvironment: true,
-	depgraph.EdgeDependsOnService:   true,
 }
 
 // DetectClusters identifies groups of unstable tests that share common

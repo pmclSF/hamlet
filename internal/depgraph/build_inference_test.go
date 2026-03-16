@@ -276,6 +276,125 @@ func TestBuildEndToEnd_InferenceChain(t *testing.T) {
 	}
 }
 
+// TestAIReasoningPath verifies the full reasoning path:
+// CodeSurface → BehaviorSurface → Scenario → Environment → ExecutionRun.
+// Each link is traversable through the graph, enabling end-to-end
+// explanation traces from a code change to an AI eval execution.
+func TestAIReasoningPath(t *testing.T) {
+	t.Parallel()
+
+	snap := &models.TestSuiteSnapshot{
+		// Code surfaces: the functions being validated.
+		CodeSurfaces: []models.CodeSurface{
+			{SurfaceID: "surface:src/ai/prompt.ts:buildPrompt", Name: "buildPrompt", Path: "src/ai/prompt.ts", Kind: models.SurfacePrompt, Language: "typescript", Exported: true},
+			{SurfaceID: "surface:src/ai/prompt.ts:systemTemplate", Name: "systemTemplate", Path: "src/ai/prompt.ts", Kind: models.SurfacePrompt, Language: "typescript", Exported: true},
+		},
+		// Behavior surfaces: derived grouping of related code surfaces.
+		BehaviorSurfaces: []models.BehaviorSurface{
+			{BehaviorID: "behavior:module:src/ai/prompt.ts", Label: "prompt.ts", Kind: "module", CodeSurfaceIDs: []string{"surface:src/ai/prompt.ts:buildPrompt", "surface:src/ai/prompt.ts:systemTemplate"}},
+		},
+		// Scenarios: AI eval cases that validate the code surfaces.
+		Scenarios: []models.Scenario{
+			{ScenarioID: "scenario:eval:safety-check", Name: "safety-check", Category: "safety", Path: "evals/safety.yaml", Framework: "promptfoo", CoveredSurfaceIDs: []string{"surface:src/ai/prompt.ts:buildPrompt"}, EnvironmentIDs: []string{"env:staging"}},
+		},
+		// Environments: where the evals run.
+		Environments: []models.Environment{
+			{EnvironmentID: "env:staging", Name: "staging"},
+		},
+	}
+
+	g := Build(snap)
+
+	// 1. CodeSurface nodes exist.
+	csNode := g.Node("surface:src/ai/prompt.ts:buildPrompt")
+	if csNode == nil {
+		t.Fatal("CodeSurface node not found")
+	}
+	if csNode.Type != NodeCodeSurface {
+		t.Errorf("expected code_surface, got %s", csNode.Type)
+	}
+
+	// 2. BehaviorSurface → CodeSurface edge exists.
+	bNode := g.Node("behavior:module:src/ai/prompt.ts")
+	if bNode == nil {
+		t.Fatal("BehaviorSurface node not found")
+	}
+	if bNode.Type != NodeBehaviorSurface {
+		t.Errorf("expected behavior_surface, got %s", bNode.Type)
+	}
+	bOutgoing := g.Outgoing("behavior:module:src/ai/prompt.ts")
+	hasBehaviorToSurface := false
+	for _, e := range bOutgoing {
+		if e.Type == EdgeBehaviorDerivedFrom && e.To == "surface:src/ai/prompt.ts:buildPrompt" {
+			hasBehaviorToSurface = true
+		}
+	}
+	if !hasBehaviorToSurface {
+		t.Error("missing BehaviorSurface → CodeSurface edge")
+	}
+
+	// 3. Scenario → CodeSurface edge exists.
+	scNode := g.Node("scenario:eval:safety-check")
+	if scNode == nil {
+		t.Fatal("Scenario node not found")
+	}
+	if scNode.Type != NodeScenario {
+		t.Errorf("expected scenario, got %s", scNode.Type)
+	}
+	scOutgoing := g.Outgoing("scenario:eval:safety-check")
+	hasScenarioToSurface := false
+	hasScenarioToEnv := false
+	for _, e := range scOutgoing {
+		if e.Type == EdgeCoversCodeSurface && e.To == "surface:src/ai/prompt.ts:buildPrompt" {
+			hasScenarioToSurface = true
+		}
+		if e.Type == EdgeTargetsEnvironment && e.To == "env:staging" {
+			hasScenarioToEnv = true
+		}
+	}
+	if !hasScenarioToSurface {
+		t.Error("missing Scenario → CodeSurface edge")
+	}
+
+	// 4. Scenario → Environment edge exists.
+	if !hasScenarioToEnv {
+		t.Error("missing Scenario → Environment edge")
+	}
+
+	// 5. Environment node exists.
+	envNode := g.Node("env:staging")
+	if envNode == nil {
+		t.Fatal("Environment node not found")
+	}
+	if envNode.Type != NodeEnvironment {
+		t.Errorf("expected environment, got %s", envNode.Type)
+	}
+
+	// 6. Scenario is a validation target: ValidationsForSurface returns it.
+	vals := g.ValidationsForSurface("surface:src/ai/prompt.ts:buildPrompt")
+	found := false
+	for _, v := range vals {
+		if v.ID == "scenario:eval:safety-check" {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("Scenario should appear in ValidationsForSurface for the covered code surface")
+	}
+
+	// 7. Full path is traversable: CodeSurface ← BehaviorSurface, CodeSurface ← Scenario → Environment.
+	// Verify all six node families are represented.
+	families := map[NodeFamily]bool{}
+	for _, n := range g.Nodes() {
+		families[n.Family()] = true
+	}
+	for _, f := range []NodeFamily{FamilySystem, FamilyValidation, FamilyBehavior, FamilyEnvironment} {
+		if !families[f] {
+			t.Errorf("expected family %s in graph, not found", f)
+		}
+	}
+}
+
 // TestBuildNilSnapshot verifies Build handles nil gracefully.
 func TestBuildNilSnapshot(t *testing.T) {
 	t.Parallel()

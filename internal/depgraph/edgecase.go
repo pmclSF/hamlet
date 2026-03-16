@@ -173,7 +173,7 @@ func DetectEdgeCases(profile RepoProfile, g *Graph, insights ProfileInsights) []
 	spd := insights.Snapshot
 
 	// External-service-heavy tests.
-	extSvcCount := stats.NodesByType[string(NodeExternalService)] + spd.ExternalServiceNodeCount
+	extSvcCount := spd.ExternalServiceNodeCount
 	if extSvcCount > 5 {
 		cases = append(cases, EdgeCase{
 			Type:     EdgeCaseExternalServiceHeavy,
@@ -185,7 +185,7 @@ func DetectEdgeCases(profile RepoProfile, g *Graph, insights ProfileInsights) []
 	}
 
 	// Generated artifact changes.
-	genCount := stats.NodesByType[string(NodeGeneratedArtifact)] + spd.GeneratedArtifactNodeCount
+	genCount := spd.GeneratedArtifactNodeCount
 	if genCount > 0 {
 		cases = append(cases, EdgeCase{
 			Type:     EdgeCaseGeneratedArtifacts,

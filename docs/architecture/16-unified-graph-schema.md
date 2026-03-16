@@ -1,109 +1,247 @@
 # Unified Graph Schema
 
-> **Status:** Implemented
-> **Purpose:** Describe the converged graph schema that unifies the snapshot index (`internal/graph/`), typed dependency graph (`internal/depgraph/`), and impact graph (`internal/impact/`) into a single traversable structure.
+> **Status:** Implemented (hardened)
+> **Purpose:** Canonical reference for the graph schema that powers Terrain's analysis engines. Defines all node types, edge types, evidence types, construction pipeline, and serialization contract.
 > **Key decisions:**
-> - Six node families (system, validation, behavior, environment, execution, governance) implemented in `internal/depgraph/`
-> - All node types, edge types, and evidence types defined as constants with JSON serialization support
-> - `NodeFamily` grouping enables family-level queries (`NodesByFamily`) alongside type-level queries
-> - Graph supports `MarshalJSON`/`UnmarshalJSON` for deterministic serialization and deserialization
-> - Three existing graph representations converge incrementally — unified types are in place; construction pipelines converge next
-> - Confidence model applies uniformly across all edge types, including cross-family edges
+> - Six node families: system, validation, behavior, environment, execution, governance
+> - 20 node types and 15 edge types — unused types removed during schema hardening
+> - All types defined as Go constants with stable JSON string values
+> - Graph is immutable after `Build()` — construct once, then query
+> - Deterministic serialization: nodes sorted by ID, edges preserve insertion order
+> - Confidence model applies uniformly across all edge types
 
-**See also:** [02-graph-schema.md](02-graph-schema.md), [05-insight-engine-framework.md](05-insight-engine-framework.md), [13-graph-traversal-algorithms.md](13-graph-traversal-algorithms.md)
+**See also:** [02-graph-schema.md](02-graph-schema.md), [13-graph-traversal-algorithms.md](13-graph-traversal-algorithms.md), [18-environment-and-device-model.md](18-environment-and-device-model.md), [19-ai-scenario-and-eval-model.md](19-ai-scenario-and-eval-model.md)
 
-## Problem Statement
+## Node Types (20)
 
-Terrain currently maintains three graph representations that model overlapping but distinct views of the test system:
+### System Family (`FamilySystem`)
 
-1. **`graph.Graph`** (snapshot index) — a lightweight file-level adjacency structure built during repository scanning. Used for incremental update detection and change-set computation.
-2. **`depgraph.Graph`** (typed dependency graph) — the full typed graph with node/edge metadata, confidence scores, and evidence types. Powers coverage, duplicate, and fanout analysis.
-3. **`impact.ImpactGraph`** (bidirectional impact graph) — a bidirectional traversal structure derived from the dependency graph, optimized for impact analysis queries ("what tests are affected by this change?").
+Structural elements of the codebase.
 
-Each graph has its own construction path, its own traversal API, and its own assumptions about node identity. This creates three problems:
+| Constant | JSON Value | Built By | Purpose |
+|----------|-----------|----------|---------|
+| `NodeSourceFile` | `source_file` | `buildImportEdges`, `buildCodeSurfaces` | Source code file |
+| `NodeCodeSurface` | `code_surface` | `buildCodeSurfaces` | Function, method, endpoint, or route |
 
-- **Translation overhead.** Engines must convert between representations when they need capabilities from more than one graph. Impact analysis rebuilds adjacency indexes that already exist in the dependency graph.
-- **Inconsistent confidence.** The snapshot index has no confidence model. The impact graph applies hop decay but not fanout penalties. Only the dependency graph carries full evidence metadata.
-- **Schema drift.** Adding a new node type (e.g., Environment) requires changes in three places with no shared contract enforcing consistency.
+### Validation Family (`FamilyValidation`)
 
-## Implemented: Unified Type System
+Test system elements.
 
-The unified type system is implemented in `internal/depgraph/` and organizes all node types into six families:
+| Constant | JSON Value | Built By | Purpose |
+|----------|-----------|----------|---------|
+| `NodeValidationTarget` | `validation_target` | — (reserved) | Abstract validation target |
+| `NodeTest` | `test` | `buildTestStructure` | Individual test case |
+| `NodeScenario` | `scenario` | `buildScenarios` | Behavioral scenario or manual test spec |
+| `NodeManualCoverage` | `manual_coverage` | `buildManualCoverage` | Manual testing artifact (QA checklist, exploratory test) |
+| `NodeSuite` | `suite` | `buildTestStructure` | Test suite / describe block |
+| `NodeTestFile` | `test_file` | `buildTestStructure` | Test file containing tests and suites |
 
-### Node Families
+### Behavior Family (`FamilyBehavior`)
 
-| Family | Constant | Node Types | Status |
-|--------|----------|------------|--------|
-| System | `FamilySystem` | SourceFile, Package, Service, GeneratedArtifact, CodeSurface | Implemented |
-| Validation | `FamilyValidation` | ValidationTarget, Test, Scenario, ManualCoverage, Suite, TestFile, Fixture, Helper | Implemented |
-| Behavior | `FamilyBehavior` | BehaviorSurface | Implemented |
-| Environment | `FamilyEnvironment` | Environment, EnvironmentClass, DeviceConfig, ExternalService, Dataset, Model, Prompt, EvalMetric | Implemented |
-| Execution | `FamilyExecution` | ExecutionRun, ValidationExecution | Implemented |
-| Governance | `FamilyGovernance` | Owner | Implemented |
+Inferred behavioral groupings.
 
-All 26 node types are defined as constants with string values for JSON serialization. The `NodeTypeFamily()` function maps each type to its family. `AllNodeTypes()` returns the complete registry.
+| Constant | JSON Value | Built By | Purpose |
+|----------|-----------|----------|---------|
+| `NodeBehaviorSurface` | `behavior_surface` | `buildBehaviorSurfaces` | Behavioral grouping derived from code surfaces |
 
-### Edge Types by Category
+### Environment Family (`FamilyEnvironment`)
 
-| Category | Edge Types | Status |
-|----------|-----------|--------|
-| Test Structure | TestDefinedInFile, SuiteContainsTest | Implemented, actively used |
-| Dependency | ImportsModule, SourceImportsSource, TestUsesFixture, TestUsesHelper, FixtureImportsSource, HelperImportsSource | Implemented, actively used |
-| Package | BelongsToPackage | Implemented, actively used |
-| Validation | Validates, CoversCodeSurface, ManualCovers | Implemented |
-| Behavior | BehaviorDerivedFrom, TestExercises | Implemented |
-| Environment | TargetsEnvironment, EnvironmentClassContains, DependsOnService, UsesDataset, UsesModel, UsesPrompt, EvaluatesMetric | Implemented |
-| Execution | ExecutionRunsTest | Implemented |
-| Governance | Owns | Implemented, actively used |
+Execution environments, devices, and AI/ML resources.
 
-### Evidence Types
+| Constant | JSON Value | Built By | Purpose |
+|----------|-----------|----------|---------|
+| `NodeEnvironment` | `environment` | `buildEnvironments` | Execution environment (staging, prod, etc.) |
+| `NodeEnvironmentClass` | `environment_class` | `buildEnvironmentClasses` | Grouping of related environments |
+| `NodeDeviceConfig` | `device_config` | `buildDeviceConfigs` | Device/browser target |
+| `NodeDataset` | `dataset` | — (AI reserved) | ML/AI dataset resource |
+| `NodeModel` | `model` | — (AI reserved) | ML/AI model resource |
+| `NodePrompt` | `prompt` | — (AI reserved) | AI prompt/template |
+| `NodeEvalMetric` | `eval_metric` | — (AI reserved) | Evaluation metric (accuracy, BLEU, etc.) |
 
-| Evidence Type | Description | Status |
-|---------------|-------------|--------|
-| StaticAnalysis | Discovered through static code analysis | Implemented, actively used |
-| Convention | Inferred from naming conventions | Implemented, actively used |
-| Inferred | Heuristically inferred relationship | Implemented, actively used |
-| Manual | Explicitly declared in configuration | Implemented, actively used |
-| Execution | Observed during runtime execution | Implemented |
+### Execution Family (`FamilyExecution`)
 
-### Graph Operations
+Runtime execution state.
 
-The `Graph` struct supports:
+| Constant | JSON Value | Built By | Purpose |
+|----------|-----------|----------|---------|
+| `NodeExecutionRun` | `execution_run` | — (reserved) | CI run or test execution instance |
+| `NodeValidationExecution` | `validation_execution` | — (reserved) | Outcome of a test execution |
 
-- **Node queries:** `Node(id)`, `Nodes()`, `NodesByType(t)`, `NodesByFamily(f)`
-- **Edge queries:** `Edges()`, `EdgesByType(t)`, `Outgoing(id)`, `Incoming(id)`
-- **Traversal:** `Neighbors(id)`, `ReverseNeighbors(id)`
-- **Validation queries:** `ValidationTargets()` returns all validation-bearing nodes (Test, Scenario, ManualCoverage); `ValidationsForSurface(id)` returns validation nodes covering a given surface via reverse edge traversal; `IsValidationNode(t)` predicate checks node type membership
-- **Statistics:** `Stats()` — includes per-type and per-family counts
-- **Serialization:** `MarshalJSON()` / `UnmarshalJSON()` — deterministic JSON with adjacency index rebuild
+### Governance Family (`FamilyGovernance`)
 
-### Backward Compatibility
+Ownership and policy.
 
-All existing analysis engines (coverage, fanout, duplicates, impact) continue to work unchanged. They operate on the node types they recognize and ignore new types. This was verified by adding new node types alongside traditional ones in tests — all four engines produce correct results.
+| Constant | JSON Value | Built By | Purpose |
+|----------|-----------|----------|---------|
+| `NodeOwner` | `owner` | `buildScenarios`, `buildManualCoverage` | Team/person responsible for a node |
 
-## Remaining Work: Graph Convergence
+## Edge Types (15)
 
-### Phase 1: Wrapper (Next)
+### Test Structure
 
-Introduce a `UnifiedGraph` struct that embeds `depgraph.Graph` and adds snapshot metadata as node-level fields. The impact graph's bidirectional indexes are computed on demand from the unified structure. Existing engine function signatures remain unchanged.
+| Constant | JSON Value | Direction | Built By |
+|----------|-----------|-----------|----------|
+| `EdgeTestDefinedInFile` | `test_defined_in_file` | test → file | `buildTestStructure` |
+| `EdgeSuiteContainsTest` | `suite_contains_test` | suite → test | `buildTestStructure` |
 
-### Phase 2: Consolidation
+### Dependency
 
-Remove `graph.Graph` and `impact.ImpactGraph` as separate types. All construction logic writes directly to `UnifiedGraph`. Snapshot hashing moves into node metadata. The incremental update path compares node metadata hashes instead of maintaining a parallel index.
+| Constant | JSON Value | Direction | Built By |
+|----------|-----------|-----------|----------|
+| `EdgeImportsModule` | `imports_module` | testfile → sourcefile | `buildImportEdges` |
+| `EdgeSourceImportsSource` | `source_imports_source` | sourcefile → sourcefile | `buildSourceToSourceEdges` |
 
-### Phase 3: Construction Pipelines
+### Package
 
-Wire the new node/edge types into construction pipelines:
-- **System nodes:** Populated during repository scanning (SourceFile, Package already done)
-- **Validation nodes:** Populated during test discovery (Test, Suite, TestFile already done)
-- **Behavior nodes:** Derived from code surface analysis
-- **Environment nodes:** Extracted from CI configuration and test annotations
-- **Execution nodes:** ExecutionRun and ValidationExecution are captured from CI run results and test execution logs
-- **Governance nodes:** Owner nodes extracted from CODEOWNERS
+| Constant | JSON Value | Direction | Built By |
+|----------|-----------|-----------|----------|
+| `EdgeBelongsToPackage` | `belongs_to_package` | codesurface → sourcefile | `buildCodeSurfaces` |
 
-## Why Unification Matters
+### Validation
 
-- **Single traversal surface.** Every engine query — coverage, impact, duplicates, fanout, risk — operates on one graph with one API. No translation, no impedance mismatch.
-- **Consistent confidence model.** Confidence scores, hop decay, and fanout penalties apply uniformly. An impact path that crosses from a test file through a fixture into a source file into an environment carries a single compounded confidence value.
-- **Simpler engine contract.** Engines are pure functions over the graph. When the graph is one thing, the contract is one thing. Adding a new engine does not require deciding which graph representation to target.
-- **Extensibility.** New node and edge types slot into the existing schema without structural changes. The graph grows horizontally (more types) without growing vertically (more representations).
+| Constant | JSON Value | Direction | Built By |
+|----------|-----------|-----------|----------|
+| `EdgeCoversCodeSurface` | `covers_code_surface` | scenario → surface | `buildScenarios` |
+| `EdgeManualCovers` | `manual_covers` | manualcoverage → surface | `buildManualCoverage` |
+
+### Behavior
+
+| Constant | JSON Value | Direction | Built By |
+|----------|-----------|-----------|----------|
+| `EdgeBehaviorDerivedFrom` | `behavior_derived_from` | behavior/surface → surface/file | `buildCodeSurfaces`, `buildBehaviorSurfaces` |
+
+### Environment
+
+| Constant | JSON Value | Direction | Built By |
+|----------|-----------|-----------|----------|
+| `EdgeTargetsEnvironment` | `targets_environment` | testfile/scenario → environment/device | `buildEnvironmentEdges` |
+| `EdgeEnvironmentClassContains` | `environment_class_contains` | class → environment/device | `buildEnvironmentClasses`, `buildDeviceConfigs` |
+| `EdgeUsesDataset` | `uses_dataset` | test → dataset | — (AI reserved) |
+| `EdgeUsesModel` | `uses_model` | test → model | — (AI reserved) |
+| `EdgeUsesPrompt` | `uses_prompt` | test → prompt | — (AI reserved) |
+| `EdgeEvaluatesMetric` | `evaluates_metric` | test → evalmetric | — (AI reserved) |
+
+### Execution
+
+| Constant | JSON Value | Direction | Built By |
+|----------|-----------|-----------|----------|
+| `EdgeExecutionRunsTest` | `execution_runs_test` | run → test | — (reserved) |
+
+### Governance
+
+| Constant | JSON Value | Direction | Built By |
+|----------|-----------|-----------|----------|
+| `EdgeOwns` | `owns` | owner → node | `buildScenarios`, `buildManualCoverage` |
+
+## Evidence Types
+
+Every edge carries a confidence score (0.0–1.0) and an evidence type describing how the relationship was discovered.
+
+| Constant | JSON Value | Description |
+|----------|-----------|-------------|
+| `EvidenceStaticAnalysis` | `static_analysis` | Discovered through AST or import analysis |
+| `EvidenceConvention` | `convention` | Inferred from naming conventions or file structure |
+| `EvidenceInferred` | `inferred` | Heuristically inferred relationship |
+| `EvidenceManual` | `manual` | Explicitly declared in `.terrain/` configuration |
+| `EvidenceExecution` | `execution` | Observed during runtime execution |
+
+## Graph Construction Pipeline
+
+`Build(snap *TestSuiteSnapshot) *Graph` constructs the graph in 10 sequential stages:
+
+```
+Stage  Function                      Produces
+─────  ────────────────────────────  ─────────────────────────────────────
+ 1     buildTestStructure()          NodeTestFile, NodeTest, NodeSuite
+                                     EdgeTestDefinedInFile, EdgeSuiteContainsTest
+ 2     buildImportEdges()            NodeSourceFile, EdgeImportsModule
+ 3     buildSourceToSourceEdges()    EdgeSourceImportsSource
+ 4     buildCodeSurfaces()           NodeCodeSurface, EdgeBelongsToPackage,
+                                     EdgeBehaviorDerivedFrom
+ 5     buildBehaviorSurfaces()       NodeBehaviorSurface, EdgeBehaviorDerivedFrom
+ 6     buildScenarios()              NodeScenario, NodeOwner,
+                                     EdgeCoversCodeSurface, EdgeOwns
+ 7     buildManualCoverage()         NodeManualCoverage, NodeOwner,
+                                     EdgeManualCovers, EdgeOwns
+ 8     buildEnvironments()           NodeEnvironment
+ 9     buildEnvironmentClasses()     NodeEnvironmentClass, EdgeEnvironmentClassContains
+10     buildDeviceConfigs()          NodeDeviceConfig, EdgeEnvironmentClassContains
+ +     buildEnvironmentEdges()       EdgeTargetsEnvironment
+```
+
+After `Build()`, the graph is immutable. All queries are read-only.
+
+## Graph API
+
+### Node Queries
+
+| Method | Returns | Ordering |
+|--------|---------|----------|
+| `Node(id)` | Single node by ID | — |
+| `Nodes()` | All nodes | Sorted by ID |
+| `NodesByType(t)` | Nodes of given type | Sorted by ID |
+| `NodesByFamily(f)` | Nodes in given family | Sorted by ID |
+
+### Edge Queries
+
+| Method | Returns | Ordering |
+|--------|---------|----------|
+| `Edges()` | All edges | Insertion order |
+| `EdgesByType(t)` | Edges of given type | Insertion order |
+| `Outgoing(id)` | Edges from node | Insertion order |
+| `Incoming(id)` | Edges to node | Insertion order |
+
+### Traversal
+
+| Method | Returns | Ordering |
+|--------|---------|----------|
+| `Neighbors(id)` | Outgoing neighbor IDs | Sorted |
+| `ReverseNeighbors(id)` | Incoming neighbor IDs | Sorted |
+
+### Validation Queries
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `IsValidationNode(t)` | bool | True for Test, Scenario, ManualCoverage |
+| `ValidationTargets()` | Validation nodes | All validation-bearing nodes, sorted by ID |
+| `ValidationsForSurface(id)` | Validation nodes | Reverse lookup: what validates this surface? |
+
+### Serialization
+
+| Method | Description |
+|--------|-------------|
+| `MarshalJSON()` | Deterministic JSON: version, nodes (sorted by ID), edges |
+| `UnmarshalJSON()` | Deserialize and rebuild adjacency indexes |
+
+Schema version: `1.0.0`
+
+## Analysis Engines
+
+All engines operate on `*Graph` as pure functions.
+
+| Engine | Function | Uses |
+|--------|----------|------|
+| Coverage | `AnalyzeCoverage(g)` | Direct imports + transitive source imports |
+| Fanout | `AnalyzeFanout(g, threshold)` | Reverse-topological traversal with Kahn's algorithm |
+| Duplicates | `DetectDuplicates(g)` | Fingerprinting + blocking keys + weighted similarity |
+| Redundancy | `AnalyzeRedundancy(g)` | Behavioral overlap analysis |
+| Impact | `AnalyzeImpact(g, changedFiles)` | BFS from changed files to test nodes |
+| Profile | `AnalyzeProfile(g, insights)` | Aggregate health metrics |
+| Edge Cases | `DetectEdgeCases(profile, g, insights)` | Scale and quality issue detection |
+
+## Determinism Guarantees
+
+1. **Node iteration** — `Nodes()`, `NodesByType()`, `NodesByFamily()`, `ValidationTargets()` all return nodes sorted by ID.
+2. **Neighbor iteration** — `Neighbors()` and `ReverseNeighbors()` return sorted ID lists.
+3. **Serialization** — `MarshalJSON()` produces byte-identical output for identical graphs.
+4. **Analysis output** — All engine result arrays are sorted by documented criteria (coverage by test count, fanout by dependent count, duplicates by similarity, etc.).
+
+## Types Removed During Hardening
+
+The following types were present in the schema but never created by `Build()` and never populated by any construction pipeline. They were removed to reduce schema surface area:
+
+**Node types removed (6):** `package`, `service`, `generated_artifact`, `external_service`, `fixture`, `helper`
+
+**Edge types removed (7):** `test_uses_fixture`, `test_uses_helper`, `fixture_imports_source`, `helper_imports_source`, `validates`, `test_exercises`, `depends_on_service`
+
+Coverage analysis indirect pathways that referenced fixture/helper node types were also removed — these code paths were unreachable since Build() never created the corresponding nodes or edges. Coverage analysis now uses two pathways: direct imports and transitive source imports.
