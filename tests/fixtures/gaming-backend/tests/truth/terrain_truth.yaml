@@ -1,0 +1,44 @@
+impact:
+  cases:
+    - change: "src/matches/service.ts"
+      expected_impacted_tests:
+        - "tests/unit/matches/service.test.ts"
+        - "tests/integration/matches/flow.test.ts"
+        - "tests/e2e/main/full-flow.test.ts"
+        - "tests/e2e/main/quick-flow.test.ts"
+    - change: "src/ai-matchmaking/prompt.ts"
+      expected_impacted_tests:
+        - "tests/eval/safety/safety-eval.test.ts"
+        - "tests/eval/safety/safety-regression.test.ts"
+      expected_impacted_scenarios:
+        - "safety-eval"
+        - "safety-regression"
+coverage:
+  expected_uncovered:
+    - path: "src/economy/service.ts"
+      reason: "No test imports"
+    - path: "src/inventory/service.ts"
+      reason: "No test imports"
+redundancy:
+  expected_clusters:
+    - tests:
+        - "tests/e2e/main/full-flow.test.ts"
+        - "tests/e2e/main/quick-flow.test.ts"
+      reason: "Overlapping e2e"
+fanout:
+  expected_flagged:
+    - node: "shared"
+      expected_min_dependents: 3
+ai:
+  expected_scenarios: 3
+  expected_prompt_surfaces:
+    - "src/ai-matchmaking/prompt.ts:systemPrompt"
+    - "src/ai-matchmaking/prompt.ts:buildPrompt"
+    - "src/ai-matchmaking/prompt.ts:buildSafetyPrompt"
+  expected_dataset_surfaces:
+    - "src/ai-matchmaking/dataset.ts:evalDataset"
+    - "src/ai-matchmaking/dataset.ts:loadEvalDataset"
+    - "src/ai-matchmaking/dataset.ts:splitEvalData"
+environment:
+  description: "No env"
+  notes: "gaming-backend"

@@ -1,0 +1,33 @@
+scenarios:
+  - name: triage-accuracy
+    category: accuracy
+    framework: custom
+    owner: ai-team
+    surfaces:
+      - "surface:src/ai-triage/model.ts:assessTriage"
+      - "surface:src/ai-triage/model.ts:classifySymptoms"
+    path: tests/eval/triage/triage-accuracy.test.ts
+  - name: triage-safety
+    category: safety
+    framework: custom
+    owner: ai-team
+    surfaces:
+      - "surface:src/ai-triage/prompt.ts:buildSafetyPrompt"
+      - "surface:src/ai-triage/prompt.ts:triageSystemPrompt"
+    path: tests/eval/safety/triage-safety.test.ts
+  - name: safety-regression
+    category: safety
+    framework: custom
+    owner: ai-team
+    surfaces:
+      - "surface:src/ai-triage/prompt.ts:buildSafetyPrompt"
+      - "surface:src/ai-triage/prompt.ts:triageSystemPrompt"
+    path: tests/eval/safety/safety-regression.test.ts
+manual_coverage:
+  - name: notification-alerts-manual
+    area: src/notifications
+    source: checklist
+    owner: ops-team
+    criticality: high
+    frequency: per-release
+    last_executed: "2026-03-01"

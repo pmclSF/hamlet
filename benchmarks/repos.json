@@ -55,6 +55,12 @@
       "description": "Vercel React framework, Jest + Playwright, very large monorepo"
     },
     {
+      "name": "gauntlet",
+      "path": "benchmarks/repos/gauntlet",
+      "type": "real",
+      "description": "AI eval execution provider — deterministic eval runner with baseline comparison"
+    },
+    {
       "name": "fixture:frontend-react",
       "path": "tests/fixtures/frontend-react",
       "type": "fixture",
@@ -113,6 +119,90 @@
       "path": "tests/fixtures/legacy-mixed",
       "type": "fixture",
       "description": "Jest + Mocha + Cypress + Enzyme, migration blockers"
+    },
+    {
+      "name": "fixture:terrain-world",
+      "path": "tests/fixtures/terrain-world",
+      "type": "fixture",
+      "description": "Comprehensive benchmark: 7 domains, 6 validation layers, 12 intentional problems, truth spec"
+    },
+    {
+      "name": "fixture:saas-control-plane",
+      "path": "tests/fixtures/saas-control-plane",
+      "type": "fixture",
+      "description": "B2B SaaS: 7 domains, auth+billing+AI, shared-db fanout, duplicate admin/purchase flows, manual-only notifications"
+    },
+    {
+      "name": "fixture:python-ml-observatory",
+      "path": "tests/fixtures/python-ml-observatory",
+      "type": "fixture",
+      "description": "Python ML: 6 domains, pytest evals, duplicate eval files, untested augmentation, shared fixture fanout"
+    },
+    {
+      "name": "fixture:legacy-omnichannel",
+      "path": "tests/fixtures/legacy-omnichannel",
+      "type": "fixture",
+      "description": "Mixed JS/TS commerce: 7 domains, Jest+Mocha+Cypress overlap, duplicate checkouts, uncovered mobile/refunds, AI merchandising"
+    },
+    {
+      "name": "fixture:healthcare-ehr",
+      "path": "tests/fixtures/healthcare-ehr",
+      "type": "fixture",
+      "description": "Healthcare EHR: 7 domains, patients+appointments+labs+AI triage, shared DB fanout, duplicate patient flows"
+    },
+    {
+      "name": "fixture:fintech-trading",
+      "path": "tests/fixtures/fintech-trading",
+      "type": "fixture",
+      "description": "Fintech trading: 7 domains, orders+risk+AI risk model, shared DB fanout, duplicate trading flows"
+    },
+    {
+      "name": "fixture:edtech-lms",
+      "path": "tests/fixtures/edtech-lms",
+      "type": "fixture",
+      "description": "EdTech LMS: 5 domains + AI tutor, duplicate e2e, weak content/analytics coverage"
+    },
+    {
+      "name": "fixture:logistics-platform",
+      "path": "tests/fixtures/logistics-platform",
+      "type": "fixture",
+      "description": "Logistics: 5 domains + AI routing, shared DB fanout, weak inventory/dispatch coverage"
+    },
+    {
+      "name": "fixture:social-media-api",
+      "path": "tests/fixtures/social-media-api",
+      "type": "fixture",
+      "description": "Social media: 5 domains + AI content, duplicate e2e, weak feeds/moderation coverage"
+    },
+    {
+      "name": "fixture:iot-device-hub",
+      "path": "tests/fixtures/iot-device-hub",
+      "type": "fixture",
+      "description": "IoT hub: 5 domains + AI anomaly, shared store fanout, weak dashboards/rules coverage"
+    },
+    {
+      "name": "fixture:devops-pipeline",
+      "path": "tests/fixtures/devops-pipeline",
+      "type": "fixture",
+      "description": "DevOps CI/CD: 5 domains + AI insights, shared DB fanout, weak monitoring/webhooks coverage"
+    },
+    {
+      "name": "fixture:gaming-backend",
+      "path": "tests/fixtures/gaming-backend",
+      "type": "fixture",
+      "description": "Gaming: 5 domains + AI matchmaking, shared DB fanout, weak economy/chat coverage"
+    },
+    {
+      "name": "fixture:real-estate-crm",
+      "path": "tests/fixtures/real-estate-crm",
+      "type": "fixture",
+      "description": "Real estate CRM: 5 domains + AI valuation, shared DB fanout, weak documents/communications coverage"
+    },
+    {
+      "name": "fixture:food-delivery",
+      "path": "tests/fixtures/food-delivery",
+      "type": "fixture",
+      "description": "Food delivery: 5 domains + AI recommendations, shared DB fanout, weak payments/ratings coverage"
     }
   ]
 }

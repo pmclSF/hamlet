@@ -1,0 +1,42 @@
+scenarios:
+  - name: recommendation-safety
+    category: safety
+    framework: custom
+    owner: ml-team
+    surfaces:
+      - "surface:src/recommendations/prompt.ts:buildSafetyPrompt"
+      - "surface:src/recommendations/prompt.ts:merchandisingPrompt"
+    path: tests/eval/safety/prompt-safety.test.ts
+
+  - name: safety-regression
+    category: safety
+    framework: custom
+    owner: ml-team
+    surfaces:
+      - "surface:src/recommendations/prompt.ts:buildSafetyPrompt"
+      - "surface:src/recommendations/prompt.ts:merchandisingPrompt"
+    path: tests/eval/safety/safety-regression.test.ts
+
+  - name: category-accuracy
+    category: accuracy
+    framework: custom
+    owner: ml-team
+    surfaces:
+      - "surface:src/recommendations/model.ts:classifyCategory"
+    path: tests/eval/accuracy/category-accuracy.test.ts
+
+manual_coverage:
+  - name: refund-approval-manual
+    area: src/refunds
+    source: checklist
+    owner: cs-team
+    criticality: high
+    frequency: per-release
+    last_executed: "2026-03-01"
+
+  - name: mobile-checkout-manual
+    area: src/mobile
+    source: exploratory
+    owner: mobile-team
+    criticality: high
+    frequency: weekly

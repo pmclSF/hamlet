@@ -1,0 +1,113 @@
+{
+  "recordedAt": "2026-03-16T04:36:43Z",
+  "scenarios": [
+    {
+      "scenarioId": "scenario:custom:prompt-safety",
+      "name": "prompt-safety",
+      "category": "safety",
+      "path": "tests/eval/safety/prompt-safety.test.ts",
+      "framework": "custom",
+      "owner": "ai-team",
+      "coveredSurfaceIds": [
+        "surface:src/ai-assistant/prompt.ts:buildSafetyPrompt",
+        "surface:src/ai-assistant/prompt.ts:systemPrompt"
+      ],
+      "executable": false
+    },
+    {
+      "scenarioId": "scenario:custom:safety-regression",
+      "name": "safety-regression",
+      "category": "safety",
+      "path": "tests/eval/safety/safety-regression.test.ts",
+      "framework": "custom",
+      "owner": "ai-team",
+      "coveredSurfaceIds": [
+        "surface:src/ai-assistant/prompt.ts:buildSafetyPrompt",
+        "surface:src/ai-assistant/prompt.ts:systemPrompt"
+      ],
+      "executable": false
+    },
+    {
+      "scenarioId": "scenario:custom:intent-accuracy",
+      "name": "intent-accuracy",
+      "category": "accuracy",
+      "path": "tests/eval/accuracy/intent-accuracy.test.ts",
+      "framework": "custom",
+      "owner": "ai-team",
+      "coveredSurfaceIds": [
+        "surface:src/ai-assistant/model.ts:detectIntent",
+        "surface:src/ai-assistant/model.ts:classifySentiment"
+      ],
+      "executable": false
+    },
+    {
+      "scenarioId": "scenario:custom:model-regression",
+      "name": "model-regression",
+      "category": "regression",
+      "path": "tests/eval/regression/model-regression.test.ts",
+      "framework": "custom",
+      "owner": "ai-team",
+      "coveredSurfaceIds": [
+        "surface:src/ai-assistant/model.ts:predict",
+        "surface:src/ai-assistant/dataset.ts:loadEvalDataset"
+      ],
+      "executable": false
+    },
+    {
+      "scenarioId": "scenario:vitest:2d1abb1cbb4d",
+      "name": "safety-regression",
+      "category": "safety",
+      "path": "tests/eval/safety/safety-regression.test.ts",
+      "framework": "vitest",
+      "coveredSurfaceIds": [
+        "surface:src/ai-assistant/prompt.ts:buildSafetyPrompt",
+        "surface:src/ai-assistant/prompt.ts:buildUserPrompt",
+        "surface:src/ai-assistant/prompt.ts:systemPrompt"
+      ],
+      "executable": false
+    },
+    {
+      "scenarioId": "scenario:vitest:301d46468f5c",
+      "name": "prompt-safety",
+      "category": "safety",
+      "path": "tests/eval/safety/prompt-safety.test.ts",
+      "framework": "vitest",
+      "coveredSurfaceIds": [
+        "surface:src/ai-assistant/prompt.ts:buildSafetyPrompt",
+        "surface:src/ai-assistant/prompt.ts:buildUserPrompt",
+        "surface:src/ai-assistant/prompt.ts:systemPrompt"
+      ],
+      "executable": false
+    },
+    {
+      "scenarioId": "scenario:vitest:7b6682d284d2",
+      "name": "intent-accuracy",
+      "category": "accuracy",
+      "path": "tests/eval/accuracy/intent-accuracy.test.ts",
+      "framework": "vitest",
+      "coveredSurfaceIds": [
+        "surface:src/ai-assistant/dataset.ts:loadEvalDataset",
+        "surface:src/ai-assistant/dataset.ts:splitDataset",
+        "surface:src/ai-assistant/dataset.ts:trainingDataset"
+      ],
+      "executable": false
+    },
+    {
+      "scenarioId": "scenario:vitest:9a4f99086dd7",
+      "name": "model-regression",
+      "category": "regression",
+      "path": "tests/eval/regression/model-regression.test.ts",
+      "framework": "vitest",
+      "coveredSurfaceIds": [
+        "surface:src/ai-assistant/dataset.ts:loadEvalDataset",
+        "surface:src/ai-assistant/dataset.ts:splitDataset",
+        "surface:src/ai-assistant/dataset.ts:trainingDataset"
+      ],
+      "executable": false
+    }
+  ],
+  "surfaces": {
+    "prompts": 3,
+    "datasets": 3
+  }
+}

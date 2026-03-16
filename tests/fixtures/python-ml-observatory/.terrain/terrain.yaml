@@ -1,0 +1,45 @@
+scenarios:
+  - name: classifier-accuracy
+    category: accuracy
+    framework: pytest
+    owner: ml-team
+    surfaces:
+      - "surface:src/models/classifier.py:classify"
+      - "surface:src/models/classifier.py:batch_classify"
+    path: tests/eval/accuracy/test_classifier_accuracy.py
+
+  - name: classifier-eval-v2
+    category: accuracy
+    framework: pytest
+    owner: ml-team
+    surfaces:
+      - "surface:src/models/classifier.py:classify"
+      - "surface:src/models/classifier.py:batch_classify"
+    path: tests/eval/accuracy/test_classifier_eval_v2.py
+
+  - name: prompt-safety
+    category: safety
+    framework: pytest
+    owner: ml-team
+    surfaces:
+      - "surface:src/prompts/builder.py:build_safety_prompt"
+      - "surface:src/prompts/builder.py:system_prompt"
+    path: tests/eval/safety/test_prompt_safety.py
+
+  - name: safety-regression
+    category: safety
+    framework: pytest
+    owner: ml-team
+    surfaces:
+      - "surface:src/prompts/builder.py:build_safety_prompt"
+      - "surface:src/prompts/builder.py:system_prompt"
+    path: tests/eval/safety/test_safety_regression.py
+
+  - name: model-regression
+    category: regression
+    framework: pytest
+    owner: ml-team
+    surfaces:
+      - "surface:src/models/classifier.py:classify"
+      - "surface:src/models/embeddings.py:embed"
+    path: tests/eval/regression/test_model_regression.py

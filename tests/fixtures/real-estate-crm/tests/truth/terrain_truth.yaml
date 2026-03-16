@@ -1,0 +1,44 @@
+impact:
+  cases:
+    - change: "src/leads/service.ts"
+      expected_impacted_tests:
+        - "tests/unit/leads/service.test.ts"
+        - "tests/integration/leads/flow.test.ts"
+        - "tests/e2e/main/full-flow.test.ts"
+        - "tests/e2e/main/quick-flow.test.ts"
+    - change: "src/ai-valuation/prompt.ts"
+      expected_impacted_tests:
+        - "tests/eval/safety/safety-eval.test.ts"
+        - "tests/eval/safety/safety-regression.test.ts"
+      expected_impacted_scenarios:
+        - "safety-eval"
+        - "safety-regression"
+coverage:
+  expected_uncovered:
+    - path: "src/documents/service.ts"
+      reason: "No test imports"
+    - path: "src/transactions/service.ts"
+      reason: "No test imports"
+redundancy:
+  expected_clusters:
+    - tests:
+        - "tests/e2e/main/full-flow.test.ts"
+        - "tests/e2e/main/quick-flow.test.ts"
+      reason: "Overlapping e2e"
+fanout:
+  expected_flagged:
+    - node: "shared"
+      expected_min_dependents: 3
+ai:
+  expected_scenarios: 3
+  expected_prompt_surfaces:
+    - "src/ai-valuation/prompt.ts:systemPrompt"
+    - "src/ai-valuation/prompt.ts:buildPrompt"
+    - "src/ai-valuation/prompt.ts:buildSafetyPrompt"
+  expected_dataset_surfaces:
+    - "src/ai-valuation/dataset.ts:evalDataset"
+    - "src/ai-valuation/dataset.ts:loadEvalDataset"
+    - "src/ai-valuation/dataset.ts:splitEvalData"
+environment:
+  description: "No env"
+  notes: "real-estate-crm"

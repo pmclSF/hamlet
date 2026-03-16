@@ -1,0 +1,44 @@
+impact:
+  cases:
+    - change: "src/menus/service.ts"
+      expected_impacted_tests:
+        - "tests/unit/menus/service.test.ts"
+        - "tests/integration/menus/flow.test.ts"
+        - "tests/e2e/main/full-flow.test.ts"
+        - "tests/e2e/main/quick-flow.test.ts"
+    - change: "src/ai-recommendations/prompt.ts"
+      expected_impacted_tests:
+        - "tests/eval/safety/safety-eval.test.ts"
+        - "tests/eval/safety/safety-regression.test.ts"
+      expected_impacted_scenarios:
+        - "safety-eval"
+        - "safety-regression"
+coverage:
+  expected_uncovered:
+    - path: "src/delivery/service.ts"
+      reason: "No test imports"
+    - path: "src/payments/service.ts"
+      reason: "No test imports"
+redundancy:
+  expected_clusters:
+    - tests:
+        - "tests/e2e/main/full-flow.test.ts"
+        - "tests/e2e/main/quick-flow.test.ts"
+      reason: "Overlapping e2e"
+fanout:
+  expected_flagged:
+    - node: "shared"
+      expected_min_dependents: 3
+ai:
+  expected_scenarios: 3
+  expected_prompt_surfaces:
+    - "src/ai-recommendations/prompt.ts:systemPrompt"
+    - "src/ai-recommendations/prompt.ts:buildPrompt"
+    - "src/ai-recommendations/prompt.ts:buildSafetyPrompt"
+  expected_dataset_surfaces:
+    - "src/ai-recommendations/dataset.ts:evalDataset"
+    - "src/ai-recommendations/dataset.ts:loadEvalDataset"
+    - "src/ai-recommendations/dataset.ts:splitEvalData"
+environment:
+  description: "No env"
+  notes: "food-delivery"
