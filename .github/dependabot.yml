@@ -5,10 +5,27 @@ updates:
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 10
-    versioning-strategy: auto
+    # "increase" respects exact-pinned versions: bumps "5.6.2" to "5.7.0",
+    # not back to "^5.7.0". For caret-range devDependencies it widens the
+    # minimum (e.g. "^29.6.2" -> "^29.7.0").
+    versioning-strategy: increase
     labels:
       - "dependencies"
       - "automerge"
     commit-message:
       prefix: "chore"
       include: "scope"
+    groups:
+      # Group production dependency updates into a single PR so the lockfile
+      # stays atomic — avoids partial-update states.
+      production:
+        dependency-type: "production"
+        update-types:
+          - "minor"
+          - "patch"
+      # Group lint/format tooling to reduce PR noise.
+      lint-format:
+        patterns:
+          - "eslint*"
+          - "prettier"
+          - "lint-staged"

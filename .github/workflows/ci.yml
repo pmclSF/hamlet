@@ -32,6 +32,17 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Verify lockfile is in sync
+        run: |
+          # npm ci already fails on package.json/lockfile mismatch, but this
+          # catches subtler drift: e.g. someone ran `npm install` which silently
+          # updated resolved URLs or integrity hashes without changing ranges.
+          npm install --package-lock-only --ignore-scripts
+          git diff --exit-code package-lock.json || {
+            echo "::error::package-lock.json is out of sync with package.json. Run 'npm install' locally and commit the updated lockfile."
+            exit 1
+          }
+
       - name: Check formatting
         run: npm run format:check
 

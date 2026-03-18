@@ -1,7 +1,7 @@
 {
   "name": "terrain-testframework",
   "version": "2.0.2",
-  "description": "Terrain: Signal-first test intelligence platform with legacy multi-framework converter.",
+  "description": "Terrain test framework converter — migrate tests between Jest, Vitest, Playwright, Cypress, pytest, JUnit, and 10 more frameworks.",
   "type": "module",
   "main": "src/index.js",
   "types": "src/types/index.d.ts",
@@ -24,7 +24,8 @@
     }
   },
   "bin": {
-    "terrain": "bin/terrain.js"
+    "terrain-convert": "bin/terrain.js",
+    "terrain": "bin/terrain-compat.js"
   },
   "files": [
     "bin",
@@ -58,6 +59,7 @@
     "format": "prettier --write \"src/**/*.js\" \"bin/**/*.js\"",
     "format:check": "prettier --check \"src/**/*.js\" \"bin/**/*.js\"",
     "start": "node bin/terrain.js",
+    "convert": "node bin/terrain.js",
     "lint-staged": "lint-staged",
     "test:staged": "jest --findRelatedTests",
     "release:verify": "npm run format:check && npm run lint && npm test && node scripts/verify-pack.js",
@@ -89,11 +91,11 @@
   "author": "pmcISF",
   "license": "MIT",
   "dependencies": {
-    "chalk": "^5.3.0",
-    "commander": "^14.0.3",
-    "fast-glob": "^3.3.3",
-    "pixelmatch": "^7.1.0",
-    "pngjs": "^7.0.0"
+    "chalk": "5.6.2",
+    "commander": "14.0.3",
+    "fast-glob": "3.3.3",
+    "pixelmatch": "7.1.0",
+    "pngjs": "7.0.0"
   },
   "devDependencies": {
     "@commitlint/cli": "^19.6.1",
