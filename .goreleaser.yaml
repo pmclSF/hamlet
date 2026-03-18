@@ -30,6 +30,61 @@ archives:
 checksum:
   name_template: "checksums.txt"
 
+# ── SBOM Generation ────────────────────────────────────────
+# Generates Software Bill of Materials for each release archive.
+# Requires syft (https://github.com/anchore/syft) on the build host.
+# GoReleaser GitHub Action installs syft automatically when sboms: is present.
+#
+# Produces two formats per archive:
+#   - CycloneDX JSON (.cdx.json) — widely supported by dependency-track, Snyk, etc.
+#   - SPDX JSON (.spdx.json) — ISO/IEC 5962:2021, required by some compliance frameworks
+sboms:
+  - id: cyclonedx
+    artifacts: archive
+    cmd: syft
+    args:
+      - "${artifact}"
+      - "--output"
+      - "cyclonedx-json=${document}"
+    documents:
+      - "{{ .ArtifactName }}.cdx.json"
+
+  - id: spdx
+    artifacts: archive
+    cmd: syft
+    args:
+      - "${artifact}"
+      - "--output"
+      - "spdx-json=${document}"
+    documents:
+      - "{{ .ArtifactName }}.spdx.json"
+
+# ── Artifact Signing (Sigstore / cosign) ───────────────────
+# Keyless signing via Sigstore OIDC (uses GitHub Actions id-token).
+# Requires cosign (https://github.com/sigstore/cosign) on the build host.
+# Set COSIGN_ENABLED=1 in the release workflow environment to activate.
+#
+# When enabled, produces:
+#   - .sig files (detached signatures) for checksums and SBOMs
+#   - Signatures are verifiable via: cosign verify-blob --certificate-identity ...
+#
+# When COSIGN_ENABLED is unset or empty, signing is skipped gracefully.
+signs:
+  - cmd: cosign
+    artifacts: checksum
+    certificate: "${artifact}.pem"
+    args:
+      - "sign-blob"
+      - "--yes"
+      - "--output-signature=${signature}"
+      - "--output-certificate=${certificate}"
+      - "${artifact}"
+    env:
+      - COSIGN_EXPERIMENTAL=1
+    # Only sign when explicitly opted in via environment variable.
+    # This allows local `goreleaser release --snapshot` without cosign.
+    output: true
+
 changelog:
   sort: asc
   filters:
@@ -43,3 +98,6 @@ release:
   github:
     owner: pmclSF
     name: terrain
+  extra_files:
+    - glob: "dist/*.cdx.json"
+    - glob: "dist/*.spdx.json"

@@ -6,7 +6,8 @@ DATE    ?= $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 LDFLAGS := -s -w -X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.date=$(DATE)
 
 .PHONY: build test lint clean demo benchmark-fetch benchmark-smoke benchmark-full benchmark-stress benchmark-summary install \
-       test-golden test-determinism test-schema test-adversarial test-e2e test-cli test-bench golden-update pr-gate release-gate
+       test-golden test-determinism test-schema test-adversarial test-e2e test-cli test-bench golden-update pr-gate release-gate \
+       sbom sbom-cyclonedx sbom-spdx release-dry-run
 
 # Build the CLI binary
 build:
@@ -35,7 +36,7 @@ check:
 
 # Clean build artifacts
 clean:
-	rm -f terrain coverage.out
+	rm -f terrain coverage.out terrain.cdx.json terrain.spdx.json
 
 # Run demo: analyze the current repository
 demo:
@@ -83,6 +84,27 @@ test-bench:
 # Update golden files (review changes in git diff before committing)
 golden-update:
 	go test ./internal/testdata/ -run 'Golden' -update
+
+# ── SBOM Generation ───────────────────────────────────────
+# Requires: syft (https://github.com/anchore/syft)
+#   brew install syft  OR  go install github.com/anchore/syft/cmd/syft@latest
+
+# Generate CycloneDX SBOM from the built binary
+sbom-cyclonedx: build
+	syft terrain --output cyclonedx-json=terrain.cdx.json
+	@echo "CycloneDX SBOM written to terrain.cdx.json"
+
+# Generate SPDX SBOM from the built binary
+sbom-spdx: build
+	syft terrain --output spdx-json=terrain.spdx.json
+	@echo "SPDX SBOM written to terrain.spdx.json"
+
+# Generate both SBOM formats
+sbom: sbom-cyclonedx sbom-spdx
+
+# Dry-run GoReleaser to verify config and preview artifacts
+release-dry-run:
+	goreleaser release --snapshot --clean --skip=publish,sign
 
 # ── Release Gates ──────────────────────────────────────────
 

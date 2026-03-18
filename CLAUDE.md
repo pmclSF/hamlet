@@ -24,7 +24,7 @@ npm run lint                # Lint source files (src/**/*.js)
 npm run format              # Format source files with Prettier (src + bin)
 npm run format:check        # Check formatting without writing (used in CI)
 npm run test:staged         # Run tests related to staged files
-node bin/terrain.js          # Run the CLI
+node bin/terrain.js          # Run the converter CLI (npm bin: terrain-convert)
 ```
 
 > **Note:** There is no `build` script — the project ships raw ES modules. There is no `validate` script.

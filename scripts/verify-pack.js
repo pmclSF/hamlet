@@ -35,13 +35,27 @@ try {
   const files = listing.trim().split('\n');
   console.log(`  ${files.length} files`);
 
-  // Check for unexpected files
+  // Check for unexpected files — anything outside the intended npm surface.
   const unexpected = files.filter(
     (f) =>
       f.includes('node_modules/') ||
       f.includes('.env') ||
       f.includes('.github/') ||
-      f.includes('test/')
+      f.includes('/test/') ||
+      f.includes('/tests/') ||
+      f.includes('/internal/') ||
+      f.includes('/cmd/') ||
+      f.includes('/benchmarks/') ||
+      f.includes('/scripts/') ||
+      f.includes('/fixtures/') ||
+      f.includes('/docs/') ||
+      f.includes('/extension/') ||
+      f.includes('.goreleaser') ||
+      f.includes('go.mod') ||
+      f.includes('go.sum') ||
+      f.includes('Makefile') ||
+      f.includes('CLAUDE.md') ||
+      f.includes('DESIGN.md')
   );
   if (unexpected.length > 0) {
     console.error('\nUnexpected files in tarball:');

@@ -225,6 +225,23 @@ terrain analyze --json
 
 - Go 1.23 or later
 
+### Legacy Test Converter (npm)
+
+The npm package `terrain-testframework` provides a separate CLI for **test framework conversion** (migrating tests between Jest, Vitest, Playwright, Cypress, pytest, JUnit, and 10 more frameworks). It is distinct from the Go-based analysis CLI above.
+
+```bash
+# Install the converter
+npm install -g terrain-testframework
+
+# Convert tests
+terrain-convert convert src/tests/ --from jest --to vitest -o converted/
+
+# Shorthand aliases
+terrain-convert cy2pw src/e2e/ -o converted/
+```
+
+The old `terrain` npm binary name is deprecated. Use `terrain-convert` instead to avoid conflicts with the Go CLI.
+
 ## Commands
 
 ### Primary commands

@@ -42,6 +42,10 @@ Thumbs.db
 /terrain-bench
 /terrain-truthcheck
 
+# === SBOM artifacts (generated locally via `make sbom`) ===
+*.cdx.json
+*.spdx.json
+
 # === Benchmark cloned repos (downloaded, not committed) ===
 benchmarks/cypress-playwright/
 benchmarks/jest-vitest/
