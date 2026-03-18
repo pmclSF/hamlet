@@ -3,6 +3,7 @@ package depgraph
 import (
 	"fmt"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/pmclSF/terrain/internal/models"
@@ -10,17 +11,18 @@ import (
 
 // Build constructs a dependency graph from a TestSuiteSnapshot.
 //
-// The graph is populated in ten stages:
+// The graph is populated in stages:
 //  1. Test structure: TestFile → TestCase → Suite hierarchy
 //  2. Import edges: TestFile → SourceFile (from ImportGraph)
 //  3. Source-to-source edges: SourceFile → SourceFile (from ImportGraph overlap)
 //  4. Code surfaces: CodeSurface → SourceFile (from inferred behavior anchors)
 //  5. Behavior surfaces: BehaviorSurface → CodeSurface (derived groupings)
-//  6. Scenarios: Scenario → CodeSurface/BehaviorSurface (behavioral validation)
-//  7. Manual coverage: ManualCoverageArtifact → CodeSurface (overlay validation)
-//  8. Environments: Environment nodes from CI config inference
-//  9. Environment classes: EnvironmentClass → Environment groupings
-//  10. Device configs: DeviceConfig nodes for device/browser targets
+//  6. Fixture surfaces: FixtureSurface → TestFile, Test → Fixture (shared infrastructure)
+//  7. Scenarios: Scenario → CodeSurface/BehaviorSurface (behavioral validation)
+//  8. Manual coverage: ManualCoverageArtifact → CodeSurface (overlay validation)
+//  9. Environments: Environment nodes from CI config inference
+//  10. Environment classes: EnvironmentClass → Environment groupings
+//  11. Device configs: DeviceConfig nodes for device/browser targets
 //
 // The resulting graph enables traversal-based analysis that the flat snapshot
 // indexes cannot support: coverage via reverse edges, impact via BFS with
@@ -36,7 +38,11 @@ func Build(snap *models.TestSuiteSnapshot) *Graph {
 	buildSourceToSourceEdges(g, snap)
 	buildCodeSurfaces(g, snap)
 	buildBehaviorSurfaces(g, snap)
+	buildFixtureSurfaces(g, snap)
 	buildScenarios(g, snap)
+	buildAISurfaceNodes(g, snap)
+	buildRAGPipeline(g, snap)
+	buildCapabilities(g, snap)
 	buildManualCoverage(g, snap)
 	buildEnvironments(g, snap)
 	buildEnvironmentClasses(g, snap)
@@ -68,7 +74,15 @@ func buildTestStructure(g *Graph, snap *models.TestSuiteSnapshot) {
 		byFile[tc.FilePath] = append(byFile[tc.FilePath], tc)
 	}
 
-	for filePath, cases := range byFile {
+	// Sort file paths for deterministic graph construction.
+	filePaths := make([]string, 0, len(byFile))
+	for fp := range byFile {
+		filePaths = append(filePaths, fp)
+	}
+	sort.Strings(filePaths)
+
+	for _, filePath := range filePaths {
+		cases := byFile[filePath]
 		fileID := "file:" + filePath
 		suitesSeen := map[string]bool{}
 
@@ -135,10 +149,13 @@ func buildImportEdges(g *Graph, snap *models.TestSuiteSnapshot) {
 		codeUnitPaths[cu.Path] = true
 	}
 
-	for testPath, imports := range snap.ImportGraph {
+	// Sort import graph keys for deterministic edge creation.
+	testPaths := sortedMapKeys(snap.ImportGraph)
+
+	for _, testPath := range testPaths {
+		imports := snap.ImportGraph[testPath]
 		fileID := "file:" + testPath
 
-		// Ensure test file node exists (it may not if the file wasn't in TestFiles).
 		if g.Node(fileID) == nil {
 			g.AddNode(&Node{
 				ID:      fileID,
@@ -149,7 +166,8 @@ func buildImportEdges(g *Graph, snap *models.TestSuiteSnapshot) {
 			})
 		}
 
-		for srcPath := range imports {
+		srcPaths := sortedKeys(imports)
+		for _, srcPath := range srcPaths {
 			srcID := "file:" + srcPath
 
 			// Create source file node if it doesn't exist.
@@ -186,10 +204,47 @@ func buildSourceToSourceEdges(g *Graph, snap *models.TestSuiteSnapshot) {
 		return
 	}
 
+	// Phase 1: Real source-to-source edges from parsed imports (TierStructural).
+	if snap.SourceImports != nil {
+		type edgeKey struct{ from, to string }
+		realSeen := map[edgeKey]bool{}
+		for _, srcPath := range sortedMapKeys(snap.SourceImports) {
+			srcID := "file:" + srcPath
+			for _, depPath := range sortedKeys(snap.SourceImports[srcPath]) {
+				depID := "file:" + depPath
+				key := edgeKey{srcID, depID}
+				if realSeen[key] {
+					continue
+				}
+				realSeen[key] = true
+				// Ensure target node exists.
+				if g.Node(depID) == nil {
+					g.AddNode(&Node{
+						ID:      depID,
+						Type:    NodeSourceFile,
+						Path:    depPath,
+						Name:    filepath.Base(depPath),
+						Package: inferPackage(depPath),
+					})
+				}
+				g.AddEdge(&Edge{
+					From:         srcID,
+					To:           depID,
+					Type:         EdgeSourceImportsSource,
+					Confidence:   0.95,
+					EvidenceType: EvidenceStaticAnalysis,
+				})
+			}
+		}
+	}
+
+	// Phase 2 (fallback): Heuristic co-import edges for source pairs not
+	// covered by real import data.
+
 	// Build reverse index: source → set of test files that import it.
 	srcToTests := map[string]map[string]bool{}
-	for testPath, imports := range snap.ImportGraph {
-		for srcPath := range imports {
+	for _, testPath := range sortedMapKeys(snap.ImportGraph) {
+		for _, srcPath := range sortedKeys(snap.ImportGraph[testPath]) {
 			if srcToTests[srcPath] == nil {
 				srcToTests[srcPath] = map[string]bool{}
 			}
@@ -199,8 +254,6 @@ func buildSourceToSourceEdges(g *Graph, snap *models.TestSuiteSnapshot) {
 
 	// For each pair of sources imported by the same test file, create an
 	// inferred edge if they share enough test importers.
-	// This is kept lightweight — only considers co-imports from same test.
-	// Track existing edges to avoid O(n²) linear scans per pair.
 	type edgeKey struct{ from, to string }
 	seen := map[edgeKey]bool{}
 	for _, e := range g.Edges() {
@@ -209,11 +262,9 @@ func buildSourceToSourceEdges(g *Graph, snap *models.TestSuiteSnapshot) {
 		}
 	}
 
-	for _, imports := range snap.ImportGraph {
-		srcList := make([]string, 0, len(imports))
-		for s := range imports {
-			srcList = append(srcList, s)
-		}
+	for _, testPath := range sortedMapKeys(snap.ImportGraph) {
+		imports := snap.ImportGraph[testPath]
+		srcList := sortedKeys(imports)
 
 		// Only create source→source edges within the same package to
 		// avoid noisy cross-package connections.
@@ -352,6 +403,149 @@ func buildBehaviorSurfaces(g *Graph, snap *models.TestSuiteSnapshot) {
 	}
 }
 
+// buildFixtureSurfaces creates fixture nodes from detected test fixtures
+// and connects them to the test files that contain them. Fixtures are also
+// linked to code surfaces they set up (via name matching against surfaces
+// in the same package).
+func buildFixtureSurfaces(g *Graph, snap *models.TestSuiteSnapshot) {
+	if len(snap.FixtureSurfaces) == 0 {
+		return
+	}
+
+	// Index code surfaces by package+name for fixture→surface linkage.
+	surfaceByPkgName := map[string]string{} // "pkg:name" → surfaceID
+	for _, cs := range snap.CodeSurfaces {
+		key := cs.Package + ":" + strings.ToLower(cs.Name)
+		surfaceByPkgName[key] = cs.SurfaceID
+	}
+
+	for _, fs := range snap.FixtureSurfaces {
+		if fs.FixtureID == "" {
+			continue
+		}
+
+		meta := map[string]string{
+			"fixtureKind": string(fs.Kind),
+			"scope":       fs.Scope,
+			"language":    fs.Language,
+		}
+		if fs.Framework != "" {
+			meta["framework"] = fs.Framework
+		}
+		if fs.Shared {
+			meta["shared"] = "true"
+		}
+
+		g.AddNode(&Node{
+			ID:        fs.FixtureID,
+			Type:      NodeFixture,
+			Path:      fs.Path,
+			Name:      fs.Name,
+			Line:      fs.Line,
+			Package:   inferPackage(fs.Path),
+			Framework: fs.Framework,
+			Metadata:  meta,
+		})
+
+		// Connect fixture to its containing test file.
+		fileID := "file:" + fs.Path
+		if g.Node(fileID) != nil {
+			g.AddEdge(&Edge{
+				From:         fs.FixtureID,
+				To:           fileID,
+				Type:         EdgeTestDefinedInFile,
+				Confidence:   1.0,
+				EvidenceType: EvidenceStaticAnalysis,
+			})
+		}
+
+		// Link fixture to code surfaces it may set up (name-based heuristic).
+		pkg := inferPackage(fs.Path)
+		fixtureNameLower := strings.ToLower(fs.Name)
+		for _, cs := range snap.CodeSurfaces {
+			if cs.Package != pkg {
+				continue
+			}
+			csNameLower := strings.ToLower(cs.Name)
+			if strings.Contains(fixtureNameLower, csNameLower) ||
+				strings.Contains(csNameLower, fixtureNameLower) {
+				g.AddEdge(&Edge{
+					From:         fs.FixtureID,
+					To:           cs.SurfaceID,
+					Type:         EdgeFixtureSetsSurface,
+					Confidence:   0.6,
+					EvidenceType: EvidenceInferred,
+				})
+			}
+		}
+	}
+
+	// Connect tests to the fixtures defined in the same file or in shared
+	// fixture files imported by that test's file.
+	fixturesByFile := map[string][]string{} // file path → fixture IDs
+	sharedFixtures := []string{}
+	for _, fs := range snap.FixtureSurfaces {
+		if fs.FixtureID == "" {
+			continue
+		}
+		fixturesByFile[fs.Path] = append(fixturesByFile[fs.Path], fs.FixtureID)
+		if fs.Shared {
+			sharedFixtures = append(sharedFixtures, fs.FixtureID)
+		}
+	}
+
+	// For each test node, link to fixtures in the same file.
+	for _, n := range g.NodesByType(NodeTest) {
+		if n.Path == "" {
+			continue
+		}
+		for _, fid := range fixturesByFile[n.Path] {
+			g.AddEdge(&Edge{
+				From:         n.ID,
+				To:           fid,
+				Type:         EdgeTestUsesFixture,
+				Confidence:   0.85,
+				EvidenceType: EvidenceInferred,
+			})
+		}
+	}
+
+	// Link test files to shared fixtures from files they import.
+	if snap.ImportGraph != nil {
+		sharedFixtureFiles := map[string]bool{}
+		for _, fs := range snap.FixtureSurfaces {
+			if fs.Shared {
+				sharedFixtureFiles[fs.Path] = true
+			}
+		}
+
+		sortedTestPaths := sortedMapKeys(snap.ImportGraph)
+		for _, testPath := range sortedTestPaths {
+			imports := snap.ImportGraph[testPath]
+			for importedPath := range imports {
+				if !sharedFixtureFiles[importedPath] {
+					continue
+				}
+				// Connect tests in this file to shared fixtures.
+				for _, n := range g.NodesByType(NodeTest) {
+					if n.Path != testPath {
+						continue
+					}
+					for _, fid := range fixturesByFile[importedPath] {
+						g.AddEdge(&Edge{
+							From:         n.ID,
+							To:           fid,
+							Type:         EdgeTestUsesFixture,
+							Confidence:   0.7,
+							EvidenceType: EvidenceInferred,
+						})
+					}
+				}
+			}
+		}
+	}
+}
+
 // buildScenarios creates scenario nodes and connects them to the code
 // surfaces and behavior surfaces they validate.
 func buildScenarios(g *Graph, snap *models.TestSuiteSnapshot) {
@@ -413,6 +607,209 @@ func buildScenarios(g *Graph, snap *models.TestSuiteSnapshot) {
 				EvidenceType: EvidenceManual,
 			})
 		}
+	}
+}
+
+// buildAISurfaceNodes promotes AI-typed CodeSurface nodes to their specific
+// graph node types (NodePrompt, NodeDataset, etc.) and creates edges linking
+// them to the scenarios that cover them.
+//
+// This populates the previously-reserved AI node types so the graph
+// explicitly represents prompt/dataset/model relationships rather than
+// treating all surfaces as generic NodeCodeSurface.
+func buildAISurfaceNodes(g *Graph, snap *models.TestSuiteSnapshot) {
+	// Map of surface ID → which scenarios cover it.
+	surfaceScenarios := map[string][]string{}
+	for _, sc := range snap.Scenarios {
+		for _, sid := range sc.CoveredSurfaceIDs {
+			surfaceScenarios[sid] = append(surfaceScenarios[sid], sc.ScenarioID)
+		}
+	}
+
+	for _, cs := range snap.CodeSurfaces {
+		var nodeType NodeType
+		var edgeType EdgeType
+
+		switch cs.Kind {
+		case models.SurfacePrompt, models.SurfaceContext:
+			nodeType = NodePrompt
+			edgeType = EdgeUsesPrompt
+		case models.SurfaceDataset:
+			nodeType = NodeDataset
+			edgeType = EdgeUsesDataset
+		case models.SurfaceRetrieval, models.SurfaceToolDef, models.SurfaceAgent:
+			// These share the model node type for graph purposes — they're
+			// AI infrastructure components.
+			nodeType = NodeModel
+			edgeType = EdgeUsesModel
+		case models.SurfaceEvalDef:
+			nodeType = NodeEvalMetric
+			edgeType = EdgeEvaluatesMetric
+		default:
+			continue // Not an AI surface.
+		}
+
+		nodeID := "ai:" + cs.SurfaceID
+		g.AddNode(&Node{
+			ID:      nodeID,
+			Type:    nodeType,
+			Path:    cs.Path,
+			Name:    cs.Name,
+			Package: cs.Package,
+		})
+
+		// Link each covering scenario to this AI node.
+		for _, scenarioID := range surfaceScenarios[cs.SurfaceID] {
+			g.AddEdge(&Edge{
+				From:         scenarioID,
+				To:           nodeID,
+				Type:         edgeType,
+				Confidence:   0.8,
+				EvidenceType: EvidenceInferred,
+			})
+		}
+	}
+}
+
+// buildRAGPipeline creates nodes for RAG pipeline components and links them
+// to their associated CodeSurfaces and to scenarios that cover retrieval
+// surfaces in the same file.
+func buildRAGPipeline(g *Graph, snap *models.TestSuiteSnapshot) {
+	if len(snap.RAGPipelineSurfaces) == 0 {
+		return
+	}
+
+	// Index: scenario → covered surface IDs.
+	scenarioBySurface := map[string][]string{}
+	for _, sc := range snap.Scenarios {
+		for _, sid := range sc.CoveredSurfaceIDs {
+			scenarioBySurface[sid] = append(scenarioBySurface[sid], sc.ScenarioID)
+		}
+	}
+
+	// Index: prompt/context AI nodes by file path for cross-linking.
+	promptNodesByPath := map[string][]string{}
+	for _, cs := range snap.CodeSurfaces {
+		if cs.Kind == models.SurfacePrompt || cs.Kind == models.SurfaceContext {
+			promptNodesByPath[cs.Path] = append(promptNodesByPath[cs.Path], "ai:"+cs.SurfaceID)
+		}
+	}
+
+	for _, rc := range snap.RAGPipelineSurfaces {
+		if rc.ComponentID == "" {
+			continue
+		}
+
+		meta := map[string]string{
+			"ragKind":  string(rc.Kind),
+			"language": rc.Language,
+		}
+		if rc.Framework != "" {
+			meta["framework"] = rc.Framework
+		}
+		if rc.ClassName != "" {
+			meta["className"] = rc.ClassName
+		}
+		if rc.Config.ChunkSize > 0 {
+			meta["chunkSize"] = fmt.Sprintf("%d", rc.Config.ChunkSize)
+		}
+		if rc.Config.TopK > 0 {
+			meta["topK"] = fmt.Sprintf("%d", rc.Config.TopK)
+		}
+		if rc.Config.ModelName != "" {
+			meta["modelName"] = rc.Config.ModelName
+		}
+		if rc.Config.Provider != "" {
+			meta["provider"] = rc.Config.Provider
+		}
+
+		g.AddNode(&Node{
+			ID:       rc.ComponentID,
+			Type:     NodeModel, // RAG components use the AI infrastructure node type.
+			Path:     rc.Path,
+			Name:     rc.Name,
+			Line:     rc.Line,
+			Package:  inferPackage(rc.Path),
+			Metadata: meta,
+		})
+
+		// Link to containing source file.
+		srcFileID := "file:" + rc.Path
+		if g.Node(srcFileID) != nil {
+			g.AddEdge(&Edge{
+				From:         rc.ComponentID,
+				To:           srcFileID,
+				Type:         EdgeBelongsToPackage,
+				Confidence:   1.0,
+				EvidenceType: EvidenceStaticAnalysis,
+			})
+		}
+
+		// Link to associated CodeSurface if resolved.
+		if rc.LinkedSurfaceID != "" && g.Node(rc.LinkedSurfaceID) != nil {
+			g.AddEdge(&Edge{
+				From:         rc.ComponentID,
+				To:           rc.LinkedSurfaceID,
+				Type:         EdgeBehaviorDerivedFrom,
+				Confidence:   0.85,
+				EvidenceType: EvidenceInferred,
+			})
+		}
+
+		// Link to scenarios that cover retrieval surfaces in the same file.
+		if rc.LinkedSurfaceID != "" {
+			for _, scenarioID := range scenarioBySurface[rc.LinkedSurfaceID] {
+				g.AddEdge(&Edge{
+					From:         scenarioID,
+					To:           rc.ComponentID,
+					Type:         EdgeUsesModel,
+					Confidence:   0.8,
+					EvidenceType: EvidenceInferred,
+				})
+			}
+		}
+
+		// Link RAG components to prompt nodes in the same file (retriever feeds prompt context).
+		if rc.Kind == models.RAGRetriever || rc.Kind == models.RAGContextAssembly {
+			for _, promptNodeID := range promptNodesByPath[rc.Path] {
+				if g.Node(promptNodeID) != nil {
+					g.AddEdge(&Edge{
+						From:         rc.ComponentID,
+						To:           promptNodeID,
+						Type:         EdgeUsesModel,
+						Confidence:   0.7,
+						EvidenceType: EvidenceInferred,
+					})
+				}
+			}
+		}
+	}
+}
+
+// buildCapabilities creates capability nodes from scenario annotations
+// and links scenarios to the capabilities they validate.
+func buildCapabilities(g *Graph, snap *models.TestSuiteSnapshot) {
+	seen := map[string]bool{}
+	for _, sc := range snap.Scenarios {
+		if sc.Capability == "" {
+			continue
+		}
+		capID := "capability:" + sc.Capability
+		if !seen[capID] {
+			seen[capID] = true
+			g.AddNode(&Node{
+				ID:   capID,
+				Type: NodeCapability,
+				Name: sc.Capability,
+			})
+		}
+		g.AddEdge(&Edge{
+			From:         sc.ScenarioID,
+			To:           capID,
+			Type:         EdgeScenarioValidatesCapability,
+			Confidence:   0.9,
+			EvidenceType: EvidenceInferred,
+		})
 	}
 }
 
@@ -777,6 +1174,16 @@ func buildDeviceConfigs(g *Graph, snap *models.TestSuiteSnapshot) {
 // inferPackage extracts a package identifier from a file path.
 // For JS/TS this is typically the first directory; for monorepos it
 // includes the package name (e.g., "packages/compiler-core").
+// sortedMapKeys returns the sorted keys of a map[string]map[string]bool.
+func sortedMapKeys(m map[string]map[string]bool) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
+}
+
 func inferPackage(filePath string) string {
 	parts := strings.Split(filepath.ToSlash(filePath), "/")
 	if len(parts) <= 1 {

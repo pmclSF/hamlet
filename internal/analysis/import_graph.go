@@ -20,6 +20,10 @@ import (
 type ImportGraph struct {
 	// TestImports maps test file relative path → set of imported source relative paths.
 	TestImports map[string]map[string]bool
+
+	// SourceImports maps source file relative path → set of imported source relative paths.
+	// This enables accurate transitive impact analysis through the source dependency graph.
+	SourceImports map[string]map[string]bool
 }
 
 // ImportedModules returns the set of all source module paths imported by any test file.
@@ -83,6 +87,9 @@ func BuildImportGraph(root string, testFiles []models.TestFile) *ImportGraph {
 			graph.TestImports[e.testPath] = e.imports
 		}
 	}
+
+	// Extract source-to-source imports for transitive impact analysis.
+	graph.SourceImports = extractSourceImports(root, graph.TestImports, resolver)
 
 	return graph
 }
@@ -820,4 +827,97 @@ func resolveGoImportDir(modulePath, importPath string) (string, bool) {
 func fileExists(path string) bool {
 	_, err := os.Stat(path)
 	return err == nil
+}
+
+// extractSourceImports scans source files (not test files) for their imports,
+// building a source-to-source dependency graph. This enables accurate transitive
+// impact analysis: when file A imports file B which imports file C, a change to
+// C impacts both B and A.
+//
+// Only scans source files that are already referenced by the test import graph
+// (to avoid scanning the entire repo).
+func extractSourceImports(root string, testImports map[string]map[string]bool, resolver *jsImportResolver) map[string]map[string]bool {
+	// Collect unique source files referenced by tests.
+	sourceFiles := map[string]bool{}
+	for _, imports := range testImports {
+		for src := range imports {
+			sourceFiles[src] = true
+		}
+	}
+
+	if len(sourceFiles) == 0 {
+		return nil
+	}
+
+	type srcEntry struct {
+		path    string
+		imports map[string]bool
+	}
+
+	paths := make([]string, 0, len(sourceFiles))
+	for p := range sourceFiles {
+		paths = append(paths, p)
+	}
+	sort.Strings(paths)
+
+	entries := make([]srcEntry, len(paths))
+	parallelForEachIndex(len(paths), func(i int) {
+		srcPath := paths[i]
+		ext := strings.ToLower(filepath.Ext(srcPath))
+		var imports map[string]bool
+
+		switch {
+		case isJSExt(ext):
+			imports = extractJSImports(root, srcPath, resolver)
+		case ext == ".py":
+			imports = extractPythonImports(root, srcPath)
+		case ext == ".go":
+			// For Go, use the AST parser to find cross-package imports.
+			imports = extractGoSourceImports(root, srcPath)
+		}
+
+		// Remove self-imports.
+		delete(imports, srcPath)
+
+		if len(imports) > 0 {
+			entries[i] = srcEntry{path: srcPath, imports: imports}
+		}
+	})
+
+	result := map[string]map[string]bool{}
+	for _, e := range entries {
+		if len(e.imports) > 0 {
+			result[e.path] = e.imports
+		}
+	}
+	return result
+}
+
+// extractGoSourceImports uses go/parser to find imports from a Go source file
+// and resolve them to local source files within the module.
+func extractGoSourceImports(root, relPath string) map[string]bool {
+	modulePath := loadGoModulePath(root)
+	if modulePath == "" {
+		return nil
+	}
+
+	absPath := filepath.Join(root, relPath)
+	imports := map[string]bool{}
+	for _, imp := range parseGoImportPaths(absPath) {
+		targetDir, ok := resolveGoImportDir(modulePath, imp)
+		if !ok {
+			continue
+		}
+		addGoSourceFiles(root, targetDir, imports)
+	}
+
+	// Remove files from the same directory (same package, not cross-dependency).
+	selfDir := filepath.Dir(relPath)
+	for p := range imports {
+		if filepath.Dir(p) == selfDir {
+			delete(imports, p)
+		}
+	}
+
+	return imports
 }

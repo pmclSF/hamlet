@@ -25,6 +25,33 @@ var KnownSignalTypes = map[SignalType]bool{
 	"legacyFrameworkUsage":   true,
 	"skippedTestsInCI":       true,
 	"runtimeBudgetExceeded":  true,
+	"staticSkippedTest":      true,
+
+	// AI/eval signal types.
+	"evalFailure":            true,
+	"evalRegression":         true,
+	"accuracyRegression":     true,
+	"citationMissing":        true,
+	"retrievalMiss":          true,
+	"answerGroundingFailure": true,
+	"toolSelectionError":     true,
+	"schemaParseFailure":     true,
+	"safetyFailure":          true,
+	"aiPolicyViolation":      true,
+	"hallucinationDetected":  true,
+	"latencyRegression":      true,
+	"costRegression":         true,
+	"contextOverflowRisk":    true,
+	"wrongSourceSelected":    true,
+	"citationMismatch":       true,
+	"staleSourceRisk":        true,
+	"chunkingRegression":     true,
+	"rerankerRegression":     true,
+	"topKRegression":         true,
+	"toolRoutingError":       true,
+	"toolGuardrailViolation": true,
+	"toolBudgetExceeded":     true,
+	"agentFallbackTriggered": true,
 }
 
 // IsKnownSignalType reports whether t is part of Terrain's canonical catalog.

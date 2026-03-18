@@ -39,6 +39,15 @@ const (
 	EdgeBehaviorDerivedFrom EdgeType = "behavior_derived_from"
 )
 
+// --- Fixture edges ---
+//
+// Connect fixtures to the tests that consume them and the code surfaces
+// they set up. High in-degree on a fixture node indicates fragility risk.
+const (
+	EdgeTestUsesFixture    EdgeType = "test_uses_fixture"
+	EdgeFixtureSetsSurface EdgeType = "fixture_sets_surface"
+)
+
 // --- Environment edges ---
 //
 // Connect tests and executions to their target environments,
@@ -61,9 +70,10 @@ const (
 
 // --- Governance edges ---
 //
-// Connect owners to the elements they govern.
+// Connect owners and capabilities to the elements they govern.
 const (
-	EdgeOwns EdgeType = "owns"
+	EdgeOwns                      EdgeType = "owns"
+	EdgeScenarioValidatesCapability EdgeType = "scenario_validates_capability"
 )
 
 // EvidenceType describes how an edge was discovered.

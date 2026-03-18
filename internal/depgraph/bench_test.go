@@ -164,3 +164,111 @@ func BenchmarkValidationTargets(b *testing.B) {
 		_ = g.ValidationTargets()
 	}
 }
+
+// --- Large-scale benchmarks ---
+
+func buildLargeSnapshot(testFiles, sourcesPerTest, testsPerFile, scenarios int) *models.TestSuiteSnapshot {
+	snap := &models.TestSuiteSnapshot{}
+
+	// Build import graph.
+	snap.ImportGraph = make(map[string]map[string]bool)
+
+	for i := 0; i < testFiles; i++ {
+		path := fmt.Sprintf("test/file_%d.test.js", i)
+		tf := models.TestFile{Path: path, Framework: "jest", TestCount: testsPerFile}
+		snap.TestFiles = append(snap.TestFiles, tf)
+
+		imports := make(map[string]bool)
+		for j := 0; j < sourcesPerTest; j++ {
+			srcIdx := (i*sourcesPerTest + j) % (testFiles * 2)
+			imports[fmt.Sprintf("src/mod_%d.js", srcIdx)] = true
+		}
+		snap.ImportGraph[path] = imports
+
+		for k := 0; k < testsPerFile; k++ {
+			snap.TestCases = append(snap.TestCases, models.TestCase{
+				TestID: fmt.Sprintf("t:%s:%d", path, k), TestName: fmt.Sprintf("test_%d", k),
+				FilePath: path, Line: k + 1,
+			})
+		}
+	}
+
+	for j := 0; j < testFiles*2; j++ {
+		snap.CodeUnits = append(snap.CodeUnits, models.CodeUnit{
+			UnitID: fmt.Sprintf("src/mod_%d.js:fn", j), Name: "fn",
+			Path: fmt.Sprintf("src/mod_%d.js", j), Exported: true,
+		})
+		snap.CodeSurfaces = append(snap.CodeSurfaces, models.CodeSurface{
+			SurfaceID: fmt.Sprintf("surface:src/mod_%d.js:fn", j),
+			Name: "fn", Path: fmt.Sprintf("src/mod_%d.js", j),
+			Kind: models.SurfaceFunction, Exported: true,
+		})
+	}
+
+	for i := 0; i < scenarios; i++ {
+		sc := models.Scenario{
+			ScenarioID: fmt.Sprintf("scenario:%d", i), Name: fmt.Sprintf("scenario_%d", i),
+			Category: "accuracy", Capability: fmt.Sprintf("cap_%d", i%10),
+		}
+		for j := 0; j < 3; j++ {
+			idx := (i*3 + j) % len(snap.CodeSurfaces)
+			sc.CoveredSurfaceIDs = append(sc.CoveredSurfaceIDs, snap.CodeSurfaces[idx].SurfaceID)
+		}
+		snap.Scenarios = append(snap.Scenarios, sc)
+	}
+
+	snap.Frameworks = []models.Framework{{Name: "jest", FileCount: testFiles}}
+	return snap
+}
+
+// BenchmarkBuild_Large exercises graph construction at 1K test files,
+// 5 imports each, 10 tests per file = 10K tests, 2K source files.
+func BenchmarkBuild_Large(b *testing.B) {
+	snap := buildLargeSnapshot(1000, 5, 10, 100)
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		Build(snap)
+	}
+}
+
+// BenchmarkBuild_XLarge exercises 10K test files, 50K tests, 500 scenarios.
+func BenchmarkBuild_XLarge(b *testing.B) {
+	snap := buildLargeSnapshot(10000, 3, 5, 500)
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		Build(snap)
+	}
+}
+
+func BenchmarkAnalyzeImpact_Large(b *testing.B) {
+	snap := buildLargeSnapshot(1000, 5, 10, 100)
+	g := Build(snap)
+	changed := []string{"src/mod_0.js", "src/mod_1.js", "src/mod_2.js"}
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		AnalyzeImpact(g, changed)
+	}
+}
+
+func BenchmarkDetectDuplicates_Large(b *testing.B) {
+	snap := buildLargeSnapshot(1000, 5, 10, 0)
+	g := Build(snap)
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		DetectDuplicates(g)
+	}
+}
+
+func BenchmarkAnalyzeFanout_Large(b *testing.B) {
+	snap := buildLargeSnapshot(1000, 5, 10, 0)
+	g := Build(snap)
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		AnalyzeFanout(g, DefaultFanoutThreshold)
+	}
+}

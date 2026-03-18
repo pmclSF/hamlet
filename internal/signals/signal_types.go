@@ -27,6 +27,33 @@ const (
 	SignalLegacyFrameworkUsage   models.SignalType = "legacyFrameworkUsage"
 	SignalSkippedTestsInCI       models.SignalType = "skippedTestsInCI"
 	SignalRuntimeBudgetExceeded  models.SignalType = "runtimeBudgetExceeded"
+	SignalStaticSkippedTest     models.SignalType = "staticSkippedTest"
+
+	// AI/eval signal types.
+	SignalEvalFailure            models.SignalType = "evalFailure"
+	SignalEvalRegression         models.SignalType = "evalRegression"
+	SignalAccuracyRegression     models.SignalType = "accuracyRegression"
+	SignalCitationMissing        models.SignalType = "citationMissing"
+	SignalRetrievalMiss          models.SignalType = "retrievalMiss"
+	SignalAnswerGroundingFailure models.SignalType = "answerGroundingFailure"
+	SignalToolSelectionError     models.SignalType = "toolSelectionError"
+	SignalSchemaParseFailure     models.SignalType = "schemaParseFailure"
+	SignalSafetyFailure          models.SignalType = "safetyFailure"
+	SignalAIPolicyViolation      models.SignalType = "aiPolicyViolation"
+	SignalHallucinationDetected  models.SignalType = "hallucinationDetected"
+	SignalLatencyRegression      models.SignalType = "latencyRegression"
+	SignalCostRegression         models.SignalType = "costRegression"
+	SignalContextOverflowRisk    models.SignalType = "contextOverflowRisk"
+	SignalWrongSourceSelected   models.SignalType = "wrongSourceSelected"
+	SignalCitationMismatch      models.SignalType = "citationMismatch"
+	SignalStaleSourceRisk       models.SignalType = "staleSourceRisk"
+	SignalChunkingRegression    models.SignalType = "chunkingRegression"
+	SignalRerankerRegression    models.SignalType = "rerankerRegression"
+	SignalTopKRegression        models.SignalType = "topKRegression"
+	SignalToolRoutingError      models.SignalType = "toolRoutingError"
+	SignalToolGuardrailViolation models.SignalType = "toolGuardrailViolation"
+	SignalToolBudgetExceeded    models.SignalType = "toolBudgetExceeded"
+	SignalAgentFallbackTriggered models.SignalType = "agentFallbackTriggered"
 )
 
 // Canonical signal type sets. Import these rather than duplicating

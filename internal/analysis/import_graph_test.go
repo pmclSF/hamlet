@@ -481,3 +481,80 @@ import { shared } from '#shared'`
 		t.Fatalf("expected #shared alias to resolve, got %v", imports)
 	}
 }
+
+// --- Source-to-source import tests ---
+
+func TestBuildImportGraph_SourceImports_JS(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+
+	// src/a.ts imports src/b.ts
+	writeTestFile(t, dir, "src/a.ts", `import { foo } from './b';`)
+	writeTestFile(t, dir, "src/b.ts", `export function foo() {}`)
+	// test imports src/a.ts
+	writeTestFile(t, dir, "tests/a.test.ts", `import { foo } from '../src/a';`)
+
+	graph := BuildImportGraph(dir, []models.TestFile{
+		{Path: "tests/a.test.ts", Framework: "vitest"},
+	})
+
+	// Test → source edge.
+	if !graph.TestImports["tests/a.test.ts"]["src/a.ts"] {
+		t.Fatalf("expected test → src/a.ts, got %v", graph.TestImports)
+	}
+
+	// Source → source edge: a.ts imports b.ts.
+	if graph.SourceImports == nil {
+		t.Fatal("expected non-nil SourceImports")
+	}
+	if !graph.SourceImports["src/a.ts"]["src/b.ts"] {
+		t.Errorf("expected src/a.ts → src/b.ts in SourceImports, got %v", graph.SourceImports["src/a.ts"])
+	}
+}
+
+func TestBuildImportGraph_SourceImports_Python(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+
+	writeTestFile(t, dir, "src/api/routes.py", `from src.api.models import User`)
+	writeTestFile(t, dir, "src/api/models.py", `class User: pass`)
+	writeTestFile(t, dir, "tests/test_routes.py", `from src.api.routes import get_users`)
+
+	graph := BuildImportGraph(dir, []models.TestFile{
+		{Path: "tests/test_routes.py", Framework: "pytest"},
+	})
+
+	if graph.SourceImports != nil && len(graph.SourceImports["src/api/routes.py"]) > 0 {
+		t.Logf("source imports for routes.py: %v", graph.SourceImports["src/api/routes.py"])
+	}
+}
+
+func TestBuildImportGraph_SourceImports_Deterministic(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+
+	writeTestFile(t, dir, "src/a.ts", `import { b } from './b';`)
+	writeTestFile(t, dir, "src/b.ts", `import { c } from './c';`)
+	writeTestFile(t, dir, "src/c.ts", `export const c = 1;`)
+	writeTestFile(t, dir, "tests/test.ts", `import { b } from '../src/a';`)
+
+	tf := []models.TestFile{{Path: "tests/test.ts", Framework: "vitest"}}
+	g1 := BuildImportGraph(dir, tf)
+	g2 := BuildImportGraph(dir, tf)
+
+	// Source imports should be identical across runs.
+	for src, imports := range g1.SourceImports {
+		for dep := range imports {
+			if g2.SourceImports[src] == nil || !g2.SourceImports[src][dep] {
+				t.Errorf("non-deterministic: %s → %s missing in second run", src, dep)
+			}
+		}
+	}
+}
+
+func writeTestFile(t *testing.T, root, relPath, content string) {
+	t.Helper()
+	abs := filepath.Join(root, relPath)
+	os.MkdirAll(filepath.Dir(abs), 0o755)
+	os.WriteFile(abs, []byte(content), 0o644)
+}
