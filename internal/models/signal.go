@@ -14,6 +14,7 @@ const (
 	CategoryQuality    SignalCategory = "quality"
 	CategoryMigration  SignalCategory = "migration"
 	CategoryGovernance SignalCategory = "governance"
+	CategoryAI         SignalCategory = "ai"
 )
 
 // SignalSeverity expresses how urgent or important a signal is.
@@ -34,6 +35,12 @@ type SignalLocation struct {
 	File       string `json:"file,omitempty"`
 	Symbol     string `json:"symbol,omitempty"`
 	Line       int    `json:"line,omitempty"`
+
+	// ScenarioID links the signal to a specific AI/eval scenario.
+	ScenarioID string `json:"scenarioId,omitempty"`
+
+	// Capability links the signal to a business capability.
+	Capability string `json:"capability,omitempty"`
 }
 
 // EvidenceStrength describes how robust the evidence behind a signal is.
@@ -58,6 +65,7 @@ const (
 	SourceCoverage          EvidenceSource = "coverage"
 	SourcePolicy            EvidenceSource = "policy"
 	SourceCodeowners        EvidenceSource = "codeowners"
+	SourceEvalExecution     EvidenceSource = "eval-execution"
 )
 
 // Signal is the canonical structured insight type in Terrain.

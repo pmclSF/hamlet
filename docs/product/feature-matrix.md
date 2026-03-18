@@ -84,7 +84,8 @@
 | AI list command | **Implemented** | Lists scenarios, prompts, datasets, eval files |
 | AI doctor command | **Implemented** | 5-point diagnostic: scenarios, prompts, datasets, eval files, graph wiring |
 | Graph node types (Prompt, Dataset, Model, EvalMetric) | **Partial** | Types defined in schema; not yet populated by inference |
-| Eval framework auto-detection (deepeval, promptfoo) | **Future** | Config file + directory convention detection |
+| Eval framework auto-detection (12 frameworks) | **Implemented** | Config files, dependency manifests, and source imports |
+| Auto-scenario derivation from eval files | **Implemented** | Eval test files + AI imports → scenarios without YAML |
 | AI run / record / baseline | **Future** | Scaffolded with doc references |
 | Eval-specific signals | **Future** | eval_safety_failure, eval_accuracy_regression, etc. |
 | Model version tracking | **Future** | Correlate eval results to model versions |
@@ -167,7 +168,8 @@
 ### AI / ML Engineer
 | Gap | Impact | Status |
 |---|---|---|
-| No eval framework auto-detection | Must declare scenarios in YAML | Future |
+| Eval framework auto-detection | 12 frameworks detected via config, deps, and imports | **Implemented** |
+| Auto-scenario derivation from eval test files | No YAML required for eval test files | **Implemented** |
 | No eval-specific signals | No accuracy_regression, safety_failure signals | Future |
 | No model version tracking | Cannot correlate evals to model versions | Future |
 | No dataset drift detection | Cannot detect data divergence | Future |

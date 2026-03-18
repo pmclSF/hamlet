@@ -21,7 +21,7 @@ func TestRenderSummaryReport_HealthyBalanced(t *testing.T) {
 	t.Parallel()
 	snap := testdata.HealthyBalancedSnapshot()
 	snap.Risk = scoring.ComputeRisk(snap)
-	measReg := measurement.DefaultRegistry()
+	measReg, mErr := measurement.DefaultRegistry(); if mErr != nil { t.Fatal(mErr) }
 	snap.Measurements = measReg.ComputeSnapshot(snap).ToModel()
 
 	h := heatmap.Build(snap)
@@ -57,7 +57,7 @@ func TestRenderMetricsReport_Minimal(t *testing.T) {
 func TestRenderPostureReport_Healthy(t *testing.T) {
 	t.Parallel()
 	snap := testdata.HealthyBalancedSnapshot()
-	measReg := measurement.DefaultRegistry()
+	measReg, mErr := measurement.DefaultRegistry(); if mErr != nil { t.Fatal(mErr) }
 	snap.Measurements = measReg.ComputeSnapshot(snap).ToModel()
 
 	var buf bytes.Buffer

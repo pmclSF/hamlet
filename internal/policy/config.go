@@ -53,6 +53,50 @@ type Rules struct {
 	// MaxMockHeavyTests sets the maximum allowed number of mockHeavyTest
 	// signals before a policy violation is raised.
 	MaxMockHeavyTests *int `yaml:"max_mock_heavy_tests"`
+
+	// AI holds AI/eval-specific CI policy rules.
+	AI *AIRules `yaml:"ai"`
+}
+
+// AIRules defines CI policy for AI validations.
+//
+// Example .terrain/policy.yaml:
+//
+//	rules:
+//	  ai:
+//	    block_on_safety_failure: true
+//	    block_on_accuracy_regression: 0
+//	    block_on_uncovered_context: true
+//	    warn_on_latency_regression: true
+//	    warn_on_cost_regression: true
+//	    blocking_signal_types:
+//	      - hallucinationDetected
+//	      - aiPolicyViolation
+type AIRules struct {
+	// BlockOnSafetyFailure fails CI when any safetyFailure signal is present.
+	BlockOnSafetyFailure *bool `yaml:"block_on_safety_failure"`
+
+	// BlockOnAccuracyRegression fails CI when accuracyRegression signal count
+	// exceeds this value. 0 means any regression blocks.
+	BlockOnAccuracyRegression *int `yaml:"block_on_accuracy_regression"`
+
+	// BlockOnUncoveredContext fails CI when a changed AI context surface has
+	// no scenario coverage.
+	BlockOnUncoveredContext *bool `yaml:"block_on_uncovered_context"`
+
+	// WarnOnLatencyRegression emits a warning for latency regressions.
+	WarnOnLatencyRegression *bool `yaml:"warn_on_latency_regression"`
+
+	// WarnOnCostRegression emits a warning for cost regressions.
+	WarnOnCostRegression *bool `yaml:"warn_on_cost_regression"`
+
+	// WarnOnMissingCapabilityCoverage emits a warning when an AI capability
+	// has no scenario coverage.
+	WarnOnMissingCapabilityCoverage *bool `yaml:"warn_on_missing_capability_coverage"`
+
+	// BlockingSignalTypes lists additional AI signal types that block CI.
+	// e.g., ["hallucinationDetected", "aiPolicyViolation"]
+	BlockingSignalTypes []string `yaml:"blocking_signal_types"`
 }
 
 // IsEmpty returns true if no rules are configured.
@@ -63,5 +107,6 @@ func (c *Config) IsEmpty() bool {
 		r.MaxTestRuntimeMs == nil &&
 		r.MinimumCoveragePercent == nil &&
 		r.MaxWeakAssertions == nil &&
-		r.MaxMockHeavyTests == nil
+		r.MaxMockHeavyTests == nil &&
+		r.AI == nil
 }

@@ -11,10 +11,10 @@ import (
 
 func runPipelineSteps(t *testing.T, snap *models.TestSuiteSnapshot) {
 	t.Helper()
-	registry := DefaultRegistry(Config{RepoRoot: "."})
+	registry, rErr := DefaultRegistry(Config{RepoRoot: "."}); if rErr != nil { t.Fatal(rErr) }
 	registry.Run(snap)
 	snap.Risk = scoring.ComputeRisk(snap)
-	measRegistry := measurement.DefaultRegistry()
+	measRegistry, mErr := measurement.DefaultRegistry(); if mErr != nil { t.Fatal(mErr) }
 	measSnap := measRegistry.ComputeSnapshot(snap)
 	snap.Measurements = measSnap.ToModel()
 	models.SortSnapshot(snap)

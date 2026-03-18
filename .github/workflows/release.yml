@@ -7,7 +7,7 @@ on:
 
 permissions:
   contents: write
-  id-token: write
+  id-token: write    # required for npm provenance AND Sigstore keyless signing
 
 jobs:
   # Gate: single source of truth — same script locally and in CI
@@ -59,7 +59,7 @@ jobs:
       with:
         generate_release_notes: true
 
-  # Build and attach Go binaries to the GitHub Release via goreleaser
+  # Build and attach Go binaries, SBOMs, and signatures to the GitHub Release
   go-release:
     needs: verify
     runs-on: ubuntu-latest
@@ -72,6 +72,16 @@ jobs:
       with:
         go-version-file: go.mod
 
+    # Install syft for SBOM generation (CycloneDX + SPDX)
+    - name: Install syft
+      uses: anchore/sbom-action/download-syft@v0
+      with:
+        syft-version: 'v1.18.1'
+
+    # Install cosign for Sigstore keyless signing
+    - name: Install cosign
+      uses: sigstore/cosign-installer@v3
+
     - name: Run GoReleaser
       uses: goreleaser/goreleaser-action@v6
       with:
@@ -79,3 +89,4 @@ jobs:
         args: release --clean
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        COSIGN_ENABLED: "1"

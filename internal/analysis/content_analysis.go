@@ -23,6 +23,7 @@ func analyzeTestFileContentCached(tf *models.TestFile, root string) string {
 	tf.AssertionCount = countAssertions(src, tf.Framework)
 	tf.MockCount = countMocks(src, tf.Framework)
 	tf.SnapshotCount = countSnapshots(src, tf.Framework)
+	tf.SkipCount = countSkips(src, tf.Framework)
 	return src
 }
 
@@ -34,14 +35,22 @@ var (
 	jsMockPattern     = regexp.MustCompile(`\b(jest\.mock|jest\.fn|jest\.spyOn|vi\.mock|vi\.fn|vi\.spyOn|sinon\.stub|sinon\.mock|sinon\.spy|\.mockImplementation|\.mockReturnValue|\.mockResolvedValue)\b`)
 	jsSnapshotPattern = regexp.MustCompile(`\b(toMatchSnapshot|toMatchInlineSnapshot|matchSnapshot)\b`)
 
+	// JS/TS skip patterns: it.skip, test.skip, describe.skip, xit, xdescribe, xtest
+	jsSkipPattern = regexp.MustCompile(`\b(it\.skip|test\.skip|describe\.skip|xit|xdescribe|xtest)\s*\(`)
+
 	// Go patterns
 	goTestPattern   = regexp.MustCompile(`func\s+Test\w+\s*\(`)
 	goAssertPattern = regexp.MustCompile(`\b(t\.Error|t\.Errorf|t\.Fatal|t\.Fatalf|assert\.|require\.)\b`)
+	goSkipPattern   = regexp.MustCompile(`\bt\.Skip\w*\s*\(`)
 
 	// Python patterns
 	pyTestPattern   = regexp.MustCompile(`\bdef\s+test_\w+`)
 	pyAssertPattern = regexp.MustCompile(`\b(assert\s|self\.assert|pytest\.raises)\b`)
 	pyMockPattern   = regexp.MustCompile(`\b(mock\.patch|Mock\(|MagicMock\(|@patch)\b`)
+	pySkipPattern = regexp.MustCompile(`(@pytest\.mark\.skip|@unittest\.skip|@skip\b|pytest\.skip\s*\()`)
+
+	// Java skip patterns
+	javaSkipPattern = regexp.MustCompile(`(@Disabled|@Ignore)\b`)
 
 	// Java patterns
 	javaTestPattern   = regexp.MustCompile(`@Test\b`)
@@ -63,6 +72,10 @@ func countMocks(src, framework string) int {
 
 func countSnapshots(src, framework string) int {
 	return getLanguageAnalyzer(frameworkLanguage(framework)).CountSnapshots(src)
+}
+
+func countSkips(src, framework string) int {
+	return getLanguageAnalyzer(frameworkLanguage(framework)).CountSkips(src)
 }
 
 func frameworkLanguage(framework string) string {
@@ -91,13 +104,14 @@ func frameworkLanguage(framework string) string {
 //   - Does not resolve type exports
 //   - Go detection requires exported identifiers (uppercase first letter)
 func extractExportedCodeUnits(root string, testFiles []models.TestFile) []models.CodeUnit {
-	// Build set of test file paths to exclude
+	return extractExportedCodeUnitsFromList(root, testFiles, collectSourceFiles(root))
+}
+
+func extractExportedCodeUnitsFromList(root string, testFiles []models.TestFile, sourceFiles []string) []models.CodeUnit {
 	testPaths := map[string]bool{}
 	for _, tf := range testFiles {
 		testPaths[tf.Path] = true
 	}
-
-	sourceFiles := collectSourceFiles(root)
 	unitsByFile := make([][]models.CodeUnit, len(sourceFiles))
 	parallelForEachIndex(len(sourceFiles), func(i int) {
 		relPath := sourceFiles[i]
@@ -160,7 +174,13 @@ func extractJSExports(root, relPath string) []models.CodeUnit {
 		return nil
 	}
 	src := string(content)
-	lines := strings.Split(src, "\n")
+	return extractJSExportsFromLines(relPath, src, strings.Split(src, "\n"))
+}
+
+// extractJSExportsFromLines extracts exported JS/TS code units from
+// pre-loaded content. This is the canonical implementation — the file-reading
+// variant (extractJSExports) delegates here.
+func extractJSExportsFromLines(relPath, src string, lines []string) []models.CodeUnit {
 	var units []models.CodeUnit
 	seen := map[string]bool{}
 
@@ -252,7 +272,13 @@ func extractGoExports(root, relPath string) []models.CodeUnit {
 	if err != nil {
 		return nil
 	}
-	lines := strings.Split(string(content), "\n")
+	return extractGoExportsFromLines(relPath, strings.Split(string(content), "\n"))
+}
+
+// extractGoExportsFromLines extracts exported Go code units from pre-loaded
+// lines. This is the canonical implementation — the file-reading variant
+// (extractGoExports) delegates here.
+func extractGoExportsFromLines(relPath string, lines []string) []models.CodeUnit {
 	var units []models.CodeUnit
 	seen := map[string]bool{}
 	add := func(name string, kind models.CodeUnitKind, line int, parent string) {
@@ -295,7 +321,13 @@ func extractPythonExports(root, relPath string) []models.CodeUnit {
 	if err != nil {
 		return nil
 	}
-	src := string(content)
+	return extractPythonExportsFromSource(relPath, string(content))
+}
+
+// extractPythonExportsFromSource extracts exported Python code units from
+// pre-loaded content. This is the canonical implementation — the file-reading
+// variant (extractPythonExports) delegates here.
+func extractPythonExportsFromSource(relPath, src string) []models.CodeUnit {
 	allowed := pythonAllExports(src)
 	var units []models.CodeUnit
 	for i, line := range strings.Split(src, "\n") {
@@ -344,7 +376,13 @@ func extractJavaExports(root, relPath string) []models.CodeUnit {
 	if err != nil {
 		return nil
 	}
-	lines := strings.Split(string(content), "\n")
+	return extractJavaExportsFromLines(relPath, strings.Split(string(content), "\n"))
+}
+
+// extractJavaExportsFromLines extracts exported Java code units from
+// pre-loaded lines. This is the canonical implementation — the file-reading
+// variant (extractJavaExports) delegates here.
+func extractJavaExportsFromLines(relPath string, lines []string) []models.CodeUnit {
 	var units []models.CodeUnit
 	seen := map[string]bool{}
 	typeNames := map[string]bool{}

@@ -42,6 +42,9 @@ extension/
 # Example/demo files
 examples/
 
+# Scripts (dev-only)
+scripts/
+
 # CI helpers
 ci/
 

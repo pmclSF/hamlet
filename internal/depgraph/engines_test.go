@@ -466,3 +466,68 @@ func TestAnalyzeFanout_Deterministic(t *testing.T) {
 		}
 	}
 }
+
+// TestAnalyzeImpact_ConfidenceDecaysByDepth verifies that confidence decays
+// multiplicatively as the BFS traverses deeper into the graph, validating
+// the documented 0.85 per-hop decay factor.
+func TestAnalyzeImpact_ConfidenceDecaysByDepth(t *testing.T) {
+	t.Parallel()
+	// Build a 3-hop chain: changed_file ← mid1 ← mid2 ← test_file ← test
+	g := NewGraph()
+	g.AddNode(&Node{ID: "file:src/deep.ts", Type: NodeSourceFile, Path: "src/deep.ts"})
+	g.AddNode(&Node{ID: "file:src/mid1.ts", Type: NodeSourceFile, Path: "src/mid1.ts"})
+	g.AddNode(&Node{ID: "file:src/mid2.ts", Type: NodeSourceFile, Path: "src/mid2.ts"})
+	g.AddNode(&Node{ID: "file:tests/deep.test.ts", Type: NodeTestFile, Path: "tests/deep.test.ts"})
+	g.AddNode(&Node{ID: "test:deep:1", Type: NodeTest, Path: "tests/deep.test.ts"})
+
+	g.AddEdge(&Edge{From: "file:src/mid1.ts", To: "file:src/deep.ts", Type: EdgeSourceImportsSource, Confidence: 1.0, EvidenceType: EvidenceStaticAnalysis})
+	g.AddEdge(&Edge{From: "file:src/mid2.ts", To: "file:src/mid1.ts", Type: EdgeSourceImportsSource, Confidence: 1.0, EvidenceType: EvidenceStaticAnalysis})
+	g.AddEdge(&Edge{From: "file:tests/deep.test.ts", To: "file:src/mid2.ts", Type: EdgeImportsModule, Confidence: 1.0, EvidenceType: EvidenceStaticAnalysis})
+	g.AddEdge(&Edge{From: "test:deep:1", To: "file:tests/deep.test.ts", Type: EdgeTestDefinedInFile, Confidence: 1.0, EvidenceType: EvidenceStaticAnalysis})
+	g.Seal()
+
+	result := AnalyzeImpact(g, []string{"src/deep.ts"})
+
+	if len(result.Tests) == 0 {
+		t.Fatal("expected at least 1 impacted test from 3-hop chain")
+	}
+
+	test := result.Tests[0]
+	// 3 hops through imports: 1.0 * 0.85 * 0.85 * 0.85 = ~0.614
+	expectedMax := 0.85 * 0.85 * 0.85 * 1.05
+	expectedMin := 0.85 * 0.85 * 0.85 * 0.95
+
+	if test.Confidence > expectedMax || test.Confidence < expectedMin {
+		t.Errorf("expected confidence ~0.614 (3 hops * 0.85 decay), got %.4f", test.Confidence)
+	}
+
+	if test.Level != "medium" {
+		t.Errorf("expected 'medium' confidence level for 3-hop chain, got %q", test.Level)
+	}
+}
+
+func TestAnalyzeImpact_DirectChangeIsHighConfidence(t *testing.T) {
+	t.Parallel()
+	g := NewGraph()
+	g.AddNode(&Node{ID: "file:src/auth.ts", Type: NodeSourceFile, Path: "src/auth.ts"})
+	g.AddNode(&Node{ID: "file:tests/auth.test.ts", Type: NodeTestFile, Path: "tests/auth.test.ts"})
+	g.AddNode(&Node{ID: "test:auth:1", Type: NodeTest, Path: "tests/auth.test.ts"})
+	g.AddEdge(&Edge{From: "file:tests/auth.test.ts", To: "file:src/auth.ts", Type: EdgeImportsModule, Confidence: 1.0, EvidenceType: EvidenceStaticAnalysis})
+	g.AddEdge(&Edge{From: "test:auth:1", To: "file:tests/auth.test.ts", Type: EdgeTestDefinedInFile, Confidence: 1.0, EvidenceType: EvidenceStaticAnalysis})
+	g.Seal()
+
+	result := AnalyzeImpact(g, []string{"src/auth.ts"})
+
+	if len(result.Tests) == 0 {
+		t.Fatal("expected at least 1 impacted test")
+	}
+
+	test := result.Tests[0]
+	// 1 hop: 1.0 * 0.85 = 0.85 → high confidence
+	if test.Confidence < 0.7 {
+		t.Errorf("expected high confidence (>=0.7) for direct import, got %.4f", test.Confidence)
+	}
+	if test.Level != "high" {
+		t.Errorf("expected 'high' level for direct import, got %q", test.Level)
+	}
+}

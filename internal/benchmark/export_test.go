@@ -1,6 +1,8 @@
 package benchmark
 
 import (
+	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/pmclSF/terrain/internal/metrics"
@@ -211,5 +213,24 @@ func TestExport_PrivacySafety(t *testing.T) {
 	// SchemaVersion should be 3.
 	if exp.SchemaVersion != "3" {
 		t.Errorf("schemaVersion = %q, want 3", exp.SchemaVersion)
+	}
+
+	// Serialize to JSON and verify no raw file paths or symbols leaked.
+	data, err := json.Marshal(exp)
+	if err != nil {
+		t.Fatalf("json marshal: %v", err)
+	}
+	jsonStr := string(data)
+
+	prohibited := []string{
+		"src/internal/secret.test.js",
+		"processPayment",
+		"src/internal/billing.js",
+		"my-private-repo",
+	}
+	for _, p := range prohibited {
+		if strings.Contains(jsonStr, p) {
+			t.Errorf("export JSON contains prohibited string %q — privacy leak", p)
+		}
 	}
 }

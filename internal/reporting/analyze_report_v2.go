@@ -146,11 +146,27 @@ func RenderAnalyzeReportV2(w io.Writer, r *analyze.Report) {
 		blank()
 	}
 
-	// Top insight (the headline)
-	line("Top Insight")
-	line(strings.Repeat("-", 60))
-	line("  %s", r.TopInsight)
-	blank()
+	// Key findings — top 3 prioritized issues.
+	if len(r.KeyFindings) > 0 {
+		line("Key Findings")
+		line(strings.Repeat("-", 60))
+		for i, f := range r.KeyFindings {
+			badge := strings.ToUpper(f.Severity)
+			line("  %d. [%s] %s", i+1, badge, f.Title)
+		}
+		remaining := r.TotalFindingCount - len(r.KeyFindings)
+		if remaining > 0 {
+			blank()
+			line("  %d more finding(s) available — run `terrain insights` for the full report.", remaining)
+		}
+		blank()
+	} else {
+		// Fallback to TopInsight for backward compat when no findings derived.
+		line("Top Insight")
+		line(strings.Repeat("-", 60))
+		line("  %s", r.TopInsight)
+		blank()
+	}
 
 	// Risk posture
 	if len(r.RiskPosture) > 0 {
@@ -351,10 +367,14 @@ func RenderAnalyzeReportV2(w io.Writer, r *analyze.Report) {
 
 	// Next steps
 	line("Next steps:")
-	line("  terrain analyze --verbose           show all findings")
+	if r.TotalFindingCount > len(r.KeyFindings) {
+		line("  terrain insights                    prioritized actions for %d finding(s)", r.TotalFindingCount)
+	} else {
+		line("  terrain insights                    prioritized actions and recommendations")
+	}
 	line("  terrain impact                      what tests matter for this change?")
 	line("  terrain explain <test-path>         why was a test selected?")
-	line("  terrain insights                    deeper analysis with recommendations")
+	line("  terrain analyze --verbose           show full signal detail")
 	blank()
 }
 

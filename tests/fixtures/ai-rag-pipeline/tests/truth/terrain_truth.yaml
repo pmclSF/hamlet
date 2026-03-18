@@ -1,0 +1,27 @@
+impact:
+  cases:
+    - change: "src/rag/chunking.ts"
+      expected_impacted_tests:
+        - "tests/eval/retrieval/retrieval-quality.test.ts"
+        - "tests/unit/rag.test.ts"
+      expected_impacted_scenarios:
+        - "retrieval-quality"
+    - change: "src/tools/search.ts"
+      expected_impacted_tests:
+        - "tests/eval/safety/tool-safety.test.ts"
+      expected_impacted_scenarios:
+        - "tool-safety"
+    - change: "src/agent/router.ts"
+      expected_impacted_tests:
+        - "tests/eval/accuracy/qa-accuracy.test.ts"
+      expected_impacted_scenarios:
+        - "qa-accuracy"
+ai:
+  expected_scenarios: 3
+  expected_prompt_surfaces:
+    - "src/prompts/system.ts:buildPrompt"
+  expected_context_surfaces:
+    - "src/prompts/system.ts:systemPrompt"
+  expected_dataset_surfaces: []
+environment:
+  notes: "RAG pipeline fixture."

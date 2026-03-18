@@ -94,6 +94,7 @@ func discoverTestFiles(root string, projectCtx ...*ProjectContext) ([]models.Tes
 			Framework:           result.Framework,
 			FrameworkConfidence: result.Confidence,
 			FrameworkSource:     result.Source,
+			FrameworkDetectorID: frameworkDetectorID(result.Source),
 		}
 	})
 	sort.Slice(testFiles, func(i, j int) bool {
@@ -101,6 +102,22 @@ func discoverTestFiles(root string, projectCtx ...*ProjectContext) ([]models.Tes
 	})
 
 	return testFiles, nil
+}
+
+// frameworkDetectorID maps a FrameworkResult.Source to a canonical DetectorID.
+func frameworkDetectorID(source string) string {
+	switch source {
+	case "import":
+		return models.DetectorImportMatch
+	case "config", "config-file":
+		return models.DetectorPathConvention
+	case "convention":
+		return models.DetectorPathConvention
+	case "project-fallback":
+		return models.DetectorPathConvention
+	default:
+		return ""
+	}
 }
 
 // isTestFile determines whether a file path looks like a test file

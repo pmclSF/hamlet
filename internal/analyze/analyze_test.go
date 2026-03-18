@@ -309,3 +309,21 @@ func TestEdgeCase_AnalyzeReportIncludesEdgeCases(t *testing.T) {
 		t.Error("expected policy to be generated from edge cases")
 	}
 }
+
+// --- Artifact Schema Tests ---
+
+func TestBuild_SchemaVersionPresent(t *testing.T) {
+	t.Parallel()
+	report := Build(&BuildInput{Snapshot: &models.TestSuiteSnapshot{}})
+	if report.SchemaVersion != AnalyzeReportSchemaVersion {
+		t.Errorf("schemaVersion = %q, want %q", report.SchemaVersion, AnalyzeReportSchemaVersion)
+	}
+}
+
+func TestBuild_SchemaVersionStable(t *testing.T) {
+	t.Parallel()
+	// Version should be "1" — not empty, not "0".
+	if AnalyzeReportSchemaVersion != "1" {
+		t.Errorf("expected schema version '1', got %q", AnalyzeReportSchemaVersion)
+	}
+}

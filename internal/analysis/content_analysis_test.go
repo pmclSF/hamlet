@@ -294,3 +294,160 @@ def internal_helper():
 		t.Fatalf("expected exported name public_api, got %q", units[0].Name)
 	}
 }
+
+// TestExtractExports_FileAndContentPathsMatch verifies that file-reading
+// extractors and their content-based counterparts produce identical results
+// for all four languages.
+func TestExtractExports_FileAndContentPathsMatch(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name    string
+		relPath string
+		content string
+		lang    string
+	}{
+		{
+			name:    "JS",
+			relPath: "src/lib.js",
+			content: "export function greet() {}\nexport class Client {}\nexport const VERSION = '1';\nmodule.exports = legacy;\n",
+			lang:    "js",
+		},
+		{
+			name:    "Go",
+			relPath: "pkg/svc.go",
+			content: "package pkg\n\ntype Service struct{}\n\nfunc NewService() *Service { return nil }\nfunc (s *Service) Run() {}\nconst MaxRetries = 3\n",
+			lang:    "go",
+		},
+		{
+			name:    "Python",
+			relPath: "pkg/util.py",
+			content: "def compute():\n    pass\n\ndef _private():\n    pass\n",
+			lang:    "python",
+		},
+		{
+			name:    "Java",
+			relPath: "src/Handler.java",
+			content: "public class Handler {\n  public void handle() {}\n  private void internal() {}\n}\n",
+			lang:    "java",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			root := t.TempDir()
+			absPath := filepath.Join(root, tc.relPath)
+			if err := os.MkdirAll(filepath.Dir(absPath), 0o755); err != nil {
+				t.Fatalf("mkdir: %v", err)
+			}
+			if err := os.WriteFile(absPath, []byte(tc.content), 0o644); err != nil {
+				t.Fatalf("write: %v", err)
+			}
+
+			// File-reading path (uses os.ReadFile internally).
+			a := getLanguageAnalyzer(tc.lang)
+			fromFile := a.ExtractExports(root, tc.relPath)
+
+			// Content-based path (no I/O).
+			fromContent := extractCodeUnitsFromSource(tc.content, tc.relPath, tc.lang)
+
+			if len(fromFile) != len(fromContent) {
+				t.Fatalf("count mismatch: file-path=%d content-path=%d\nfile:    %+v\ncontent: %+v",
+					len(fromFile), len(fromContent), fromFile, fromContent)
+			}
+			for i := range fromFile {
+				if fromFile[i].UnitID != fromContent[i].UnitID {
+					t.Errorf("unit[%d] UnitID mismatch: %q vs %q", i, fromFile[i].UnitID, fromContent[i].UnitID)
+				}
+				if fromFile[i].Kind != fromContent[i].Kind {
+					t.Errorf("unit[%d] Kind mismatch: %q vs %q", i, fromFile[i].Kind, fromContent[i].Kind)
+				}
+				if fromFile[i].StartLine != fromContent[i].StartLine {
+					t.Errorf("unit[%d] StartLine mismatch: %d vs %d", i, fromFile[i].StartLine, fromContent[i].StartLine)
+				}
+			}
+		})
+	}
+}
+
+func TestCountSkips_JS(t *testing.T) {
+	t.Parallel()
+	src := `
+		it.skip('should handle edge case', () => {});
+		test.skip('another skip', () => {});
+		describe.skip('skipped suite', () => {});
+		xit('old skip', () => {});
+		xdescribe('old suite skip', () => {});
+		it('normal test', () => {});
+	`
+	got := countSkips(src, "jest")
+	if got != 5 {
+		t.Errorf("expected 5 JS skips, got %d", got)
+	}
+}
+
+func TestCountSkips_Go(t *testing.T) {
+	t.Parallel()
+	src := `
+		func TestFoo(t *testing.T) {
+			t.Skip("not ready")
+		}
+		func TestBar(t *testing.T) {
+			t.Skipf("skipping because %s", reason)
+		}
+	`
+	got := countSkips(src, "go-testing")
+	if got != 2 {
+		t.Errorf("expected 2 Go skips, got %d", got)
+	}
+}
+
+func TestCountSkips_Python(t *testing.T) {
+	t.Parallel()
+	src := `
+		@pytest.mark.skip(reason="not ready")
+		def test_alpha():
+			pass
+
+		@unittest.skip("broken")
+		def test_beta():
+			pass
+
+		def test_gamma():
+			pytest.skip("conditional")
+	`
+	got := countSkips(src, "pytest")
+	if got != 3 {
+		t.Errorf("expected 3 Python skips, got %d", got)
+	}
+}
+
+func TestCountSkips_Java(t *testing.T) {
+	t.Parallel()
+	src := `
+		@Disabled("not ready")
+		@Test
+		void testAlpha() {}
+
+		@Ignore
+		@Test
+		void testBeta() {}
+	`
+	got := countSkips(src, "junit5")
+	if got != 2 {
+		t.Errorf("expected 2 Java skips, got %d", got)
+	}
+}
+
+func TestCountSkips_NoSkips(t *testing.T) {
+	t.Parallel()
+	src := `
+		it('should work', () => { expect(true).toBe(true); });
+		test('another', () => {});
+	`
+	got := countSkips(src, "jest")
+	if got != 0 {
+		t.Errorf("expected 0 skips, got %d", got)
+	}
+}

@@ -16,6 +16,7 @@ import (
 	"strings"
 
 	"github.com/pmclSF/terrain/internal/impact"
+	"github.com/pmclSF/terrain/internal/models"
 )
 
 // ReasonChain is a sequence of steps from a changed code unit to a test.
@@ -566,6 +567,49 @@ type ScenarioExplanation struct {
 
 	// Relevance explains the impact relationship.
 	Relevance string `json:"relevance"`
+
+	// Capability is the inferred business capability this scenario validates.
+	Capability string `json:"capability,omitempty"`
+
+	// RelatedSurfaces groups all covered surfaces by kind for rich detail.
+	RelatedSurfaces *RelatedSurfaces `json:"relatedSurfaces,omitempty"`
+
+	// Signals lists AI signals related to this scenario.
+	Signals []ScenarioSignal `json:"signals,omitempty"`
+
+	// PolicyDecision describes the CI policy outcome for this scenario.
+	PolicyDecision string `json:"policyDecision,omitempty"`
+}
+
+// RelatedSurfaces groups scenario-covered surfaces by kind.
+type RelatedSurfaces struct {
+	Prompts    []SurfaceRef `json:"prompts,omitempty"`
+	Contexts   []SurfaceRef `json:"contexts,omitempty"`
+	Datasets   []SurfaceRef `json:"datasets,omitempty"`
+	ToolDefs   []SurfaceRef `json:"toolDefinitions,omitempty"`
+	Retrievals []SurfaceRef `json:"retrievalSurfaces,omitempty"`
+	Agents     []SurfaceRef `json:"agentSurfaces,omitempty"`
+	EvalDefs   []SurfaceRef `json:"evalDefinitions,omitempty"`
+	Other      []SurfaceRef `json:"other,omitempty"`
+}
+
+// SurfaceRef identifies a surface with its name, path, and kind.
+type SurfaceRef struct {
+	ID            string  `json:"id"`
+	Name          string  `json:"name"`
+	Path          string  `json:"path"`
+	Kind          string  `json:"kind"`
+	Changed       bool    `json:"changed,omitempty"`
+	DetectionTier string  `json:"detectionTier,omitempty"`
+	Confidence    float64 `json:"confidence,omitempty"`
+	Reason        string  `json:"reason,omitempty"`
+}
+
+// ScenarioSignal is an AI signal related to a scenario.
+type ScenarioSignal struct {
+	Type        string `json:"type"`
+	Severity    string `json:"severity"`
+	Explanation string `json:"explanation"`
 }
 
 // ExplainScenario produces a structured explanation for why a specific
@@ -599,9 +643,110 @@ func ExplainScenario(target string, result *impact.ImpactResult) (*ScenarioExpla
 				ChangedSurfaces: sc.CoversSurfaces,
 				Confidence:      string(sc.ImpactConfidence),
 				Relevance:       sc.Relevance,
+				Capability:      sc.Capability,
 			}, nil
 		}
 	}
 
 	return nil, fmt.Errorf("scenario not found in impact analysis: %s", target)
+}
+
+// ExplainScenarioRich produces an enriched explanation with surface-kind
+// breakdowns, signals, and policy decisions.
+func ExplainScenarioRich(target string, result *impact.ImpactResult, snap *models.TestSuiteSnapshot) (*ScenarioExplanation, error) {
+	base, err := ExplainScenario(target, result)
+	if err != nil {
+		return nil, err
+	}
+
+	// Find the source scenario for covered surface IDs.
+	var sourceScenario *models.Scenario
+	for i, sc := range snap.Scenarios {
+		if sc.ScenarioID == base.ScenarioID || sc.Name == base.Name {
+			sourceScenario = &snap.Scenarios[i]
+			break
+		}
+	}
+	if sourceScenario == nil {
+		return base, nil
+	}
+
+	// Build surface index.
+	surfaceByID := map[string]models.CodeSurface{}
+	for _, cs := range snap.CodeSurfaces {
+		surfaceByID[cs.SurfaceID] = cs
+	}
+
+	// Build changed set.
+	changedSet := map[string]bool{}
+	for _, sid := range base.ChangedSurfaces {
+		changedSet[sid] = true
+	}
+
+	// Group covered surfaces by kind.
+	related := &RelatedSurfaces{}
+	for _, sid := range sourceScenario.CoveredSurfaceIDs {
+		cs, ok := surfaceByID[sid]
+		if !ok {
+			related.Other = append(related.Other, SurfaceRef{
+				ID: sid, Name: sid, Kind: "unknown", Changed: changedSet[sid],
+			})
+			continue
+		}
+		ref := SurfaceRef{
+			ID: cs.SurfaceID, Name: cs.Name, Path: cs.Path,
+			Kind: string(cs.Kind), Changed: changedSet[cs.SurfaceID],
+			DetectionTier: cs.DetectionTier, Confidence: cs.Confidence,
+			Reason: cs.Reason,
+		}
+		switch cs.Kind {
+		case models.SurfacePrompt:
+			related.Prompts = append(related.Prompts, ref)
+		case models.SurfaceContext:
+			related.Contexts = append(related.Contexts, ref)
+		case models.SurfaceDataset:
+			related.Datasets = append(related.Datasets, ref)
+		case models.SurfaceToolDef:
+			related.ToolDefs = append(related.ToolDefs, ref)
+		case models.SurfaceRetrieval:
+			related.Retrievals = append(related.Retrievals, ref)
+		case models.SurfaceAgent:
+			related.Agents = append(related.Agents, ref)
+		case models.SurfaceEvalDef:
+			related.EvalDefs = append(related.EvalDefs, ref)
+		default:
+			related.Other = append(related.Other, ref)
+		}
+	}
+	base.RelatedSurfaces = related
+
+	// Collect signals for this scenario.
+	for _, sig := range snap.Signals {
+		if sig.Category == models.CategoryAI && sig.Location.ScenarioID == base.ScenarioID {
+			base.Signals = append(base.Signals, ScenarioSignal{
+				Type: string(sig.Type), Severity: string(sig.Severity),
+				Explanation: sig.Explanation,
+			})
+		}
+	}
+
+	// Policy decision from governance signals.
+	for _, sig := range snap.Signals {
+		if sig.Category == models.CategoryGovernance {
+			if md, ok := sig.Metadata["rule"]; ok {
+				rule, _ := md.(string)
+				if strings.HasPrefix(rule, "block_on_") || rule == "blocking_signal_types" {
+					base.PolicyDecision = "blocked: " + sig.Explanation
+					break
+				}
+			}
+		}
+	}
+	if base.PolicyDecision == "" && len(base.Signals) > 0 {
+		base.PolicyDecision = "warn"
+	} else if base.PolicyDecision == "" {
+		base.PolicyDecision = "pass"
+	}
+
+	return base, nil
 }

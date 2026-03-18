@@ -173,6 +173,9 @@ type ImpactedScenario struct {
 
 	// CoversSurfaces lists the changed surface IDs this scenario validates.
 	CoversSurfaces []string `json:"coversSurfaces,omitempty"`
+
+	// Capability is the inferred business capability this scenario validates.
+	Capability string `json:"capability,omitempty"`
 }
 
 // ProtectionGap identifies where changed code lacks adequate coverage.
@@ -332,6 +335,9 @@ type ImpactResult struct {
 	// ImpactedOwners lists owners with impacted code.
 	ImpactedOwners []string `json:"impactedOwners,omitempty"`
 
+	// TotalTestCount is the total number of tests in the repository (for suite size context).
+	TotalTestCount int `json:"totalTestCount,omitempty"`
+
 	// Summary is a human-readable impact summary.
 	Summary string `json:"summary"`
 
@@ -449,7 +455,8 @@ func Analyze(scope *ChangeScope, snap *models.TestSuiteSnapshot) *ImpactResult {
 // analyzeFromScope is the shared implementation for both entry points.
 func analyzeFromScope(scope *ChangeScope, snap *models.TestSuiteSnapshot) *ImpactResult {
 	result := &ImpactResult{
-		Scope: *scope,
+		Scope:          *scope,
+		TotalTestCount: len(snap.TestFiles),
 	}
 
 	// Map changed files to code surfaces and behavior surfaces.
@@ -470,6 +477,9 @@ func analyzeFromScope(scope *ChangeScope, snap *models.TestSuiteSnapshot) *Impac
 
 	// Identify protection gaps (enhanced with coverage diversity).
 	result.ProtectionGaps = findProtectionGaps(result.ImpactedUnits, result.ImpactedTests, snap)
+
+	// AI-specific protection gaps for changed AI surfaces without scenario coverage.
+	result.ProtectionGaps = append(result.ProtectionGaps, findAIProtectionGaps(result, snap)...)
 
 	// Select protective test set (legacy flat list for backward compatibility).
 	result.SelectedTests = selectProtectiveTests(result.ImpactedTests, result.ImpactedUnits)

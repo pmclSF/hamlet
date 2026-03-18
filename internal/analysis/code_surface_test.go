@@ -321,8 +321,9 @@ export function unrelatedHelper() {}
 	surfaces := ext.ExtractSurfaces(root, "src/ai/prompts.ts")
 	byID := indexSurfaces(surfaces)
 
-	// Prompt-named exports should be detected as SurfacePrompt.
-	assertSurfaceExists(t, byID, "surface:src/ai/prompts.ts:systemPrompt", models.SurfacePrompt)
+	// systemPrompt is a context surface (system message pattern).
+	assertSurfaceExists(t, byID, "surface:src/ai/prompts.ts:systemPrompt", models.SurfaceContext)
+	// Other prompt-named exports should be detected as SurfacePrompt.
 	assertSurfaceExists(t, byID, "surface:src/ai/prompts.ts:buildUserPrompt", models.SurfacePrompt)
 	assertSurfaceExists(t, byID, "surface:src/ai/prompts.ts:chatTemplate", models.SurfacePrompt)
 	assertSurfaceExists(t, byID, "surface:src/ai/prompts.ts:PROMPT_SAFETY", models.SurfacePrompt)
@@ -515,6 +516,449 @@ func assertSurfaceExists(t *testing.T, byID map[string]models.CodeSurface, id st
 	}
 	if s.Kind != kind {
 		t.Errorf("surface %q: kind = %q, want %q", id, s.Kind, kind)
+	}
+}
+
+// --- AI Surface Type Detection ---
+
+func TestJSSurfaceExtractor_ToolDef(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	writeTempFile(t, root, "src/tools.ts", `
+export const toolSchema = { name: "search", description: "Search the web" };
+export function functionDef(name, params) { return { name, params }; }
+export const toolOutputSchema = { type: "object", properties: {} };
+`)
+	ext := &jsSurfaceExtractor{}
+	surfaces := ext.ExtractSurfaces(root, "src/tools.ts")
+	tools := filterByKind(surfaces, models.SurfaceToolDef)
+	if len(tools) != 3 {
+		t.Errorf("expected 3 tool_definition surfaces, got %d: %v", len(tools), surfaceNames(surfaces))
+	}
+}
+
+func TestJSSurfaceExtractor_Retrieval(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	writeTempFile(t, root, "src/rag.ts", `
+export function retriever(query) { return []; }
+export const vectorStore = new PineconeStore();
+export function documentLoader(path) { return []; }
+export const embeddingConfig = { model: "text-embedding-3-small" };
+`)
+	ext := &jsSurfaceExtractor{}
+	surfaces := ext.ExtractSurfaces(root, "src/rag.ts")
+	retrievals := filterByKind(surfaces, models.SurfaceRetrieval)
+	if len(retrievals) < 3 {
+		t.Errorf("expected >=3 retrieval surfaces, got %d: %v", len(retrievals), surfaceNames(surfaces))
+	}
+}
+
+func TestJSSurfaceExtractor_Agent(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	writeTempFile(t, root, "src/agent.ts", `
+export function agentRouter(input) { return selectAgent(input); }
+export const agentConfig = { maxRecursion: 10, model: "gpt-4" };
+export function toolChoice(tools, context) { return tools[0]; }
+export const fallbackModel = "gpt-3.5-turbo";
+`)
+	ext := &jsSurfaceExtractor{}
+	surfaces := ext.ExtractSurfaces(root, "src/agent.ts")
+	agents := filterByKind(surfaces, models.SurfaceAgent)
+	if len(agents) < 3 {
+		t.Errorf("expected >=3 agent surfaces, got %d: %v", len(agents), surfaceNames(surfaces))
+	}
+}
+
+func TestJSSurfaceExtractor_EvalDef(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	writeTempFile(t, root, "src/evals.ts", `
+export const rubric = { criteria: ["accuracy", "relevance"] };
+export function evalMetric(output, expected) { return score(output, expected); }
+export const evalConfig = { temperature: 0, maxTokens: 100 };
+`)
+	ext := &jsSurfaceExtractor{}
+	surfaces := ext.ExtractSurfaces(root, "src/evals.ts")
+	evals := filterByKind(surfaces, models.SurfaceEvalDef)
+	if len(evals) != 3 {
+		t.Errorf("expected 3 eval_definition surfaces, got %d: %v", len(evals), surfaceNames(surfaces))
+	}
+}
+
+func TestJSSurfaceExtractor_ContextSurfaces(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	writeTempFile(t, root, "src/context.ts", `
+export const systemMessage = "You are a helpful assistant.";
+export function contextBuilder(docs) { return docs.join("\n"); }
+export const fewShotExamples = [{ input: "hi", output: "hello" }];
+export const safetyOverlay = "Do not generate harmful content.";
+export const policyBlock = "Always cite sources.";
+export const aiPersona = "You are a financial advisor.";
+export const customerContext = buildCustomerProfile();
+`)
+	ext := &jsSurfaceExtractor{}
+	surfaces := ext.ExtractSurfaces(root, "src/context.ts")
+	contexts := filterByKind(surfaces, models.SurfaceContext)
+	// 7 expected: systemMessage, contextBuilder, fewShotExamples, safetyOverlay, policyBlock, aiPersona, customerContext
+	if len(contexts) != 7 {
+		t.Errorf("expected 7 context surfaces, got %d: %v", len(contexts), surfaceNames(surfaces))
+	}
+}
+
+func TestJSSurfaceExtractor_PromptVsContext(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	writeTempFile(t, root, "src/ai.ts", `
+export function buildPrompt(input) { return "Process: " + input; }
+export const systemPrompt = "You are a helpful assistant.";
+export const promptTemplate = "Given: {input}, respond with: {output}";
+`)
+	ext := &jsSurfaceExtractor{}
+	surfaces := ext.ExtractSurfaces(root, "src/ai.ts")
+	prompts := filterByKind(surfaces, models.SurfacePrompt)
+	contexts := filterByKind(surfaces, models.SurfaceContext)
+	// buildPrompt and promptTemplate are prompt surfaces
+	if len(prompts) != 2 {
+		t.Errorf("expected 2 prompts (buildPrompt, promptTemplate), got %d: %v", len(prompts), surfaceNames(prompts))
+	}
+	// systemPrompt is a context surface
+	if len(contexts) != 1 {
+		t.Errorf("expected 1 context (systemPrompt), got %d: %v", len(contexts), surfaceNames(contexts))
+	}
+}
+
+func TestPythonSurfaceExtractor_ContextSurfaces(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	writeTempFile(t, root, "context.py", `
+def system_message():
+    return "You are a helpful assistant."
+
+def few_shot_examples():
+    return [{"input": "hi", "output": "hello"}]
+
+def safety_overlay():
+    return "Do not generate harmful content."
+
+def context_builder(docs):
+    return "\n".join(docs)
+`)
+	ext := &pythonSurfaceExtractor{}
+	surfaces := ext.ExtractSurfaces(root, "context.py")
+	contexts := filterByKind(surfaces, models.SurfaceContext)
+	if len(contexts) != 4 {
+		t.Errorf("expected 4 context surfaces, got %d: %v", len(contexts), surfaceNames(surfaces))
+	}
+}
+
+func TestPythonSurfaceExtractor_ToolDef(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	writeTempFile(t, root, "tools.py", `
+def tool_schema(name, description):
+    return {"name": name, "description": description}
+
+def output_schema():
+    return {"type": "object"}
+`)
+	ext := &pythonSurfaceExtractor{}
+	surfaces := ext.ExtractSurfaces(root, "tools.py")
+	tools := filterByKind(surfaces, models.SurfaceToolDef)
+	if len(tools) != 2 {
+		t.Errorf("expected 2 tool_definition surfaces, got %d: %v", len(tools), surfaceNames(surfaces))
+	}
+}
+
+func TestPythonSurfaceExtractor_Retrieval(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	writeTempFile(t, root, "rag.py", `
+def retriever(query):
+    return vector_store.search(query)
+
+def document_loader(path):
+    return load_documents(path)
+
+def context_assembly(docs, query):
+    return format_context(docs)
+`)
+	ext := &pythonSurfaceExtractor{}
+	surfaces := ext.ExtractSurfaces(root, "rag.py")
+	retrievals := filterByKind(surfaces, models.SurfaceRetrieval)
+	if len(retrievals) != 3 {
+		t.Errorf("expected 3 retrieval surfaces, got %d: %v", len(retrievals), surfaceNames(surfaces))
+	}
+}
+
+func TestPythonSurfaceExtractor_Agent(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	writeTempFile(t, root, "orchestrator.py", `
+def agent_router(input_text):
+    return select_agent(input_text)
+
+def tool_choice(tools, context):
+    return tools[0]
+
+def agent_config():
+    return {"max_recursion": 10}
+`)
+	ext := &pythonSurfaceExtractor{}
+	surfaces := ext.ExtractSurfaces(root, "orchestrator.py")
+	agents := filterByKind(surfaces, models.SurfaceAgent)
+	if len(agents) != 3 {
+		t.Errorf("expected 3 agent surfaces, got %d: %v", len(agents), surfaceNames(surfaces))
+	}
+}
+
+func TestPythonSurfaceExtractor_EvalDef(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	writeTempFile(t, root, "eval_config.py", `
+def rubric():
+    return {"criteria": ["accuracy", "relevance"]}
+
+def eval_metric(output, expected):
+    return compute_score(output, expected)
+
+def scoring_func(response):
+    return grade(response)
+`)
+	ext := &pythonSurfaceExtractor{}
+	surfaces := ext.ExtractSurfaces(root, "eval_config.py")
+	evals := filterByKind(surfaces, models.SurfaceEvalDef)
+	if len(evals) != 3 {
+		t.Errorf("expected 3 eval_definition surfaces, got %d: %v", len(evals), surfaceNames(surfaces))
+	}
+}
+
+// --- False Positive Tests ---
+
+// --- Inference Tier Tests ---
+
+func TestInferenceMetadata_PatternTier(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	writeTempFile(t, root, "src/api.ts", `
+export function getUsers() { return []; }
+export const buildPrompt = (q) => q;
+`)
+	surfaces := InferCodeSurfaces(root, nil)
+	for _, s := range surfaces {
+		if s.DetectionTier == "" {
+			t.Errorf("surface %q has empty DetectionTier", s.Name)
+		}
+		if s.Confidence <= 0 || s.Confidence > 1 {
+			t.Errorf("surface %q confidence %.2f out of range", s.Name, s.Confidence)
+		}
+		if s.Kind == models.SurfaceFunction {
+			if s.DetectionTier != models.TierPattern {
+				t.Errorf("JS function %q tier = %q, want pattern", s.Name, s.DetectionTier)
+			}
+		}
+		if s.Kind == models.SurfacePrompt {
+			if s.DetectionTier != models.TierPattern {
+				t.Errorf("prompt %q tier = %q, want pattern", s.Name, s.DetectionTier)
+			}
+			if s.Confidence < 0.8 {
+				t.Errorf("prompt confidence %.2f too low", s.Confidence)
+			}
+		}
+	}
+}
+
+func TestInferenceMetadata_GoStructuralTier(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	writeTempFile(t, root, "main.go", `
+package main
+func ProcessRequest(w http.ResponseWriter, r *http.Request) {}
+func helperFunc() {}
+`)
+	surfaces := InferCodeSurfaces(root, nil)
+	for _, s := range surfaces {
+		if s.Language == "go" && s.Exported {
+			if s.DetectionTier != models.TierStructural {
+				t.Errorf("Go exported %q tier = %q, want structural", s.Name, s.DetectionTier)
+			}
+			if s.Confidence < 0.95 {
+				t.Errorf("Go exported confidence %.2f too low", s.Confidence)
+			}
+		}
+	}
+}
+
+func TestInferenceMetadata_ContentTier(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	writeTempFile(t, root, "src/chat.ts", `
+const messages = [
+  { role: "system", content: "You are a helpful assistant." },
+  { role: "user", content: userInput },
+];
+`)
+	contentSurfaces := InferAIContextSurfaces(root, nil, nil)
+	for _, s := range contentSurfaces {
+		if s.DetectionTier == "" {
+			t.Errorf("content surface %q has empty tier", s.Name)
+		}
+		if s.DetectionTier != models.TierContent && s.DetectionTier != models.TierSemantic && s.DetectionTier != models.TierStructural {
+			t.Errorf("content surface %q tier = %q, want content, semantic, or structural", s.Name, s.DetectionTier)
+		}
+		if s.Confidence <= 0 {
+			t.Errorf("content surface %q has zero confidence", s.Name)
+		}
+	}
+}
+
+func TestInferenceMetadata_AllSurfacesHaveEvidence(t *testing.T) {
+	t.Parallel()
+	root := surfaceFixtureRoot(t, "js-app")
+	surfaces := InferCodeSurfaces(root, nil)
+	if len(surfaces) == 0 {
+		t.Skip("no surfaces in fixture")
+	}
+	for _, s := range surfaces {
+		if s.DetectionTier == "" {
+			t.Errorf("surface %q (%s) missing DetectionTier", s.Name, s.Kind)
+		}
+		if s.Confidence <= 0 || s.Confidence > 1.0 {
+			t.Errorf("surface %q (%s) confidence %.2f out of range", s.Name, s.Kind, s.Confidence)
+		}
+		// Verify tier is a known value.
+		switch s.DetectionTier {
+		case models.TierStructural, models.TierSemantic, models.TierPattern, models.TierContent:
+			// OK
+		default:
+			t.Errorf("surface %q has unknown tier %q", s.Name, s.DetectionTier)
+		}
+	}
+}
+
+func TestInferenceMetadata_TierOrderConsistent(t *testing.T) {
+	t.Parallel()
+	// Structural should have higher confidence than content.
+	if models.DetectionTierOrder(models.TierStructural) >= models.DetectionTierOrder(models.TierContent) {
+		t.Error("structural should have higher priority than content")
+	}
+}
+
+func TestInferenceMetadata_DeterministicAcrossRuns(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	writeTempFile(t, root, "src/api.ts", `
+export function buildPrompt(q) { return q; }
+export const systemPrompt = "You are a helper.";
+`)
+	s1 := InferCodeSurfaces(root, nil)
+	s2 := InferCodeSurfaces(root, nil)
+	if len(s1) != len(s2) {
+		t.Fatalf("non-deterministic count: %d vs %d", len(s1), len(s2))
+	}
+	for i := range s1 {
+		if s1[i].DetectionTier != s2[i].DetectionTier {
+			t.Errorf("tier differs for %q: %s vs %s", s1[i].Name, s1[i].DetectionTier, s2[i].DetectionTier)
+		}
+		if s1[i].Confidence != s2[i].Confidence {
+			t.Errorf("confidence differs for %q: %.2f vs %.2f", s1[i].Name, s1[i].Confidence, s2[i].Confidence)
+		}
+	}
+}
+
+func TestJSSurfaceExtractor_NonAITemplate(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	writeTempFile(t, root, "src/email.ts", `
+export const emailTemplate = "<html>Hello {{name}}</html>";
+export function htmlTemplate(data) { return renderHTML(data); }
+export const pageTemplate = { layout: "main", title: "Home" };
+`)
+	ext := &jsSurfaceExtractor{}
+	surfaces := ext.ExtractSurfaces(root, "src/email.ts")
+	prompts := filterByKind(surfaces, models.SurfacePrompt)
+	contexts := filterByKind(surfaces, models.SurfaceContext)
+	if len(prompts) != 0 {
+		t.Errorf("non-AI templates should NOT be detected as prompts, got %d: %v", len(prompts), surfaceNames(prompts))
+	}
+	if len(contexts) != 0 {
+		t.Errorf("non-AI templates should NOT be detected as contexts, got %d: %v", len(contexts), surfaceNames(contexts))
+	}
+}
+
+func TestJSSurfaceExtractor_NonAIPersona(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	writeTempFile(t, root, "src/marketing.ts", `
+export const persona = { name: "Budget Buyer", age: 35, interests: ["deals"] };
+export function getUserPersona(userId) { return fetchPersona(userId); }
+export const instruction = "Please fill out the form below.";
+`)
+	ext := &jsSurfaceExtractor{}
+	surfaces := ext.ExtractSurfaces(root, "src/marketing.ts")
+	contexts := filterByKind(surfaces, models.SurfaceContext)
+	if len(contexts) != 0 {
+		t.Errorf("non-AI persona/instruction should NOT be detected as contexts, got %d: %v", len(contexts), surfaceNames(contexts))
+	}
+}
+
+func TestJSSurfaceExtractor_NonAIOutputSchema(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	writeTempFile(t, root, "src/api.ts", `
+export const outputSchema = { type: "object", properties: { id: { type: "string" } } };
+export function responseSchema() { return { status: 200 }; }
+`)
+	ext := &jsSurfaceExtractor{}
+	surfaces := ext.ExtractSurfaces(root, "src/api.ts")
+	tools := filterByKind(surfaces, models.SurfaceToolDef)
+	if len(tools) != 0 {
+		t.Errorf("non-AI outputSchema should NOT be detected as tool def, got %d: %v", len(tools), surfaceNames(tools))
+	}
+}
+
+func TestJSSurfaceExtractor_AITemplateStillDetected(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	writeTempFile(t, root, "src/ai.ts", `
+export const promptTemplate = "You are a helpful assistant. Answer: {query}";
+export const chatTemplate = "Given context: {context}\nRespond to: {query}";
+export const systemTemplate = "You are an AI that helps with {task}.";
+`)
+	ext := &jsSurfaceExtractor{}
+	surfaces := ext.ExtractSurfaces(root, "src/ai.ts")
+	prompts := filterByKind(surfaces, models.SurfacePrompt)
+	if len(prompts) != 3 {
+		t.Errorf("AI templates should still be detected, expected 3, got %d: %v", len(prompts), surfaceNames(prompts))
+	}
+}
+
+func TestJSSurfaceExtractor_AIToolOutputSchemaDetected(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	writeTempFile(t, root, "src/tools.ts", `
+export const toolOutputSchema = { type: "object" };
+export const functionOutputSchema = { type: "object" };
+export const aiOutputSchema = { type: "object" };
+`)
+	ext := &jsSurfaceExtractor{}
+	surfaces := ext.ExtractSurfaces(root, "src/tools.ts")
+	tools := filterByKind(surfaces, models.SurfaceToolDef)
+	if len(tools) != 3 {
+		t.Errorf("AI-prefixed outputSchema should be detected, expected 3, got %d: %v", len(tools), surfaceNames(tools))
+	}
+}
+
+func writeTempFile(t *testing.T, root, relPath, content string) {
+	t.Helper()
+	absPath := filepath.Join(root, relPath)
+	if err := os.MkdirAll(filepath.Dir(absPath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(absPath, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
 	}
 }
 

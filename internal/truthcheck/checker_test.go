@@ -120,6 +120,142 @@ func TestComputeScores(t *testing.T) {
 	}
 }
 
+func TestRun_TerrainWorld_PerCategory(t *testing.T) {
+	t.Parallel()
+	root := fixtureRoot(t)
+	truthPath := truthSpecPath(t)
+
+	report, err := Run(root, truthPath)
+	if err != nil {
+		t.Fatalf("truth check failed: %v", err)
+	}
+
+	// Each category should pass with recall >= 0.5.
+	for _, c := range report.Categories {
+		t.Run(c.Category, func(t *testing.T) {
+			if !c.Passed {
+				t.Errorf("category %s FAILED: recall=%.2f precision=%.2f score=%.2f missing=%v",
+					c.Category, c.Recall, c.Precision, c.Score, c.Missing)
+			}
+			// Precision and recall should both be > 0 (or category is trivially empty).
+			if c.Expected > 0 && c.Recall < 0.5 {
+				t.Errorf("category %s recall %.2f below threshold 0.5", c.Category, c.Recall)
+			}
+		})
+	}
+}
+
+func TestRun_TerrainWorld_Deterministic(t *testing.T) {
+	t.Parallel()
+	root := fixtureRoot(t)
+	truthPath := truthSpecPath(t)
+
+	r1, err := Run(root, truthPath)
+	if err != nil {
+		t.Fatalf("run 1 failed: %v", err)
+	}
+	r2, err := Run(root, truthPath)
+	if err != nil {
+		t.Fatalf("run 2 failed: %v", err)
+	}
+
+	if len(r1.Categories) != len(r2.Categories) {
+		t.Fatalf("non-deterministic category count: %d vs %d", len(r1.Categories), len(r2.Categories))
+	}
+	for i := range r1.Categories {
+		if r1.Categories[i].Category != r2.Categories[i].Category {
+			t.Errorf("category %d differs: %s vs %s", i, r1.Categories[i].Category, r2.Categories[i].Category)
+		}
+		if r1.Categories[i].Score != r2.Categories[i].Score {
+			t.Errorf("category %s score differs: %.4f vs %.4f",
+				r1.Categories[i].Category, r1.Categories[i].Score, r2.Categories[i].Score)
+		}
+	}
+}
+
+func TestComputeScores_AllMatched(t *testing.T) {
+	t.Parallel()
+	r := TruthCategoryResult{Expected: 5, Matched: 5}
+	computeScores(&r)
+	if r.Score != 1.0 {
+		t.Errorf("perfect match score = %.2f, want 1.0", r.Score)
+	}
+	if !r.Passed {
+		t.Error("expected passed")
+	}
+}
+
+func TestComputeScores_NoneMatched(t *testing.T) {
+	t.Parallel()
+	r := TruthCategoryResult{Expected: 5, Matched: 0}
+	r.Missing = []string{"a", "b", "c", "d", "e"}
+	computeScores(&r)
+	if r.Recall != 0.0 {
+		t.Errorf("zero-match recall = %.2f, want 0.0", r.Recall)
+	}
+	if r.Passed {
+		t.Error("expected not passed")
+	}
+}
+
+func TestComputeScores_EmptyExpected(t *testing.T) {
+	t.Parallel()
+	r := TruthCategoryResult{Expected: 0, Matched: 0}
+	computeScores(&r)
+	// No expectations means recall=0 (nothing to match), precision=1.0 (no false positives).
+	// F1 = 0 (no recall). Passed = false (recall < 0.5).
+	if r.Precision != 1.0 {
+		t.Errorf("empty expected precision = %.2f, want 1.0", r.Precision)
+	}
+	if r.Recall != 0.0 {
+		t.Errorf("empty expected recall = %.2f, want 0.0", r.Recall)
+	}
+}
+
+func TestLoadTruthSpec_MissingCategory(t *testing.T) {
+	t.Parallel()
+	// A truth spec with only coverage should parse fine.
+	yaml := `
+coverage:
+  expected_uncovered:
+    - path: "src/auth.ts"
+      reason: "No tests"
+`
+	tmpDir := t.TempDir()
+	path := filepath.Join(tmpDir, "truth.yaml")
+	if err := os.WriteFile(path, []byte(yaml), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	spec, err := LoadTruthSpec(path)
+	if err != nil {
+		t.Fatalf("failed to load: %v", err)
+	}
+	if spec.Coverage == nil {
+		t.Error("expected coverage section")
+	}
+	if spec.Impact != nil {
+		t.Error("expected nil impact section")
+	}
+	if spec.AI != nil {
+		t.Error("expected nil AI section")
+	}
+}
+
+func TestTruthCheckReport_SchemaVersion(t *testing.T) {
+	t.Parallel()
+	root := fixtureRoot(t)
+	truthPath := truthSpecPath(t)
+
+	report, err := Run(root, truthPath)
+	if err != nil {
+		t.Fatalf("run: %v", err)
+	}
+	if report.SchemaVersion != TruthCheckReportSchemaVersion {
+		t.Errorf("schemaVersion = %q, want %q", report.SchemaVersion, TruthCheckReportSchemaVersion)
+	}
+}
+
 func fixtureRoot(t *testing.T) string {
 	t.Helper()
 	_, thisFile, _, _ := runtime.Caller(0)

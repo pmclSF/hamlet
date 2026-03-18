@@ -3,104 +3,105 @@ package changescope
 import (
 	"fmt"
 	"io"
+	"sort"
 	"strings"
 )
 
-// RenderPRSummaryMarkdown writes a PR-ready markdown summary.
+// RenderPRSummaryMarkdown writes a PR-ready markdown summary optimized for
+// human review and merge decisions.
+//
+// Structure:
+//   - Header with posture and merge recommendation
+//   - Compact metrics table
+//   - New risks introduced by this PR (max 10)
+//   - Pre-existing gaps touched by this change
+//   - Test recommendations (grouped if large)
+//   - Execution summary
 func RenderPRSummaryMarkdown(w io.Writer, pr *PRAnalysis) {
 	line := func(format string, args ...any) {
 		fmt.Fprintf(w, format+"\n", args...)
 	}
 
-	line("## Terrain — Change Analysis")
-	line("")
+	// Deduplicate findings at render time (safeguard).
+	findings := DeduplicateFindings(pr.NewFindings)
+	directRisk, indirectRisk, existingDebt := ClassifyFindingsDetailed(findings)
 
-	// Posture badge.
+	// Merge recommendation.
+	mergeRec, mergeExpl := MergeRecommendation(pr.PostureBand, findings)
+
+	// --- Header ---
 	badge := postureBadge(pr.PostureBand)
-	line("**Posture:** %s %s", badge, strings.ToUpper(pr.PostureBand))
+	line("## %s Terrain — %s", badge, mergeRec)
+	line("")
+	line("*%s*", mergeExpl)
 	line("")
 
-	// Summary stats.
-	line("| Metric | Count |")
+	// --- Compact metrics ---
+	line("| Metric | Value |")
 	line("|--------|-------|")
-	line("| Changed files | %d |", pr.ChangedFileCount)
-	line("| Changed source files | %d |", pr.ChangedSourceCount)
-	line("| Changed test files | %d |", pr.ChangedTestCount)
-	line("| Impacted code units | %d |", pr.ImpactedUnitCount)
+	line("| Changed files | %d (%d source, %d test) |", pr.ChangedFileCount, pr.ChangedSourceCount, pr.ChangedTestCount)
+	line("| Impacted units | %d |", pr.ImpactedUnitCount)
 	line("| Protection gaps | %d |", pr.ProtectionGapCount)
+	if len(pr.RecommendedTests) > 0 {
+		if pr.TotalTestCount > 0 {
+			pct := 100 * len(pr.RecommendedTests) / pr.TotalTestCount
+			line("| Tests to run | %d of %d (%d%% of suite) |", len(pr.RecommendedTests), pr.TotalTestCount, pct)
+		} else {
+			line("| Tests to run | %d |", len(pr.RecommendedTests))
+		}
+	}
 	line("")
 
-	// Findings.
-	if len(pr.NewFindings) > 0 {
-		line("### Findings")
+	// --- New risks introduced by this PR (directly changed files) ---
+	if len(directRisk) > 0 {
+		line("### New Risks (directly changed)")
 		line("")
-		limit := 10
-		if len(pr.NewFindings) < limit {
-			limit = len(pr.NewFindings)
-		}
-		for _, f := range pr.NewFindings[:limit] {
-			icon := severityIcon(f.Severity)
-			line("- %s **%s** `%s`: %s", icon, f.Type, f.Path, f.Explanation)
-			if f.SuggestedAction != "" {
-				line("  - Action: %s", f.SuggestedAction)
-			}
-		}
-		if len(pr.NewFindings) > limit {
-			line("- ... and %d more finding(s)", len(pr.NewFindings)-limit)
-		}
+		renderFindingsLimited(line, directRisk, 10)
 		line("")
 	}
 
-	// Recommended tests with reasoning.
-	if len(pr.TestSelections) > 0 {
-		line("### Recommended Tests")
+	// --- Indirectly impacted gaps ---
+	if len(indirectRisk) > 0 {
+		line("<details><summary>Indirectly impacted protection gaps (%d)</summary>", len(indirectRisk))
 		line("")
-		if pr.SelectionExplanation != "" {
-			line("*%s*", pr.SelectionExplanation)
-			line("")
-		}
-		limit := 15
-		if len(pr.TestSelections) < limit {
-			limit = len(pr.TestSelections)
-		}
-		reasons := formatTestReasons(pr.TestSelections)
-		line("| Test | Confidence | Why |")
-		line("|------|------------|-----|")
-		for _, t := range pr.TestSelections[:limit] {
-			line("| `%s` | %s | %s |", t.Path, t.Confidence, reasons[t.Path])
-		}
-		if len(pr.TestSelections) > limit {
-			line("")
-			line("...and %d more test(s).", len(pr.TestSelections)-limit)
-		}
+		renderFindingsLimited(line, indirectRisk, 5)
 		line("")
-	} else if len(pr.RecommendedTests) > 0 {
-		line("### Recommended Tests")
-		line("")
-		limit := 15
-		if len(pr.RecommendedTests) < limit {
-			limit = len(pr.RecommendedTests)
-		}
-		for _, t := range pr.RecommendedTests[:limit] {
-			line("- `%s`", t)
-		}
-		if len(pr.RecommendedTests) > limit {
-			line("- ... and %d more", len(pr.RecommendedTests)-limit)
-		}
+		line("</details>")
 		line("")
 	}
 
-	// Affected owners.
+	// --- Pre-existing gaps touched by this change ---
+	if len(existingDebt) > 0 {
+		line("<details><summary>Pre-existing issues on changed files (%d)</summary>", len(existingDebt))
+		line("")
+		limit := 5
+		if len(existingDebt) < limit {
+			limit = len(existingDebt)
+		}
+		for _, f := range existingDebt[:limit] {
+			line("- `%s`: %s", f.Path, f.Explanation)
+		}
+		if len(existingDebt) > limit {
+			line("- ... and %d more", len(existingDebt)-limit)
+		}
+		line("")
+		line("</details>")
+		line("")
+	}
+
+	// --- Test recommendations ---
+	renderTestRecommendations(line, pr)
+
+	// --- AI Validation ---
+	renderAISection(line, pr)
+
+	// --- Execution summary ---
 	if len(pr.AffectedOwners) > 0 {
-		line("### Affected Owners")
-		line("")
-		for _, o := range pr.AffectedOwners {
-			line("- %s", o)
-		}
+		line("**Owners:** %s", strings.Join(pr.AffectedOwners, ", "))
 		line("")
 	}
 
-	// Limitations.
+	// --- Limitations ---
 	if len(pr.Limitations) > 0 {
 		line("<details><summary>Limitations</summary>")
 		line("")
@@ -113,44 +114,114 @@ func RenderPRSummaryMarkdown(w io.Writer, pr *PRAnalysis) {
 	}
 
 	line("---")
-	line("*Generated by [Terrain](https://github.com/pmclSF/terrain) — test system intelligence platform*")
+	line("*[Terrain](https://github.com/pmclSF/terrain) — `terrain pr --json` for full machine-readable results*")
 }
 
-// RenderPRCommentConcise writes a concise PR comment suitable for inline use.
+// renderFindingsLimited renders up to limit findings, then summarizes overflow.
+func renderFindingsLimited(line func(string, ...any), findings []ChangeScopedFinding, limit int) {
+	if len(findings) < limit {
+		limit = len(findings)
+	}
+	for _, f := range findings[:limit] {
+		icon := severityIcon(f.Severity)
+		line("- %s `%s`: %s", icon, f.Path, f.Explanation)
+	}
+	if len(findings) > limit {
+		overflow := SummarizeFindingsBySeverity(findings[limit:])
+		parts := formatSeverityCounts(overflow)
+		line("- ... and %d more (%s)", len(findings)-limit, strings.Join(parts, ", "))
+	}
+}
+
+// renderTestRecommendations renders the test recommendations section.
+func renderTestRecommendations(line func(string, ...any), pr *PRAnalysis) {
+	if len(pr.TestSelections) > 0 {
+		line("### Recommended Tests")
+		line("")
+		if pr.SelectionExplanation != "" {
+			line("*%s*", pr.SelectionExplanation)
+			line("")
+		}
+
+		if len(pr.TestSelections) <= 15 {
+			reasons := formatTestReasons(pr.TestSelections)
+			line("| Test | Confidence | Why |")
+			line("|------|------------|-----|")
+			for _, t := range pr.TestSelections {
+				line("| `%s` | %s | %s |", t.Path, t.Confidence, reasons[t.Path])
+			}
+		} else {
+			paths := make([]string, len(pr.TestSelections))
+			for i, t := range pr.TestSelections {
+				paths[i] = t.Path
+			}
+			groups := GroupTestsByPackage(paths)
+			line("| Package | Tests | Sample |")
+			line("|---------|-------|--------|")
+			for _, g := range groups {
+				sample := g.Files[0]
+				if len(g.Files) > 1 {
+					sample += " ..."
+				}
+				line("| `%s` | %d | `%s` |", g.Package, g.Count, sample)
+			}
+		}
+		line("")
+	} else if len(pr.RecommendedTests) > 0 {
+		line("### Recommended Tests")
+		line("")
+		if len(pr.RecommendedTests) <= 15 {
+			for _, t := range pr.RecommendedTests {
+				line("- `%s`", t)
+			}
+		} else {
+			groups := GroupTestsByPackage(pr.RecommendedTests)
+			for _, g := range groups {
+				line("- `%s/` — %d test(s)", g.Package, g.Count)
+			}
+		}
+		line("")
+	}
+}
+
+// RenderPRCommentConcise writes a concise one-line PR comment.
 func RenderPRCommentConcise(w io.Writer, pr *PRAnalysis) {
 	line := func(format string, args ...any) {
 		fmt.Fprintf(w, format+"\n", args...)
 	}
 
+	findings := DeduplicateFindings(pr.NewFindings)
+	mergeRec, _ := MergeRecommendation(pr.PostureBand, findings)
 	badge := postureBadge(pr.PostureBand)
-	line("%s **Terrain:** %s", badge, pr.Summary)
+	line("%s **Terrain:** %s — %s", badge, mergeRec, pr.Summary)
 
-	if len(pr.NewFindings) > 0 {
-		highCount := 0
-		for _, f := range pr.NewFindings {
-			if f.Severity == "high" {
-				highCount++
-			}
+	highCount := 0
+	for _, f := range findings {
+		if f.Severity == "high" {
+			highCount++
 		}
-		if highCount > 0 {
-			line("  - %d high-severity finding(s) require attention", highCount)
-		}
+	}
+	if highCount > 0 {
+		line("  - %d high-severity finding(s) require attention", highCount)
 	}
 
 	if len(pr.TestSelections) > 0 {
-		paths := make([]string, 0, len(pr.TestSelections))
-		for _, t := range pr.TestSelections {
-			paths = append(paths, t.Path)
+		if len(pr.TestSelections) <= 5 {
+			paths := make([]string, len(pr.TestSelections))
+			for i, t := range pr.TestSelections {
+				paths[i] = t.Path
+			}
+			line("  - Run %d test(s): %s", len(paths), strings.Join(paths, ", "))
+		} else {
+			line("  - Run %d test(s) (see full comment for details)", len(pr.TestSelections))
 		}
-		line("  - Run %d test(s): %s", len(paths), strings.Join(paths, ", "))
-	} else if len(pr.RecommendedTests) > 0 {
-		line("  - Run: %s", strings.Join(pr.RecommendedTests, ", "))
 	}
 }
 
 // RenderCIAnnotation writes CI-annotation-style output.
 func RenderCIAnnotation(w io.Writer, pr *PRAnalysis) {
-	for _, f := range pr.NewFindings {
+	findings := DeduplicateFindings(pr.NewFindings)
+	for _, f := range findings {
 		level := "notice"
 		switch f.Severity {
 		case "high":
@@ -169,43 +240,75 @@ func RenderChangeScopedReport(w io.Writer, pr *PRAnalysis) {
 	}
 	blank := func() { fmt.Fprintln(w) }
 
+	findings := DeduplicateFindings(pr.NewFindings)
+	mergeRec, mergeExpl := MergeRecommendation(pr.PostureBand, findings)
+
 	line("Terrain — Change-Scoped Analysis")
 	line(strings.Repeat("=", 40))
 	blank()
 
-	line("Posture:   %s", strings.ToUpper(pr.PostureBand))
-	line("Files:     %d changed (%d source, %d test)", pr.ChangedFileCount, pr.ChangedSourceCount, pr.ChangedTestCount)
-	line("Units:     %d impacted", pr.ImpactedUnitCount)
-	line("Gaps:      %d", pr.ProtectionGapCount)
+	line("Recommendation:  %s", mergeRec)
+	line("Posture:         %s", strings.ToUpper(pr.PostureBand))
+	line("Files:           %d changed (%d source, %d test)", pr.ChangedFileCount, pr.ChangedSourceCount, pr.ChangedTestCount)
+	line("Units:           %d impacted", pr.ImpactedUnitCount)
+	line("Gaps:            %d", pr.ProtectionGapCount)
+	if len(pr.RecommendedTests) > 0 && pr.TotalTestCount > 0 {
+		line("Tests:           %d of %d (%.0f%% reduction)", len(pr.RecommendedTests), pr.TotalTestCount,
+			100.0-100.0*float64(len(pr.RecommendedTests))/float64(pr.TotalTestCount))
+	}
+	line("Reason:          %s", mergeExpl)
 	blank()
 
-	if len(pr.NewFindings) > 0 {
-		line("Findings")
+	directRisk, indirectRisk, existingDebt := ClassifyFindingsDetailed(findings)
+
+	if len(directRisk) > 0 {
+		line("New Risks (directly changed)")
 		line(strings.Repeat("-", 40))
-		for _, f := range pr.NewFindings {
+		for _, f := range directRisk {
+			line("  [%s] %s — %s", strings.ToUpper(f.Severity), f.Path, f.Explanation)
+		}
+		blank()
+	}
+
+	if len(indirectRisk) > 0 {
+		line("Indirectly Impacted Gaps (%d)", len(indirectRisk))
+		line(strings.Repeat("-", 40))
+		for _, f := range indirectRisk {
+			line("  [%s] %s — %s", strings.ToUpper(f.Severity), f.Path, f.Explanation)
+		}
+		blank()
+	}
+
+	if len(existingDebt) > 0 {
+		line("Pre-Existing Issues")
+		line(strings.Repeat("-", 40))
+		for _, f := range existingDebt {
 			line("  [%s] %s — %s", strings.ToUpper(f.Severity), f.Path, f.Explanation)
 		}
 		blank()
 	}
 
 	if len(pr.TestSelections) > 0 {
-		line("Recommended Tests")
+		line("Recommended Tests (%d)", len(pr.TestSelections))
 		line(strings.Repeat("-", 40))
 		if pr.SelectionExplanation != "" {
 			line("  Strategy: %s", pr.SelectionExplanation)
 			blank()
 		}
-		reasons := formatTestReasons(pr.TestSelections)
-		for _, t := range pr.TestSelections {
-			line("  [%s] %s", t.Confidence, t.Path)
-			line("         %s", reasons[t.Path])
-		}
-		blank()
-	} else if len(pr.RecommendedTests) > 0 {
-		line("Recommended Tests")
-		line(strings.Repeat("-", 40))
-		for _, t := range pr.RecommendedTests {
-			line("  %s", t)
+		if len(pr.TestSelections) <= 20 {
+			reasons := formatTestReasons(pr.TestSelections)
+			for _, t := range pr.TestSelections {
+				line("  [%s] %s", t.Confidence, t.Path)
+				line("         %s", reasons[t.Path])
+			}
+		} else {
+			paths := make([]string, len(pr.TestSelections))
+			for i, t := range pr.TestSelections {
+				paths[i] = t.Path
+			}
+			for _, g := range GroupTestsByPackage(paths) {
+				line("  %s/ — %d test(s)", g.Package, g.Count)
+			}
 		}
 		blank()
 	}
@@ -225,6 +328,98 @@ func RenderChangeScopedReport(w io.Writer, pr *PRAnalysis) {
 	}
 }
 
+// renderAISection renders the AI validation summary in markdown.
+func renderAISection(line func(string, ...any), pr *PRAnalysis) {
+	ai := pr.AI
+	if ai == nil {
+		return
+	}
+
+	line("### AI Validation")
+	line("")
+
+	// Impacted capabilities.
+	if len(ai.ImpactedCapabilities) > 0 {
+		line("**Impacted capabilities:** %s", strings.Join(ai.ImpactedCapabilities, ", "))
+		line("")
+	}
+
+	// Scenario selection summary.
+	line("Scenarios: %d of %d selected", ai.SelectedScenarios, ai.TotalScenarios)
+	line("")
+
+	// Blocking signals.
+	if len(ai.BlockingSignals) > 0 {
+		line("**Blocking signals (%d):**", len(ai.BlockingSignals))
+		line("")
+		for _, s := range ai.BlockingSignals {
+			line("- [%s] **%s**: %s", strings.ToUpper(s.Severity), s.Type, s.Explanation)
+		}
+		line("")
+	}
+
+	// Warning signals.
+	if len(ai.WarningSignals) > 0 {
+		line("<details><summary>Warning signals (%d)</summary>", len(ai.WarningSignals))
+		line("")
+		for _, s := range ai.WarningSignals {
+			line("- [%s] %s: %s", s.Severity, s.Type, s.Explanation)
+		}
+		line("")
+		line("</details>")
+		line("")
+	}
+
+	// Impacted scenarios grouped by capability.
+	if len(ai.Scenarios) > 0 {
+		// Group by capability.
+		byCap := map[string][]AIScenarioSummary{}
+		var noCap []AIScenarioSummary
+		for _, sc := range ai.Scenarios {
+			if sc.Capability != "" {
+				byCap[sc.Capability] = append(byCap[sc.Capability], sc)
+			} else {
+				noCap = append(noCap, sc)
+			}
+		}
+
+		if len(byCap) > 0 || len(noCap) > 0 {
+			line("<details><summary>Impacted scenarios (%d)</summary>", len(ai.Scenarios))
+			line("")
+			// Sort capability keys.
+			caps := make([]string, 0, len(byCap))
+			for c := range byCap {
+				caps = append(caps, c)
+			}
+			sort.Strings(caps)
+			for _, cap := range caps {
+				line("**%s:**", cap)
+				for _, sc := range byCap[cap] {
+					line("- %s — %s", sc.Name, sc.Reason)
+				}
+			}
+			if len(noCap) > 0 {
+				for _, sc := range noCap {
+					line("- %s — %s", sc.Name, sc.Reason)
+				}
+			}
+			line("")
+			line("</details>")
+			line("")
+		}
+	}
+
+	// Uncovered contexts.
+	if len(ai.UncoveredContexts) > 0 {
+		line("**Changed AI contexts without evaluation (%d):**", len(ai.UncoveredContexts))
+		line("")
+		for _, c := range ai.UncoveredContexts {
+			line("- `%s`", c)
+		}
+		line("")
+	}
+}
+
 func postureBadge(band string) string {
 	switch band {
 	case "well_protected":
@@ -240,6 +435,29 @@ func postureBadge(band string) string {
 	default:
 		return "[????]"
 	}
+}
+
+func severityIcon(severity string) string {
+	switch severity {
+	case "high":
+		return "[HIGH]"
+	case "medium":
+		return "[MED]"
+	case "low":
+		return "[LOW]"
+	default:
+		return "[---]"
+	}
+}
+
+func formatSeverityCounts(counts map[string]int) []string {
+	var parts []string
+	for _, sev := range []string{"high", "medium", "low"} {
+		if c, ok := counts[sev]; ok && c > 0 {
+			parts = append(parts, fmt.Sprintf("%d %s", c, sev))
+		}
+	}
+	return parts
 }
 
 func deduplicateReasons(reasons []string) string {
@@ -262,13 +480,8 @@ func deduplicateReasons(reasons []string) string {
 	return strings.Join(parts, "; ")
 }
 
-// formatTestReasons builds per-test "Why" strings for all selections.
-// When multiple tests cover the same units, it highlights what's unique
-// to each test so reviewers can tell them apart.
 func formatTestReasons(selections []TestSelection) map[string]string {
 	reasons := map[string]string{}
-
-	// Count how many tests cover each unit ID.
 	unitTestCount := map[string]int{}
 	for _, t := range selections {
 		for _, uid := range t.CoversUnits {
@@ -276,26 +489,20 @@ func formatTestReasons(selections []TestSelection) map[string]string {
 		}
 	}
 	totalTests := len(selections)
-
 	for _, t := range selections {
 		reasons[t.Path] = formatSingleTestReason(t, unitTestCount, totalTests)
 	}
 	return reasons
 }
 
-// formatSingleTestReason builds a reason string for one test, preferring
-// unique units (covered only by this test) over shared ones.
 func formatSingleTestReason(t TestSelection, unitTestCount map[string]int, totalTests int) string {
 	unitNames := extractUnitNames(t.CoversUnits)
-
 	if len(unitNames) == 0 {
 		if len(t.Reasons) > 0 {
 			return deduplicateReasons(t.Reasons)
 		}
 		return t.Relevance
 	}
-
-	// Split into unique (only this test covers it) and shared units.
 	var unique, shared []string
 	for _, uid := range t.CoversUnits {
 		name := uid
@@ -308,18 +515,13 @@ func formatSingleTestReason(t TestSelection, unitTestCount map[string]int, total
 			shared = append(shared, name)
 		}
 	}
-	// Deduplicate names (different paths can have same name).
 	unique = deduplicateStrings(unique)
 	shared = deduplicateStrings(shared)
-
 	label := "covers"
 	if t.Confidence == "exact" {
 		label = "exact coverage of"
 	}
-
 	const maxDisplay = 4
-
-	// If there are unique units, lead with those — they're the differentiator.
 	if len(unique) > 0 {
 		var why string
 		if len(unique) <= maxDisplay {
@@ -332,8 +534,6 @@ func formatSingleTestReason(t TestSelection, unitTestCount map[string]int, total
 		}
 		return why
 	}
-
-	// All units are shared — show names but note they're shared across tests.
 	if len(unitNames) <= maxDisplay {
 		why := fmt.Sprintf("%s `%s`", label, strings.Join(unitNames, "`, `"))
 		if totalTests > 1 {
@@ -361,8 +561,6 @@ func deduplicateStrings(ss []string) []string {
 	return out
 }
 
-// extractUnitNames extracts human-readable names from code unit IDs.
-// Unit IDs have the format "path:Name" — we extract just the Name part.
 func extractUnitNames(unitIDs []string) []string {
 	if len(unitIDs) == 0 {
 		return nil
@@ -380,17 +578,4 @@ func extractUnitNames(unitIDs []string) []string {
 		}
 	}
 	return names
-}
-
-func severityIcon(severity string) string {
-	switch severity {
-	case "high":
-		return "[HIGH]"
-	case "medium":
-		return "[MED]"
-	case "low":
-		return "[LOW]"
-	default:
-		return "[---]"
-	}
 }

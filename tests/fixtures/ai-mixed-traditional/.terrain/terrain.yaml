@@ -1,0 +1,9 @@
+scenarios:
+  - name: support-safety
+    category: safety
+    framework: custom
+    owner: safety-team
+    surfaces:
+      - "surface:src/ai/contexts/policy.ts:safetyOverlay"
+      - "surface:src/ai/contexts/policy.ts:policyBlock"
+    path: tests/eval/safety/support-safety.test.ts

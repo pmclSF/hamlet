@@ -7,6 +7,7 @@ package insights
 import (
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/pmclSF/terrain/internal/depgraph"
 	"github.com/pmclSF/terrain/internal/matrix"
@@ -213,6 +214,10 @@ func Build(input *BuildInput) *Report {
 		})
 	}
 
+	// Deduplicate findings from multiple builders.
+	// Key: category + title + scope (two builders can produce the same finding).
+	findings = deduplicateInsightFindings(findings)
+
 	// Rank findings by severity, then category priority.
 	sort.SliceStable(findings, func(i, j int) bool {
 		si := severityOrder(findings[i].Severity)
@@ -358,9 +363,10 @@ func fanoutFindings(input *BuildInput) []Finding {
 
 	if len(fanout.Entries) > 0 && fanout.Entries[0].Flagged {
 		top := fanout.Entries[0]
+		label := fanoutLabel(top.NodeID, top.Path, top.NodeType)
 		f.Description = fmt.Sprintf("Highest: %s with %d transitive dependents. Changes to high-fanout nodes trigger disproportionate test impact.",
-			top.Path, top.TransitiveFanout)
-		f.Scope = top.Path
+			label, top.TransitiveFanout)
+		f.Scope = label
 	}
 
 	findings = append(findings, f)
@@ -749,7 +755,8 @@ func buildRecommendations(findings []Finding, input *BuildInput) []Recommendatio
 			rec.Action = "Refactor high-fanout fixtures to reduce blast radius"
 			if len(input.Fanout.Entries) > 0 && input.Fanout.Entries[0].Flagged {
 				top := input.Fanout.Entries[0]
-				rec.Rationale = fmt.Sprintf("%s fans out to %d dependents — splitting it isolates test impact.", top.Path, top.TransitiveFanout)
+				label := fanoutLabel(top.NodeID, top.Path, top.NodeType)
+				rec.Rationale = fmt.Sprintf("%s fans out to %d dependents — splitting it isolates test impact.", label, top.TransitiveFanout)
 			} else {
 				rec.Rationale = "High-fanout nodes create fragile dependencies."
 			}
@@ -900,6 +907,41 @@ func severityOrder(s Severity) int {
 	default:
 		return 0
 	}
+}
+
+// deduplicateInsightFindings removes findings with the same category + title + scope.
+// Keeps the first (higher-severity) occurrence since findings are appended in
+// priority order by builder.
+func deduplicateInsightFindings(findings []Finding) []Finding {
+	seen := map[string]bool{}
+	var out []Finding
+	for _, f := range findings {
+		key := string(f.Category) + "|" + f.Title + "|" + f.Scope
+		if !seen[key] {
+			seen[key] = true
+			out = append(out, f)
+		}
+	}
+	return out
+}
+
+// fanoutLabel returns a human-readable label for a fanout node.
+// Falls back from Path → parsed node ID → node type.
+func fanoutLabel(nodeID, path, nodeType string) string {
+	if path != "" {
+		return path
+	}
+	parts := strings.SplitN(nodeID, ":", 3)
+	if len(parts) >= 3 {
+		return parts[2]
+	}
+	if len(parts) >= 2 {
+		return parts[1]
+	}
+	if nodeType != "" {
+		return nodeType
+	}
+	return nodeID
 }
 
 func categoryOrder(c Category) int {

@@ -36,6 +36,7 @@ func Evaluate(snap *models.TestSuiteSnapshot, cfg *policy.Config) *Result {
 	violations = append(violations, checkCoverageThreshold(snap, cfg)...)
 	violations = append(violations, checkWeakAssertionThreshold(snap, cfg)...)
 	violations = append(violations, checkMockHeavyThreshold(snap, cfg)...)
+	violations = append(violations, checkAIPolicy(snap, cfg)...)
 
 	return &Result{
 		Violations: violations,
@@ -272,6 +273,172 @@ func checkMockHeavyThreshold(snap *models.TestSuiteSnapshot, cfg *policy.Config)
 			"topFiles":     topFileNames(topFiles),
 		},
 	}}
+}
+
+// checkAIPolicy evaluates AI-specific policy rules against snapshot signals.
+func checkAIPolicy(snap *models.TestSuiteSnapshot, cfg *policy.Config) []models.Signal {
+	ai := cfg.Rules.AI
+	if ai == nil {
+		return nil
+	}
+
+	var signals []models.Signal
+
+	// Count AI signals by type.
+	aiSignalCounts := map[models.SignalType]int{}
+	for _, s := range snap.Signals {
+		if s.Category == models.CategoryAI {
+			aiSignalCounts[s.Type]++
+		}
+	}
+
+	// Rule: block on safety failure.
+	if ai.BlockOnSafetyFailure != nil && *ai.BlockOnSafetyFailure {
+		if count := aiSignalCounts["safetyFailure"]; count > 0 {
+			signals = append(signals, models.Signal{
+				Type:       "policyViolation",
+				Category:   models.CategoryGovernance,
+				Severity:   models.SeverityCritical,
+				Confidence: 1.0,
+				Explanation: fmt.Sprintf(
+					"AI policy requires zero safety failures, but %d safetyFailure signal(s) detected.",
+					count,
+				),
+				SuggestedAction: "Fix all safety evaluation failures before merging.",
+				Metadata: map[string]any{
+					"rule":  "block_on_safety_failure",
+					"count": count,
+				},
+			})
+		}
+	}
+
+	// Rule: block on accuracy regression above threshold.
+	if ai.BlockOnAccuracyRegression != nil {
+		threshold := *ai.BlockOnAccuracyRegression
+		count := aiSignalCounts["accuracyRegression"]
+		if count > threshold {
+			signals = append(signals, models.Signal{
+				Type:       "policyViolation",
+				Category:   models.CategoryGovernance,
+				Severity:   models.SeverityHigh,
+				Confidence: 1.0,
+				Explanation: fmt.Sprintf(
+					"AI policy allows at most %d accuracy regression(s), but %d detected.",
+					threshold, count,
+				),
+				SuggestedAction: "Investigate accuracy regressions and update baselines if intentional.",
+				Metadata: map[string]any{
+					"rule":      "block_on_accuracy_regression",
+					"threshold": threshold,
+					"count":     count,
+				},
+			})
+		}
+	}
+
+	// Rule: block on uncovered AI context surfaces.
+	if ai.BlockOnUncoveredContext != nil && *ai.BlockOnUncoveredContext {
+		coveredIDs := map[string]bool{}
+		for _, sc := range snap.Scenarios {
+			for _, sid := range sc.CoveredSurfaceIDs {
+				coveredIDs[sid] = true
+			}
+		}
+		uncoveredCount := 0
+		for _, cs := range snap.CodeSurfaces {
+			if cs.Kind == models.SurfaceContext && !coveredIDs[cs.SurfaceID] {
+				uncoveredCount++
+			}
+		}
+		if uncoveredCount > 0 {
+			signals = append(signals, models.Signal{
+				Type:       "policyViolation",
+				Category:   models.CategoryGovernance,
+				Severity:   models.SeverityHigh,
+				Confidence: 1.0,
+				Explanation: fmt.Sprintf(
+					"AI policy requires all context surfaces to have scenario coverage, but %d context surface(s) are uncovered.",
+					uncoveredCount,
+				),
+				SuggestedAction: "Add eval scenarios covering uncovered context surfaces.",
+				Metadata: map[string]any{
+					"rule":           "block_on_uncovered_context",
+					"uncoveredCount": uncoveredCount,
+				},
+			})
+		}
+	}
+
+	// Rule: warn on latency regression.
+	if ai.WarnOnLatencyRegression == nil || *ai.WarnOnLatencyRegression {
+		if count := aiSignalCounts["latencyRegression"]; count > 0 && ai != nil {
+			signals = append(signals, models.Signal{
+				Type:       "policyViolation",
+				Category:   models.CategoryGovernance,
+				Severity:   models.SeverityMedium,
+				Confidence: 1.0,
+				Explanation: fmt.Sprintf(
+					"AI policy warning: %d latency regression(s) detected.",
+					count,
+				),
+				SuggestedAction: "Review latency regressions — they may impact user experience.",
+				Metadata: map[string]any{
+					"rule":  "warn_on_latency_regression",
+					"count": count,
+				},
+			})
+		}
+	}
+
+	// Rule: warn on cost regression.
+	if ai.WarnOnCostRegression == nil || *ai.WarnOnCostRegression {
+		if count := aiSignalCounts["costRegression"]; count > 0 && ai != nil {
+			signals = append(signals, models.Signal{
+				Type:       "policyViolation",
+				Category:   models.CategoryGovernance,
+				Severity:   models.SeverityMedium,
+				Confidence: 1.0,
+				Explanation: fmt.Sprintf(
+					"AI policy warning: %d cost regression(s) detected.",
+					count,
+				),
+				SuggestedAction: "Review cost regressions — they may impact operational budget.",
+				Metadata: map[string]any{
+					"rule":  "warn_on_cost_regression",
+					"count": count,
+				},
+			})
+		}
+	}
+
+	// Rule: custom blocking signal types.
+	blockSet := map[string]bool{}
+	for _, t := range ai.BlockingSignalTypes {
+		blockSet[t] = true
+	}
+	for sigType, count := range aiSignalCounts {
+		if blockSet[string(sigType)] {
+			signals = append(signals, models.Signal{
+				Type:       "policyViolation",
+				Category:   models.CategoryGovernance,
+				Severity:   models.SeverityHigh,
+				Confidence: 1.0,
+				Explanation: fmt.Sprintf(
+					"AI policy blocks on %s: %d signal(s) detected.",
+					sigType, count,
+				),
+				SuggestedAction: fmt.Sprintf("Resolve all %s signals before merging.", sigType),
+				Metadata: map[string]any{
+					"rule":       "blocking_signal_types",
+					"signalType": string(sigType),
+					"count":      count,
+				},
+			})
+		}
+	}
+
+	return signals
 }
 
 func sizeAdjustedThreshold(baseMax, totalFiles int) int {

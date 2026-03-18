@@ -3,6 +3,7 @@ package reporting
 import (
 	"fmt"
 	"io"
+	"sort"
 	"strings"
 
 	"github.com/pmclSF/terrain/internal/impact"
@@ -43,9 +44,16 @@ func RenderImpactReport(w io.Writer, result *impact.ImpactResult) {
 		blank()
 	}
 
-	// Impacted tests count
-	if len(result.ImpactedTests) > 0 {
-		line("Impacted tests:          %d", len(result.ImpactedTests))
+	// Test counts
+	if len(result.ImpactedTests) > 0 || len(result.SelectedTests) > 0 {
+		if result.TotalTestCount > 0 {
+			line("Impacted tests:          %d of %d total", len(result.ImpactedTests), result.TotalTestCount)
+		} else {
+			line("Impacted tests:          %d", len(result.ImpactedTests))
+		}
+		if len(result.SelectedTests) > 0 && len(result.SelectedTests) != len(result.ImpactedTests) {
+			line("Selected for run:        %d", len(result.SelectedTests))
+		}
 	}
 
 	// Coverage confidence
@@ -103,6 +111,23 @@ func RenderImpactReport(w io.Writer, result *impact.ImpactResult) {
 
 	// Impacted scenarios (AI/eval)
 	if len(result.ImpactedScenarios) > 0 {
+		// Collect unique capabilities.
+		capSet := map[string]bool{}
+		for _, sc := range result.ImpactedScenarios {
+			if sc.Capability != "" {
+				capSet[sc.Capability] = true
+			}
+		}
+		if len(capSet) > 0 {
+			caps := make([]string, 0, len(capSet))
+			for c := range capSet {
+				caps = append(caps, c)
+			}
+			sort.Strings(caps)
+			line("Impacted AI capabilities: %s", strings.Join(caps, ", "))
+			blank()
+		}
+
 		line("Impacted Scenarios (%d)", len(result.ImpactedScenarios))
 		line(strings.Repeat("-", 60))
 		for _, sc := range result.ImpactedScenarios {
@@ -113,6 +138,9 @@ func RenderImpactReport(w io.Writer, result *impact.ImpactResult) {
 			label := sc.Name
 			if sc.Category != "" {
 				label += " (" + sc.Category + ")"
+			}
+			if sc.Capability != "" {
+				label += " → " + sc.Capability
 			}
 			line("  %s%s", label, conf)
 			line("    %s", sc.Relevance)

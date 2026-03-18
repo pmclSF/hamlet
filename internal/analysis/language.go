@@ -25,6 +25,9 @@ type LanguageAnalyzer interface {
 	// CountSnapshots returns the estimated number of snapshot assertions in src.
 	CountSnapshots(src string) int
 
+	// CountSkips returns the estimated number of statically skipped tests in src.
+	CountSkips(src string) int
+
 	// ExtractExports extracts exported code units from a source file.
 	ExtractExports(root, relPath string) []models.CodeUnit
 }
@@ -72,6 +75,10 @@ func (a *jsAnalyzer) CountSnapshots(src string) int {
 	return len(jsSnapshotPattern.FindAllString(src, -1))
 }
 
+func (a *jsAnalyzer) CountSkips(src string) int {
+	return len(jsSkipPattern.FindAllString(src, -1))
+}
+
 func (a *jsAnalyzer) ExtractExports(root, relPath string) []models.CodeUnit {
 	return extractJSExports(root, relPath)
 }
@@ -92,6 +99,10 @@ func (a *goAnalyzer) CountAssertions(src string) int {
 func (a *goAnalyzer) CountMocks(src string) int { return 0 }
 
 func (a *goAnalyzer) CountSnapshots(src string) int { return 0 }
+
+func (a *goAnalyzer) CountSkips(src string) int {
+	return len(goSkipPattern.FindAllString(src, -1))
+}
 
 func (a *goAnalyzer) ExtractExports(root, relPath string) []models.CodeUnit {
 	return extractGoExports(root, relPath)
@@ -116,6 +127,10 @@ func (a *pythonAnalyzer) CountMocks(src string) int {
 
 func (a *pythonAnalyzer) CountSnapshots(src string) int { return 0 }
 
+func (a *pythonAnalyzer) CountSkips(src string) int {
+	return len(pySkipPattern.FindAllString(src, -1))
+}
+
 func (a *pythonAnalyzer) ExtractExports(root, relPath string) []models.CodeUnit {
 	return extractPythonExports(root, relPath)
 }
@@ -138,6 +153,10 @@ func (a *javaAnalyzer) CountMocks(src string) int {
 }
 
 func (a *javaAnalyzer) CountSnapshots(src string) int { return 0 }
+
+func (a *javaAnalyzer) CountSkips(src string) int {
+	return len(javaSkipPattern.FindAllString(src, -1))
+}
 
 func (a *javaAnalyzer) ExtractExports(root, relPath string) []models.CodeUnit {
 	return extractJavaExports(root, relPath)

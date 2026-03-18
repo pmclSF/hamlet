@@ -13,7 +13,7 @@
     "skipBurden": "low",
     "flakeBurden": "low",
     "manualCoveragePresence": "none",
-    "graphDensity": 0.00746489283074649
+    "graphDensity": 0.0075283832189909534
   },
   "weakCoverageCount": 13
 }

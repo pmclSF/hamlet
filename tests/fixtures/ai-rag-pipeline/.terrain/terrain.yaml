@@ -1,0 +1,25 @@
+scenarios:
+  - name: retrieval-quality
+    category: accuracy
+    framework: custom
+    owner: ml-team
+    surfaces:
+      - "surface:src/rag/retriever.ts:retriever"
+      - "surface:src/rag/chunking.ts:chunkConfig"
+      - "surface:src/rag/reranker.ts:rerankerConfig"
+    path: tests/eval/retrieval/retrieval-quality.test.ts
+  - name: tool-safety
+    category: safety
+    framework: custom
+    owner: safety-team
+    surfaces:
+      - "surface:src/tools/search.ts:toolGuardrail"
+    path: tests/eval/safety/tool-safety.test.ts
+  - name: qa-accuracy
+    category: accuracy
+    framework: custom
+    owner: ml-team
+    surfaces:
+      - "surface:src/prompts/system.ts:buildPrompt"
+      - "surface:src/agent/router.ts:agentRouter"
+    path: tests/eval/accuracy/qa-accuracy.test.ts

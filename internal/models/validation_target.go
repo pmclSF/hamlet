@@ -102,6 +102,11 @@ type Scenario struct {
 	// Format: "env:<canonical-name>" matching Environment.EnvironmentID.
 	EnvironmentIDs []string `json:"environmentIds,omitempty"`
 
+	// Capability is the inferred business capability this scenario validates.
+	// Derived from folder path, scenario name, or surface context.
+	// Examples: "refund-explanation", "billing-lookup", "document-qa".
+	Capability string `json:"capability,omitempty"`
+
 	// Steps describes the ordered steps of the scenario, if applicable.
 	Steps []string `json:"steps,omitempty"`
 

@@ -30,7 +30,7 @@ func BenchmarkMetrics_LargeScale(b *testing.B) {
 
 func BenchmarkMeasurements_Minimal(b *testing.B) {
 	snap := MinimalSnapshot()
-	reg := measurement.DefaultRegistry()
+	reg, mErr := measurement.DefaultRegistry(); if mErr != nil { t.Fatal(mErr) }
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		reg.ComputeSnapshot(snap)
@@ -39,7 +39,7 @@ func BenchmarkMeasurements_Minimal(b *testing.B) {
 
 func BenchmarkMeasurements_LargeScale(b *testing.B) {
 	snap := LargeScaleSnapshot()
-	reg := measurement.DefaultRegistry()
+	reg, mErr := measurement.DefaultRegistry(); if mErr != nil { t.Fatal(mErr) }
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		reg.ComputeSnapshot(snap)
@@ -101,7 +101,7 @@ func BenchmarkFullPipeline_VeryLarge(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		snap.Risk = scoring.ComputeRisk(snap)
-		reg := measurement.DefaultRegistry()
+		reg, mErr := measurement.DefaultRegistry(); if mErr != nil { t.Fatal(mErr) }
 		reg.ComputeSnapshot(snap)
 		metrics.Derive(snap)
 		heatmap.Build(snap)

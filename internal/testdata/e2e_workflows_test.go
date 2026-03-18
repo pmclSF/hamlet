@@ -21,7 +21,7 @@ func TestE2E_PortfolioIntelligenceFlow(t *testing.T) {
 	t.Parallel()
 	snap := FlakyConcentratedSnapshot()
 	snap.Risk = scoring.ComputeRisk(snap)
-	measReg := measurement.DefaultRegistry()
+	measReg, mErr := measurement.DefaultRegistry(); if mErr != nil { t.Fatal(mErr) }
 	snap.Measurements = measReg.ComputeSnapshot(snap).ToModel()
 
 	// Run portfolio analysis.
@@ -111,7 +111,7 @@ func TestE2E_ImpactSelectTestsFlow(t *testing.T) {
 	snap, changedFiles := ChangeScopedPRSnapshot()
 
 	// Compute measurements for a full snapshot.
-	measReg := measurement.DefaultRegistry()
+	measReg, mErr := measurement.DefaultRegistry(); if mErr != nil { t.Fatal(mErr) }
 	snap.Measurements = measReg.ComputeSnapshot(snap).ToModel()
 
 	// Create scope and analyze.
@@ -164,7 +164,7 @@ func TestE2E_PostureExplainFlow(t *testing.T) {
 	snap := HealthyBalancedSnapshot()
 	snap.Risk = scoring.ComputeRisk(snap)
 
-	measReg := measurement.DefaultRegistry()
+	measReg, mErr := measurement.DefaultRegistry(); if mErr != nil { t.Fatal(mErr) }
 	snap.Measurements = measReg.ComputeSnapshot(snap).ToModel()
 
 	// Posture should have all 5 dimensions.
@@ -215,7 +215,7 @@ func TestE2E_MigrationReadinessFlow(t *testing.T) {
 func TestE2E_ViewModelDrillDowns(t *testing.T) {
 	t.Parallel()
 	snap := HealthyBalancedSnapshot()
-	measReg := measurement.DefaultRegistry()
+	measReg, mErr := measurement.DefaultRegistry(); if mErr != nil { t.Fatal(mErr) }
 	snap.Measurements = measReg.ComputeSnapshot(snap).ToModel()
 
 	scope := impact.ChangeScopeFromPaths(

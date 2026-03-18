@@ -406,3 +406,215 @@ func TestBuildNilSnapshot(t *testing.T) {
 		t.Errorf("expected 0 nodes, got %d", g.NodeCount())
 	}
 }
+
+// --- AI Graph Node Tests ---
+
+func TestBuildAISurfaceNodes_CreatesPromptAndDatasetNodes(t *testing.T) {
+	t.Parallel()
+	snap := &models.TestSuiteSnapshot{
+		CodeSurfaces: []models.CodeSurface{
+			{SurfaceID: "surface:src/p.ts:buildPrompt", Name: "buildPrompt", Path: "src/p.ts", Kind: models.SurfacePrompt},
+			{SurfaceID: "surface:src/p.ts:systemPrompt", Name: "systemPrompt", Path: "src/p.ts", Kind: models.SurfaceContext},
+			{SurfaceID: "surface:src/d.ts:dataset", Name: "dataset", Path: "src/d.ts", Kind: models.SurfaceDataset},
+			{SurfaceID: "surface:src/t.ts:toolSchema", Name: "toolSchema", Path: "src/t.ts", Kind: models.SurfaceToolDef},
+			{SurfaceID: "surface:src/r.ts:retriever", Name: "retriever", Path: "src/r.ts", Kind: models.SurfaceRetrieval},
+			{SurfaceID: "surface:src/a.ts:agentRouter", Name: "agentRouter", Path: "src/a.ts", Kind: models.SurfaceAgent},
+			{SurfaceID: "surface:src/e.ts:rubric", Name: "rubric", Path: "src/e.ts", Kind: models.SurfaceEvalDef},
+			{SurfaceID: "surface:src/f.ts:getUsers", Name: "getUsers", Path: "src/f.ts", Kind: models.SurfaceFunction},
+		},
+	}
+
+	g := Build(snap)
+
+	// AI surfaces should create typed nodes.
+	promptNode := g.Node("ai:surface:src/p.ts:buildPrompt")
+	if promptNode == nil {
+		t.Fatal("expected prompt AI node")
+	}
+	if promptNode.Type != NodePrompt {
+		t.Errorf("prompt node type = %s, want prompt", promptNode.Type)
+	}
+
+	contextNode := g.Node("ai:surface:src/p.ts:systemPrompt")
+	if contextNode == nil {
+		t.Fatal("expected context AI node")
+	}
+	if contextNode.Type != NodePrompt {
+		t.Errorf("context node type = %s, want prompt (contexts map to prompt)", contextNode.Type)
+	}
+
+	datasetNode := g.Node("ai:surface:src/d.ts:dataset")
+	if datasetNode == nil {
+		t.Fatal("expected dataset AI node")
+	}
+	if datasetNode.Type != NodeDataset {
+		t.Errorf("dataset node type = %s, want dataset", datasetNode.Type)
+	}
+
+	toolNode := g.Node("ai:surface:src/t.ts:toolSchema")
+	if toolNode == nil {
+		t.Fatal("expected tool AI node")
+	}
+	if toolNode.Type != NodeModel {
+		t.Errorf("tool node type = %s, want model (AI infra)", toolNode.Type)
+	}
+
+	evalNode := g.Node("ai:surface:src/e.ts:rubric")
+	if evalNode == nil {
+		t.Fatal("expected eval AI node")
+	}
+	if evalNode.Type != NodeEvalMetric {
+		t.Errorf("eval node type = %s, want eval_metric", evalNode.Type)
+	}
+
+	// Non-AI surface should NOT create an AI node.
+	funcNode := g.Node("ai:surface:src/f.ts:getUsers")
+	if funcNode != nil {
+		t.Error("non-AI surface should not create AI node")
+	}
+}
+
+func TestBuildAISurfaceNodes_LinksToScenarios(t *testing.T) {
+	t.Parallel()
+	snap := &models.TestSuiteSnapshot{
+		CodeSurfaces: []models.CodeSurface{
+			{SurfaceID: "surface:src/p.ts:buildPrompt", Name: "buildPrompt", Path: "src/p.ts", Kind: models.SurfacePrompt},
+		},
+		Scenarios: []models.Scenario{
+			{ScenarioID: "scenario:custom:safety", Name: "safety",
+				CoveredSurfaceIDs: []string{"surface:src/p.ts:buildPrompt"}},
+		},
+	}
+
+	g := Build(snap)
+
+	// Scenario → AI prompt node edge should exist.
+	edges := g.Outgoing("scenario:custom:safety")
+	found := false
+	for _, e := range edges {
+		if e.To == "ai:surface:src/p.ts:buildPrompt" && e.Type == EdgeUsesPrompt {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("expected EdgeUsesPrompt from scenario to AI prompt node")
+	}
+}
+
+func TestBuildCapabilities_CreatesNodes(t *testing.T) {
+	t.Parallel()
+	snap := &models.TestSuiteSnapshot{
+		Scenarios: []models.Scenario{
+			{ScenarioID: "sc:1", Name: "s1", Capability: "search"},
+			{ScenarioID: "sc:2", Name: "s2", Capability: "search"},
+			{ScenarioID: "sc:3", Name: "s3", Capability: "billing"},
+			{ScenarioID: "sc:4", Name: "s4"}, // no capability
+		},
+	}
+
+	g := Build(snap)
+
+	// Should have 2 capability nodes.
+	searchCap := g.Node("capability:search")
+	if searchCap == nil {
+		t.Fatal("expected capability:search node")
+	}
+	if searchCap.Type != NodeCapability {
+		t.Errorf("capability type = %s, want capability", searchCap.Type)
+	}
+
+	billingCap := g.Node("capability:billing")
+	if billingCap == nil {
+		t.Fatal("expected capability:billing node")
+	}
+
+	// sc:4 has no capability — no edge.
+	noCap := g.Node("capability:")
+	if noCap != nil {
+		t.Error("should not create empty capability node")
+	}
+}
+
+func TestBuildCapabilities_ScenarioEdges(t *testing.T) {
+	t.Parallel()
+	snap := &models.TestSuiteSnapshot{
+		Scenarios: []models.Scenario{
+			{ScenarioID: "sc:1", Name: "s1", Capability: "safety"},
+		},
+	}
+
+	g := Build(snap)
+
+	edges := g.Outgoing("sc:1")
+	found := false
+	for _, e := range edges {
+		if e.To == "capability:safety" && e.Type == EdgeScenarioValidatesCapability {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("expected EdgeScenarioValidatesCapability from scenario to capability")
+	}
+}
+
+func TestBuild_EdgeOrderDeterministic_ImportGraph(t *testing.T) {
+	t.Parallel()
+	// Build a snapshot with multiple import paths that exercise map iteration.
+	snap := &models.TestSuiteSnapshot{
+		TestFiles: []models.TestFile{
+			{Path: "tests/a.test.ts", Framework: "vitest"},
+			{Path: "tests/b.test.ts", Framework: "vitest"},
+			{Path: "tests/c.test.ts", Framework: "vitest"},
+		},
+		ImportGraph: map[string]map[string]bool{
+			"tests/a.test.ts": {"src/alpha.ts": true, "src/beta.ts": true, "src/gamma.ts": true},
+			"tests/b.test.ts": {"src/beta.ts": true, "src/delta.ts": true},
+			"tests/c.test.ts": {"src/gamma.ts": true, "src/alpha.ts": true},
+		},
+	}
+
+	// Build 10 times and verify identical edge lists.
+	var baseline []*Edge
+	for i := 0; i < 10; i++ {
+		g := Build(snap)
+		edges := g.Edges()
+		if baseline == nil {
+			baseline = edges
+			continue
+		}
+		if len(edges) != len(baseline) {
+			t.Fatalf("run %d: edge count %d != baseline %d", i, len(edges), len(baseline))
+		}
+		for j := range edges {
+			if edges[j].From != baseline[j].From || edges[j].To != baseline[j].To || edges[j].Type != baseline[j].Type {
+				t.Fatalf("run %d: edge %d differs: %s→%s(%s) vs %s→%s(%s)",
+					i, j, edges[j].From, edges[j].To, edges[j].Type,
+					baseline[j].From, baseline[j].To, baseline[j].Type)
+			}
+		}
+	}
+}
+
+func TestBuild_GraphDeterministic_WithAINodes(t *testing.T) {
+	t.Parallel()
+	snap := &models.TestSuiteSnapshot{
+		CodeSurfaces: []models.CodeSurface{
+			{SurfaceID: "s:p", Name: "prompt", Path: "src/p.ts", Kind: models.SurfacePrompt},
+			{SurfaceID: "s:d", Name: "dataset", Path: "src/d.ts", Kind: models.SurfaceDataset},
+		},
+		Scenarios: []models.Scenario{
+			{ScenarioID: "sc:1", Name: "s1", Capability: "search",
+				CoveredSurfaceIDs: []string{"s:p", "s:d"}},
+		},
+	}
+
+	g1 := Build(snap)
+	g2 := Build(snap)
+
+	if g1.NodeCount() != g2.NodeCount() {
+		t.Fatalf("non-deterministic node count: %d vs %d", g1.NodeCount(), g2.NodeCount())
+	}
+	if g1.EdgeCount() != g2.EdgeCount() {
+		t.Fatalf("non-deterministic edge count: %d vs %d", g1.EdgeCount(), g2.EdgeCount())
+	}
+}

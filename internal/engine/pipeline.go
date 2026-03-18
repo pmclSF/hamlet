@@ -18,6 +18,7 @@ import (
 	"github.com/pmclSF/terrain/internal/coverage"
 	"github.com/pmclSF/terrain/internal/gauntlet"
 	"github.com/pmclSF/terrain/internal/health"
+	"github.com/pmclSF/terrain/internal/logging"
 	"github.com/pmclSF/terrain/internal/measurement"
 	"github.com/pmclSF/terrain/internal/models"
 	"github.com/pmclSF/terrain/internal/ownership"
@@ -32,10 +33,12 @@ const DefaultEngineVersion = "dev"
 
 // PipelineResult holds the output of a full analysis pipeline run.
 type PipelineResult struct {
-	Snapshot         *models.TestSuiteSnapshot
-	HasPolicy        bool
-	DataCompleteness DataCompleteness
-	Diagnostics      *PipelineDiagnostics // populated when CollectDiagnostics is true
+	Snapshot          *models.TestSuiteSnapshot
+	HasPolicy         bool
+	DataCompleteness  DataCompleteness
+	Diagnostics       *PipelineDiagnostics  // populated when CollectDiagnostics is true
+	ArtifactDiscovery *ArtifactDiscovery    // populated when auto-discovery runs
+	DiscoveryMessages []string              // user-facing messages about auto-detected artifacts
 }
 
 // DataCompleteness captures which analysis inputs were present and usable.
@@ -118,6 +121,11 @@ func RunPipelineContext(ctx context.Context, root string, opts ...PipelineOption
 	if err := validatePipelineOptions(root, opt); err != nil {
 		return nil, err
 	}
+
+	// Auto-discover coverage and runtime artifacts when not explicitly provided.
+	discovery := DiscoverArtifacts(root)
+	discoveryMessages := ApplyDiscovery(&opt, discovery)
+
 	engineVersion := strings.TrimSpace(opt.EngineVersion)
 	if engineVersion == "" {
 		engineVersion = DefaultEngineVersion
@@ -139,6 +147,8 @@ func RunPipelineContext(ctx context.Context, root string, opts ...PipelineOption
 			opt.OnProgress(step, totalSteps, label)
 		}
 	}
+
+	logging.L().Debug("pipeline starting", "root", root, "coveragePath", opt.CoveragePath, "runtimePaths", len(opt.RuntimePaths))
 
 	progress(1, "Scanning repository")
 
@@ -202,7 +212,7 @@ func RunPipelineContext(ctx context.Context, root string, opts ...PipelineOption
 		}
 		stepStart := time.Now()
 		analyzer := analysis.New(root)
-		analyzedSnapshot, err := analyzer.Analyze()
+		analyzedSnapshot, err := analyzer.AnalyzeContext(taskCtx)
 		staticAnalysisDuration = time.Since(stepStart)
 		if err != nil {
 			return err
@@ -291,6 +301,13 @@ func RunPipelineContext(ctx context.Context, root string, opts ...PipelineOption
 		}
 	}
 
+	logging.L().Debug("static analysis complete",
+		"testFiles", len(snapshot.TestFiles),
+		"codeUnits", len(snapshot.CodeUnits),
+		"codeSurfaces", len(snapshot.CodeSurfaces),
+		"duration", staticAnalysisDuration,
+	)
+
 	// Step 2: Load policy config result and attach data-source metadata.
 	hasPolicy := policyResult != nil && policyResult.Found
 	var stepStart time.Time
@@ -321,7 +338,7 @@ func RunPipelineContext(ctx context.Context, root string, opts ...PipelineOption
 
 	// Step 2b: Load manual coverage and scenarios from terrain.yaml (if present).
 	if terrainCfgErr != nil {
-		fmt.Fprintf(os.Stderr, "warning: failed to load terrain.yaml: %v\n", terrainCfgErr)
+		logging.L().Warn("failed to load terrain.yaml", "error", terrainCfgErr)
 	} else if terrainCfg != nil {
 		mcArtifacts := terrainCfg.ToManualCoverageArtifacts()
 		if len(mcArtifacts) > 0 {
@@ -339,23 +356,34 @@ func RunPipelineContext(ctx context.Context, root string, opts ...PipelineOption
 	aiDetection := aidetect.Detect(root)
 	derivedScenarios := aidetect.DeriveScenarios(root, aiDetection, snapshot.CodeSurfaces, snapshot.TestFiles)
 	if len(derivedScenarios) > 0 {
-		// Merge with manual scenarios, avoiding duplicates by ID.
+		// Merge with manual scenarios, avoiding duplicates by ID or by
+		// name+path (manual YAML and auto-derived may have different IDs
+		// but represent the same logical scenario).
 		existingIDs := map[string]bool{}
+		existingKeys := map[string]bool{}
 		for _, s := range snapshot.Scenarios {
 			existingIDs[s.ScenarioID] = true
+			existingKeys[s.Name+"|"+s.Path] = true
 		}
 		for _, ds := range derivedScenarios {
-			if !existingIDs[ds.ScenarioID] {
-				snapshot.Scenarios = append(snapshot.Scenarios, ds)
+			if existingIDs[ds.ScenarioID] || existingKeys[ds.Name+"|"+ds.Path] {
+				continue
 			}
+			snapshot.Scenarios = append(snapshot.Scenarios, ds)
 		}
 	}
+
+	// Step 2d: Infer capabilities on scenarios from naming, paths, and surfaces.
+	analysis.InferCapabilities(snapshot.Scenarios, snapshot.CodeSurfaces)
+
+	// Step 2e: Infer AI capabilities from surface kinds (framework-agnostic).
+	snapshot.InferredCapabilities = analysis.InferAICapabilities(snapshot.CodeSurfaces, snapshot.Scenarios)
 
 	// Step 3: Runtime ingestion and health detection (optional).
 	if len(opt.RuntimePaths) > 0 {
 		stepStart = time.Now()
 		if runtimeIngestErr != nil {
-			fmt.Fprintf(os.Stderr, "warning: runtime ingestion failed: %v\n", runtimeIngestErr)
+			logging.L().Warn("runtime ingestion failed", "error", runtimeIngestErr)
 			snapshot.DataSources = append(snapshot.DataSources, models.DataSource{
 				Name:   "runtime",
 				Status: models.DataSourceError,
@@ -389,7 +417,7 @@ func RunPipelineContext(ctx context.Context, root string, opts ...PipelineOption
 	if opt.CoveragePath != "" {
 		stepStart = time.Now()
 		if coverageIngestErr != nil {
-			fmt.Fprintf(os.Stderr, "warning: coverage ingestion failed: %v\n", coverageIngestErr)
+			logging.L().Warn("coverage ingestion failed", "error", coverageIngestErr, "path", opt.CoveragePath)
 			snapshot.DataSources = append(snapshot.DataSources, models.DataSource{
 				Name:   "coverage",
 				Status: models.DataSourceError,
@@ -442,14 +470,19 @@ func RunPipelineContext(ctx context.Context, root string, opts ...PipelineOption
 	// Step 5: Build detector registry and run all detectors.
 	progress(2, "Building graph")
 	stepStart = time.Now()
-	registry := DefaultRegistry(Config{
+	registry, regErr := DefaultRegistry(Config{
 		RepoRoot:     root,
 		PolicyConfig: policyCfg,
 	})
+	if regErr != nil {
+		return nil, fmt.Errorf("initialize detector registry: %w", regErr)
+	}
 	signalsBefore := len(snapshot.Signals)
 	registry.Run(snapshot)
+	signalsProduced := len(snapshot.Signals) - signalsBefore
+	logging.L().Debug("signal detection complete", "detectors", registry.Len(), "signals", signalsProduced, "duration", time.Since(stepStart))
 	if diag != nil {
-		diag.add("signal-detection", time.Since(stepStart), len(snapshot.Signals)-signalsBefore)
+		diag.add("signal-detection", time.Since(stepStart), signalsProduced)
 	}
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -500,7 +533,10 @@ func RunPipelineContext(ctx context.Context, root string, opts ...PipelineOption
 
 	// Step 8: Compute measurement-layer posture.
 	stepStart = time.Now()
-	measRegistry := measurement.DefaultRegistry()
+	measRegistry, measRegErr := measurement.DefaultRegistry()
+	if measRegErr != nil {
+		return nil, fmt.Errorf("initialize measurement registry: %w", measRegErr)
+	}
 	measSnap := measRegistry.ComputeSnapshot(snapshot)
 	snapshot.Measurements = measSnap.ToModel()
 	snapshot.SnapshotMeta.MethodologyFingerprint = methodologyFingerprint(
@@ -534,15 +570,19 @@ func RunPipelineContext(ctx context.Context, root string, opts ...PipelineOption
 		return nil, fmt.Errorf("invalid snapshot produced by pipeline: %w", err)
 	}
 
+	totalDuration := time.Since(pipelineStart)
+	logging.L().Debug("pipeline complete", "duration", totalDuration, "signals", len(snapshot.Signals), "risk", len(snapshot.Risk))
 	if diag != nil {
-		diag.Total = time.Since(pipelineStart)
+		diag.Total = totalDuration
 	}
 
 	return &PipelineResult{
-		Snapshot:         snapshot,
-		HasPolicy:        hasPolicy,
-		DataCompleteness: deriveDataCompleteness(snapshot, opt, hasPolicy),
-		Diagnostics:      diag,
+		Snapshot:          snapshot,
+		HasPolicy:         hasPolicy,
+		DataCompleteness:  deriveDataCompleteness(snapshot, opt, hasPolicy),
+		Diagnostics:       diag,
+		ArtifactDiscovery: discovery,
+		DiscoveryMessages: discoveryMessages,
 	}, nil
 }
 
@@ -913,7 +953,7 @@ func ingestCoverageArtifacts(ctx context.Context, coveragePath string, runLabel 
 		if err != nil {
 			var warn *coverage.IngestWarning
 			if errors.As(err, &warn) {
-				fmt.Fprintf(os.Stderr, "warning: %v\n", warn)
+				logging.L().Warn("partial coverage ingest", "error", warn, "path", coveragePath)
 				err = nil
 			}
 		}

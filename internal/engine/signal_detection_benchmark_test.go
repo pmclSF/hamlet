@@ -8,7 +8,10 @@ import (
 
 func BenchmarkSignalDetection(b *testing.B) {
 	base := testdata.LargeScaleSnapshot()
-	registry := DefaultRegistry(Config{RepoRoot: "."})
+	registry, rErr := DefaultRegistry(Config{RepoRoot: "."})
+	if rErr != nil {
+		b.Fatal(rErr)
+	}
 
 	b.ReportAllocs()
 	b.ResetTimer()

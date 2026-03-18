@@ -49,6 +49,7 @@ const (
 	NodeManualCoverage   NodeType = "manual_coverage"
 	NodeSuite            NodeType = "suite"
 	NodeTestFile         NodeType = "test_file"
+	NodeFixture          NodeType = "fixture"
 )
 
 // --- Behavior topology nodes ---
@@ -84,7 +85,8 @@ const (
 //
 // Represent ownership, policy, and release governance.
 const (
-	NodeOwner NodeType = "owner"
+	NodeOwner      NodeType = "owner"
+	NodeCapability NodeType = "capability"
 )
 
 // NodeTypeFamily returns the family a node type belongs to.
@@ -96,7 +98,7 @@ func NodeTypeFamily(t NodeType) NodeFamily {
 
 	// Validation
 	case NodeValidationTarget, NodeTest, NodeScenario, NodeManualCoverage,
-		NodeSuite, NodeTestFile:
+		NodeSuite, NodeTestFile, NodeFixture:
 		return FamilyValidation
 
 	// Behavior
@@ -113,7 +115,7 @@ func NodeTypeFamily(t NodeType) NodeFamily {
 		return FamilyExecution
 
 	// Governance
-	case NodeOwner:
+	case NodeOwner, NodeCapability:
 		return FamilyGovernance
 
 	default:
@@ -130,7 +132,7 @@ func AllNodeTypes() map[NodeFamily][]NodeType {
 		},
 		FamilyValidation: {
 			NodeValidationTarget, NodeTest, NodeScenario, NodeManualCoverage,
-			NodeSuite, NodeTestFile,
+			NodeSuite, NodeTestFile, NodeFixture,
 		},
 		FamilyBehavior: {
 			NodeBehaviorSurface,

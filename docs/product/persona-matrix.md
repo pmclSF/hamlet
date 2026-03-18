@@ -108,7 +108,7 @@ terrain migration readiness
 |---|---|---|
 | Graph node population (Prompt, Dataset, Model, EvalMetric) | Partial | Types defined; not populated by inference yet |
 | AI run / record / baseline commands | Future | Scaffolded with doc references |
-| Eval framework auto-detection (deepeval, promptfoo, ragas) | Future | Must declare scenarios in YAML |
+| Eval framework auto-detection (12 frameworks) | **Implemented** | Config, deps, imports detected; scenarios auto-derived |
 | Eval-specific signals (accuracy_regression, safety_failure) | Future | No eval-aware signal detectors |
 | Model version tracking | Future | Cannot correlate evals to model versions |
 | Dataset drift detection | Future | Cannot detect training/eval data divergence |

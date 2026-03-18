@@ -171,7 +171,7 @@ func TestRegistry_Run(t *testing.T) {
 
 func TestDefaultRegistry_AllDimensionsCovered(t *testing.T) {
 	t.Parallel()
-	r := DefaultRegistry()
+	r, _ := DefaultRegistry()
 
 	dims := []Dimension{
 		DimensionHealth,
@@ -192,7 +192,7 @@ func TestDefaultRegistry_AllDimensionsCovered(t *testing.T) {
 func TestDefaultRegistry_NoDuplicateIDs(t *testing.T) {
 	t.Parallel()
 	// DefaultRegistry uses MustRegister which panics on duplicate IDs; if this runs, no duplicates.
-	r := DefaultRegistry()
+	r, _ := DefaultRegistry()
 	if r.Len() == 0 {
 		t.Error("default registry has no measurements")
 	}
@@ -607,7 +607,7 @@ func TestOperationalRiskShareFunctions(t *testing.T) {
 
 func TestComputeSnapshot_AllDimensionsPresent(t *testing.T) {
 	t.Parallel()
-	r := DefaultRegistry()
+	r, _ := DefaultRegistry()
 	snap := makeSnap(10,
 		sig(signals.SignalFlakyTest),
 		sig(signals.SignalWeakAssertion),
@@ -626,7 +626,7 @@ func TestComputeSnapshot_AllDimensionsPresent(t *testing.T) {
 
 func TestPosture_StrongWhenClean(t *testing.T) {
 	t.Parallel()
-	r := DefaultRegistry()
+	r, _ := DefaultRegistry()
 	snap := makeSnap(10)
 
 	ms := r.ComputeSnapshot(snap)
@@ -649,7 +649,7 @@ func TestPosture_WeakWhenManyIssues(t *testing.T) {
 	}
 	snap := makeSnap(10, sigs...)
 
-	r := DefaultRegistry()
+	r, _ := DefaultRegistry()
 	ms := r.ComputeSnapshot(snap)
 
 	for _, p := range ms.Posture {
@@ -712,7 +712,7 @@ func TestFullPipeline_EndToEnd(t *testing.T) {
 		},
 	}
 
-	r := DefaultRegistry()
+	r, _ := DefaultRegistry()
 	ms := r.ComputeSnapshot(snap)
 
 	// Every measurement should have a non-empty ID.

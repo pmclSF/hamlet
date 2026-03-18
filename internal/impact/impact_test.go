@@ -1485,3 +1485,526 @@ func TestFindImpactedScenarios_Deterministic(t *testing.T) {
 		t.Errorf("expected scenario:a first, got %s", r1[0].ScenarioID)
 	}
 }
+
+func TestFindProtectionGaps_DeduplicatesByUnitAndType(t *testing.T) {
+	t.Parallel()
+	// Two impacted units with the same path but different UnitIDs — symbol-level
+	// dedup produces one gap per code unit, not per file.
+	units := []ImpactedCodeUnit{
+		{UnitID: "u1", Name: "login", Path: "src/auth.ts", Exported: true, ProtectionStatus: ProtectionNone},
+		{UnitID: "u2", Name: "register", Path: "src/auth.ts", Exported: true, ProtectionStatus: ProtectionNone},
+	}
+
+	gaps := findProtectionGaps(units, nil, &models.TestSuiteSnapshot{})
+	// Each unit has a distinct UnitID → separate gaps at symbol granularity.
+	count := 0
+	for _, g := range gaps {
+		if g.GapType == "untested_export" {
+			count++
+		}
+	}
+	if count != 2 {
+		t.Errorf("expected 2 untested_export gaps (symbol-level dedup), got %d (total gaps: %d)", count, len(gaps))
+	}
+
+	// Verify CodeUnitIDs are distinct.
+	ids := map[string]bool{}
+	for _, g := range gaps {
+		if g.GapType == "untested_export" {
+			ids[g.CodeUnitID] = true
+		}
+	}
+	if len(ids) != 2 {
+		t.Errorf("expected 2 distinct CodeUnitIDs, got %d", len(ids))
+	}
+}
+
+func TestFindProtectionGaps_SameUnitDeduplicates(t *testing.T) {
+	t.Parallel()
+	// Same UnitID appearing twice (e.g., from overlapping detection) should dedup to 1.
+	units := []ImpactedCodeUnit{
+		{UnitID: "u1", Name: "login", Path: "src/auth.ts", Exported: true, ProtectionStatus: ProtectionNone},
+		{UnitID: "u1", Name: "login", Path: "src/auth.ts", Exported: true, ProtectionStatus: ProtectionNone},
+	}
+
+	gaps := findProtectionGaps(units, nil, &models.TestSuiteSnapshot{})
+	count := 0
+	for _, g := range gaps {
+		if g.GapType == "untested_export" {
+			count++
+		}
+	}
+	if count != 1 {
+		t.Errorf("expected 1 gap for duplicate UnitID, got %d", count)
+	}
+}
+
+func TestFindProtectionGaps_DifferentPathsPreserved(t *testing.T) {
+	t.Parallel()
+	units := []ImpactedCodeUnit{
+		{UnitID: "u1", Name: "login", Path: "src/auth.ts", Exported: true, ProtectionStatus: ProtectionNone},
+		{UnitID: "u2", Name: "pay", Path: "src/billing.ts", Exported: true, ProtectionStatus: ProtectionNone},
+	}
+
+	gaps := findProtectionGaps(units, nil, &models.TestSuiteSnapshot{})
+	exportCount := 0
+	for _, g := range gaps {
+		if g.GapType == "untested_export" {
+			exportCount++
+		}
+	}
+	if exportCount != 2 {
+		t.Errorf("expected 2 untested_export gaps for different paths, got %d", exportCount)
+	}
+}
+
+func TestAIProtectionGap_UncoveredPrompt(t *testing.T) {
+	t.Parallel()
+	snap := &models.TestSuiteSnapshot{
+		CodeSurfaces: []models.CodeSurface{
+			{SurfaceID: "s:prompt", Name: "buildPrompt", Path: "src/prompts.ts", Kind: models.SurfacePrompt},
+		},
+		// No scenarios cover this surface.
+	}
+	scope := ChangeScopeFromPaths([]string{"src/prompts.ts"}, ChangeModified)
+	result := Analyze(scope, snap)
+
+	found := false
+	for _, g := range result.ProtectionGaps {
+		if g.GapType == "uncovered_prompt" {
+			found = true
+			if g.Severity != "high" {
+				t.Errorf("prompt gap severity = %s, want high", g.Severity)
+			}
+		}
+	}
+	if !found {
+		t.Error("expected uncovered_prompt protection gap")
+	}
+}
+
+func TestAIProtectionGap_UncoveredContext(t *testing.T) {
+	t.Parallel()
+	snap := &models.TestSuiteSnapshot{
+		CodeSurfaces: []models.CodeSurface{
+			{SurfaceID: "s:ctx", Name: "systemPrompt", Path: "src/context.ts", Kind: models.SurfaceContext},
+		},
+	}
+	scope := ChangeScopeFromPaths([]string{"src/context.ts"}, ChangeModified)
+	result := Analyze(scope, snap)
+
+	found := false
+	for _, g := range result.ProtectionGaps {
+		if g.GapType == "uncovered_context" {
+			found = true
+			if g.Severity != "high" {
+				t.Errorf("context gap severity = %s, want high", g.Severity)
+			}
+		}
+	}
+	if !found {
+		t.Error("expected uncovered_context protection gap")
+	}
+}
+
+func TestAIProtectionGap_UncoveredRetrieval(t *testing.T) {
+	t.Parallel()
+	snap := &models.TestSuiteSnapshot{
+		CodeSurfaces: []models.CodeSurface{
+			{SurfaceID: "s:rag", Name: "chunkConfig", Path: "src/rag.ts", Kind: models.SurfaceRetrieval},
+		},
+	}
+	scope := ChangeScopeFromPaths([]string{"src/rag.ts"}, ChangeModified)
+	result := Analyze(scope, snap)
+
+	found := false
+	for _, g := range result.ProtectionGaps {
+		if g.GapType == "uncovered_retrieval" {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("expected uncovered_retrieval protection gap")
+	}
+}
+
+func TestAIProtectionGap_UncoveredTool(t *testing.T) {
+	t.Parallel()
+	snap := &models.TestSuiteSnapshot{
+		CodeSurfaces: []models.CodeSurface{
+			{SurfaceID: "s:tool", Name: "searchTool", Path: "src/tools.ts", Kind: models.SurfaceToolDef},
+		},
+	}
+	scope := ChangeScopeFromPaths([]string{"src/tools.ts"}, ChangeModified)
+	result := Analyze(scope, snap)
+
+	found := false
+	for _, g := range result.ProtectionGaps {
+		if g.GapType == "uncovered_tool" {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("expected uncovered_tool protection gap")
+	}
+}
+
+func TestAIProtectionGap_CoveredSurfaceNoGap(t *testing.T) {
+	t.Parallel()
+	snap := &models.TestSuiteSnapshot{
+		CodeSurfaces: []models.CodeSurface{
+			{SurfaceID: "s:prompt", Name: "buildPrompt", Path: "src/prompts.ts", Kind: models.SurfacePrompt},
+		},
+		Scenarios: []models.Scenario{
+			{ScenarioID: "sc:1", CoveredSurfaceIDs: []string{"s:prompt"}},
+		},
+	}
+	scope := ChangeScopeFromPaths([]string{"src/prompts.ts"}, ChangeModified)
+	result := Analyze(scope, snap)
+
+	for _, g := range result.ProtectionGaps {
+		if g.GapType == "uncovered_prompt" {
+			t.Error("should NOT have uncovered_prompt gap when scenario covers the surface")
+		}
+	}
+}
+
+func TestAIProtectionGap_WeakCapability(t *testing.T) {
+	t.Parallel()
+	snap := &models.TestSuiteSnapshot{
+		CodeSurfaces: []models.CodeSurface{
+			{SurfaceID: "s:p1", Name: "prompt1", Path: "src/a.ts", Kind: models.SurfacePrompt},
+		},
+		Scenarios: []models.Scenario{
+			{ScenarioID: "sc:1", Name: "s1", Capability: "search",
+				CoveredSurfaceIDs: []string{"s:p1"}},
+			{ScenarioID: "sc:2", Name: "s2", Capability: "search",
+				CoveredSurfaceIDs: []string{"s:other"}},
+			{ScenarioID: "sc:3", Name: "s3", Capability: "search",
+				CoveredSurfaceIDs: []string{"s:other2"}},
+		},
+	}
+	scope := ChangeScopeFromPaths([]string{"src/a.ts"}, ChangeModified)
+	result := Analyze(scope, snap)
+
+	// 1 of 3 scenarios impacted = 33% < 50% → weak capability.
+	found := false
+	for _, g := range result.ProtectionGaps {
+		if g.GapType == "weak_capability_coverage" {
+			found = true
+			if !strings.Contains(g.Explanation, "search") {
+				t.Errorf("expected 'search' in explanation, got: %s", g.Explanation)
+			}
+		}
+	}
+	if !found {
+		t.Error("expected weak_capability_coverage protection gap")
+	}
+}
+
+func TestAnalyze_ToolSchemaChangeImpactsAgentScenario(t *testing.T) {
+	t.Parallel()
+	snap := &models.TestSuiteSnapshot{
+		CodeSurfaces: []models.CodeSurface{
+			{SurfaceID: "s:tool", Name: "searchToolSchema", Path: "src/tools/search.ts", Kind: models.SurfaceToolDef},
+			{SurfaceID: "s:agent", Name: "agentRouter", Path: "src/agent.ts", Kind: models.SurfaceAgent},
+		},
+		Scenarios: []models.Scenario{
+			{
+				ScenarioID:        "sc:agent-tool-use",
+				Name:              "agent-tool-use",
+				Category:          "accuracy",
+				CoveredSurfaceIDs: []string{"s:tool", "s:agent"},
+			},
+		},
+	}
+	// Change tool schema → should impact the agent scenario.
+	scope := ChangeScopeFromPaths([]string{"src/tools/search.ts"}, ChangeModified)
+	result := Analyze(scope, snap)
+
+	if len(result.ImpactedScenarios) != 1 {
+		t.Fatalf("expected 1 impacted scenario, got %d", len(result.ImpactedScenarios))
+	}
+	if !strings.Contains(result.ImpactedScenarios[0].Relevance, "tool schema changed") {
+		t.Errorf("expected 'tool schema changed' in relevance, got: %s", result.ImpactedScenarios[0].Relevance)
+	}
+}
+
+func TestAnalyze_ParserChangeImpactsStructuredOutput(t *testing.T) {
+	t.Parallel()
+	snap := &models.TestSuiteSnapshot{
+		CodeSurfaces: []models.CodeSurface{
+			{SurfaceID: "s:parser", Name: "outputSchema", Path: "src/parsers/output.ts", Kind: models.SurfaceToolDef},
+		},
+		Scenarios: []models.Scenario{
+			{
+				ScenarioID:        "sc:structured-output",
+				Name:              "structured-output-validation",
+				Category:          "accuracy",
+				CoveredSurfaceIDs: []string{"s:parser"},
+			},
+		},
+	}
+	scope := ChangeScopeFromPaths([]string{"src/parsers/output.ts"}, ChangeModified)
+	result := Analyze(scope, snap)
+
+	if len(result.ImpactedScenarios) != 1 {
+		t.Fatalf("expected 1 impacted scenario, got %d", len(result.ImpactedScenarios))
+	}
+	if !strings.Contains(result.ImpactedScenarios[0].Relevance, "tool schema changed") {
+		t.Errorf("expected tool schema in relevance (parser is SurfaceToolDef), got: %s",
+			result.ImpactedScenarios[0].Relevance)
+	}
+}
+
+func TestAnalyze_FallbackChangeImpactsResilience(t *testing.T) {
+	t.Parallel()
+	snap := &models.TestSuiteSnapshot{
+		CodeSurfaces: []models.CodeSurface{
+			{SurfaceID: "s:fallback", Name: "fallbackStrategy", Path: "src/agent/fallback.ts", Kind: models.SurfaceAgent},
+			{SurfaceID: "s:retry", Name: "retryPolicy", Path: "src/agent/retry.ts", Kind: models.SurfaceAgent},
+		},
+		Scenarios: []models.Scenario{
+			{
+				ScenarioID:        "sc:resilience",
+				Name:              "agent-resilience",
+				Category:          "reliability",
+				CoveredSurfaceIDs: []string{"s:fallback", "s:retry"},
+			},
+		},
+	}
+	// Change fallback strategy → should impact resilience scenario.
+	scope := ChangeScopeFromPaths([]string{"src/agent/fallback.ts"}, ChangeModified)
+	result := Analyze(scope, snap)
+
+	if len(result.ImpactedScenarios) != 1 {
+		t.Fatalf("expected 1 impacted scenario, got %d", len(result.ImpactedScenarios))
+	}
+	if !strings.Contains(result.ImpactedScenarios[0].Relevance, "agent config changed") {
+		t.Errorf("expected 'agent config changed' in relevance, got: %s", result.ImpactedScenarios[0].Relevance)
+	}
+}
+
+func TestAnalyze_ToolGuardrailDetectedAsToolDef(t *testing.T) {
+	t.Parallel()
+	// Verify that tool guardrail patterns are detected as SurfaceToolDef.
+	root := t.TempDir()
+	os.MkdirAll(filepath.Join(root, "src"), 0o755)
+	os.WriteFile(filepath.Join(root, "src", "guards.ts"), []byte(`
+export const toolGuardrail = { maxCalls: 5, allowedTools: ["search", "lookup"] };
+export function toolFilter(tool, context) { return tool.allowed; }
+`), 0o644)
+
+	snap := &models.TestSuiteSnapshot{
+		CodeSurfaces: []models.CodeSurface{
+			{SurfaceID: "s:guard", Name: "toolGuardrail", Path: "src/guards.ts", Kind: models.SurfaceToolDef},
+		},
+		Scenarios: []models.Scenario{
+			{ScenarioID: "sc:safe-tools", Name: "safe-tool-invocation",
+				CoveredSurfaceIDs: []string{"s:guard"}},
+		},
+	}
+	scope := ChangeScopeFromPaths([]string{"src/guards.ts"}, ChangeModified)
+	result := Analyze(scope, snap)
+
+	if len(result.ImpactedScenarios) != 1 {
+		t.Fatalf("expected 1 impacted scenario, got %d", len(result.ImpactedScenarios))
+	}
+}
+
+func TestAnalyze_ContextChangeTriggersScenario(t *testing.T) {
+	t.Parallel()
+	snap := &models.TestSuiteSnapshot{
+		CodeSurfaces: []models.CodeSurface{
+			{SurfaceID: "surface:src/context.ts:systemPrompt", Name: "systemPrompt", Path: "src/context.ts", Kind: models.SurfaceContext},
+			{SurfaceID: "surface:src/context.ts:safetyOverlay", Name: "safetyOverlay", Path: "src/context.ts", Kind: models.SurfaceContext},
+		},
+		Scenarios: []models.Scenario{
+			{
+				ScenarioID:        "scenario:custom:guardrail",
+				Name:              "refund-escalation-guardrail",
+				Category:          "safety",
+				CoveredSurfaceIDs: []string{"surface:src/context.ts:systemPrompt", "surface:src/context.ts:safetyOverlay"},
+			},
+		},
+	}
+	scope := ChangeScopeFromPaths([]string{"src/context.ts"}, ChangeModified)
+	result := Analyze(scope, snap)
+
+	if len(result.ImpactedScenarios) != 1 {
+		t.Fatalf("expected 1 impacted scenario, got %d", len(result.ImpactedScenarios))
+	}
+	sc := result.ImpactedScenarios[0]
+	if sc.Name != "refund-escalation-guardrail" {
+		t.Errorf("wrong scenario: %s", sc.Name)
+	}
+	// Relevance should mention "context template changed".
+	if !strings.Contains(sc.Relevance, "context template changed") {
+		t.Errorf("expected 'context template changed' in relevance, got: %s", sc.Relevance)
+	}
+	if !strings.Contains(sc.Relevance, "systemPrompt") {
+		t.Errorf("expected surface name in relevance, got: %s", sc.Relevance)
+	}
+}
+
+func TestAnalyze_NonAIChangeDoesNotTriggerScenarios(t *testing.T) {
+	t.Parallel()
+	snap := &models.TestSuiteSnapshot{
+		CodeSurfaces: []models.CodeSurface{
+			{SurfaceID: "surface:src/utils.ts:formatDate", Name: "formatDate", Path: "src/utils.ts", Kind: models.SurfaceFunction},
+			{SurfaceID: "surface:src/ai/prompt.ts:buildPrompt", Name: "buildPrompt", Path: "src/ai/prompt.ts", Kind: models.SurfacePrompt},
+		},
+		Scenarios: []models.Scenario{
+			{
+				ScenarioID:        "scenario:custom:qa-accuracy",
+				Name:              "qa-accuracy",
+				CoveredSurfaceIDs: []string{"surface:src/ai/prompt.ts:buildPrompt"},
+			},
+		},
+	}
+	// Change utils.ts (non-AI) — should NOT trigger the AI scenario.
+	scope := ChangeScopeFromPaths([]string{"src/utils.ts"}, ChangeModified)
+	result := Analyze(scope, snap)
+
+	if len(result.ImpactedScenarios) != 0 {
+		t.Errorf("expected 0 impacted scenarios for non-AI change, got %d: %v",
+			len(result.ImpactedScenarios), result.ImpactedScenarios)
+	}
+}
+
+func TestAnalyze_MultipleAISurfaceChangesMerge(t *testing.T) {
+	t.Parallel()
+	snap := &models.TestSuiteSnapshot{
+		CodeSurfaces: []models.CodeSurface{
+			{SurfaceID: "surface:src/rag/chunking.ts:chunkConfig", Name: "chunkConfig", Path: "src/rag/chunking.ts", Kind: models.SurfaceRetrieval},
+			{SurfaceID: "surface:src/ai/prompt.ts:searchPrompt", Name: "searchPrompt", Path: "src/ai/prompt.ts", Kind: models.SurfacePrompt},
+			{SurfaceID: "surface:src/tools/search.ts:toolSchema", Name: "toolSchema", Path: "src/tools/search.ts", Kind: models.SurfaceToolDef},
+		},
+		Scenarios: []models.Scenario{
+			{
+				ScenarioID:        "scenario:custom:enterprise-search",
+				Name:              "enterprise-search-citations",
+				CoveredSurfaceIDs: []string{
+					"surface:src/rag/chunking.ts:chunkConfig",
+					"surface:src/ai/prompt.ts:searchPrompt",
+					"surface:src/tools/search.ts:toolSchema",
+				},
+			},
+		},
+	}
+	// Change all 3 files.
+	scope := ChangeScopeFromPaths([]string{"src/rag/chunking.ts", "src/ai/prompt.ts", "src/tools/search.ts"}, ChangeModified)
+	result := Analyze(scope, snap)
+
+	if len(result.ImpactedScenarios) != 1 {
+		t.Fatalf("expected 1 impacted scenario, got %d", len(result.ImpactedScenarios))
+	}
+	rel := result.ImpactedScenarios[0].Relevance
+	// Should mention all 3 kinds.
+	if !strings.Contains(rel, "prompt changed") {
+		t.Errorf("expected 'prompt changed' in relevance, got: %s", rel)
+	}
+	if !strings.Contains(rel, "retrieval config changed") {
+		t.Errorf("expected 'retrieval config changed' in relevance, got: %s", rel)
+	}
+	if !strings.Contains(rel, "tool schema changed") {
+		t.Errorf("expected 'tool schema changed' in relevance, got: %s", rel)
+	}
+}
+
+func TestAnalyze_RAGSurfaceChangeImpactsScenarios(t *testing.T) {
+	t.Parallel()
+	snap := &models.TestSuiteSnapshot{
+		CodeSurfaces: []models.CodeSurface{
+			{SurfaceID: "surface:src/rag/chunking.ts:chunkConfig", Name: "chunkConfig", Path: "src/rag/chunking.ts", Kind: models.SurfaceRetrieval},
+			{SurfaceID: "surface:src/rag/reranker.ts:rerankerConfig", Name: "rerankerConfig", Path: "src/rag/reranker.ts", Kind: models.SurfaceRetrieval},
+		},
+		Scenarios: []models.Scenario{
+			{
+				ScenarioID:        "scenario:custom:retrieval-quality",
+				Name:              "retrieval-quality",
+				Category:          "accuracy",
+				CoveredSurfaceIDs: []string{"surface:src/rag/chunking.ts:chunkConfig", "surface:src/rag/reranker.ts:rerankerConfig"},
+			},
+			{
+				ScenarioID:        "scenario:custom:citation-completeness",
+				Name:              "citation-completeness",
+				Category:          "accuracy",
+				CoveredSurfaceIDs: []string{"surface:src/rag/reranker.ts:rerankerConfig"},
+			},
+		},
+	}
+
+	// Change chunk config → should impact retrieval-quality but NOT citation-completeness.
+	scope := ChangeScopeFromPaths([]string{"src/rag/chunking.ts"}, ChangeModified)
+	result := Analyze(scope, snap)
+	if len(result.ImpactedScenarios) != 1 {
+		t.Fatalf("expected 1 impacted scenario from chunk change, got %d", len(result.ImpactedScenarios))
+	}
+	if result.ImpactedScenarios[0].Name != "retrieval-quality" {
+		t.Errorf("expected retrieval-quality, got %s", result.ImpactedScenarios[0].Name)
+	}
+
+	// Change reranker → should impact BOTH scenarios.
+	scope2 := ChangeScopeFromPaths([]string{"src/rag/reranker.ts"}, ChangeModified)
+	result2 := Analyze(scope2, snap)
+	if len(result2.ImpactedScenarios) != 2 {
+		t.Fatalf("expected 2 impacted scenarios from reranker change, got %d", len(result2.ImpactedScenarios))
+	}
+}
+
+func TestAnalyze_ContextSurfaceChangeImpactsScenarios(t *testing.T) {
+	t.Parallel()
+	snap := &models.TestSuiteSnapshot{
+		CodeSurfaces: []models.CodeSurface{
+			{SurfaceID: "surface:src/prompts.ts:systemPrompt", Name: "systemPrompt", Path: "src/prompts.ts", Kind: models.SurfaceContext},
+			{SurfaceID: "surface:src/prompts.ts:buildPrompt", Name: "buildPrompt", Path: "src/prompts.ts", Kind: models.SurfacePrompt},
+		},
+		Scenarios: []models.Scenario{
+			{
+				ScenarioID:        "scenario:custom:safety",
+				Name:              "safety",
+				Category:          "safety",
+				CoveredSurfaceIDs: []string{"surface:src/prompts.ts:systemPrompt"},
+			},
+		},
+	}
+	scope := ChangeScopeFromPaths([]string{"src/prompts.ts"}, ChangeModified)
+	result := Analyze(scope, snap)
+
+	// Context surface change should impact the scenario.
+	if len(result.ImpactedScenarios) != 1 {
+		t.Fatalf("expected 1 impacted scenario from context change, got %d", len(result.ImpactedScenarios))
+	}
+	if result.ImpactedScenarios[0].Name != "safety" {
+		t.Errorf("expected impacted scenario 'safety', got %q", result.ImpactedScenarios[0].Name)
+	}
+	// Should have exact confidence (scenario explicitly covers this surface).
+	if result.ImpactedScenarios[0].ImpactConfidence != ConfidenceExact {
+		t.Errorf("expected exact confidence, got %s", result.ImpactedScenarios[0].ImpactConfidence)
+	}
+}
+
+func TestAnalyze_DeterministicProtectionGapOrder(t *testing.T) {
+	t.Parallel()
+	snap := &models.TestSuiteSnapshot{
+		CodeUnits: []models.CodeUnit{
+			{Name: "alpha", Path: "src/alpha.ts", Exported: true},
+			{Name: "beta", Path: "src/beta.ts", Exported: true},
+			{Name: "gamma", Path: "src/gamma.ts", Exported: true},
+		},
+	}
+	scope := ChangeScopeFromPaths([]string{"src/alpha.ts", "src/beta.ts", "src/gamma.ts"}, ChangeModified)
+
+	r1 := Analyze(scope, snap)
+	r2 := Analyze(scope, snap)
+
+	if len(r1.ProtectionGaps) != len(r2.ProtectionGaps) {
+		t.Fatalf("gap count differs: %d vs %d", len(r1.ProtectionGaps), len(r2.ProtectionGaps))
+	}
+	for i := range r1.ProtectionGaps {
+		if r1.ProtectionGaps[i].Path != r2.ProtectionGaps[i].Path {
+			t.Errorf("gap %d path differs: %s vs %s", i, r1.ProtectionGaps[i].Path, r2.ProtectionGaps[i].Path)
+		}
+	}
+}

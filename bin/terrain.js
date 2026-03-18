@@ -1126,27 +1126,28 @@ async function convertAction(source, options) {
 
 // ── Program setup ────────────────────────────────────────────────────
 program
+  .name('terrain-convert')
   .version(version)
   .description(
-    'Terrain: Signal-first test intelligence platform with legacy multi-framework converter.'
+    'Terrain test framework converter — migrate tests between 16 frameworks across JavaScript, Python, and Java.'
   )
   .addHelpText(
     'after',
     `
 Shorthands:
   50 shorthand aliases are available (e.g. cy2pw, jest2vt, pyt2ut).
-  Run ${chalk.cyan('terrain shorthands')} to see them all.
+  Run ${chalk.cyan('terrain-convert shorthands')} to see them all.
 
 Examples:
-  $ terrain convert src/tests/ --from jest --to vitest -o converted/
-  $ terrain jest2vt auth.test.js -o converted/
-  $ terrain migrate tests/ --from jest --to vitest -o out/
-  $ terrain estimate tests/ --from mocha --to jest
-  $ terrain analyze src/ --json
-  $ terrain detect src/auth.test.js
-  $ terrain doctor
-  $ terrain serve --port 3000
-  $ terrain ui`
+  $ terrain-convert convert src/tests/ --from jest --to vitest -o converted/
+  $ terrain-convert jest2vt auth.test.js -o converted/
+  $ terrain-convert migrate tests/ --from jest --to vitest -o out/
+  $ terrain-convert estimate tests/ --from mocha --to jest
+  $ terrain-convert detect src/auth.test.js
+  $ terrain-convert doctor
+
+For test system intelligence (analyze, insights, impact, explain):
+  Install the Go CLI: go install github.com/pmclSF/terrain/cmd/terrain@latest`
   )
   .option('--verbose', 'Show detailed output for all commands')
   .option('--debug', 'Show stack traces and internal debug info');

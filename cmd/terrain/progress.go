@@ -1,10 +1,13 @@
 package main
 
 import (
+	"context"
 	"fmt"
+	"log/slog"
 	"os"
 
 	"github.com/pmclSF/terrain/internal/engine"
+	"github.com/pmclSF/terrain/internal/logging"
 )
 
 // isInteractive returns true if stderr is a terminal (TTY).
@@ -19,7 +22,8 @@ func isInteractive() bool {
 }
 
 // newProgressFunc returns a ProgressFunc appropriate for the current output
-// mode. Returns nil if progress should be suppressed (JSON mode, non-TTY).
+// mode. Returns nil if progress should be suppressed (JSON mode, non-TTY,
+// or --log-level quiet).
 //
 // In interactive mode (TTY), progress is rendered as step-based lines:
 //
@@ -33,6 +37,13 @@ func isInteractive() bool {
 func newProgressFunc(jsonOutput bool) engine.ProgressFunc {
 	if jsonOutput || !isInteractive() {
 		return nil
+	}
+	// In debug mode, emit progress as structured log lines instead of
+	// carriage-return overwrite (avoids garbled output with other log lines).
+	if logging.L().Handler().Enabled(context.Background(), slog.LevelDebug) {
+		return func(step, total int, label string) {
+			logging.L().Debug("pipeline progress", "step", step, "total", total, "label", label)
+		}
 	}
 	return func(step, total int, label string) {
 		if step < total {

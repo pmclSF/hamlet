@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -269,7 +271,7 @@ func TestAIWorkflow_AIListShowsScenarios(t *testing.T) {
 	}
 
 	// runAIList should succeed and show scenarios.
-	if err := runAIList(root, false); err != nil {
+	if err := runAIList(root, false, false); err != nil {
 		t.Fatalf("runAIList: %v", err)
 	}
 }
@@ -320,4 +322,304 @@ func TestAIWorkflow_FullChain_Deterministic(t *testing.T) {
 	if len(snap1.CodeSurfaces) != len(snap2.CodeSurfaces) {
 		t.Fatalf("non-deterministic surface count: %d vs %d", len(snap1.CodeSurfaces), len(snap2.CodeSurfaces))
 	}
+}
+
+func TestAIWorkflow_InventoryJSON_Structure(t *testing.T) {
+	// Not parallel: captures os.Stdout.
+	root := aiFixtureRoot(t)
+	if _, err := os.Stat(root); os.IsNotExist(err) {
+		t.Skip("ai-eval-suite fixture not found")
+	}
+
+	// Capture JSON output.
+	old := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	err := runAIList(root, true, false)
+	w.Close()
+	os.Stdout = old
+
+	if err != nil {
+		t.Fatalf("runAIList JSON: %v", err)
+	}
+
+	var buf bytes.Buffer
+	buf.ReadFrom(r)
+	output := buf.String()
+
+	var result map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(output), &result); err != nil {
+		t.Fatalf("invalid JSON: %v\noutput: %s", err, output[:min(200, len(output))])
+	}
+
+	// Required top-level keys.
+	for _, key := range []string{"scenarios", "prompts", "datasets", "evalFiles", "summary", "capabilities"} {
+		if _, ok := result[key]; !ok {
+			t.Errorf("missing key %q in JSON", key)
+		}
+	}
+
+	// Summary should have required fields.
+	var summary map[string]int
+	if err := json.Unmarshal(result["summary"], &summary); err != nil {
+		t.Fatalf("invalid summary: %v", err)
+	}
+	for _, field := range []string{"scenarios", "capabilities", "totalAISurfaces", "uncoveredSurfaces", "evalFiles"} {
+		if _, ok := summary[field]; !ok {
+			t.Errorf("missing summary field %q", field)
+		}
+	}
+}
+
+func TestAIWorkflow_InventoryText_Content(t *testing.T) {
+	// Not parallel: captures os.Stdout.
+	root := aiFixtureRoot(t)
+	if _, err := os.Stat(root); os.IsNotExist(err) {
+		t.Skip("ai-eval-suite fixture not found")
+	}
+
+	// Capture text output.
+	old := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	err := runAIList(root, false, false)
+	w.Close()
+	os.Stdout = old
+
+	if err != nil {
+		t.Fatalf("runAIList text: %v", err)
+	}
+
+	var buf bytes.Buffer
+	buf.ReadFrom(r)
+	output := buf.String()
+
+	// Key sections must be present.
+	for _, section := range []string{"Terrain AI Inventory", "Component", "Scenarios", "Next steps"} {
+		if !strings.Contains(output, section) {
+			t.Errorf("missing section %q in text output", section)
+		}
+	}
+}
+
+func TestAIWorkflow_InventoryDeterministic(t *testing.T) {
+	// Not parallel: captures os.Stdout.
+	root := aiFixtureRoot(t)
+	if _, err := os.Stat(root); os.IsNotExist(err) {
+		t.Skip("ai-eval-suite fixture not found")
+	}
+
+	capture := func() string {
+		old := os.Stdout
+		r, w, _ := os.Pipe()
+		os.Stdout = w
+		_ = runAIList(root, true, false)
+		w.Close()
+		os.Stdout = old
+		var buf bytes.Buffer
+		buf.ReadFrom(r)
+		return buf.String()
+	}
+
+	j1 := capture()
+	j2 := capture()
+	if j1 != j2 {
+		t.Error("ai list JSON output is not deterministic across runs")
+	}
+}
+
+func TestAIRun_DryRun_SelectsScenarios(t *testing.T) {
+	// Not parallel: captures os.Stdout.
+	root := aiFixtureRoot(t)
+	if _, err := os.Stat(root); os.IsNotExist(err) {
+		t.Skip("ai-eval-suite fixture not found")
+	}
+
+	old := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	err := runAIRun(root, true, "", true, true) // full + dry-run + json
+	w.Close()
+	os.Stdout = old
+
+	if err != nil {
+		t.Fatalf("runAIRun dry-run: %v", err)
+	}
+
+	var buf bytes.Buffer
+	buf.ReadFrom(r)
+	output := buf.String()
+
+	var artifact map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(output), &artifact); err != nil {
+		t.Fatalf("invalid JSON: %v", err)
+	}
+
+	// Should have mode, selected, decision.
+	for _, key := range []string{"mode", "selected", "decision"} {
+		if _, ok := artifact[key]; !ok {
+			t.Errorf("missing key %q in artifact", key)
+		}
+	}
+
+	// Mode should be dry-run.
+	var mode string
+	json.Unmarshal(artifact["mode"], &mode)
+	if mode != "dry-run" {
+		t.Errorf("mode = %q, want dry-run", mode)
+	}
+
+	// Should have selected scenarios.
+	var selected []json.RawMessage
+	json.Unmarshal(artifact["selected"], &selected)
+	if len(selected) == 0 {
+		t.Error("expected selected scenarios in dry-run output")
+	}
+}
+
+func TestAIRun_FullMode_AllScenarios(t *testing.T) {
+	// Not parallel: captures os.Stdout.
+	root := aiFixtureRoot(t)
+	if _, err := os.Stat(root); os.IsNotExist(err) {
+		t.Skip("ai-eval-suite fixture not found")
+	}
+
+	old := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	err := runAIRun(root, true, "", true, true) // full + dry-run
+	w.Close()
+	os.Stdout = old
+
+	if err != nil {
+		t.Fatalf("runAIRun full: %v", err)
+	}
+
+	var buf bytes.Buffer
+	buf.ReadFrom(r)
+
+	var artifact struct {
+		Mode     string          `json:"mode"`
+		Selected []aiRunScenario `json:"selected"`
+		Skipped  []aiRunScenario `json:"skipped"`
+	}
+	if err := json.Unmarshal(buf.Bytes(), &artifact); err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	if len(artifact.Selected) == 0 {
+		t.Error("expected selected scenarios in full mode")
+	}
+	// Full mode: all selected, none skipped.
+	if len(artifact.Skipped) != 0 {
+		t.Errorf("expected 0 skipped in full mode, got %d", len(artifact.Skipped))
+	}
+	// Every selected scenario should have reason mentioning "full".
+	for _, sc := range artifact.Selected {
+		if sc.Reason == "" {
+			t.Errorf("scenario %q has empty reason", sc.Name)
+		}
+	}
+}
+
+func TestAIRun_DecisionPass_NoSignals(t *testing.T) {
+	// Not parallel: captures os.Stdout.
+	root := aiFixtureRoot(t)
+	if _, err := os.Stat(root); os.IsNotExist(err) {
+		t.Skip("ai-eval-suite fixture not found")
+	}
+
+	old := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	err := runAIRun(root, true, "", true, true)
+	w.Close()
+	os.Stdout = old
+
+	if err != nil {
+		t.Fatalf("runAIRun: %v", err)
+	}
+
+	var buf bytes.Buffer
+	buf.ReadFrom(r)
+
+	var artifact struct {
+		Decision aiRunDecision `json:"decision"`
+		ExitCode int           `json:"exitCode"`
+	}
+	if err := json.Unmarshal(buf.Bytes(), &artifact); err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	// No Gauntlet signals in fixture → pass.
+	if artifact.Decision.Action != "pass" {
+		t.Errorf("decision = %q, want pass", artifact.Decision.Action)
+	}
+	if artifact.ExitCode != 0 {
+		t.Errorf("exitCode = %d, want 0", artifact.ExitCode)
+	}
+}
+
+func TestAIWorkflow_InventoryJSON_IncludesEvidence(t *testing.T) {
+	// Not parallel: captures os.Stdout.
+	_, thisFile, _, _ := runtime.Caller(0)
+	root := filepath.Join(filepath.Dir(thisFile), "..", "..", "tests", "fixtures", "ai-prompt-only")
+	if _, err := os.Stat(root); os.IsNotExist(err) {
+		t.Skip("ai-prompt-only fixture not found")
+	}
+
+	old := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	err := runAIList(root, true, false)
+	w.Close()
+	os.Stdout = old
+
+	if err != nil {
+		t.Fatalf("runAIList JSON: %v", err)
+	}
+
+	var buf bytes.Buffer
+	buf.ReadFrom(r)
+
+	var result struct {
+		Prompts  []json.RawMessage `json:"prompts"`
+		Contexts []json.RawMessage `json:"contexts"`
+	}
+	if err := json.Unmarshal(buf.Bytes(), &result); err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	// Check that at least one surface has tier and confidence.
+	allSurfaces := append(result.Prompts, result.Contexts...)
+	if len(allSurfaces) == 0 {
+		t.Skip("no prompts or contexts in fixture")
+	}
+
+	for _, raw := range allSurfaces {
+		var entry struct {
+			DetectionTier string  `json:"detectionTier"`
+			Confidence    float64 `json:"confidence"`
+		}
+		json.Unmarshal(raw, &entry)
+		if entry.DetectionTier == "" {
+			t.Error("surface missing detectionTier in JSON")
+		}
+		if entry.Confidence <= 0 {
+			t.Error("surface missing confidence in JSON")
+		}
+	}
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }

@@ -1,0 +1,30 @@
+impact:
+  cases:
+    - change: "src/prompts/chat.ts"
+      expected_impacted_tests:
+        - "tests/eval/safety/prompt-injection.test.ts"
+        - "tests/eval/accuracy/qa-accuracy.test.ts"
+      expected_impacted_scenarios:
+        - "prompt-injection-safety"
+        - "qa-accuracy"
+    - change: "src/contexts/system.ts"
+      expected_impacted_tests:
+        - "tests/eval/safety/content-safety.test.ts"
+        - "tests/eval/accuracy/qa-accuracy.test.ts"
+      expected_impacted_scenarios:
+        - "content-safety"
+ai:
+  expected_scenarios: 4
+  expected_prompt_surfaces:
+    - "src/prompts/chat.ts:buildPrompt"
+    - "src/prompts/chat.ts:promptTemplate"
+  expected_context_surfaces:
+    - "src/contexts/system.ts:systemPrompt"
+    - "src/contexts/system.ts:fewShotExamples"
+    - "src/contexts/system.ts:policyBlock"
+    - "src/contexts/system.ts:persona"
+    - "src/safety/guardrails.ts:safetyOverlay"
+    - "src/safety/guardrails.ts:dynamicInstruction"
+  expected_dataset_surfaces: []
+environment:
+  notes: "Prompt-only fixture, no environment config."
