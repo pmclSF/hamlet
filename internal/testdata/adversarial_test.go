@@ -58,7 +58,7 @@ func TestAdversarial_MeasurementsOnEmpty(t *testing.T) {
 	t.Parallel()
 	snap := &models.TestSuiteSnapshot{}
 
-	reg := measurement.DefaultRegistry()
+	reg, mErr := measurement.DefaultRegistry(); if mErr != nil { t.Fatal(mErr) }
 	result := reg.ComputeSnapshot(snap)
 
 	if result == nil {
@@ -240,7 +240,7 @@ func TestAdversarial_OwnershipFragmentedScoring(t *testing.T) {
 	snap := OwnershipFragmentedSnapshot()
 	snap.Risk = scoring.ComputeRisk(snap)
 
-	reg := measurement.DefaultRegistry()
+	reg, mErr := measurement.DefaultRegistry(); if mErr != nil { t.Fatal(mErr) }
 	result := reg.ComputeSnapshot(snap)
 	if result == nil {
 		t.Fatal("expected non-nil measurement result")

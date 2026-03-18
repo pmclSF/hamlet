@@ -17,7 +17,13 @@ import (
 
 // Report is the structured output of `terrain analyze`.
 // Every field is concrete and JSON-serializable.
+// AnalyzeReportSchemaVersion is the current schema version for analyze reports.
+const AnalyzeReportSchemaVersion = "1"
+
 type Report struct {
+	// SchemaVersion identifies the report JSON schema version.
+	SchemaVersion string `json:"schemaVersion"`
+
 	// Repository metadata.
 	Repository RepositoryInfo `json:"repository"`
 
@@ -49,7 +55,17 @@ type Report struct {
 	CIOptimization CIOptimizationSummary `json:"ciOptimization"`
 
 	// TopInsight is the single biggest opportunity or risk.
+	// Retained for backward compatibility; superseded by KeyFindings.
 	TopInsight string `json:"topInsight"`
+
+	// KeyFindings are the top 3 prioritized findings surfaced inline in
+	// the analyze output so users see the most important issues immediately.
+	// These are derived from the same logic as `terrain insights`.
+	KeyFindings []KeyFinding `json:"keyFindings,omitempty"`
+
+	// TotalFindingCount is the total number of findings (including those
+	// not shown in KeyFindings). Enables "N more via terrain insights".
+	TotalFindingCount int `json:"totalFindingCount,omitempty"`
 
 	// RiskPosture summarizes risk by dimension.
 	RiskPosture []RiskDimension `json:"riskPosture,omitempty"`
@@ -77,6 +93,23 @@ type Report struct {
 
 	// Limitations notes where analysis is incomplete.
 	Limitations []string `json:"limitations,omitempty"`
+}
+
+// KeyFinding is a prioritized finding surfaced in the analyze output.
+// This is a lightweight summary — the full finding with description,
+// scope, and metric lives in the insights package.
+type KeyFinding struct {
+	// Title is a short description of the issue.
+	Title string `json:"title"`
+
+	// Severity is critical, high, medium, or low.
+	Severity string `json:"severity"`
+
+	// Category is optimization, reliability, architecture_debt, or coverage_debt.
+	Category string `json:"category"`
+
+	// Metric is the key number (e.g., "340 duplicates", "12 flaky tests").
+	Metric string `json:"metric,omitempty"`
 }
 
 // RepositoryInfo captures repo metadata.
@@ -226,7 +259,7 @@ type BuildInput struct {
 func Build(input *BuildInput) *Report {
 	snap := input.Snapshot
 
-	r := &Report{}
+	r := &Report{SchemaVersion: AnalyzeReportSchemaVersion}
 
 	// Repository info.
 	r.Repository = buildRepositoryInfo(snap)
@@ -318,8 +351,11 @@ func Build(input *BuildInput) *Report {
 	// Signal summary.
 	r.SignalSummary = buildSignalSummary(snap)
 
-	// Top insight.
+	// Top insight (backward compat).
 	r.TopInsight = deriveTopInsight(r, &dgFanout, &dgDupes, &dgCov)
+
+	// Key findings — top 3 prioritized issues from the same data.
+	r.KeyFindings, r.TotalFindingCount = deriveKeyFindings(r, &dgFanout, &dgDupes, &dgCov, snap)
 
 	// Limitations.
 	r.Limitations = buildLimitations(snap, input.HasPolicy)
@@ -474,8 +510,13 @@ func buildFanoutSummary(fanout *depgraph.FanoutResult) FanoutSummary {
 		if !e.Flagged {
 			break
 		}
+		// Use path if available, otherwise extract label from node ID.
+		displayPath := e.Path
+		if displayPath == "" {
+			displayPath = fanoutNodeLabel(e.NodeID, e.NodeType)
+		}
 		fs.TopNodes = append(fs.TopNodes, FanoutNode{
-			Path:             e.Path,
+			Path:             displayPath,
 			NodeType:         e.NodeType,
 			TransitiveFanout: e.TransitiveFanout,
 		})
@@ -593,13 +634,34 @@ func buildSignalSummary(snap *models.TestSuiteSnapshot) SignalBreakdown {
 	return sb
 }
 
+// fanoutNodeLabel extracts a human-readable label from a graph node ID.
+// Node IDs use prefixes like "behavior:module:src/auth.ts" or "file:src/db.ts".
+func fanoutNodeLabel(nodeID, nodeType string) string {
+	// Try stripping the type prefix: "behavior:module:src/auth.ts" → "src/auth.ts"
+	parts := strings.SplitN(nodeID, ":", 3)
+	if len(parts) >= 3 {
+		return parts[2]
+	}
+	if len(parts) >= 2 {
+		return parts[1]
+	}
+	if nodeType != "" {
+		return nodeType
+	}
+	return nodeID
+}
+
 func deriveTopInsight(r *Report, fanout *depgraph.FanoutResult, dupes *depgraph.DuplicateResult, cov *depgraph.CoverageResult) string {
 	// Priority: high-fanout > duplicates > weak coverage > skip burden > generic.
 	if fanout.FlaggedCount > 0 && len(fanout.Entries) > 0 {
 		top := fanout.Entries[0]
 		if top.Flagged {
+			label := top.Path
+			if label == "" {
+				label = fanoutNodeLabel(top.NodeID, top.NodeType)
+			}
 			return fmt.Sprintf("%s fans out to %d transitive dependents — changes here trigger wide test impact. Consider splitting or isolating.",
-				top.Path, top.TransitiveFanout)
+				label, top.TransitiveFanout)
 		}
 	}
 
@@ -621,6 +683,202 @@ func deriveTopInsight(r *Report, fanout *depgraph.FanoutResult, dupes *depgraph.
 	}
 
 	return "No major issues detected. Consider adding coverage or runtime data to unlock deeper analysis."
+}
+
+// deriveKeyFindings produces a prioritized list of findings from the same
+// data used by deriveTopInsight. Returns the top 3 and the total count.
+// Severity assignment mirrors the insights package: the ranking is
+// severity (critical > high > medium > low), then category priority
+// (reliability > architecture > coverage > optimization).
+func deriveKeyFindings(r *Report, fanout *depgraph.FanoutResult, dupes *depgraph.DuplicateResult, cov *depgraph.CoverageResult, snap *models.TestSuiteSnapshot) ([]KeyFinding, int) {
+	type candidate struct {
+		finding       KeyFinding
+		severityOrder int // lower = more severe
+		categoryOrder int // lower = higher priority
+	}
+
+	var candidates []candidate
+
+	// High-fanout nodes.
+	if fanout.FlaggedCount > 0 {
+		sev := "medium"
+		sevOrd := 3
+		if fanout.FlaggedCount > 5 {
+			sev = "high"
+			sevOrd = 2
+		}
+		candidates = append(candidates, candidate{
+			finding: KeyFinding{
+				Title:    fmt.Sprintf("%d high-fanout fixture(s) — changes trigger wide test impact", fanout.FlaggedCount),
+				Severity: sev,
+				Category: "architecture_debt",
+				Metric:   fmt.Sprintf("%d flagged", fanout.FlaggedCount),
+			},
+			severityOrder: sevOrd,
+			categoryOrder: 2,
+		})
+	}
+
+	// Duplicate clusters.
+	if dupes.DuplicateCount > 0 {
+		sev := "medium"
+		sevOrd := 3
+		if dupes.DuplicateCount > 100 {
+			sev = "high"
+			sevOrd = 2
+		}
+		candidates = append(candidates, candidate{
+			finding: KeyFinding{
+				Title:    fmt.Sprintf("%d duplicate tests across %d clusters — consolidation reduces CI time", dupes.DuplicateCount, len(dupes.Clusters)),
+				Severity: sev,
+				Category: "optimization",
+				Metric:   fmt.Sprintf("%d duplicates", dupes.DuplicateCount),
+			},
+			severityOrder: sevOrd,
+			categoryOrder: 4,
+		})
+	}
+
+	// Behavior redundancy (wasteful overlaps).
+	if r.BehaviorRedundancy != nil {
+		wastefulCount := 0
+		for _, c := range r.BehaviorRedundancy.Clusters {
+			if c.OverlapKind == depgraph.OverlapWasteful {
+				wastefulCount++
+			}
+		}
+		if wastefulCount > 0 {
+			sev := "medium"
+			sevOrd := 3
+			if wastefulCount > 5 {
+				sev = "high"
+				sevOrd = 2
+			}
+			candidates = append(candidates, candidate{
+				finding: KeyFinding{
+					Title:    fmt.Sprintf("%d wasteful overlap clusters — tests exercise identical behavior surfaces", wastefulCount),
+					Severity: sev,
+					Category: "optimization",
+					Metric:   fmt.Sprintf("%d clusters", wastefulCount),
+				},
+				severityOrder: sevOrd,
+				categoryOrder: 4,
+			})
+		}
+	}
+
+	// Weak coverage.
+	lowCount := cov.BandCounts[depgraph.CoverageBandLow]
+	if lowCount > 0 && cov.SourceCount > 0 {
+		pct := 100 * lowCount / cov.SourceCount
+		sev := "medium"
+		sevOrd := 3
+		if pct > 75 {
+			sev = "critical"
+			sevOrd = 1
+		} else if pct > 50 {
+			sev = "high"
+			sevOrd = 2
+		}
+		candidates = append(candidates, candidate{
+			finding: KeyFinding{
+				Title:    fmt.Sprintf("%d source files (%d%%) have low structural coverage — blind spots for test selection", lowCount, pct),
+				Severity: sev,
+				Category: "coverage_debt",
+				Metric:   fmt.Sprintf("%d files", lowCount),
+			},
+			severityOrder: sevOrd,
+			categoryOrder: 3,
+		})
+	}
+
+	// Skip burden.
+	if r.SkippedTestBurden.SkippedCount > 0 {
+		ratio := float64(r.SkippedTestBurden.SkippedCount) / float64(max(r.SkippedTestBurden.TotalTests, 1)) * 100
+		sev := "low"
+		sevOrd := 4
+		if ratio > 10 {
+			sev = "high"
+			sevOrd = 2
+		} else if ratio > 3 {
+			sev = "medium"
+			sevOrd = 3
+		}
+		candidates = append(candidates, candidate{
+			finding: KeyFinding{
+				Title:    fmt.Sprintf("%d skipped tests (%.0f%%) — consuming CI resources without providing value", r.SkippedTestBurden.SkippedCount, ratio),
+				Severity: sev,
+				Category: "reliability",
+				Metric:   fmt.Sprintf("%d skipped", r.SkippedTestBurden.SkippedCount),
+			},
+			severityOrder: sevOrd,
+			categoryOrder: 1,
+		})
+	}
+
+	// Stability clusters.
+	if r.StabilityClusters != nil && r.StabilityClusters.ClusteredTestCount > 0 {
+		sev := "medium"
+		sevOrd := 3
+		if r.StabilityClusters.ClusteredTestCount > 50 {
+			sev = "critical"
+			sevOrd = 1
+		} else if r.StabilityClusters.ClusteredTestCount > 10 {
+			sev = "high"
+			sevOrd = 2
+		}
+		candidates = append(candidates, candidate{
+			finding: KeyFinding{
+				Title:    fmt.Sprintf("%d unstable tests cluster around %d shared root causes", r.StabilityClusters.ClusteredTestCount, len(r.StabilityClusters.Clusters)),
+				Severity: sev,
+				Category: "reliability",
+				Metric:   fmt.Sprintf("%d unstable", r.StabilityClusters.ClusteredTestCount),
+			},
+			severityOrder: sevOrd,
+			categoryOrder: 1,
+		})
+	}
+
+	// Critical signals.
+	if r.SignalSummary.Critical > 0 {
+		candidates = append(candidates, candidate{
+			finding: KeyFinding{
+				Title:    fmt.Sprintf("%d critical signal(s) detected — immediate attention required", r.SignalSummary.Critical),
+				Severity: "critical",
+				Category: "reliability",
+				Metric:   fmt.Sprintf("%d critical", r.SignalSummary.Critical),
+			},
+			severityOrder: 1,
+			categoryOrder: 1,
+		})
+	}
+
+	// Sort: severity first (ascending = most severe first), then category.
+	sort.SliceStable(candidates, func(i, j int) bool {
+		if candidates[i].severityOrder != candidates[j].severityOrder {
+			return candidates[i].severityOrder < candidates[j].severityOrder
+		}
+		return candidates[i].categoryOrder < candidates[j].categoryOrder
+	})
+
+	total := len(candidates)
+	top := candidates
+	if len(top) > 3 {
+		top = top[:3]
+	}
+
+	findings := make([]KeyFinding, len(top))
+	for i, c := range top {
+		findings[i] = c.finding
+	}
+	return findings, total
+}
+
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
 }
 
 // BuildSnapshotProfileData extracts aggregates from the snapshot for

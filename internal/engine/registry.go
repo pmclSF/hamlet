@@ -5,6 +5,8 @@
 package engine
 
 import (
+	"fmt"
+
 	"github.com/pmclSF/terrain/internal/governance"
 	"github.com/pmclSF/terrain/internal/migration"
 	"github.com/pmclSF/terrain/internal/models"
@@ -24,14 +26,27 @@ type Config struct {
 
 // DefaultRegistry returns a DetectorRegistry populated with all
 // standard Terrain detectors in the correct execution order.
+// Returns an error if any registration fails (duplicate ID, ordering violation).
 //
 // The order matters: governance detectors depend on signals from
 // quality and migration detectors, so they are registered last.
-func DefaultRegistry(cfg Config) *signals.DetectorRegistry {
+func DefaultRegistry(cfg Config) (*signals.DetectorRegistry, error) {
 	r := signals.NewRegistry()
 
+	// reg is a helper that registers a detector and returns the first error.
+	// This avoids 13 separate if-err-return blocks while still propagating errors.
+	var firstErr error
+	reg := func(registration signals.DetectorRegistration) {
+		if firstErr != nil {
+			return // already failed
+		}
+		if err := r.Register(registration); err != nil {
+			firstErr = fmt.Errorf("detector registry: %w", err)
+		}
+	}
+
 	// Quality detectors (no dependencies on other signals).
-	r.MustRegister(signals.DetectorRegistration{
+	reg(signals.DetectorRegistration{
 		Meta: signals.DetectorMeta{
 			ID:           "quality.weak-assertion",
 			Domain:       signals.DomainQuality,
@@ -41,7 +56,7 @@ func DefaultRegistry(cfg Config) *signals.DetectorRegistry {
 		},
 		Detector: &quality.WeakAssertionDetector{},
 	})
-	r.MustRegister(signals.DetectorRegistration{
+	reg(signals.DetectorRegistration{
 		Meta: signals.DetectorMeta{
 			ID:           "quality.mock-heavy",
 			Domain:       signals.DomainQuality,
@@ -51,7 +66,7 @@ func DefaultRegistry(cfg Config) *signals.DetectorRegistry {
 		},
 		Detector: &quality.MockHeavyDetector{},
 	})
-	r.MustRegister(signals.DetectorRegistration{
+	reg(signals.DetectorRegistration{
 		Meta: signals.DetectorMeta{
 			ID:           "quality.snapshot-heavy",
 			Domain:       signals.DomainQuality,
@@ -61,7 +76,7 @@ func DefaultRegistry(cfg Config) *signals.DetectorRegistry {
 		},
 		Detector: &quality.SnapshotHeavyDetector{},
 	})
-	r.MustRegister(signals.DetectorRegistration{
+	reg(signals.DetectorRegistration{
 		Meta: signals.DetectorMeta{
 			ID:           "quality.untested-export",
 			Domain:       signals.DomainQuality,
@@ -71,7 +86,7 @@ func DefaultRegistry(cfg Config) *signals.DetectorRegistry {
 		},
 		Detector: &quality.UntestedExportDetector{},
 	})
-	r.MustRegister(signals.DetectorRegistration{
+	reg(signals.DetectorRegistration{
 		Meta: signals.DetectorMeta{
 			ID:             "quality.coverage-threshold",
 			Domain:         signals.DomainCoverage,
@@ -82,7 +97,7 @@ func DefaultRegistry(cfg Config) *signals.DetectorRegistry {
 		},
 		Detector: &quality.CoverageThresholdDetector{},
 	})
-	r.MustRegister(signals.DetectorRegistration{
+	reg(signals.DetectorRegistration{
 		Meta: signals.DetectorMeta{
 			ID:           "coverage.blind-spot",
 			Domain:       signals.DomainCoverage,
@@ -92,9 +107,19 @@ func DefaultRegistry(cfg Config) *signals.DetectorRegistry {
 		},
 		Detector: &quality.CoverageBlindSpotDetector{},
 	})
+	reg(signals.DetectorRegistration{
+		Meta: signals.DetectorMeta{
+			ID:           "quality.static-skip",
+			Domain:       signals.DomainQuality,
+			EvidenceType: signals.EvidenceStructuralPattern,
+			Description:  "Detect statically skipped tests from source code patterns (.skip, xit, @skip, etc.).",
+			SignalTypes:  []models.SignalType{signals.SignalStaticSkippedTest},
+		},
+		Detector: &quality.StaticSkipDetector{},
+	})
 
 	// Migration detectors (no dependencies on other signals).
-	r.MustRegister(signals.DetectorRegistration{
+	reg(signals.DetectorRegistration{
 		Meta: signals.DetectorMeta{
 			ID:             "migration.deprecated-pattern",
 			Domain:         signals.DomainMigration,
@@ -105,7 +130,7 @@ func DefaultRegistry(cfg Config) *signals.DetectorRegistry {
 		},
 		Detector: &migration.DeprecatedPatternDetector{RepoRoot: cfg.RepoRoot},
 	})
-	r.MustRegister(signals.DetectorRegistration{
+	reg(signals.DetectorRegistration{
 		Meta: signals.DetectorMeta{
 			ID:             "migration.dynamic-test-generation",
 			Domain:         signals.DomainMigration,
@@ -116,7 +141,7 @@ func DefaultRegistry(cfg Config) *signals.DetectorRegistry {
 		},
 		Detector: &migration.DynamicTestGenerationDetector{RepoRoot: cfg.RepoRoot},
 	})
-	r.MustRegister(signals.DetectorRegistration{
+	reg(signals.DetectorRegistration{
 		Meta: signals.DetectorMeta{
 			ID:             "migration.custom-matcher",
 			Domain:         signals.DomainMigration,
@@ -127,7 +152,7 @@ func DefaultRegistry(cfg Config) *signals.DetectorRegistry {
 		},
 		Detector: &migration.CustomMatcherDetector{RepoRoot: cfg.RepoRoot},
 	})
-	r.MustRegister(signals.DetectorRegistration{
+	reg(signals.DetectorRegistration{
 		Meta: signals.DetectorMeta{
 			ID:             "migration.unsupported-setup",
 			Domain:         signals.DomainMigration,
@@ -138,7 +163,7 @@ func DefaultRegistry(cfg Config) *signals.DetectorRegistry {
 		},
 		Detector: &migration.UnsupportedSetupDetector{RepoRoot: cfg.RepoRoot},
 	})
-	r.MustRegister(signals.DetectorRegistration{
+	reg(signals.DetectorRegistration{
 		Meta: signals.DetectorMeta{
 			ID:           "migration.framework-migration",
 			Domain:       signals.DomainMigration,
@@ -151,7 +176,7 @@ func DefaultRegistry(cfg Config) *signals.DetectorRegistry {
 
 	// Governance detectors (depend on signals from quality/migration detectors).
 	if cfg.PolicyConfig != nil && !cfg.PolicyConfig.IsEmpty() {
-		r.MustRegister(signals.DetectorRegistration{
+		reg(signals.DetectorRegistration{
 			Meta: signals.DetectorMeta{
 				ID:               "governance.policy",
 				Domain:           signals.DomainGovernance,
@@ -164,7 +189,10 @@ func DefaultRegistry(cfg Config) *signals.DetectorRegistry {
 		})
 	}
 
-	return r
+	if firstErr != nil {
+		return nil, firstErr
+	}
+	return r, nil
 }
 
 // GovernanceDetector wraps governance.Evaluate as a signals.Detector.

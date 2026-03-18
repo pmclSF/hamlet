@@ -11,6 +11,7 @@
 package analysis
 
 import (
+	"context"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -30,6 +31,11 @@ import (
 // the initial TestSuiteSnapshot foundation.
 type Analyzer struct {
 	root string
+
+	// Cache is a shared file content and AST cache. When non-nil,
+	// all analysis stages read files through the cache to eliminate
+	// redundant I/O. Populated automatically during Analyze().
+	Cache *FileCache
 }
 
 // New creates an Analyzer for the given repository root path.
@@ -38,25 +44,42 @@ func New(root string) *Analyzer {
 }
 
 // Analyze scans the repository and returns a populated TestSuiteSnapshot.
+// This is a convenience wrapper that uses context.Background().
+// For cancellation support, use AnalyzeContext.
 func (a *Analyzer) Analyze() (*models.TestSuiteSnapshot, error) {
+	return a.AnalyzeContext(context.Background())
+}
+
+// AnalyzeContext scans the repository and returns a populated TestSuiteSnapshot.
+// The context is checked at each major stage boundary and propagated into
+// parallel file-processing loops, allowing callers to abort analysis cleanly.
+func (a *Analyzer) AnalyzeContext(ctx context.Context) (*models.TestSuiteSnapshot, error) {
 	absRoot, err := filepath.Abs(a.root)
 	if err != nil {
 		return nil, err
 	}
 	analyzedAt := time.Now().UTC()
 
-	// Layer 1: Detect project-level frameworks from config files and dependencies.
-	projectCtx := DetectProjectFrameworks(absRoot)
+	// Check context before starting work.
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 
-	testFiles, err := discoverTestFiles(absRoot, projectCtx)
+	// Layer 1: Detect project-level frameworks from config files and dependencies.
+	projectFrameworks := DetectProjectFrameworks(absRoot)
+
+	testFiles, err := discoverTestFiles(absRoot, projectFrameworks)
 	if err != nil {
 		return nil, err
 	}
 
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
 	// Analyze content and extract test cases in one pass per file.
-	// Merging these eliminates a redundant os.ReadFile per test file.
 	rawByFile := make([][]models.TestCase, len(testFiles))
-	parallelForEachIndex(len(testFiles), func(i int) {
+	parallelForEachIndexCtx(ctx, len(testFiles), func(i int) {
 		src := analyzeTestFileContentCached(&testFiles[i], absRoot)
 		if src != "" {
 			cases := testcase.ExtractFromContent(src, testFiles[i].Path, testFiles[i].Framework)
@@ -64,41 +87,95 @@ func (a *Analyzer) Analyze() (*models.TestSuiteSnapshot, error) {
 		}
 	})
 
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
 	frameworks := buildFrameworkInventory(testFiles)
 	languages := detectLanguages(testFiles)
 	packageManagers := detectPackageManagers(absRoot)
 	ciSystems := detectCISystems(absRoot)
 	commitSHA, branch := gitInfo(absRoot)
 
-	// Run three independent I/O stages concurrently:
-	//   1. Extract exported code units (reads source files)
-	//   2. Build import graph (reads test file imports)
-	//   3. Infer code surfaces (reads source files for behavior anchors)
+	// Collect source files once (shared across all stages that need it).
+	sourceFileCache, err := collectSourceFilesCtx(ctx, absRoot)
+	if err != nil {
+		return nil, err
+	}
+
+	// Initialize file content cache and prewarm source files.
+	if a.Cache == nil {
+		a.Cache = NewFileCache(absRoot)
+	}
+	a.Cache.PrewarmSourceFilesCtx(ctx, sourceFileCache)
+
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
+	// Also prewarm test files.
+	testPaths := make([]string, len(testFiles))
+	for i, tf := range testFiles {
+		testPaths[i] = tf.Path
+	}
+	a.Cache.PrewarmSourceFilesCtx(ctx, testPaths)
+
+	// Run six independent I/O stages concurrently.
+	// Each stage respects ctx for cancellation.
 	var (
-		codeUnits    []models.CodeUnit
-		codeSurfaces []models.CodeSurface
-		importGraph  *ImportGraph
-		testCases    []models.TestCase
-		stageWG      sync.WaitGroup
+		codeUnits       []models.CodeUnit
+		codeSurfaces    []models.CodeSurface
+		fixtureSurfaces []models.FixtureSurface
+		importGraph     *ImportGraph
+		testCases       []models.TestCase
+		ciMatrix        *CIMatrixResult
+		fwMatrix        *FrameworkMatrixResult
+		stageWG         sync.WaitGroup
 	)
 
-	stageWG.Add(3)
+	fc := a.Cache
+
+	stageWG.Add(6)
 	go func() {
 		defer stageWG.Done()
-		codeUnits = extractExportedCodeUnits(absRoot, testFiles)
+		codeUnits = extractCodeUnitsCachedCtx(ctx, absRoot, testFiles, sourceFileCache, fc)
 	}()
 	go func() {
 		defer stageWG.Done()
-		importGraph = BuildImportGraph(absRoot, testFiles)
+		importGraph = BuildImportGraphCtx(ctx, absRoot, testFiles)
 	}()
 	go func() {
 		defer stageWG.Done()
-		codeSurfaces = InferCodeSurfaces(absRoot, testFiles)
+		codeSurfaces = inferCodeSurfacesCachedCtx(ctx, absRoot, testFiles, sourceFileCache, fc)
+	}()
+	go func() {
+		defer stageWG.Done()
+		fixtureSurfaces = ExtractFixturesCtx(ctx, absRoot, testFiles)
+	}()
+	go func() {
+		defer stageWG.Done()
+		ciMatrix = ParseCIMatrices(absRoot)
+	}()
+	go func() {
+		defer stageWG.Done()
+		fwMatrix = ParseFrameworkMatrices(absRoot, testFiles)
 	}()
 	stageWG.Wait()
 
-	// Populate per-test linked code units from the import graph.
-	populateLinkedCodeUnits(testFiles, codeUnits, importGraph)
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
+	// Content-based AI context inference (runs after name-based detection).
+	contentSurfaces := inferAIContextCachedCtx(ctx, absRoot, testFiles, codeSurfaces, sourceFileCache, fc)
+	codeSurfaces = append(codeSurfaces, contentSurfaces...)
+
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
+	// Populate per-test linked code units using symbol-level resolution.
+	PopulateSymbolLinksCtx(ctx, absRoot, testFiles, codeUnits, importGraph)
 
 	// Flatten test cases and resolve collisions.
 	rawTestCases := make([]models.TestCase, 0, len(testFiles))
@@ -110,6 +187,10 @@ func (a *Analyzer) Analyze() (*models.TestSuiteSnapshot, error) {
 	// Infer test types (unit, integration, e2e, etc.) with evidence.
 	testCases = testtype.InferAll(testCases)
 
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
 	// Resolve ownership for test files.
 	resolver := ownership.NewResolver(absRoot)
 	for i := range testFiles {
@@ -118,6 +199,23 @@ func (a *Analyzer) Analyze() (*models.TestSuiteSnapshot, error) {
 
 	// Derive behavior surfaces from code surfaces (optional layer).
 	behaviorSurfaces := DeriveBehaviorSurfaces(codeSurfaces)
+
+	// Extract structured RAG pipeline components from source files.
+	ragComponents := extractRAGComponentsCachedCtx(ctx, absRoot, codeSurfaces, sourceFileCache, fc)
+
+	// Merge environment data from CI and framework matrix parsers.
+	var environments []models.Environment
+	var environmentClasses []models.EnvironmentClass
+	var deviceConfigs []models.DeviceConfig
+	if ciMatrix != nil {
+		environments = append(environments, ciMatrix.Environments...)
+		environmentClasses = append(environmentClasses, ciMatrix.EnvironmentClasses...)
+	}
+	if fwMatrix != nil {
+		environments = append(environments, fwMatrix.Environments...)
+		environmentClasses = mergeEnvironmentClasses(environmentClasses, fwMatrix.EnvironmentClasses)
+		deviceConfigs = append(deviceConfigs, fwMatrix.DeviceConfigs...)
+	}
 
 	snapshot := &models.TestSuiteSnapshot{
 		Repository: models.RepositoryMetadata{
@@ -136,7 +234,13 @@ func (a *Analyzer) Analyze() (*models.TestSuiteSnapshot, error) {
 		CodeUnits:        codeUnits,
 		CodeSurfaces:     codeSurfaces,
 		BehaviorSurfaces: behaviorSurfaces,
-		ImportGraph:      importGraph.TestImports,
+		FixtureSurfaces:     fixtureSurfaces,
+		RAGPipelineSurfaces: ragComponents,
+		Environments:       environments,
+		EnvironmentClasses: environmentClasses,
+		DeviceConfigs:      deviceConfigs,
+		ImportGraph:        importGraph.TestImports,
+		SourceImports:      importGraph.SourceImports,
 		// Signals: populated by detectors after snapshot creation.
 		// Risk: populated by risk engine after signal generation.
 		GeneratedAt: analyzedAt,
@@ -216,6 +320,47 @@ func populateLinkedCodeUnits(testFiles []models.TestFile, codeUnits []models.Cod
 		sort.Strings(linked)
 		testFiles[i].LinkedCodeUnits = linked
 	}
+}
+
+// extractRAGPipelineComponents scans source files for RAG pipeline components
+// with structured config extraction, then links them to CodeSurfaces.
+func extractRAGPipelineComponents(root string, codeSurfaces []models.CodeSurface, sourceFiles []string) []models.RAGPipelineSurface {
+	testPaths := map[string]bool{} // no test filtering needed here — sourceFiles already filtered
+	_ = testPaths
+
+	componentsByFile := make([][]models.RAGPipelineSurface, len(sourceFiles))
+	parallelForEachIndex(len(sourceFiles), func(i int) {
+		relPath := sourceFiles[i]
+		ext := strings.ToLower(relPathExt(relPath))
+		lang, ok := languageForExt[ext]
+		if !ok {
+			return
+		}
+		content, err := os.ReadFile(filepath.Join(root, relPath))
+		if err != nil {
+			return
+		}
+		componentsByFile[i] = ParseRAGStructured(relPath, string(content), lang)
+	})
+
+	var allComponents []models.RAGPipelineSurface
+	for _, batch := range componentsByFile {
+		allComponents = append(allComponents, batch...)
+	}
+
+	// Link RAG components to their corresponding CodeSurfaces.
+	LinkRAGSurfacesToCodeSurfaces(allComponents, codeSurfaces)
+
+	return allComponents
+}
+
+// mergeEnvironmentClasses appends classes from src into dst, merging member
+// IDs for classes that share a ClassID.
+func mergeEnvironmentClasses(dst, src []models.EnvironmentClass) []models.EnvironmentClass {
+	for _, cls := range src {
+		dst = appendClassIfNew(dst, cls)
+	}
+	return dst
 }
 
 // detectLanguages infers languages from the discovered test files.

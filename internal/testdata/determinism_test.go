@@ -42,7 +42,7 @@ func TestDeterminism_MeasurementsIdentical(t *testing.T) {
 
 	results := make([]string, 10)
 	for i := 0; i < 10; i++ {
-		reg := measurement.DefaultRegistry()
+		reg, mErr := measurement.DefaultRegistry(); if mErr != nil { t.Fatal(mErr) }
 		ms := reg.ComputeSnapshot(snap)
 		model := ms.ToModel()
 		data, _ := json.Marshal(model)
@@ -102,7 +102,7 @@ func TestDeterminism_LargeScaleStable(t *testing.T) {
 
 	results := make([]string, 5)
 	for i := 0; i < 5; i++ {
-		reg := measurement.DefaultRegistry()
+		reg, mErr := measurement.DefaultRegistry(); if mErr != nil { t.Fatal(mErr) }
 		ms := reg.ComputeSnapshot(snap)
 		model := ms.ToModel()
 		data, _ := json.Marshal(model)

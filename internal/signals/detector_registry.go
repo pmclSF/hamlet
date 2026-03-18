@@ -91,7 +91,9 @@ func (r *DetectorRegistry) Register(reg DetectorRegistration) error {
 }
 
 // MustRegister adds a detector to the registry, panicking on error.
-// Use only for compile-time-known registrations (e.g., in DefaultRegistry).
+//
+// Deprecated: Use Register and propagate errors instead.
+// Retained only for backward compatibility with tests.
 func (r *DetectorRegistry) MustRegister(reg DetectorRegistration) {
 	if err := r.Register(reg); err != nil {
 		panic(err)

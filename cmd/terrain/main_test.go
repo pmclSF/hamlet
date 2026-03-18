@@ -93,6 +93,18 @@ func TestDetectFirstExisting(t *testing.T) {
 	}
 }
 
+func TestInitLogging_ParsesFlag(t *testing.T) {
+	// Not parallel: modifies global logging state.
+	initLogging([]string{"analyze", "--log-level=debug", "--root", "."})
+	// Should not panic; logger is reconfigured.
+
+	initLogging([]string{"analyze", "--log-level", "quiet"})
+	// Should not panic.
+
+	initLogging([]string{"analyze"})
+	// No --log-level: keeps default.
+}
+
 func TestRunInit_InvalidRoot(t *testing.T) {
 	t.Parallel()
 
@@ -150,7 +162,7 @@ func TestRunAIList_EmptyRepo(t *testing.T) {
 	t.Parallel()
 	root := t.TempDir()
 	// Empty directory — should produce zero counts without error.
-	if err := runAIList(root, false); err != nil {
+	if err := runAIList(root, false, false); err != nil {
 		t.Fatalf("runAIList on empty dir: %v", err)
 	}
 }

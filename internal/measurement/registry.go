@@ -32,7 +32,9 @@ func (r *Registry) Register(def Definition) error {
 }
 
 // MustRegister adds a measurement definition, panicking on duplicate ID.
-// Use only for compile-time-known definitions (e.g., in DefaultRegistry).
+//
+// Deprecated: Use Register and propagate errors instead.
+// Retained only for backward compatibility with tests.
 func (r *Registry) MustRegister(def Definition) {
 	if err := r.Register(def); err != nil {
 		panic(err)

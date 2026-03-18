@@ -1,23 +1,28 @@
 package measurement
 
+import "fmt"
+
 // DefaultRegistry returns a registry pre-populated with all standard
 // measurement definitions across all posture dimensions.
-func DefaultRegistry() *Registry {
+// Returns an error if any definition has a duplicate ID.
+func DefaultRegistry() (*Registry, error) {
 	r := NewRegistry()
-	for _, def := range HealthMeasurements() {
-		r.MustRegister(def)
+
+	groups := [][]Definition{
+		HealthMeasurements(),
+		CoverageDepthMeasurements(),
+		CoverageDiversityMeasurements(),
+		StructuralRiskMeasurements(),
+		OperationalRiskMeasurements(),
 	}
-	for _, def := range CoverageDepthMeasurements() {
-		r.MustRegister(def)
+
+	for _, defs := range groups {
+		for _, def := range defs {
+			if err := r.Register(def); err != nil {
+				return nil, fmt.Errorf("measurement registry: %w", err)
+			}
+		}
 	}
-	for _, def := range CoverageDiversityMeasurements() {
-		r.MustRegister(def)
-	}
-	for _, def := range StructuralRiskMeasurements() {
-		r.MustRegister(def)
-	}
-	for _, def := range OperationalRiskMeasurements() {
-		r.MustRegister(def)
-	}
-	return r
+
+	return r, nil
 }
