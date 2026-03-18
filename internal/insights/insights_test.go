@@ -397,6 +397,89 @@ func TestBuild_ScenarioDuplication_SingleScenario(t *testing.T) {
 	}
 }
 
+func TestDeduplicateInsightFindings(t *testing.T) {
+	t.Parallel()
+	findings := []Finding{
+		{Category: CategoryOptimization, Title: "3 duplicate clusters", Scope: "tests/unit"},
+		{Category: CategoryOptimization, Title: "3 duplicate clusters", Scope: "tests/unit"}, // exact dup
+		{Category: CategoryArchitectureDebt, Title: "5 high-fanout nodes", Scope: "src/shared"},
+		{Category: CategoryOptimization, Title: "3 duplicate clusters", Scope: "tests/e2e"}, // different scope
+	}
+
+	deduped := deduplicateInsightFindings(findings)
+	if len(deduped) != 3 {
+		t.Errorf("expected 3 after dedup, got %d", len(deduped))
+	}
+}
+
+func TestBuild_FindingsRankedBySeverityThenCategory(t *testing.T) {
+	t.Parallel()
+	snap := &models.TestSuiteSnapshot{
+		Signals: []models.Signal{
+			{Type: "flakyTest", Severity: models.SeverityHigh},
+			{Type: "weakAssertion", Severity: models.SeverityMedium},
+		},
+	}
+	input := &BuildInput{
+		Snapshot: snap,
+		Coverage: depgraph.CoverageResult{BandCounts: map[depgraph.CoverageBand]int{}},
+		Fanout: depgraph.FanoutResult{
+			FlaggedCount: 1,
+			Threshold:    10,
+			Entries:      []depgraph.FanoutEntry{{NodeID: "n1", NodeType: "file", TransitiveFanout: 20, Flagged: true}},
+		},
+	}
+
+	r := Build(input)
+	if len(r.Findings) < 2 {
+		t.Fatalf("expected at least 2 findings, got %d", len(r.Findings))
+	}
+
+	// Verify sorted: higher severity first.
+	for i := 1; i < len(r.Findings); i++ {
+		si := severityOrder(r.Findings[i-1].Severity)
+		sj := severityOrder(r.Findings[i].Severity)
+		if si < sj {
+			t.Errorf("finding %d (sev=%s) ranked after %d (sev=%s) — wrong severity order",
+				i-1, r.Findings[i-1].Severity, i, r.Findings[i].Severity)
+		}
+	}
+}
+
+func TestBuild_DeterministicOutput(t *testing.T) {
+	t.Parallel()
+	makeInput := func() *BuildInput {
+		return &BuildInput{
+			Snapshot: &models.TestSuiteSnapshot{
+				Signals: []models.Signal{
+					{Type: "flakyTest", Severity: models.SeverityHigh},
+					{Type: "weakAssertion", Severity: models.SeverityMedium},
+				},
+			},
+			Coverage: depgraph.CoverageResult{BandCounts: map[depgraph.CoverageBand]int{}},
+			Duplicates: depgraph.DuplicateResult{
+				DuplicateCount: 10,
+				Clusters:       []depgraph.DuplicateCluster{{ID: 1, Tests: []string{"t1", "t2"}, Similarity: 0.8}},
+			},
+		}
+	}
+
+	r1 := Build(makeInput())
+	r2 := Build(makeInput())
+
+	if len(r1.Findings) != len(r2.Findings) {
+		t.Fatalf("non-deterministic finding count: %d vs %d", len(r1.Findings), len(r2.Findings))
+	}
+	for i := range r1.Findings {
+		if r1.Findings[i].Title != r2.Findings[i].Title {
+			t.Errorf("finding %d differs: %q vs %q", i, r1.Findings[i].Title, r2.Findings[i].Title)
+		}
+		if r1.Findings[i].Priority != r2.Findings[i].Priority {
+			t.Errorf("finding %d priority differs: %d vs %d", i, r1.Findings[i].Priority, r2.Findings[i].Priority)
+		}
+	}
+}
+
 func contains(s, substr string) bool {
 	return len(s) >= len(substr) && (s == substr || len(substr) == 0 ||
 		(len(s) > 0 && len(substr) > 0 && searchString(s, substr)))

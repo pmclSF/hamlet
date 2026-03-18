@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"sort"
+	"strings"
 
 	"github.com/pmclSF/terrain/internal/models"
 )
@@ -67,13 +68,18 @@ func ApplyToSnapshot(snap *models.TestSuiteSnapshot, art *Artifact) ApplyResult 
 			if sr.Status == "error" {
 				severity = models.SeverityHigh
 			}
+			signalType := classifyFailureSignal(sr)
 			snap.Signals = append(snap.Signals, models.Signal{
-				Type:     "evalFailure",
-				Category: models.CategoryQuality,
+				Type:     signalType,
+				Category: models.CategoryAI,
 				Severity: severity,
 				Location: models.SignalLocation{
-					File: sr.ScenarioID,
+					File:       sr.ScenarioID,
+					ScenarioID: sr.ScenarioID,
 				},
+				Confidence:       0.9,
+				EvidenceStrength: models.EvidenceStrong,
+				EvidenceSource:   models.SourceEvalExecution,
 				Explanation: fmt.Sprintf(
 					"Gauntlet scenario %q %s (duration: %.0fms)",
 					sr.Name, sr.Status, sr.DurationMs,
@@ -93,13 +99,22 @@ func ApplyToSnapshot(snap *models.TestSuiteSnapshot, art *Artifact) ApplyResult 
 					sr.Name, regMetric, baseline, current,
 				)
 			}
+			signalType := classifyRegressionSignal(regMetric)
 			snap.Signals = append(snap.Signals, models.Signal{
-				Type:            "evalRegression",
-				Category:        models.CategoryQuality,
-				Severity:        models.SeverityMedium,
-				Location:        models.SignalLocation{File: sr.ScenarioID},
-				Explanation:     explanation,
-				SuggestedAction: fmt.Sprintf("Review baseline for %q metric %q", sr.Name, regMetric),
+				Type:             signalType,
+				Category:         models.CategoryAI,
+				Severity:         models.SeverityMedium,
+				Location:         models.SignalLocation{File: sr.ScenarioID, ScenarioID: sr.ScenarioID},
+				Confidence:       0.9,
+				EvidenceStrength: models.EvidenceStrong,
+				EvidenceSource:   models.SourceEvalExecution,
+				Explanation:      explanation,
+				SuggestedAction:  fmt.Sprintf("Review baseline for %q metric %q", sr.Name, regMetric),
+				Metadata: map[string]any{
+					"metric":   regMetric,
+					"current":  current,
+					"baseline": baseline,
+				},
 			})
 			result.RegressionCount++
 		}
@@ -129,4 +144,92 @@ type ApplyResult struct {
 
 	// RegressionCount is the number of metric regressions detected.
 	RegressionCount int
+}
+
+// classifyFailureSignal maps a failed scenario to the most specific AI signal
+// type based on the scenario name and category.
+func classifyFailureSignal(sr ScenarioResult) models.SignalType {
+	name := strings.ToLower(sr.Name)
+	switch {
+	case strings.Contains(name, "safety"):
+		return "safetyFailure"
+	case strings.Contains(name, "hallucination") || strings.Contains(name, "grounding"):
+		return "hallucinationDetected"
+	case strings.Contains(name, "citation_mismatch") || strings.Contains(name, "citation-mismatch"):
+		return "citationMismatch"
+	case strings.Contains(name, "citation"):
+		return "citationMissing"
+	case strings.Contains(name, "wrong_source") || strings.Contains(name, "wrong-source"):
+		return "wrongSourceSelected"
+	case strings.Contains(name, "stale") && (strings.Contains(name, "source") || strings.Contains(name, "data")):
+		return "staleSourceRisk"
+	case strings.Contains(name, "chunking") || strings.Contains(name, "chunk_quality"):
+		return "chunkingRegression"
+	case strings.Contains(name, "rerank"):
+		return "rerankerRegression"
+	case strings.Contains(name, "retrieval") || strings.Contains(name, "search"):
+		return "retrievalMiss"
+	case strings.Contains(name, "tool_routing") || strings.Contains(name, "tool-routing") || strings.Contains(name, "wrong_tool"):
+		return "toolRoutingError"
+	case strings.Contains(name, "tool_guardrail") || strings.Contains(name, "tool-guardrail") || strings.Contains(name, "tool_permission"):
+		return "toolGuardrailViolation"
+	case strings.Contains(name, "tool_budget") || strings.Contains(name, "tool-budget") ||
+		strings.Contains(name, "step_budget") || strings.Contains(name, "step-budget") ||
+		strings.Contains(name, "step_limit") || strings.Contains(name, "step-limit"):
+		return "toolBudgetExceeded"
+	case strings.Contains(name, "fallback") && (strings.Contains(name, "agent") || strings.Contains(name, "model")):
+		return "agentFallbackTriggered"
+	case strings.Contains(name, "tool") || strings.Contains(name, "function_call"):
+		return "toolSelectionError"
+	case strings.Contains(name, "schema") || strings.Contains(name, "parse"):
+		return "schemaParseFailure"
+	case strings.Contains(name, "policy"):
+		return "aiPolicyViolation"
+	default:
+		return "evalFailure"
+	}
+}
+
+// classifyRegressionSignal maps a regression metric name to the most specific
+// AI signal type.
+func classifyRegressionSignal(metric string) models.SignalType {
+	lower := strings.ToLower(metric)
+	switch {
+	// RAG-specific metrics (checked before generic accuracy to avoid false matches).
+	case strings.Contains(lower, "chunk") && (strings.Contains(lower, "quality") || strings.Contains(lower, "score") || strings.Contains(lower, "size")):
+		return "chunkingRegression"
+	case strings.Contains(lower, "rerank") && (strings.Contains(lower, "score") || strings.Contains(lower, "quality") || strings.Contains(lower, "ndcg")):
+		return "rerankerRegression"
+	case strings.Contains(lower, "top_k") || strings.Contains(lower, "topk") || strings.Contains(lower, "recall_at_k") || strings.Contains(lower, "mrr"):
+		return "topKRegression"
+	// Citation-specific (before generic accuracy since "citation_accuracy" contains "accuracy").
+	case strings.Contains(lower, "citation_match") || strings.Contains(lower, "citation_accuracy"):
+		return "citationMismatch"
+	case strings.Contains(lower, "citation"):
+		return "citationMissing"
+	// Tool/agent metrics (before generic accuracy since "tool_selection_accuracy" contains "accuracy").
+	case strings.Contains(lower, "tool_routing") || strings.Contains(lower, "tool_selection"):
+		return "toolRoutingError"
+	case strings.Contains(lower, "tool_budget") || strings.Contains(lower, "step_count") || strings.Contains(lower, "step_budget"):
+		return "toolBudgetExceeded"
+	case strings.Contains(lower, "fallback_rate") || strings.Contains(lower, "fallback_count"):
+		return "agentFallbackTriggered"
+	// Generic metrics.
+	case strings.Contains(lower, "accuracy") || strings.Contains(lower, "f1") || strings.Contains(lower, "precision") || strings.Contains(lower, "recall"):
+		return "accuracyRegression"
+	case strings.Contains(lower, "latency") || strings.Contains(lower, "p95") || strings.Contains(lower, "p99") || strings.Contains(lower, "duration"):
+		return "latencyRegression"
+	case strings.Contains(lower, "cost") || strings.Contains(lower, "token") || strings.Contains(lower, "price"):
+		return "costRegression"
+	case strings.Contains(lower, "grounding") || strings.Contains(lower, "hallucination") || strings.Contains(lower, "faithfulness"):
+		return "answerGroundingFailure"
+	case strings.Contains(lower, "context_length") || strings.Contains(lower, "overflow"):
+		return "contextOverflowRisk"
+	case strings.Contains(lower, "stale") || strings.Contains(lower, "freshness"):
+		return "staleSourceRisk"
+	case strings.Contains(lower, "source_relevance") || strings.Contains(lower, "wrong_source"):
+		return "wrongSourceSelected"
+	default:
+		return "evalRegression"
+	}
 }

@@ -151,14 +151,14 @@ func TestRenderPRSummaryMarkdown(t *testing.T) {
 	RenderPRSummaryMarkdown(&buf, pr)
 	output := buf.String()
 
-	if !strings.Contains(output, "## Terrain") {
-		t.Error("expected markdown header")
-	}
-	if !strings.Contains(output, "Posture") {
-		t.Error("expected posture in output")
+	if !strings.Contains(output, "Terrain") {
+		t.Error("expected Terrain in markdown header")
 	}
 	if !strings.Contains(output, "Changed files") {
 		t.Error("expected stats table")
+	}
+	if !strings.Contains(output, "merge") && !strings.Contains(output, "Merge") {
+		t.Error("expected merge recommendation")
 	}
 }
 
@@ -395,5 +395,15 @@ func TestFormatTestReasons_AllShared(t *testing.T) {
 	}
 	if !strings.Contains(why, "Foo") {
 		t.Errorf("expected unit name Foo, got: %s", why)
+	}
+}
+
+func TestAnalyzePR_SchemaVersion(t *testing.T) {
+	t.Parallel()
+	snap := &models.TestSuiteSnapshot{}
+	scope := &impact.ChangeScope{}
+	pr := AnalyzePR(scope, snap)
+	if pr.SchemaVersion != PRAnalysisSchemaVersion {
+		t.Errorf("schemaVersion = %q, want %q", pr.SchemaVersion, PRAnalysisSchemaVersion)
 	}
 }

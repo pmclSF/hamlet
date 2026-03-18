@@ -224,11 +224,22 @@ func pathTreesOverlap(a, b string) bool {
 }
 
 // findImpactedScenarios identifies AI/eval scenarios whose covered surfaces
-// overlap with the changed surfaces. This is the prompt/dataset → scenario
-// impact path.
+// overlap with the changed surfaces. Supports all AI surface kinds:
+// prompt, context, dataset, tool_definition, retrieval, agent, eval_definition.
+//
+// The Relevance field explains *which kind* of surface triggered the impact,
+// enabling output like:
+//   "retrieval config changed (chunkConfig)"
+//   "context template changed (systemPrompt, safetyOverlay)"
 func findImpactedScenarios(changedAreas []ChangedArea, snap *models.TestSuiteSnapshot) []ImpactedScenario {
 	if len(snap.Scenarios) == 0 {
 		return nil
+	}
+
+	// Build lookup: surface ID → CodeSurface (for kind and name resolution).
+	surfaceByID := map[string]models.CodeSurface{}
+	for _, cs := range snap.CodeSurfaces {
+		surfaceByID[cs.SurfaceID] = cs
 	}
 
 	// Collect all changed surface IDs.
@@ -254,21 +265,20 @@ func findImpactedScenarios(changedAreas []ChangedArea, snap *models.TestSuiteSna
 			continue
 		}
 
-		confidence := ConfidenceInferred
-		if len(matchedSurfaces) > 0 {
-			// Scenarios explicitly declare covered surfaces → higher confidence.
-			confidence = ConfidenceExact
-		}
+		confidence := ConfidenceExact // scenarios explicitly declare covered surfaces
 
 		sort.Strings(matchedSurfaces)
+		relevance := buildSurfaceRelevance(matchedSurfaces, surfaceByID)
+
 		scenarios = append(scenarios, ImpactedScenario{
 			ScenarioID:       sc.ScenarioID,
 			Name:             sc.Name,
 			Category:         sc.Category,
 			Framework:        sc.Framework,
-			Relevance:        fmt.Sprintf("covers %d changed surface(s)", len(matchedSurfaces)),
+			Relevance:        relevance,
 			ImpactConfidence: confidence,
 			CoversSurfaces:   matchedSurfaces,
+			Capability:       sc.Capability,
 		})
 	}
 
@@ -282,6 +292,85 @@ func findImpactedScenarios(changedAreas []ChangedArea, snap *models.TestSuiteSna
 	})
 
 	return scenarios
+}
+
+// buildSurfaceRelevance produces a human-readable explanation of *why* a
+// scenario is impacted, grouped by the kinds of changed surfaces.
+//
+// Examples:
+//   "retrieval config changed (chunkConfig)"
+//   "context template changed (systemPrompt, safetyOverlay)"
+//   "prompt changed (buildPrompt); tool schema changed (searchTool)"
+func buildSurfaceRelevance(surfaceIDs []string, surfaces map[string]models.CodeSurface) string {
+	// Group changed surface names by kind.
+	byKind := map[models.CodeSurfaceKind][]string{}
+	for _, sid := range surfaceIDs {
+		cs, ok := surfaces[sid]
+		if !ok {
+			byKind["unknown"] = append(byKind["unknown"], sid)
+			continue
+		}
+		byKind[cs.Kind] = append(byKind[cs.Kind], cs.Name)
+	}
+
+	// Build relevance string, one phrase per kind.
+	var parts []string
+	for _, kind := range []models.CodeSurfaceKind{
+		models.SurfacePrompt, models.SurfaceContext, models.SurfaceDataset,
+		models.SurfaceToolDef, models.SurfaceRetrieval, models.SurfaceAgent,
+		models.SurfaceEvalDef, models.SurfaceFunction, models.SurfaceHandler,
+		models.SurfaceRoute, models.SurfaceClass, models.SurfaceMethod,
+		"unknown",
+	} {
+		names, ok := byKind[kind]
+		if !ok || len(names) == 0 {
+			continue
+		}
+		sort.Strings(names)
+		label := surfaceKindLabel(kind)
+		if len(names) <= 3 {
+			parts = append(parts, fmt.Sprintf("%s changed (%s)", label, strings.Join(names, ", ")))
+		} else {
+			parts = append(parts, fmt.Sprintf("%s changed (%s + %d more)", label, strings.Join(names[:2], ", "), len(names)-2))
+		}
+	}
+
+	if len(parts) == 0 {
+		return fmt.Sprintf("covers %d changed surface(s)", len(surfaceIDs))
+	}
+	return strings.Join(parts, "; ")
+}
+
+// surfaceKindLabel returns a human-readable label for a surface kind.
+func surfaceKindLabel(kind models.CodeSurfaceKind) string {
+	switch kind {
+	case models.SurfacePrompt:
+		return "prompt"
+	case models.SurfaceContext:
+		return "context template"
+	case models.SurfaceDataset:
+		return "dataset"
+	case models.SurfaceToolDef:
+		return "tool schema"
+	case models.SurfaceRetrieval:
+		return "retrieval config"
+	case models.SurfaceAgent:
+		return "agent config"
+	case models.SurfaceEvalDef:
+		return "eval definition"
+	case models.SurfaceFunction:
+		return "function"
+	case models.SurfaceHandler:
+		return "handler"
+	case models.SurfaceRoute:
+		return "route"
+	case models.SurfaceClass:
+		return "class"
+	case models.SurfaceMethod:
+		return "method"
+	default:
+		return string(kind)
+	}
 }
 
 // findProtectionGaps identifies where changed code lacks adequate coverage.
@@ -327,7 +416,152 @@ func findProtectionGaps(units []ImpactedCodeUnit, tests []ImpactedTest, snap *mo
 	// Add coverage diversity gaps.
 	gaps = append(gaps, findCoverageDiversityGaps(units)...)
 
+	// Deduplicate: same code unit + gap type = same gap.
+	// Uses CodeUnitID when available (symbol-level), falls back to file path.
+	seen := map[string]bool{}
+	var deduped []ProtectionGap
+	for _, g := range gaps {
+		dedupKey := g.CodeUnitID
+		if dedupKey == "" {
+			dedupKey = g.Path
+		}
+		key := dedupKey + "|" + g.GapType
+		if !seen[key] {
+			seen[key] = true
+			deduped = append(deduped, g)
+		}
+	}
+	return deduped
+}
+
+// findAIProtectionGaps identifies AI surfaces that were changed but lack
+// scenario coverage. This catches:
+//   - changed prompt with no scenario
+//   - changed context template with no evaluation
+//   - changed RAG config with no retrieval validation
+//   - changed tool schema with no tool-using scenario
+//   - partially covered capabilities
+func findAIProtectionGaps(result *ImpactResult, snap *models.TestSuiteSnapshot) []ProtectionGap {
+	// Build set of directly changed file paths.
+	changedPaths := map[string]bool{}
+	for _, cf := range result.Scope.ChangedFiles {
+		changedPaths[cf.Path] = true
+	}
+
+	// Build set of surface IDs covered by at least one scenario.
+	coveredIDs := map[string]bool{}
+	for _, sc := range snap.Scenarios {
+		for _, sid := range sc.CoveredSurfaceIDs {
+			coveredIDs[sid] = true
+		}
+	}
+
+	// AI surface kinds that warrant protection gap reporting.
+	aiKinds := map[models.CodeSurfaceKind]bool{
+		models.SurfacePrompt:    true,
+		models.SurfaceContext:   true,
+		models.SurfaceRetrieval: true,
+		models.SurfaceToolDef:   true,
+		models.SurfaceAgent:     true,
+		models.SurfaceDataset:   true,
+		models.SurfaceEvalDef:   true,
+	}
+
+	var gaps []ProtectionGap
+	seen := map[string]bool{}
+
+	for _, cs := range snap.CodeSurfaces {
+		if !aiKinds[cs.Kind] || !changedPaths[cs.Path] || coveredIDs[cs.SurfaceID] {
+			continue
+		}
+
+		key := cs.Path + "|" + string(cs.Kind)
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+
+		gapType, severity, explanation, action := classifyAIGap(cs)
+		gaps = append(gaps, ProtectionGap{
+			GapType:         gapType,
+			CodeUnitID:      cs.SurfaceID,
+			Path:            cs.Path,
+			Explanation:     explanation,
+			Severity:        severity,
+			SuggestedAction: action,
+		})
+	}
+
+	// Check for partially covered capabilities: a capability where some
+	// scenarios are impacted but the change also touches uncovered surfaces.
+	if len(result.ImpactedScenarios) > 0 {
+		impactedCaps := map[string]int{}
+		totalCaps := map[string]int{}
+		for _, sc := range snap.Scenarios {
+			if sc.Capability != "" {
+				totalCaps[sc.Capability]++
+			}
+		}
+		for _, is := range result.ImpactedScenarios {
+			if is.Capability != "" {
+				impactedCaps[is.Capability]++
+			}
+		}
+		for cap, impacted := range impactedCaps {
+			total := totalCaps[cap]
+			if total > 0 && impacted < total && float64(impacted)/float64(total) < 0.5 {
+				key := "capability|" + cap
+				if !seen[key] {
+					seen[key] = true
+					gaps = append(gaps, ProtectionGap{
+						GapType:  "weak_capability_coverage",
+						Path:     cap,
+						Severity: "medium",
+						Explanation: fmt.Sprintf(
+							"AI capability %q is weakly protected: %d of %d scenario(s) impacted but only partial coverage.",
+							cap, impacted, total,
+						),
+						SuggestedAction: fmt.Sprintf("Add eval scenarios to improve coverage of the %q capability.", cap),
+					})
+				}
+			}
+		}
+	}
+
 	return gaps
+}
+
+func classifyAIGap(cs models.CodeSurface) (gapType, severity, explanation, action string) {
+	switch cs.Kind {
+	case models.SurfacePrompt:
+		return "uncovered_prompt", "high",
+			fmt.Sprintf("Changed prompt %q (%s) has no scenario coverage.", cs.Name, cs.Path),
+			fmt.Sprintf("Add an eval scenario covering prompt %q.", cs.Name)
+	case models.SurfaceContext:
+		return "uncovered_context", "high",
+			fmt.Sprintf("Changed context template %q (%s) has no evaluation coverage.", cs.Name, cs.Path),
+			fmt.Sprintf("Add an eval scenario covering context %q — context changes alter AI behavior.", cs.Name)
+	case models.SurfaceRetrieval:
+		return "uncovered_retrieval", "medium",
+			fmt.Sprintf("Changed RAG config %q (%s) has no retrieval validation.", cs.Name, cs.Path),
+			fmt.Sprintf("Add a retrieval quality scenario covering %q.", cs.Name)
+	case models.SurfaceToolDef:
+		return "uncovered_tool", "medium",
+			fmt.Sprintf("Changed tool schema %q (%s) has no tool-using scenario coverage.", cs.Name, cs.Path),
+			fmt.Sprintf("Add a tool invocation scenario covering %q.", cs.Name)
+	case models.SurfaceAgent:
+		return "uncovered_agent", "medium",
+			fmt.Sprintf("Changed agent config %q (%s) has no orchestration scenario coverage.", cs.Name, cs.Path),
+			fmt.Sprintf("Add an agent workflow scenario covering %q.", cs.Name)
+	case models.SurfaceDataset:
+		return "uncovered_dataset", "medium",
+			fmt.Sprintf("Changed dataset %q (%s) has no scenario coverage.", cs.Name, cs.Path),
+			fmt.Sprintf("Add an eval scenario covering dataset %q.", cs.Name)
+	default:
+		return "uncovered_ai_surface", "low",
+			fmt.Sprintf("Changed AI surface %q (%s) has no scenario coverage.", cs.Name, cs.Path),
+			fmt.Sprintf("Add eval coverage for %q.", cs.Name)
+	}
 }
 
 // selectProtectiveTests selects a focused protective test set.

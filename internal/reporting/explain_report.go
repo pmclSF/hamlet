@@ -9,8 +9,10 @@ import (
 )
 
 // RenderTestExplanation writes a human-readable explanation of why a test
-// was selected.
-func RenderTestExplanation(w io.Writer, te *explain.TestExplanation) {
+// was selected. When verbose is true, additional evidence metadata is shown.
+func RenderTestExplanation(w io.Writer, te *explain.TestExplanation, verbose ...bool) {
+	isVerbose := len(verbose) > 0 && verbose[0]
+	_ = isVerbose
 	line := func(format string, args ...any) {
 		fmt.Fprintf(w, format+"\n", args...)
 	}
@@ -73,6 +75,30 @@ func RenderTestExplanation(w io.Writer, te *explain.TestExplanation) {
 		blank()
 	}
 
+	// Verbose: edge-level evidence detail.
+	if isVerbose {
+		line("Evidence detail")
+		line(strings.Repeat("-", 60))
+		if te.StrongestPath != nil {
+			for _, step := range te.StrongestPath.Steps {
+				line("  Edge: %s → %s", step.From, step.To)
+				line("    Relationship: %s", step.Relationship)
+				line("    Edge kind:    %s", step.EdgeKind)
+				line("    Confidence:   %.0f%%", step.EdgeConfidence*100)
+			}
+		}
+		for i, alt := range te.AlternativePaths {
+			line("  Alternative %d:", i+1)
+			for _, step := range alt.Steps {
+				line("    Edge: %s → %s", step.From, step.To)
+				line("      Relationship: %s", step.Relationship)
+				line("      Edge kind:    %s", step.EdgeKind)
+				line("      Confidence:   %.0f%%", step.EdgeConfidence*100)
+			}
+		}
+		blank()
+	}
+
 	// Fallback.
 	if te.FallbackUsed != nil {
 		line("Fallback: %s", te.FallbackUsed.Level)
@@ -94,8 +120,10 @@ func RenderTestExplanation(w io.Writer, te *explain.TestExplanation) {
 }
 
 // RenderSelectionExplanation writes a human-readable explanation of the
-// overall test selection strategy.
-func RenderSelectionExplanation(w io.Writer, sel *explain.SelectionExplanation) {
+// overall test selection strategy. When verbose is true, per-test evidence is shown.
+func RenderSelectionExplanation(w io.Writer, sel *explain.SelectionExplanation, verbose ...bool) {
+	isVerbose := len(verbose) > 0 && verbose[0]
+	_ = isVerbose
 	line := func(format string, args ...any) {
 		fmt.Fprintf(w, format+"\n", args...)
 	}
@@ -139,6 +167,9 @@ func RenderSelectionExplanation(w io.Writer, sel *explain.SelectionExplanation) 
 		line("High confidence (%d):", len(sel.HighConfidenceTests))
 		for _, te := range sel.HighConfidenceTests {
 			renderTestSummaryLine(w, &te)
+			if isVerbose {
+				renderInlineEvidence(w, &te)
+			}
 		}
 		blank()
 	}
@@ -148,6 +179,9 @@ func RenderSelectionExplanation(w io.Writer, sel *explain.SelectionExplanation) 
 		line("Medium confidence (%d):", len(sel.MediumConfidenceTests))
 		for _, te := range sel.MediumConfidenceTests {
 			renderTestSummaryLine(w, &te)
+			if isVerbose {
+				renderInlineEvidence(w, &te)
+			}
 		}
 		blank()
 	}
@@ -157,6 +191,9 @@ func RenderSelectionExplanation(w io.Writer, sel *explain.SelectionExplanation) 
 		line("Low confidence (%d):", len(sel.LowConfidenceTests))
 		for _, te := range sel.LowConfidenceTests {
 			renderTestSummaryLine(w, &te)
+			if isVerbose {
+				renderInlineEvidence(w, &te)
+			}
 		}
 		blank()
 	}
@@ -210,6 +247,27 @@ func renderTestSummaryLine(w io.Writer, te *explain.TestExplanation) {
 		reason = fmt.Sprintf("via %s from %s", step.Relationship, step.From)
 	}
 	fmt.Fprintf(w, "  %-40s %5s  %s\n", te.Target.Path, conf, reason)
+}
+
+// renderInlineEvidence renders compact evidence metadata below a test summary line.
+func renderInlineEvidence(w io.Writer, te *explain.TestExplanation) {
+	if te.StrongestPath == nil || len(te.StrongestPath.Steps) == 0 {
+		return
+	}
+	for _, step := range te.StrongestPath.Steps {
+		fmt.Fprintf(w, "      edge: %s  kind: %s  confidence: %.0f%%\n",
+			step.From+" → "+step.To, step.EdgeKind, step.EdgeConfidence*100)
+	}
+}
+
+// RenderSurfaceEvidence writes verbose evidence detail for a code surface.
+// Used by ai list --verbose to show detection metadata per surface.
+func RenderSurfaceEvidence(w io.Writer, name, path string, line int, tier string, confidence float64, reason string) {
+	fmt.Fprintf(w, "    %-30s %s:%d\n", name, path, line)
+	fmt.Fprintf(w, "      tier: %-12s confidence: %.0f%%\n", tier, confidence*100)
+	if reason != "" {
+		fmt.Fprintf(w, "      evidence: %s\n", reason)
+	}
 }
 
 // reasonCategoryLabel converts a reason category key to a human label.

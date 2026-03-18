@@ -25,6 +25,10 @@ type TestFile struct {
 	// Values: "import", "config-file", "project-fallback", "convention".
 	FrameworkSource string `json:"frameworkSource,omitempty"`
 
+	// FrameworkDetectorID identifies the specific detector that classified
+	// this file's framework. Maps to DetectorID constants in detection.go.
+	FrameworkDetectorID string `json:"frameworkDetectorId,omitempty"`
+
 	// Owner is the resolved owner for this file if known.
 	// This may come from CODEOWNERS, config, or future ownership inference.
 	Owner string `json:"owner,omitempty"`
@@ -40,6 +44,9 @@ type TestFile struct {
 
 	// SnapshotCount is the estimated number of snapshot assertions or snapshot artifacts used.
 	SnapshotCount int `json:"snapshotCount"`
+
+	// SkipCount is the estimated number of statically skipped tests (it.skip, xit, @skip, etc.).
+	SkipCount int `json:"skipCount"`
 
 	// RuntimeStats contains runtime evidence for this file when available.
 	RuntimeStats *RuntimeStats `json:"runtimeStats,omitempty"`

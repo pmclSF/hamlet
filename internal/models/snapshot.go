@@ -109,9 +109,24 @@ type TestSuiteSnapshot struct {
 	// all analysis pipelines work with or without them.
 	BehaviorSurfaces []BehaviorSurface `json:"behaviorSurfaces,omitempty"`
 
+	// FixtureSurfaces contains detected shared test fixtures — setup hooks,
+	// builders, mock providers, and data loaders. Used for fanout analysis
+	// to identify fragile validation structures.
+	FixtureSurfaces []FixtureSurface `json:"fixtureSurfaces,omitempty"`
+
+	// RAGPipelineSurfaces contains detected RAG pipeline components with
+	// extracted configuration metadata. Enables structured reasoning about
+	// retrieval pipelines: chunking strategy, top-k values, embedding models.
+	RAGPipelineSurfaces []RAGPipelineSurface `json:"ragPipelineSurfaces,omitempty"`
+
 	// Scenarios contains behavioral scenarios — AI evaluation cases,
 	// multi-step workflows, or derived behavior specifications.
 	Scenarios []Scenario `json:"scenarios,omitempty"`
+
+	// InferredCapabilities lists AI capabilities detected in the codebase,
+	// derived from code surface kinds rather than scenario naming.
+	// This enables capability-level impact reporting independent of scenario coverage.
+	InferredCapabilities []InferredCapability `json:"inferredCapabilities,omitempty"`
 
 	// ManualCoverage contains manual coverage artifacts — QA checklists,
 	// TestRail suites, and other validation that exists outside CI.
@@ -151,6 +166,11 @@ type TestSuiteSnapshot struct {
 	// Used by quality detectors for precise test-to-code linkage.
 	// Omitted from JSON output to keep snapshots compact.
 	ImportGraph map[string]map[string]bool `json:"-"`
+
+	// SourceImports maps source file paths to their resolved source imports.
+	// Enables accurate transitive impact: A imports B imports C → change to C impacts A.
+	// Omitted from JSON output.
+	SourceImports map[string]map[string]bool `json:"-"`
 
 	// DataSources tracks which data sources were attempted during analysis,
 	// whether they succeeded, and what impact their absence has on results.

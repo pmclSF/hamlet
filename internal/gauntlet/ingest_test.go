@@ -139,8 +139,9 @@ func TestApplyToSnapshot_GeneratesSignals(t *testing.T) {
 	if snap.Signals[0].Severity != models.SeverityMedium {
 		t.Errorf("failed scenario severity = %s, want medium", snap.Signals[0].Severity)
 	}
-	if snap.Signals[0].Type != "evalFailure" {
-		t.Errorf("signal type = %s, want evalFailure", snap.Signals[0].Type)
+	// "safety-check" maps to safetyFailure via classifier.
+	if snap.Signals[0].Type != "safetyFailure" {
+		t.Errorf("signal type = %s, want safetyFailure", snap.Signals[0].Type)
 	}
 
 	// Error scenario should generate high severity.
@@ -175,8 +176,9 @@ func TestApplyToSnapshot_Regressions(t *testing.T) {
 	if len(snap.Signals) != 1 {
 		t.Fatalf("expected 1 signal, got %d", len(snap.Signals))
 	}
-	if snap.Signals[0].Type != "evalRegression" {
-		t.Errorf("signal type = %s, want evalRegression", snap.Signals[0].Type)
+	// "accuracy" metric maps to accuracyRegression via classifier.
+	if snap.Signals[0].Type != "accuracyRegression" {
+		t.Errorf("signal type = %s, want accuracyRegression", snap.Signals[0].Type)
 	}
 }
 
@@ -202,6 +204,155 @@ func TestApplyToSnapshot_EmptySnapshot(t *testing.T) {
 	// Passed scenario generates no signal.
 	if len(snap.Signals) != 0 {
 		t.Errorf("expected 0 signals for passed scenario, got %d", len(snap.Signals))
+	}
+}
+
+func TestClassifyFailureSignal(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name string
+		want models.SignalType
+	}{
+		{"safety-check", "safetyFailure"},
+		{"hallucination-detection", "hallucinationDetected"},
+		{"grounding-eval", "hallucinationDetected"},
+		{"citation-completeness", "citationMissing"},
+		{"retrieval-quality", "retrievalMiss"},
+		{"search-relevance", "retrievalMiss"},
+		{"tool-selection-accuracy", "toolSelectionError"},
+		{"schema-validation", "schemaParseFailure"},
+		{"policy-compliance", "aiPolicyViolation"},
+		{"citation-mismatch-check", "citationMismatch"},
+		{"wrong-source-selection", "wrongSourceSelected"},
+		{"stale-source-detection", "staleSourceRisk"},
+		{"chunking-quality-check", "chunkingRegression"},
+		{"rerank-quality", "rerankerRegression"},
+		{"tool-routing-accuracy", "toolRoutingError"},
+		{"tool-guardrail-enforcement", "toolGuardrailViolation"},
+		{"step-budget-exceeded", "toolBudgetExceeded"},
+		{"agent-fallback-triggered", "agentFallbackTriggered"},
+		{"generic-scenario", "evalFailure"},
+	}
+	for _, tt := range tests {
+		got := classifyFailureSignal(ScenarioResult{Name: tt.name})
+		if got != tt.want {
+			t.Errorf("classifyFailureSignal(%q) = %q, want %q", tt.name, got, tt.want)
+		}
+	}
+}
+
+func TestClassifyRegressionSignal(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		metric string
+		want   models.SignalType
+	}{
+		{"accuracy", "accuracyRegression"},
+		{"f1_score", "accuracyRegression"},
+		{"precision", "accuracyRegression"},
+		// recall_at_k is now classified as topKRegression (RAG-specific, checked before accuracy).
+		{"latency_p95_ms", "latencyRegression"},
+		{"p99_duration", "latencyRegression"},
+		{"cost_per_query", "costRegression"},
+		{"token_usage", "costRegression"},
+		{"citation_score", "citationMissing"},
+		{"grounding_score", "answerGroundingFailure"},
+		{"faithfulness", "answerGroundingFailure"},
+		{"context_length", "contextOverflowRisk"},
+		{"chunk_quality_score", "chunkingRegression"},
+		{"chunk_size_ratio", "chunkingRegression"},
+		{"rerank_ndcg", "rerankerRegression"},
+		{"rerank_score", "rerankerRegression"},
+		{"top_k_recall", "topKRegression"},
+		{"mrr", "topKRegression"},
+		{"recall_at_k", "topKRegression"},
+		{"citation_match_rate", "citationMismatch"},
+		{"citation_accuracy", "citationMismatch"},
+		{"freshness_score", "staleSourceRisk"},
+		{"source_relevance", "wrongSourceSelected"},
+		{"tool_routing_accuracy", "toolRoutingError"},
+		{"tool_selection_accuracy", "toolRoutingError"},
+		{"step_count", "toolBudgetExceeded"},
+		{"step_budget_used", "toolBudgetExceeded"},
+		{"fallback_rate", "agentFallbackTriggered"},
+		{"fallback_count", "agentFallbackTriggered"},
+		{"custom_metric", "evalRegression"},
+	}
+	for _, tt := range tests {
+		got := classifyRegressionSignal(tt.metric)
+		if got != tt.want {
+			t.Errorf("classifyRegressionSignal(%q) = %q, want %q", tt.metric, got, tt.want)
+		}
+	}
+}
+
+func TestIngest_AISignalTypes(t *testing.T) {
+	t.Parallel()
+	path := writeArtifact(t, `{
+		"version": "1",
+		"provider": "gauntlet",
+		"scenarios": [
+			{
+				"scenarioId": "eval:safety-check",
+				"name": "safety-check",
+				"status": "failed",
+				"durationMs": 100
+			},
+			{
+				"scenarioId": "eval:accuracy",
+				"name": "accuracy-eval",
+				"status": "passed",
+				"metrics": {"accuracy": 0.85},
+				"baseline": {"accuracy": 0.93},
+				"regressions": ["accuracy"]
+			}
+		]
+	}`)
+
+	snap := &models.TestSuiteSnapshot{
+		Scenarios: []models.Scenario{
+			{ScenarioID: "eval:safety-check"},
+			{ScenarioID: "eval:accuracy"},
+		},
+	}
+
+	art, err := Ingest(path)
+	if err != nil {
+		t.Fatalf("ingest: %v", err)
+	}
+	result := ApplyToSnapshot(snap, art)
+
+	if result.FailureCount != 1 {
+		t.Errorf("failures = %d, want 1", result.FailureCount)
+	}
+	if result.RegressionCount != 1 {
+		t.Errorf("regressions = %d, want 1", result.RegressionCount)
+	}
+
+	// Check signal types.
+	var safetyFound, accuracyFound bool
+	for _, sig := range snap.Signals {
+		if sig.Type == "safetyFailure" {
+			safetyFound = true
+			if sig.Category != models.CategoryAI {
+				t.Errorf("safetyFailure category = %s, want ai", sig.Category)
+			}
+			if sig.Location.ScenarioID != "eval:safety-check" {
+				t.Errorf("safetyFailure scenarioID = %s", sig.Location.ScenarioID)
+			}
+		}
+		if sig.Type == "accuracyRegression" {
+			accuracyFound = true
+			if sig.Category != models.CategoryAI {
+				t.Errorf("accuracyRegression category = %s, want ai", sig.Category)
+			}
+		}
+	}
+	if !safetyFound {
+		t.Error("expected safetyFailure signal")
+	}
+	if !accuracyFound {
+		t.Error("expected accuracyRegression signal")
 	}
 }
 

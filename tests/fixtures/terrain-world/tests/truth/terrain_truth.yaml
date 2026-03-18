@@ -75,9 +75,10 @@ ai:
       overlap: ">50%"
       reason: "Both scenarios cover the same 2 surfaces (buildSafetyPrompt, systemPrompt)"
   expected_prompt_surfaces:
-    - "src/ai-assistant/prompt.ts:systemPrompt"
     - "src/ai-assistant/prompt.ts:buildUserPrompt"
     - "src/ai-assistant/prompt.ts:buildSafetyPrompt"
+  expected_context_surfaces:
+    - "src/ai-assistant/prompt.ts:systemPrompt"
   expected_dataset_surfaces:
     - "src/ai-assistant/dataset.ts:trainingDataset"
     - "src/ai-assistant/dataset.ts:loadEvalDataset"

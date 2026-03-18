@@ -42,8 +42,9 @@ func Run(repoRoot, truthPath string) (*TruthCheckReport, error) {
 	snap := result.Snapshot
 
 	report := &TruthCheckReport{
-		RepoRoot:  repoRoot,
-		TruthFile: truthPath,
+		SchemaVersion: TruthCheckReportSchemaVersion,
+		RepoRoot:      repoRoot,
+		TruthFile:     truthPath,
 	}
 
 	// Build analyze report for coverage/fanout/redundancy data.
@@ -243,10 +244,10 @@ func checkStability(truth *StabilityTruth, snap *models.TestSuiteSnapshot) Truth
 		Description: truth.Description,
 	}
 
-	// Check for skip signals.
+	// Check for skip signals (runtime or static).
 	skipSignals := map[string]int{}
 	for _, sig := range snap.Signals {
-		if sig.Type == "skippedTest" || sig.Type == "conditionallySkippedTest" {
+		if sig.Type == "skippedTest" || sig.Type == "staticSkippedTest" || sig.Type == "conditionallySkippedTest" {
 			skipSignals[sig.Location.File]++
 		}
 	}
@@ -308,6 +309,26 @@ func checkAI(truth *AITruth, snap *models.TestSuiteSnapshot) TruthCategoryResult
 		} else {
 			r.Missing = append(r.Missing, "prompt:"+exp)
 			r.Details = append(r.Details, fmt.Sprintf("MISSING prompt: %s", exp))
+		}
+		r.Found++
+	}
+
+	// Check context surfaces.
+	contextSet := map[string]bool{}
+	for _, cs := range snap.CodeSurfaces {
+		if cs.Kind == models.SurfaceContext {
+			key := cs.Path + ":" + cs.Name
+			contextSet[key] = true
+		}
+	}
+	for _, exp := range truth.ExpectedContextSurfaces {
+		r.Expected++
+		if contextSet[exp] {
+			r.Matched++
+			r.Details = append(r.Details, fmt.Sprintf("FOUND context: %s", exp))
+		} else {
+			r.Missing = append(r.Missing, "context:"+exp)
+			r.Details = append(r.Details, fmt.Sprintf("MISSING context: %s", exp))
 		}
 		r.Found++
 	}

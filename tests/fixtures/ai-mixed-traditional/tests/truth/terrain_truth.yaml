@@ -1,0 +1,22 @@
+impact:
+  cases:
+    - change: "src/auth/login.ts"
+      expected_impacted_tests:
+        - "tests/unit/auth/login.test.ts"
+    - change: "src/ai/contexts/policy.ts"
+      expected_impacted_tests:
+        - "tests/eval/safety/support-safety.test.ts"
+      expected_impacted_scenarios:
+        - "support-safety"
+ai:
+  expected_scenarios: 1
+  expected_prompt_surfaces:
+    - "src/ai/prompts/support.ts:buildPrompt"
+    - "src/ai/prompts/support.ts:promptTemplate"
+  expected_context_surfaces:
+    - "src/ai/contexts/policy.ts:systemPrompt"
+    - "src/ai/contexts/policy.ts:safetyOverlay"
+    - "src/ai/contexts/policy.ts:policyBlock"
+  expected_dataset_surfaces: []
+environment:
+  notes: "Mixed traditional + AI fixture."

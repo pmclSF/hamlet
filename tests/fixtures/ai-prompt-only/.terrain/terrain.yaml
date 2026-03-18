@@ -1,0 +1,25 @@
+scenarios:
+  - name: prompt-injection-safety
+    category: safety
+    framework: custom
+    owner: safety-team
+    surfaces:
+      - "surface:src/prompts/chat.ts:buildPrompt"
+      - "surface:src/safety/guardrails.ts:safetyOverlay"
+    path: tests/eval/safety/prompt-injection.test.ts
+  - name: content-safety
+    category: safety
+    framework: custom
+    owner: safety-team
+    surfaces:
+      - "surface:src/safety/guardrails.ts:safetyOverlay"
+      - "surface:src/contexts/system.ts:policyBlock"
+    path: tests/eval/safety/content-safety.test.ts
+  - name: qa-accuracy
+    category: accuracy
+    framework: custom
+    owner: ml-team
+    surfaces:
+      - "surface:src/prompts/chat.ts:buildPrompt"
+      - "surface:src/prompts/chat.ts:promptTemplate"
+    path: tests/eval/accuracy/qa-accuracy.test.ts

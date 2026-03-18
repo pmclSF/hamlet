@@ -92,6 +92,7 @@ type AITruth struct {
 	ExpectedScenarios          int                `yaml:"expected_scenarios"`
 	ExpectedScenarioDuplication []ScenarioDupEntry `yaml:"expected_scenario_duplication"`
 	ExpectedPromptSurfaces     []string           `yaml:"expected_prompt_surfaces"`
+	ExpectedContextSurfaces    []string           `yaml:"expected_context_surfaces"`
 	ExpectedDatasetSurfaces    []string           `yaml:"expected_dataset_surfaces"`
 }
 
@@ -109,11 +110,15 @@ type EnvironmentTruth struct {
 }
 
 // TruthCheckReport is the complete validation result.
+// TruthCheckReportSchemaVersion is the current schema version.
+const TruthCheckReportSchemaVersion = "1"
+
 type TruthCheckReport struct {
-	RepoRoot   string                `json:"repoRoot"`
-	TruthFile  string                `json:"truthFile"`
-	Categories []TruthCategoryResult `json:"categories"`
-	Summary    ReportSummary         `json:"summary"`
+	SchemaVersion string                `json:"schemaVersion"`
+	RepoRoot      string                `json:"repoRoot"`
+	TruthFile     string                `json:"truthFile"`
+	Categories    []TruthCategoryResult `json:"categories"`
+	Summary       ReportSummary         `json:"summary"`
 }
 
 // TruthCategoryResult is the validation result for one truth category.
