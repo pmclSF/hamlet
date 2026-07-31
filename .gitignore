@@ -18,6 +18,8 @@ scripts/*
 !scripts/benchmarks/
 !scripts/benchmarks/**
 !scripts/docs-verify.sh
+!scripts/release-alignment.mjs
+!scripts/skeptic-audit.sh
 !scripts/test-installer-marker.mjs
 !scripts/test-release-sanity.mjs
 !scripts/verify-pack.js

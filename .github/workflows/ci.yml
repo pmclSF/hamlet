@@ -249,3 +249,25 @@ jobs:
             cat /tmp/bench-gate.txt 2>/dev/null || echo "(gate did not run)"
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
+
+  # ── Docs and CLI surface audit ──────────────────────────────
+  # Consistency gate between the shipped CLI surface, the docs, and the
+  # tracked tree: dead links, placeholder copy, --help coverage, tracked
+  # binaries, changelog discipline, clean discovery output.
+  docs-and-surface-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0  # tags needed for the changelog discipline check
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - name: Run docs and surface audit
+        run: bash scripts/skeptic-audit.sh

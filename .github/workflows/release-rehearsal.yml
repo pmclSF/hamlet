@@ -1,0 +1,134 @@
+name: Release Rehearsal
+
+# Exercises the release pipeline's assumptions on a plain runner —
+# no tag, no secrets, nothing published. Runs when release-critical
+# files change, and on demand via workflow_dispatch.
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.goreleaser.yaml'
+      - '.github/workflows/release.yml'
+      - '.github/workflows/publish.yml'
+      - '.github/workflows/homebrew-update.yml'
+      - '.github/workflows/release-rehearsal.yml'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'extension/vscode/package.json'
+      - 'extension/vscode/package-lock.json'
+      - 'vscode/package.json'
+      - 'CHANGELOG.md'
+      - 'Makefile'
+      - 'bin/**'
+      - 'scripts/release-alignment.mjs'
+      - 'scripts/test-release-sanity.mjs'
+      - 'scripts/test-installer-marker.mjs'
+      - 'scripts/verify-pack.js'
+
+concurrency:
+  group: release-rehearsal-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  # Validates .goreleaser.yaml and proves one build id compiles end to
+  # end. Snapshot mode needs no tag, and the build phase needs no syft,
+  # cosign, or credentials.
+  goreleaser-snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - name: Install goreleaser
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          version: '~> v2'
+          install-only: true
+
+      - name: Validate goreleaser config
+        run: goreleaser check
+
+      - name: Snapshot build (linux/amd64 only)
+        run: goreleaser build --clean --snapshot --id terrain-linux-amd64
+
+      - name: Snapshot binary runs and reports a version
+        run: |
+          set -euo pipefail
+          BIN=$(find dist -maxdepth 2 -type f -name terrain | head -1)
+          if [ -z "$BIN" ]; then
+            echo "::error::no terrain binary found under dist/"
+            exit 1
+          fi
+          "$BIN" version --json
+          "$BIN" version --json | grep -qE '"version"[[:space:]]*:[[:space:]]*"[^"]+"'
+
+  # Every version-bearing file must already agree before a tag exists.
+  # The script prints the full version table and fails on any mismatch;
+  # the same script runs with --tag at release time.
+  version-alignment:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22.x'
+
+      - name: Check version alignment
+        run: node scripts/release-alignment.mjs
+
+  # Mirrors the toolchain the npm publish job assumes (Node + Go +
+  # cosign + upgraded npm) and runs the same pre-publish verification
+  # chain against a locally packed tarball. No publish, no secrets.
+  npm-publish-toolchain:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22.x'
+          registry-url: 'https://registry.npmjs.org'
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Verify cosign is on PATH
+        run: cosign version
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Trusted publishing requires npm >= 11.5.1; the publish job
+      # upgrades npm the same way, so the floor is asserted here.
+      - name: Upgrade npm and assert publish floor
+        run: |
+          npm install -g npm@latest
+          npm --version
+          node -e '
+            const [maj, min, pat] = process.argv[1].split(".").map(Number);
+            const ok = maj > 11 || (maj === 11 && (min > 5 || (min === 5 && pat >= 1)));
+            if (!ok) {
+              console.error("npm " + process.argv[1] + " is below required 11.5.1");
+              process.exit(1);
+            }
+          ' "$(npm --version)"
+
+      - name: Run pre-publish verification
+        run: npm run release:verify
