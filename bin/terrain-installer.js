@@ -80,7 +80,7 @@ async function readInstallFailureMarker() {
   try {
     const body = await fs.readFile(installFailureMarkerPath(), 'utf8');
     return JSON.parse(body);
-  } catch (err) {
+  } catch {
     return null;
   }
 }
@@ -339,7 +339,8 @@ async function verifySignatureBestEffort({
     throw new Error(
       `cosign is installed but the Sigstore signature artifacts for ` +
         `terrain ${version} could not be downloaded: ${error.message}. ` +
-        `Set TERRAIN_INSTALLER_SKIP_VERIFY=1 to bypass at your own risk.`
+        `Set TERRAIN_INSTALLER_SKIP_VERIFY=1 to bypass at your own risk.`,
+      { cause: error }
     );
   }
 
@@ -375,7 +376,8 @@ async function verifySignatureBestEffort({
     throw new Error(
       `cosign verify-blob FAILED for ${path.basename(archivePath)}: ${detail}. ` +
         `The downloaded archive does not match its Sigstore signature; ` +
-        `the binary may have been tampered with. Install aborted.`
+        `the binary may have been tampered with. Install aborted.`,
+      { cause: error }
     );
   }
 }
@@ -636,7 +638,8 @@ export async function runTerrainCli(argv = process.argv.slice(2)) {
       `${error.message}\n\n` +
         'Fallback install options:\n' +
         '  brew install pmclSF/terrain/mapterrain\n' +
-        '  go install github.com/pmclSF/terrain/cmd/terrain@latest'
+        '  go install github.com/pmclSF/terrain/cmd/terrain@latest',
+      { cause: error }
     );
   }
 
