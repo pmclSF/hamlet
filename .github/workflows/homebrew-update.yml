@@ -55,7 +55,7 @@ jobs:
           echo "SHA256: $SHA"
 
       - name: Check out homebrew tap
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           repository: pmclSF/homebrew-terrain
           token: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
