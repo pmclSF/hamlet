@@ -168,6 +168,68 @@ func TestRunDiscover_AllClearAndInSync(t *testing.T) {
 	}
 }
 
+// TestRunDiscover_HonoursGitignore locks the report's .gitignore contract: a
+// gitignored directory's prompts, schemas, and drift never reach MAPPED or
+// ISSUES, while files that are merely untracked (on disk, not ignored) still
+// count. Exercises all three walkers behind the report (aidetect,
+// promptcontract, detectSchemaFiles) through the real entry point.
+func TestRunDiscover_HonoursGitignore(t *testing.T) {
+	root := t.TempDir()
+	mustWrite(t, filepath.Join(root, ".gitignore"), "local/\n")
+
+	// Gitignored: a drifting schema+prompt pair plus a schema file — none of
+	// it may surface.
+	mustWrite(t, filepath.Join(root, "local", "models.py"),
+		"from pydantic import BaseModel\n\nclass Ignored(BaseModel):\n    name: str\n")
+	mustWrite(t, filepath.Join(root, "local", "prompt.py"),
+		"import openai\nfrom models import Ignored\n\n"+
+			"def build(user: Ignored) -> str:\n    return f\"\"\"Hello {user.user_id}.\"\"\"\n")
+	mustWrite(t, filepath.Join(root, "local", "api.schema.json"), "{}")
+
+	// Untracked but not ignored: a consistent pair that must be counted.
+	mustWrite(t, filepath.Join(root, "models.py"),
+		"from pydantic import BaseModel\n\nclass UserProfile(BaseModel):\n    user_id: str\n")
+	mustWrite(t, filepath.Join(root, "prompt.py"),
+		"import openai\nfrom models import UserProfile\n\n"+
+			"def build(user: UserProfile) -> str:\n    return f\"\"\"Hi {user.user_id}.\"\"\"\n")
+
+	out := captureStdout(t, func() {
+		if err := runDiscover(root); err != nil {
+			t.Fatalf("runDiscover: %v", err)
+		}
+	})
+
+	if strings.Contains(out, "local/") {
+		t.Errorf("gitignored paths leaked into the report, got: %s", out)
+	}
+	// Only the kept pair counts: 1 prompt, 1 schema, no drift.
+	if !strings.Contains(out, "1 prompt") || !strings.Contains(out, "1 schema") {
+		t.Errorf("expected MAPPED counts '1 prompt', '1 schema' from the kept pair, got: %s", out)
+	}
+	if strings.Contains(out, "[drift]") {
+		t.Errorf("drift from a gitignored directory must not surface, got: %s", out)
+	}
+	if !strings.Contains(out, "all clear") {
+		t.Errorf("expected 'all clear' once ignored drift is excluded, got: %s", out)
+	}
+}
+
+// TestDetectSchemaFiles_GitignoreAndFixtures pins the schema walker's two
+// independent exclusions — .gitignore and the fixture-path heuristic — while
+// an untracked non-ignored schema is still returned.
+func TestDetectSchemaFiles_GitignoreAndFixtures(t *testing.T) {
+	root := t.TempDir()
+	mustWrite(t, filepath.Join(root, ".gitignore"), "gen/\n")
+	mustWrite(t, filepath.Join(root, "gen", "api.schema.json"), "{}")    // gitignored
+	mustWrite(t, filepath.Join(root, "testdata", "s.schema.json"), "{}") // fixture
+	mustWrite(t, filepath.Join(root, "api", "v1.schema.json"), "{}")     // kept
+
+	got := detectSchemaFiles(root)
+	if len(got) != 1 || got[0] != "api/v1.schema.json" {
+		t.Errorf("detectSchemaFiles = %v, want [api/v1.schema.json]", got)
+	}
+}
+
 // TestDiscoverHealthHelpers unit-tests the coverage-score logic directly (it is
 // not exercised by the minimal fixtures, since aidetect doesn't classify their
 // surfaces): the co-location coverage count, the meter band boundaries, and the

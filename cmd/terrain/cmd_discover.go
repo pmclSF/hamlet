@@ -10,6 +10,7 @@ import (
 
 	"github.com/pmclSF/terrain/internal/aidetect"
 	"github.com/pmclSF/terrain/internal/findings"
+	"github.com/pmclSF/terrain/internal/gitignore"
 	"github.com/pmclSF/terrain/internal/promptcontract"
 	"github.com/pmclSF/terrain/internal/uitokens"
 )
@@ -274,6 +275,9 @@ func dedupePaths(in []string) []string {
 // exhaustive — calibration happens in `terrain analyze`.
 func detectSchemaFiles(root string) []string {
 	var out []string
+	// Honour the repo .gitignore, matching the shared scan walkers — a
+	// schema inside a gitignored tree is not the adopter's own contract.
+	ign := gitignore.Load(root)
 	_ = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return nil
@@ -283,10 +287,14 @@ func detectSchemaFiles(root string) []string {
 			if shouldSkipDir(base) {
 				return filepath.SkipDir
 			}
+			if rel, relErr := filepath.Rel(root, path); relErr == nil && ign.Match(filepath.ToSlash(rel), true) {
+				return filepath.SkipDir
+			}
 			return nil
 		}
 		rel, _ := filepath.Rel(root, path)
-		if isFixturePath(rel) {
+		rel = filepath.ToSlash(rel)
+		if isFixturePath(rel) || ign.Match(rel, false) {
 			return nil
 		}
 		name := d.Name()

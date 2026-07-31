@@ -8,6 +8,8 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+
+	"github.com/pmclSF/terrain/internal/gitignore"
 )
 
 var skipDirs = map[string]bool{
@@ -55,6 +57,11 @@ func AnalyzeRepo(root string) (Inventory, []Drift, error) {
 	var files []pySource
 	maybeAI := false // cheap substring pre-filter — never under-matches a real import
 
+	// Honour the repo .gitignore, matching the analysis walker. A prompt or
+	// schema inside a gitignored tree is not the repo's own surface, and any
+	// drift there is not the adopter's to fix.
+	ign := gitignore.Load(root)
+
 	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return nil // skip unreadable entries; never fail the whole walk
@@ -63,9 +70,15 @@ func AnalyzeRepo(root string) (Inventory, []Drift, error) {
 			if skipDirs[d.Name()] {
 				return filepath.SkipDir
 			}
+			if ign.Match(relOrPath(root, path), true) {
+				return filepath.SkipDir
+			}
 			return nil
 		}
 		if !strings.HasSuffix(path, ".py") {
+			return nil
+		}
+		if ign.Match(relOrPath(root, path), false) {
 			return nil
 		}
 		// Reject anything that isn't a regular file within the cap before

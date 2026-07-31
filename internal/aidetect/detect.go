@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/pmclSF/terrain/internal/astguard"
+	"github.com/pmclSF/terrain/internal/gitignore"
 	"github.com/pmclSF/terrain/internal/saferead"
 )
 
@@ -286,6 +287,11 @@ func detectFromSourceCtx(ctx context.Context, root string, result *DetectResult)
 	// noticeable.
 	fileCount := 0
 
+	// Honour the repo .gitignore, matching the analysis walker. Without it,
+	// the scan surfaces vendored or local-only trees the user has declared
+	// off-limits — and counts their prompts/models as the repo's own.
+	ign := gitignore.Load(root)
+
 	_ = filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return nil
@@ -300,6 +306,12 @@ func detectFromSourceCtx(ctx context.Context, root string, result *DetectResult)
 				return ctx.Err()
 			}
 		}
+		rel, relErr := filepath.Rel(root, path)
+		if relErr != nil {
+			return nil
+		}
+		rel = filepath.ToSlash(rel)
+
 		if d.IsDir() {
 			// Use the same canonical skip set as walkRepoForConfigs and
 			// internal/analysis/repository_scan.go. A narrower skip set
@@ -309,6 +321,13 @@ func detectFromSourceCtx(ctx context.Context, root string, result *DetectResult)
 			if skipDirs[d.Name()] {
 				return filepath.SkipDir
 			}
+			if ign.Match(rel, true) {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+
+		if ign.Match(rel, false) {
 			return nil
 		}
 
@@ -332,7 +351,6 @@ func detectFromSourceCtx(ctx context.Context, root string, result *DetectResult)
 			return nil
 		}
 		content := string(data)
-		rel, _ := filepath.Rel(root, path)
 
 		// Skip source whose bracket nesting would make tree-sitter parsing and
 		// per-node traversal pathologically slow (a crafted file of thousands of

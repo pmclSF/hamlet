@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/pmclSF/terrain/internal/gitignore"
 	"github.com/pmclSF/terrain/internal/models"
 )
 
@@ -59,12 +60,18 @@ func walkRepoForConfigs(root string, opts scanOpts) []string {
 	if root == "" {
 		return out
 	}
+	// Honour the repo .gitignore, matching the analysis walker — a config
+	// inside a gitignored tree is not the repo's own surface.
+	ign := gitignore.Load(root)
 	_ = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return nil
 		}
 		if d.IsDir() {
 			if skipDirs[d.Name()] {
+				return filepath.SkipDir
+			}
+			if rel, relErr := filepath.Rel(root, path); relErr == nil && ign.Match(filepath.ToSlash(rel), true) {
 				return filepath.SkipDir
 			}
 			return nil
@@ -78,6 +85,9 @@ func walkRepoForConfigs(root string, opts scanOpts) []string {
 			return nil
 		}
 		rel = filepath.ToSlash(rel)
+		if ign.Match(rel, false) {
+			return nil
+		}
 		if len(opts.markers) > 0 {
 			lower := strings.ToLower(rel)
 			matched := false
