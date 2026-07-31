@@ -41,6 +41,7 @@ If a feature is **planned**, no detector emits its signals today.
 | `terrain doctor` | cross-cutting | 2 | stable | Migration-readiness diagnostic; per-pillar maturity view. |
 | `terrain debug <verb>` | Understand | 2 | stable | graph / coverage / fanout / duplicates / depgraph. |
 | `terrain serve` | Understand | 2 | experimental | Local HTTP report; localhost-only, no auth. |
+| `terrain mcp` | Understand | 1 | stable | MCP server on stdio (spec 2025-11-25, pinned). 8 read-only tools serving findings, surfaces, evals, and baselines from the latest `terrain analyze` artifacts, loaded once at startup. Not an IDE/LSP integration. |
 | `terrain ai list` | Gate (inventory) | 1 | stable | AI surface inventory. |
 | `terrain ai doctor` | cross-cutting | 2 | stable | Diagnostic check on AI scenario configuration. |
 | `terrain ai run` | Gate | 2 | stable | Executes detected eval-framework commands, captures Promptfoo structured output when available, and records an AI-run artifact. AI-gate exit code 4 on `actionBlock`; `--timeout` bounds child-process execution. Trust-boundary doc clarifies parses-vs-executes. |
@@ -127,7 +128,8 @@ Several detector entries (xfail accumulation, statistical flaky-test rate, addit
 - AI surface inference (prompts, contexts, datasets, tool definitions, RAG components) — stable
 - `terrain ai list` / `terrain ai doctor` / `terrain ai run` — stable
 - AI signal detectors (mix of **stable** and **experimental**) — gated by the bundled recall-regression fixture set
-- Additional AI capabilities (multi-model comparison, full LSP/MCP IDE integration) are future work
+- MCP server (`terrain mcp`) — stdio, read-only tools over the latest analyze artifacts — stable
+- Additional AI capabilities (multi-model comparison, LSP-based IDE integration) are future work
 
 ## CLI restructure
 

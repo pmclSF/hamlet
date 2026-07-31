@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://terrain.dev/schemas/conversion/v1",
+  "$id": "https://raw.githubusercontent.com/pmclSF/terrain/main/docs/schema/conversion.schema.json",
   "title": "Terrain Conversion Report",
   "description": "Output of `terrain convert --report-json`. Describes the result of a conversion run.",
   "type": "object",

@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://terrain.dev/schemas/analysis/v1",
+  "$id": "https://raw.githubusercontent.com/pmclSF/terrain/main/docs/schema/analysis.schema.json",
   "title": "Terrain Analysis Report",
   "description": "Output of `terrain analyze --json`. The canonical source of truth for the report shape is the Go type `analyze.Report` defined in `internal/analyze/analyze.go`; this schema is a permissive stub that pins only the schemaVersion contract. Adopters who want strict per-field validation should generate from the Go types directly. Field-level stability tiers are documented in `docs/schema/FIELD_TIERS.md`.",
   "type": "object",

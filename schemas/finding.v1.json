@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://terrain.dev/schemas/finding.v1.json",
+  "$id": "https://raw.githubusercontent.com/pmclSF/terrain/main/schemas/finding.v1.json",
   "title": "Terrain Finding",
   "description": "A single result from one Terrain rule. Stable from v0.2.0.",
   "type": "object",

@@ -117,15 +117,13 @@ pr-gate:
 	$(MAKE) no-dead-domains
 	$(MAKE) test
 
-# Guard: the terrain.dev domain is not live, so it must never appear as a
-# user-facing link (comments, docs, generated artifacts) — a dead link
-# erodes trust. JSON-Schema `$id` URIs under schemas/ and docs/schema/ are
-# machine identifiers in the project's own namespace, not fetchable links,
-# and are excluded. Uses git grep (tracked files only).
+# Guard: the terrain.dev domain is not live, so it must never appear
+# anywhere in tracked source — a dead link erodes trust. Uses git grep
+# (tracked files only).
 no-dead-domains:
-	@if git grep -n -e 'terrain\.dev' -- ':!Makefile' ':!schemas/' ':!docs/schema/' >/dev/null 2>&1; then \
+	@if git grep -n -e 'terrain\.dev' -- ':!Makefile' >/dev/null 2>&1; then \
 		echo "dead 'terrain.dev' user-facing reference(s) in tracked source:"; \
-		git grep -n -e 'terrain\.dev' -- ':!Makefile' ':!schemas/' ':!docs/schema/'; \
+		git grep -n -e 'terrain\.dev' -- ':!Makefile'; \
 		exit 1; \
 	fi
 	@echo "no-dead-domains: ok"

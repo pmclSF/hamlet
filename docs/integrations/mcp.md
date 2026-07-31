@@ -6,6 +6,8 @@ Terrain ships an [MCP](https://modelcontextprotocol.io/) server that lets agents
 - **Transport:** stdio (line-delimited JSON-RPC 2.0)
 - **Binary:** `terrain mcp`
 
+Scope: the server is a standalone read-only process. It serves artifacts from the most recent `terrain analyze` run, loaded once at startup; it does not re-analyze the repo or act on it. Editor-native integration (LSP, inline diagnostics) is not part of this server and is future work.
+
 ## Tool inventory
 
 | Tool | What it does |
@@ -132,6 +134,6 @@ covered_surface_ids at the v3 surface.
 
 ## Known limitations
 
-- The MCP server reads from the most recent `terrain analyze` run (via `.terrain/findings.json`); it doesn't re-analyze on each query. Re-run `terrain analyze` to refresh.
+- The MCP server loads artifacts from the most recent `terrain analyze` run (`.terrain/findings.json`, terrain.yaml surfaces, `.terrain/snapshots/latest.json`, `.terrain/baselines/`) once at startup; it doesn't re-analyze or re-read on each query. Re-run `terrain analyze` and restart the server to refresh.
 - Tool-calling (model invokes Terrain back through the server) returns `ErrToolCallsNotImplemented`. The server is read-only — chat-completion / resource-fetch only.
 - Baseline reading uses the JSON shape in `.terrain/baselines/`; consult the latest schema in the repo for the exact fields surfaced.

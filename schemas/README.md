@@ -16,7 +16,7 @@ Implementations should validate emitted `Finding` objects against `finding.v1.js
 ## Adding a new schema
 
 1. RFC required if the schema becomes part of the public API surface
-2. File goes in `schemas/<name>.v1.json` with `$id` set to `https://terrain.dev/schemas/<name>.v1.json`
+2. File goes in `schemas/<name>.v1.json` with `$id` set to `https://raw.githubusercontent.com/pmclSF/terrain/main/schemas/<name>.v1.json`
 3. Update this README
 4. Update `docs/PRODUCT.md` to reference the schema as the canonical contract
 
