@@ -271,3 +271,49 @@ jobs:
 
       - name: Run docs and surface audit
         run: bash scripts/skeptic-audit.sh
+
+  # ── Offline guarantee ───────────────────────────────────────
+  # The docs claim the analyze / gate / fix path needs no API key and
+  # no network. This job enforces the claim: build the binary, then run
+  # the core commands inside a network namespace with no interfaces —
+  # no routes, no DNS, loopback down — against a fixture with a seeded
+  # prompt↔schema drift, so each command demonstrably does real work
+  # rather than short-circuiting. Any attempted egress fails the
+  # command and the job. `terrain serve` is deliberately not covered
+  # here: it binds loopback by design.
+  offline-guarantee:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - name: Build terrain
+        run: go build -o "$RUNNER_TEMP/terrain" ./cmd/terrain
+
+      - name: Verify the namespace actually blocks egress
+        # Negative control: a green offline run proves nothing if the
+        # namespace quietly has network access. Guard commands first so
+        # a broken sudo/unshare/curl can't masquerade as "blocked".
+        run: |
+          sudo unshare -n -- true
+          command -v curl > /dev/null
+          if sudo unshare -n -- curl --max-time 5 -sS -o /dev/null https://example.com/; then
+            echo "::error::network namespace is not isolated — egress succeeded"
+            exit 1
+          fi
+          echo "egress blocked as expected"
+
+      - name: Run discover / analyze / gate / fix with zero network access
+        run: |
+          work="$RUNNER_TEMP/offline"
+          mkdir -p "$work"
+          cp tests/fixtures/offline/*.py "$work/"
+          sudo unshare -n -- bash tests/fixtures/offline/check.sh \
+            "$RUNNER_TEMP/terrain" "$work" "$PWD/tests/fixtures/offline"

@@ -9,7 +9,7 @@ GO_OWNED_PKGS := ./cmd/... ./internal/...
 .PHONY: build test lint clean demo benchmark-fetch benchmark-smoke benchmark-full benchmark-stress benchmark-summary benchmark-convert install docs-linkcheck \
        test-golden test-determinism test-schema test-adversarial test-e2e test-cli test-bench golden-update pr-gate release-gate \
        sbom sbom-cyclonedx sbom-spdx release-dry-run go-release-verify js-release-verify extension-verify release-verify \
-       docs-gen docs-verify calibrate bench-baseline bench-gate memory-bench truth-verify voice-lint no-dead-domains
+       docs-gen docs-verify calibrate bench-baseline bench-gate memory-bench truth-verify voice-lint no-dead-domains offline-check
 
 # Build the CLI binary
 build:
@@ -87,6 +87,14 @@ test-bench:
 # Update golden files (review changes in git diff before committing)
 golden-update:
 	go test ./internal/testdata/ -run 'Golden' -update
+
+# Run the offline-guarantee assertions locally (network up; the CI job
+# runs the same script inside an isolated network namespace on ubuntu)
+offline-check: build
+	work=$$(mktemp -d) && \
+	cp tests/fixtures/offline/*.py "$$work/" && \
+	bash tests/fixtures/offline/check.sh "$(CURDIR)/terrain" "$$work" "$(CURDIR)/tests/fixtures/offline" && \
+	rm -rf "$$work"
 
 # ── SBOM Generation ───────────────────────────────────────
 # Requires: syft (https://github.com/anchore/syft)

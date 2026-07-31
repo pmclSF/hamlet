@@ -5,6 +5,14 @@ All notable changes to Terrain are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- **The offline guarantee is now CI-enforced.** Every build runs Terrain's
+  discovery, analysis, severity gate, and fix dry-run inside a network
+  namespace with no interfaces, against a fixture that produces a real
+  finding — so "no API key, no network" is a tested property, not a claim.
+  Run the same assertions locally with `make offline-check`.
+
 ### Changed
 
 - **AI-surface scans now honor `.gitignore`.** Prompt, schema, model-call-site,

@@ -18,6 +18,7 @@ Fixture repositories used for snapshot tests, benchmarks, and pipeline validatio
 | `weak-coverage/` | Low coverage codebase | TypeScript | Vitest | untested exports, coverage threshold break, weak coverage band |
 | `skipped-tests/` | Skip-debt-heavy suite | TypeScript | Vitest | 59% skip rate, high skip burden edge case |
 | `legacy-mixed/` | Legacy mixed-style repo | JavaScript/JSX | Jest + Mocha + Cypress + Enzyme + Sinon | framework migration, migration blockers, deprecated patterns, mixed cultures |
+| `offline/` | Offline-guarantee CI job (`check.sh` in the fixture dir) | Python | — | seeded prompt↔schema drift, severity gate, fix dry-run |
 
 ## Fixture Details
 
