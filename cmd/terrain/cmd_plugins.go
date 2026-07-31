@@ -14,10 +14,10 @@ import (
 //	manifest <path>   validate a plugin manifest file
 //	list              list registered plugins (today: empty stub)
 //
-// `add` and `remove` are reserved for a future release once the
-// runtime (subprocess spawn + signed-binary verification + per-plugin
-// directory layout) lands. The verb dispatch is wired so adding the
-// runtime later doesn't need a CLI surface change.
+// `add` and `remove` are recognized but return a clear not-available
+// error: terrain has no plugin runtime (subprocess spawn, signed-binary
+// verification, per-plugin directory layout). The verb dispatch is wired
+// so a runtime can attach without a CLI surface change.
 func runPlugins(args []string) error {
 	if len(args) == 0 {
 		printPluginsUsage()
@@ -30,9 +30,8 @@ func runPlugins(args []string) error {
 	case "list":
 		return runPluginsList(rest)
 	case "add", "remove":
-		return fmt.Errorf("terrain plugins %s is not yet implemented "+
-			"(plugin runtime is reserved for a future release; "+
-			"the manifest schema ships today via `terrain plugins manifest`)", verb)
+		return fmt.Errorf("terrain plugins %s is not available: terrain has "+
+			"no plugin runtime (validate a manifest with `terrain plugins manifest`)", verb)
 	default:
 		printPluginsUsage()
 		return fmt.Errorf("unknown verb %q", verb)
@@ -46,7 +45,7 @@ func printPluginsUsage() {
 	fmt.Fprintln(os.Stderr, "  manifest <path>   validate a plugin manifest file (YAML)")
 	fmt.Fprintln(os.Stderr, "  list              list registered plugins")
 	fmt.Fprintln(os.Stderr)
-	fmt.Fprintln(os.Stderr, "Reserved (future):")
+	fmt.Fprintln(os.Stderr, "Not available (terrain has no plugin runtime):")
 	fmt.Fprintln(os.Stderr, "  add <plugin-id>   install + register a plugin")
 	fmt.Fprintln(os.Stderr, "  remove <plugin-id>  unregister")
 }
@@ -99,10 +98,9 @@ func runPluginsList(args []string) error {
 			jsonOut = true
 		}
 	}
-	// The runtime registry lands in a future release. Today the list
-	// is always empty — terrain ships zero installed plugins. Returning
-	// the shape adopters will see at scale so their tooling doesn't
-	// need to change later.
+	// There is no plugin runtime, so the list is always empty — terrain
+	// ships zero installed plugins. Returning the shape adopters will see
+	// at scale so their tooling doesn't need to change later.
 	out := map[string]any{
 		"schema_version": plugin.SchemaVersion,
 		"plugins":        []any{},
@@ -117,6 +115,6 @@ func runPluginsList(args []string) error {
 	fmt.Println("Validate a third-party plugin manifest with:")
 	fmt.Println("  terrain plugins manifest <path-to-plugin-manifest.yaml>")
 	fmt.Println()
-	fmt.Println("Installing plugins (terrain plugins add) is reserved for a future release.")
+	fmt.Println("Installing plugins (terrain plugins add) is not available — terrain validates manifests only.")
 	return nil
 }

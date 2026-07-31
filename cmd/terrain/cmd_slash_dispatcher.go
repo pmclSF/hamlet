@@ -29,13 +29,13 @@ import (
 //	/terrain explain <id> → runReportExplain (long-form rule docs)
 //	/terrain why <id>     → runReportExplain --short
 //	/terrain commands     → slash.RenderCommandList
-//	/terrain refresh      → noop placeholder (would re-run analyze;
-//	                         deferred until the snapshot-cache lands)
-//	/terrain expand       → noop placeholder (depends on the comment-
-//	                         ID that posted the collapsed block)
-//	/terrain escalate     → noop placeholder (needs PR-state machinery)
+//	/terrain expand       → renders the full findings list from the
+//	                         last analyze artifact
 //	/terrain scaffold     → scaffold.GenerateFromSchema + scaffold.Emit
-//	/terrain bench        → noop placeholder (needs bench-by-id wiring)
+//	/terrain bench        → points at the local `terrain ai run` flow
+//
+// Verbs the dispatcher does not route get the unknown-command reply,
+// which lists the verbs that do work.
 //
 // The repo root that runners need defaults to ".". A future deployment
 // that routes multiple PRs through one server will compute the root
@@ -57,9 +57,9 @@ func newRealDispatcher(repoRoot string) *realDispatcher {
 //
 //	D1. dismiss / show / explain / why / scaffold / commands / expand
 //	    execute their real behavior (not placeholders).
-//	D2. refresh / escalate / bench return an "acknowledged … deferred"
-//	    reply, never a dispatcher error (the webhook must not 500 on a
-//	    known-but-unimplemented verb).
+//	D2. Verbs with no PR-side behavior (bench) and unrouted verbs get
+//	    a polite reply, never a dispatcher error (the webhook must not
+//	    500 on them).
 //	D3. User-input errors surface as a polite markdown reply, not an error.
 func (d *realDispatcher) Handle(ev slash.WebhookEvent, cmd *slash.Command) (string, error) {
 	if cmd == nil {
@@ -135,14 +135,8 @@ func (d *realDispatcher) Handle(ev slash.WebhookEvent, cmd *slash.Command) (stri
 			return runShow("finding", id, d.repoRoot, false)
 		})
 
-	case slash.VerbRefresh:
-		return "_/terrain refresh acknowledged — full re-analyze + comment-edit is deferred to a future release; the existing PR check-run already re-runs on push._", nil
-
 	case slash.VerbExpand:
 		return d.handleExpand()
-
-	case slash.VerbEscalate:
-		return "_/terrain escalate acknowledged — per-PR tier override is deferred to a future release._", nil
 
 	case slash.VerbScaffold:
 		return d.handleScaffold(cmd)
@@ -152,9 +146,9 @@ func (d *realDispatcher) Handle(ev slash.WebhookEvent, cmd *slash.Command) (stri
 		if id == "" {
 			return "_/terrain bench requires a benchmark id (usage: /terrain bench <id>)._", nil
 		}
-		return fmt.Sprintf("_/terrain bench %s acknowledged — run benchmarks locally with `terrain ai run <scenario>`; PR-side benchmark dispatch is reserved for a future release._", id), nil
+		return fmt.Sprintf("_Benchmarks don't run from PR comments — run %s locally with `terrain ai run <scenario>`._", id), nil
 	}
-	return fmt.Sprintf("Unhandled verb `%s`.", cmd.Verb), nil
+	return fmt.Sprintf("_Unknown command `%s`. Available: `/dismiss reason:<text>`, `/terrain show <id>`, `/terrain explain <rule-id>`, `/terrain why <rule-id>`, `/terrain expand`, `/terrain scaffold accept`, `/terrain commands`._", cmd.Verb), nil
 }
 
 // captureRun redirects the runner's stdout to a buffer for the

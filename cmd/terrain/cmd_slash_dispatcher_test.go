@@ -109,15 +109,16 @@ func TestRealDispatcher_DismissAcceptsFindingKeywordFallback(t *testing.T) {
 	}
 }
 
-// TestRealDispatcher_DeferredVerbsReturnPlaceholderText proves the
-// "acknowledged, deferred" verbs return a stable user-visible message
-// rather than crashing. Adopters wiring up the receiver shouldn't see
-// a 500 just because they invoked a not-yet-implemented verb.
-func TestRealDispatcher_DeferredVerbsReturnPlaceholderText(t *testing.T) {
+// TestRealDispatcher_UnroutedVerbsGetUnknownCommandReply proves verbs
+// the dispatcher does not route fall through to the unknown-command
+// reply: no dispatcher error (the webhook must not 500), and the reply
+// lists the verbs that do work so the user can self-correct.
+func TestRealDispatcher_UnroutedVerbsGetUnknownCommandReply(t *testing.T) {
 	d := newRealDispatcher(t.TempDir())
 	cases := []slash.Verb{
 		slash.VerbRefresh,
 		slash.VerbEscalate,
+		slash.Verb("made-up"),
 	}
 	for _, v := range cases {
 		t.Run(string(v), func(t *testing.T) {
@@ -126,8 +127,13 @@ func TestRealDispatcher_DeferredVerbsReturnPlaceholderText(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Handle(%s): %v", v, err)
 			}
-			if !strings.Contains(reply, "acknowledged") {
-				t.Errorf("verb %s reply should mention 'acknowledged'; got: %q", v, reply)
+			for _, must := range []string{"Unknown command", "/dismiss", "/terrain commands"} {
+				if !strings.Contains(reply, must) {
+					t.Errorf("verb %s reply should contain %q; got: %q", v, must, reply)
+				}
+			}
+			if strings.Contains(reply, "future release") {
+				t.Errorf("verb %s reply must not promise future behavior; got: %q", v, reply)
 			}
 		})
 	}
@@ -197,7 +203,8 @@ func TestRealDispatcher_ScaffoldRejectsPathEscape(t *testing.T) {
 }
 
 // TestRealDispatcher_BenchWithoutIDShowsUsage and with-id documents
-// the bench placeholder is stable.
+// the bench replies are stable: usage without an id, local-run
+// guidance (echoing the id) with one.
 func TestRealDispatcher_BenchReplies(t *testing.T) {
 	d := newRealDispatcher(t.TempDir())
 	t.Run("without id", func(t *testing.T) {

@@ -273,7 +273,7 @@ func buildTestMigrationPlan(source string, direction Direction, detection *Detec
 		Direction:       direction,
 		SourceDetection: detection,
 		ExecutionStatus: "cataloged-not-executable",
-		NextStep:        "The Go CLI now owns the conversion catalog, shorthands, and detection contract. Execution for this direction will land in follow-up migration slices.",
+		NextStep:        "The Go CLI owns the conversion catalog, shorthands, and detection contract. This direction is cataloged but not executable.",
 	}
 	switch direction.GoNativeState {
 	case GoNativeStateImplemented:
