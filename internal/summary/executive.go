@@ -93,6 +93,11 @@ type DimensionPosture struct {
 	Dimension       string           `json:"dimension"`
 	Band            models.RiskBand  `json:"band"`
 	KeyMeasurements []KeyMeasurement `json:"keyMeasurements,omitempty"`
+	// NeedsInput names the missing input ("test files", "runtime
+	// data", "coverage data") when Band is unknown and the gap is
+	// identifiable from the dimension's measurements. Empty when the
+	// dimension was measured or the gap could not be attributed.
+	NeedsInput string `json:"needsInput,omitempty"`
 }
 
 // KeyMeasurement is a single measurement surfaced in the executive
@@ -345,7 +350,8 @@ func Build(in *BuildInput) *ExecutiveSummary {
 
 	es.Posture = buildPosture(in.Snapshot, in.Heatmap)
 	es.TopRiskAreas = buildTopRiskAreas(in.Heatmap)
-	es.DominantDrivers = buildDominantDrivers(in.Snapshot)
+	var driverCounts map[string]int
+	es.DominantDrivers, driverCounts = buildDominantDrivers(in.Snapshot)
 	es.KeyNumbers = buildKeyNumbers(in.Snapshot, in.Heatmap)
 	es.BenchmarkReadiness = buildBenchmarkReadiness(in.Metrics, in.Segment)
 
@@ -369,7 +375,7 @@ func Build(in *BuildInput) *ExecutiveSummary {
 		es.Recommendations[i].Priority = i + 1
 	}
 
-	es.RecommendedFocus = buildRecommendedFocus(es)
+	es.RecommendedFocus = buildRecommendedFocus(es, driverCounts)
 
 	return es
 }
@@ -438,6 +444,9 @@ func buildPosture(snap *models.TestSuiteSnapshot, h *heatmap.Heatmap) PostureSum
 				}
 				appendKM(m)
 			}
+			if dp.Band == models.RiskBand(measurement.PostureUnknown) {
+				dp.NeedsInput = unmeasuredInput(p.Measurements)
+			}
 			ps.Dimensions = append(ps.Dimensions, dp)
 		}
 		return ps
@@ -454,6 +463,39 @@ func buildPosture(snap *models.TestSuiteSnapshot, h *heatmap.Heatmap) PostureSum
 	}
 
 	return ps
+}
+
+// unmeasuredInput derives which input an unmeasured dimension is
+// waiting on. When a dimension's band is unknown, its measurements
+// carry explanations naming the missing data ("No test files
+// detected.", "No runtime data available; ...", "No coverage data
+// available."). The most fundamental gap wins: without test files
+// nothing downstream can be measured. Returns "" when the gap cannot
+// be attributed, so renderers fall back to a plain "not yet measured".
+func unmeasuredInput(measurements []models.MeasurementResult) string {
+	var needsTests, needsRuntime, needsCoverage bool
+	for _, m := range measurements {
+		if m.Band != "" && m.Band != string(measurement.PostureUnknown) {
+			continue
+		}
+		switch {
+		case strings.Contains(m.Explanation, "No test files"):
+			needsTests = true
+		case strings.Contains(m.Explanation, "No runtime data"):
+			needsRuntime = true
+		case strings.Contains(m.Explanation, "No coverage data"):
+			needsCoverage = true
+		}
+	}
+	switch {
+	case needsTests:
+		return "test files"
+	case needsRuntime:
+		return "runtime data"
+	case needsCoverage:
+		return "coverage data"
+	}
+	return ""
 }
 
 func buildTopRiskAreas(h *heatmap.Heatmap) []FocusArea {
@@ -483,7 +525,10 @@ func buildTopRiskAreas(h *heatmap.Heatmap) []FocusArea {
 	return areas
 }
 
-func buildDominantDrivers(snap *models.TestSuiteSnapshot) []string {
+// buildDominantDrivers returns the most frequent signal types (raw
+// type ids, for JSON stability) plus a type → count map so the
+// recommended-focus sentence can cite concrete finding counts.
+func buildDominantDrivers(snap *models.TestSuiteSnapshot) ([]string, map[string]int) {
 	counts := map[string]int{}
 	for _, s := range snap.Signals {
 		counts[string(s.Type)]++
@@ -512,7 +557,7 @@ func buildDominantDrivers(snap *models.TestSuiteSnapshot) []string {
 	for i := 0; i < limit; i++ {
 		result[i] = pairs[i].key
 	}
-	return result
+	return result, counts
 }
 
 func buildKeyNumbers(snap *models.TestSuiteSnapshot, h *heatmap.Heatmap) KeyNumbers {
@@ -560,7 +605,7 @@ func buildTrendHighlights(comp *comparison.SnapshotComparison) []TrendCallout {
 			verb = "decreased"
 		}
 		callouts = append(callouts, TrendCallout{
-			Description: fmt.Sprintf("%s findings %s (%+d)", sd.Type, verb, sd.Delta),
+			Description: fmt.Sprintf("%s findings %s (%+d)", signals.TitleForType(sd.Type), verb, sd.Delta),
 			Direction:   dir,
 			Dimension:   string(sd.Category),
 		})
@@ -789,39 +834,34 @@ func evidenceOrder(s models.EvidenceStrength) int {
 	}
 }
 
-func buildRecommendedFocus(es *ExecutiveSummary) string {
-	if len(es.TopRiskAreas) == 0 && len(es.DominantDrivers) == 0 {
-		return "No significant risk areas identified. Continue monitoring."
+// buildRecommendedFocus produces the single action line for the
+// Recommended Focus section. Priority: dominant driver first — it
+// names a concrete rule with a runnable next step — then the top risk
+// area, then a worsened trend, then the calm default. The report's
+// Top Risk Areas and Trend Highlights sections carry the detail this
+// line does not repeat.
+func buildRecommendedFocus(es *ExecutiveSummary, driverCounts map[string]int) string {
+	if len(es.DominantDrivers) > 0 {
+		d := es.DominantDrivers[0]
+		title := signals.TitleForType(models.SignalType(d))
+		if n := driverCounts[d]; n > 0 {
+			return fmt.Sprintf("Start with: %s — %d %s › terrain explain %s", title, n, plural(n, "finding"), d)
+		}
+		return fmt.Sprintf("Start with: %s › terrain explain %s", title, d)
 	}
 
-	var parts []string
-
-	// Focus on highest-risk area
 	if len(es.TopRiskAreas) > 0 {
 		top := es.TopRiskAreas[0]
-		parts = append(parts, fmt.Sprintf("address %s risk in %s", top.RiskType, top.Name))
+		return fmt.Sprintf("Start with: %s — %d %s %s", top.Name, top.SignalCount, top.RiskType, plural(top.SignalCount, "finding"))
 	}
 
-	// Include dominant driver if different from risk area focus
-	if len(es.DominantDrivers) > 0 {
-		parts = append(parts, fmt.Sprintf("reduce %s findings", es.DominantDrivers[0]))
-	}
-
-	// Add trend-based focus
 	for _, t := range es.TrendHighlights {
 		if t.Direction == "worsened" {
-			parts = append(parts, fmt.Sprintf("investigate %s trend", t.Dimension))
-			break
+			return fmt.Sprintf("Investigate the worsened %s trend.", t.Dimension)
 		}
 	}
 
-	if len(parts) == 0 {
-		return "Continue monitoring test suite health."
-	}
-
-	// Capitalize first part
-	parts[0] = strings.ToUpper(parts[0][:1]) + parts[0][1:]
-	return strings.Join(parts, "; ") + "."
+	return "No significant risk areas identified. Continue monitoring."
 }
 
 func categorizeSignalType(signalType string) string {

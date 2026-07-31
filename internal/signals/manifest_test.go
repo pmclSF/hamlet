@@ -221,3 +221,17 @@ func TestManifest_CatalogBidirectional(t *testing.T) {
 		}
 	}
 }
+
+// TestTitleForType covers the shared title lookup used by user-facing
+// renderers: manifest title when an entry exists, raw type string as
+// the fallback.
+func TestTitleForType(t *testing.T) {
+	t.Parallel()
+
+	if got := TitleForType(SignalWeakAssertion); got != "Weak Assertion" {
+		t.Errorf("TitleForType(SignalWeakAssertion) = %q, want %q", got, "Weak Assertion")
+	}
+	if got := TitleForType(models.SignalType("noSuchSignal")); got != "noSuchSignal" {
+		t.Errorf("TitleForType fallback = %q, want raw type string", got)
+	}
+}

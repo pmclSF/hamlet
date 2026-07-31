@@ -160,15 +160,16 @@ func TestBuild_WithTrendData(t *testing.T) {
 		t.Error("expected reliability worsened trend callout")
 	}
 
-	// Check improved signal delta
+	// Check improved signal delta. Callouts carry the manifest title,
+	// not the raw signal-type id.
 	foundImproved := false
 	for _, th := range es.TrendHighlights {
-		if strings.Contains(th.Description, "weakAssertion") && th.Direction == "improved" {
+		if strings.Contains(th.Description, "Weak Assertion") && th.Direction == "improved" {
 			foundImproved = true
 		}
 	}
 	if !foundImproved {
-		t.Error("expected weakAssertion improved trend callout")
+		t.Error("expected Weak Assertion improved trend callout")
 	}
 }
 
@@ -198,12 +199,11 @@ func TestBuild_RecommendedFocus(t *testing.T) {
 	t.Parallel()
 	es := Build(baseInput())
 
-	if es.RecommendedFocus == "" {
-		t.Error("expected non-empty recommended focus")
-	}
-	// Should mention top risk area
-	if !strings.Contains(es.RecommendedFocus, "src/auth") {
-		t.Errorf("recommended focus should mention src/auth, got %q", es.RecommendedFocus)
+	// The dominant driver leads: human title, finding count, and a
+	// runnable explain hint on the raw rule id.
+	want := "Start with: Weak Assertion — 2 findings › terrain explain weakAssertion"
+	if es.RecommendedFocus != want {
+		t.Errorf("recommended focus = %q, want %q", es.RecommendedFocus, want)
 	}
 }
 
@@ -276,7 +276,13 @@ func TestCategorizeSignalType(t *testing.T) {
 
 func TestBuild_TrendWithWorsenedFocusRecommendation(t *testing.T) {
 	t.Parallel()
+	// A worsened trend leads the focus only when there is nothing more
+	// concrete to act on — no current signals, no risk hotspots.
 	in := baseInput()
+	in.Snapshot.Signals = nil
+	in.Snapshot.Risk = nil
+	h := heatmap.Build(in.Snapshot)
+	in.Heatmap = h
 	in.Comparison = &comparison.SnapshotComparison{
 		SignalDeltas: []comparison.SignalDelta{
 			{Type: "flakyTest", Category: "health", Before: 1, After: 5, Delta: 4},
@@ -285,7 +291,6 @@ func TestBuild_TrendWithWorsenedFocusRecommendation(t *testing.T) {
 
 	es := Build(in)
 
-	// Recommended focus should mention the worsened trend dimension
 	if !strings.Contains(es.RecommendedFocus, "trend") {
 		t.Errorf("expected recommended focus to reference trend, got %q", es.RecommendedFocus)
 	}
@@ -401,5 +406,68 @@ func TestRenderExecutiveSummary_Sections(t *testing.T) {
 	}
 	if len(es.BenchmarkReadiness.ReadyDimensions) == 0 {
 		t.Error("expected benchmark ready dimensions")
+	}
+}
+
+func TestBuild_PostureUnmeasuredNeedsInput(t *testing.T) {
+	t.Parallel()
+	in := baseInput()
+	in.Snapshot.Measurements = &models.MeasurementSnapshot{
+		Posture: []models.DimensionPostureResult{
+			{
+				Dimension: "health",
+				Band:      "unknown",
+				Measurements: []models.MeasurementResult{
+					{ID: "health.flaky_share", Band: "unknown",
+						Explanation: "No runtime data available; flakiness cannot be assessed from static analysis alone."},
+				},
+			},
+			{
+				Dimension: "coverage_diversity",
+				Band:      "unknown",
+				Measurements: []models.MeasurementResult{
+					{ID: "coverage_diversity.unit_test_coverage", Band: "unknown",
+						Explanation: "No coverage data available."},
+				},
+			},
+			{
+				Dimension: "operational_risk",
+				Band:      "unknown",
+				Measurements: []models.MeasurementResult{
+					{ID: "operational_risk.policy_violation_density", Band: "unknown",
+						Explanation: "No test files detected."},
+					{ID: "operational_risk.runtime_budget_breach_share", Band: "unknown",
+						Explanation: "No runtime data available; cannot assess budget compliance."},
+				},
+			},
+			{
+				Dimension: "coverage_depth",
+				Band:      "strong",
+				Measurements: []models.MeasurementResult{
+					{ID: "coverage_depth.uncovered_exports", Band: "strong",
+						Explanation: "2 of 40 exported functions lack coverage (5%)."},
+				},
+			},
+		},
+	}
+
+	es := Build(in)
+
+	byDim := map[string]DimensionPosture{}
+	for _, d := range es.Posture.Dimensions {
+		byDim[d.Dimension] = d
+	}
+	if got := byDim["health"].NeedsInput; got != "runtime data" {
+		t.Errorf("health NeedsInput = %q, want %q", got, "runtime data")
+	}
+	if got := byDim["coverage_diversity"].NeedsInput; got != "coverage data" {
+		t.Errorf("coverage_diversity NeedsInput = %q, want %q", got, "coverage data")
+	}
+	// The most fundamental gap wins when a dimension has several.
+	if got := byDim["operational_risk"].NeedsInput; got != "test files" {
+		t.Errorf("operational_risk NeedsInput = %q, want %q", got, "test files")
+	}
+	if got := byDim["coverage_depth"].NeedsInput; got != "" {
+		t.Errorf("measured dimension NeedsInput = %q, want empty", got)
 	}
 }

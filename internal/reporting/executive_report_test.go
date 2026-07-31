@@ -25,12 +25,12 @@ func TestRenderExecutiveSummary_AllSections(t *testing.T) {
 			{Name: "src/auth", Scope: "directory", Band: models.RiskBandHigh, RiskType: "quality", SignalCount: 5},
 		},
 		TrendHighlights: []summary.TrendCallout{
-			{Description: "weakAssertion findings decreased (-3)", Direction: "improved"},
-			{Description: "flakyTest findings increased (+2)", Direction: "worsened"},
+			{Description: "Weak Assertion findings decreased (-3)", Direction: "improved"},
+			{Description: "Flaky Test findings increased (+2)", Direction: "worsened"},
 		},
 		HasTrendData:     true,
 		DominantDrivers:  []string{"weakAssertion", "mockHeavyTest"},
-		RecommendedFocus: "Address quality risk in src/auth; reduce weakAssertion findings.",
+		RecommendedFocus: "Start with: Weak Assertion — 2 findings › terrain explain weakAssertion",
 		BenchmarkReadiness: summary.BenchmarkReadinessSummary{
 			ReadyDimensions: []string{"test structure", "quality metrics"},
 			LimitedDimensions: []summary.BenchmarkLimitation{
@@ -65,11 +65,13 @@ func TestRenderExecutiveSummary_AllSections(t *testing.T) {
 		"Top Risk Areas",
 		"src/auth",
 		"Trend Highlights",
-		"weakAssertion findings decreased",
-		"flakyTest findings increased",
+		"Weak Assertion findings decreased",
+		"Flaky Test findings increased",
 		"Dominant Drivers",
-		"weakAssertion",
+		"Weak Assertion",
+		"Mock-Heavy Test",
 		"Recommended Focus",
+		"Start with: Weak Assertion",
 		"Benchmark Readiness",
 		"test structure",
 		"speed comparison",
@@ -207,6 +209,81 @@ func TestRenderExecutiveSummary_Recommendations(t *testing.T) {
 		if !strings.Contains(output, s) {
 			t.Errorf("output missing %q", s)
 		}
+	}
+}
+
+func TestRenderExecutiveSummary_UnmeasuredDimensionRow(t *testing.T) {
+	t.Parallel()
+	es := &summary.ExecutiveSummary{
+		Posture: summary.PostureSummary{
+			OverallBand:      models.RiskBandLow,
+			OverallStatement: "Mixed.",
+			Dimensions: []summary.DimensionPosture{
+				{Dimension: "coverage_depth", Band: "strong"},
+				{Dimension: "health", Band: "unknown", NeedsInput: "runtime data"},
+				{Dimension: "structural_risk", Band: "unknown"},
+			},
+		},
+		BenchmarkReadiness: summary.BenchmarkReadinessSummary{
+			ReadyDimensions: []string{"test structure"},
+		},
+	}
+
+	var buf bytes.Buffer
+	RenderExecutiveSummary(&buf, es)
+	output := buf.String()
+
+	if !strings.Contains(output, "not yet measured — needs runtime data") {
+		t.Error("expected unmeasured row with the missing input named")
+	}
+	if !strings.Contains(output, "Structural risk:") || !strings.Contains(output, "not yet measured\n") {
+		t.Error("expected plain 'not yet measured' when the missing input is unknown")
+	}
+	if strings.Contains(output, "Unknown") {
+		t.Error("unmeasured rows must not render as 'Unknown'")
+	}
+	// Measured rows keep the band display and the legend stays.
+	if !strings.Contains(output, "Coverage depth:") || !strings.Contains(output, "Strong") {
+		t.Error("expected measured row to keep its band")
+	}
+	if !strings.Contains(output, "Dimension meaning:") {
+		t.Error("expected dimension legend when some rows are measured")
+	}
+}
+
+func TestRenderExecutiveSummary_AllDimensionsUnmeasured(t *testing.T) {
+	t.Parallel()
+	es := &summary.ExecutiveSummary{
+		Posture: summary.PostureSummary{
+			OverallBand:      models.RiskBandLow,
+			OverallStatement: "Unmeasured.",
+			Dimensions: []summary.DimensionPosture{
+				{Dimension: "health", Band: "unknown", NeedsInput: "test files"},
+				{Dimension: "coverage_depth", Band: "unknown", NeedsInput: "test files"},
+				{Dimension: "coverage_diversity", Band: "unknown", NeedsInput: "test files"},
+				{Dimension: "structural_risk", Band: "unknown", NeedsInput: "test files"},
+			},
+		},
+		BenchmarkReadiness: summary.BenchmarkReadinessSummary{
+			ReadyDimensions: []string{"test structure"},
+		},
+	}
+
+	var buf bytes.Buffer
+	RenderExecutiveSummary(&buf, es)
+	output := buf.String()
+
+	if !strings.Contains(output, "Not yet measured — needs test files.") {
+		t.Error("expected single collapsed unmeasured line")
+	}
+	if got := strings.Count(output, "measured"); got != 1 {
+		t.Errorf("unmeasured state should be stated once, got %d mentions", got)
+	}
+	if strings.Contains(output, "Unknown") {
+		t.Error("unmeasured posture must not render as 'Unknown'")
+	}
+	if strings.Contains(output, "Dimension meaning:") {
+		t.Error("legend should be omitted when nothing is measured")
 	}
 }
 

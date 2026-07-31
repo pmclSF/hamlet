@@ -6,6 +6,8 @@ import (
 	"strings"
 
 	"github.com/pmclSF/terrain/internal/measurement"
+	"github.com/pmclSF/terrain/internal/models"
+	"github.com/pmclSF/terrain/internal/signals"
 	"github.com/pmclSF/terrain/internal/summary"
 	"github.com/pmclSF/terrain/internal/uitokens"
 )
@@ -34,24 +36,39 @@ func RenderExecutiveSummary(w io.Writer, es *summary.ExecutiveSummary) {
 	// summary view trims to a one-line digest.
 	line("Overall Posture")
 	line(uitokens.H2Sep)
+	unmeasured := 0
 	for _, d := range es.Posture.Dimensions {
-		dim := measurement.Dimension(d.Dimension)
-		label := measurement.DimensionDisplayName(dim)
-		band := measurement.BandDisplayForDimension(dim, measurement.PostureBand(d.Band))
-		if len(d.KeyMeasurements) == 0 {
-			line("  %-22s %s", label+":", band)
-			continue
+		if measurement.PostureBand(d.Band) == measurement.PostureUnknown {
+			unmeasured++
 		}
-		// Compact "value label" pairs joined by middle dot.
-		parts := make([]string, 0, len(d.KeyMeasurements))
-		for _, m := range d.KeyMeasurements {
-			parts = append(parts, fmt.Sprintf("%s %s", m.FormattedValue, m.ShortLabel))
-		}
-		line("  %-22s %s  (%s)", label+":", band, strings.Join(parts, " · "))
 	}
-	if len(es.Posture.Dimensions) == 0 {
+	switch {
+	case len(es.Posture.Dimensions) == 0:
 		line("  (no risk surfaces computed)")
-	} else {
+	case unmeasured == len(es.Posture.Dimensions):
+		// Every dimension is unmeasured — say it once instead of
+		// repeating "not yet measured" per row.
+		line("  %s", unmeasuredLine(es.Posture.Dimensions))
+	default:
+		for _, d := range es.Posture.Dimensions {
+			dim := measurement.Dimension(d.Dimension)
+			label := measurement.DimensionDisplayName(dim)
+			if measurement.PostureBand(d.Band) == measurement.PostureUnknown {
+				line("  %-22s %s", label+":", unmeasuredCopy(d.NeedsInput))
+				continue
+			}
+			band := measurement.BandDisplayForDimension(dim, measurement.PostureBand(d.Band))
+			if len(d.KeyMeasurements) == 0 {
+				line("  %-22s %s", label+":", band)
+				continue
+			}
+			// Compact "value label" pairs joined by middle dot.
+			parts := make([]string, 0, len(d.KeyMeasurements))
+			for _, m := range d.KeyMeasurements {
+				parts = append(parts, fmt.Sprintf("%s %s", m.FormattedValue, m.ShortLabel))
+			}
+			line("  %-22s %s  (%s)", label+":", band, strings.Join(parts, " · "))
+		}
 		line("  Dimension meaning:")
 		line("    Health:             test-system reliability and signal cleanliness")
 		line("    Coverage depth:     how thoroughly tests cover the source surface")
@@ -119,12 +136,19 @@ func RenderExecutiveSummary(w io.Writer, es *summary.ExecutiveSummary) {
 		blank()
 	}
 
-	// Dominant drivers
+	// Dominant drivers. The summary stores raw signal-type ids (stable
+	// for JSON consumers); the human title from the signals manifest
+	// leads, with the id dimmed after it for `terrain explain <id>`.
 	if len(es.DominantDrivers) > 0 {
 		line("Dominant Drivers")
 		line(uitokens.H2Sep)
 		for _, d := range es.DominantDrivers {
-			line("  %s", d)
+			title := signals.TitleForType(models.SignalType(d))
+			if title == d {
+				line("  %s", d)
+				continue
+			}
+			line("  %s  %s", title, uitokens.Muted(d))
 		}
 		blank()
 	}
@@ -190,4 +214,33 @@ func RenderExecutiveSummary(w io.Writer, es *summary.ExecutiveSummary) {
 	line("  terrain analyze       full signal-level detail")
 	line("  terrain export benchmark   privacy-safe export")
 	blank()
+}
+
+// unmeasuredCopy renders the row-level text for an unmeasured
+// dimension: "not yet measured — needs runtime data", or the plain
+// form when the missing input could not be attributed.
+func unmeasuredCopy(needsInput string) string {
+	if needsInput == "" {
+		return "not yet measured"
+	}
+	return fmt.Sprintf("not yet measured — needs %s", needsInput)
+}
+
+// unmeasuredLine renders the single collapsed line used when every
+// posture dimension is unmeasured, naming each distinct missing input
+// once in row order.
+func unmeasuredLine(dims []summary.DimensionPosture) string {
+	var needs []string
+	seen := map[string]bool{}
+	for _, d := range dims {
+		if d.NeedsInput == "" || seen[d.NeedsInput] {
+			continue
+		}
+		seen[d.NeedsInput] = true
+		needs = append(needs, d.NeedsInput)
+	}
+	if len(needs) == 0 {
+		return "Not yet measured."
+	}
+	return fmt.Sprintf("Not yet measured — needs %s.", strings.Join(needs, " and "))
 }

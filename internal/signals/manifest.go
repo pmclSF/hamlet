@@ -1782,6 +1782,17 @@ func ManifestByType(t models.SignalType) (ManifestEntry, bool) {
 	return ManifestEntry{}, false
 }
 
+// TitleForType returns the manifest Title for a signal type, falling
+// back to the raw type string when no entry exists. User-facing
+// renderers use this so labels read as human names ("Weak Assertion")
+// rather than machine ids ("weakAssertion").
+func TitleForType(t models.SignalType) string {
+	if e, ok := ManifestByType(t); ok && e.Title != "" {
+		return e.Title
+	}
+	return string(t)
+}
+
 // AllSignalTypes returns every signal type currently declared in the manifest.
 func AllSignalTypes() []models.SignalType {
 	out := make([]models.SignalType, len(allSignalManifest))
