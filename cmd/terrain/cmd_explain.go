@@ -351,21 +351,6 @@ func renderFindingExplanation(s models.Signal, id string, snap *models.TestSuite
 		fmt.Println()
 	}
 
-	if exs := explain.CorpusExamplesFor(string(s.Type), 3); len(exs) > 0 {
-		fmt.Println("Real-world examples from public OSS:")
-		for _, e := range exs {
-			loc := e.File
-			if e.Line > 0 {
-				loc += fmt.Sprintf(":%d", e.Line)
-			}
-			if e.Symbol != "" {
-				loc += " :: " + e.Symbol
-			}
-			fmt.Printf("  %s %s %s %s\n", uitokens.GlyphBullet(), e.Repo, uitokens.GlyphDash(), loc)
-		}
-		fmt.Println()
-	}
-
 	fmt.Println("Next steps:")
 	fmt.Printf("  terrain suppress %q --reason \"<why>\"   waive this finding (with a reason)\n", id)
 	if s.RuleURI != "" {
