@@ -97,7 +97,7 @@ if (pin) {
 } else {
   errors.push(
     'scripts/test-release-sanity.mjs: version pin not found ' +
-      '(expected assert.equal(rootPackage.version, \'x.y.z\')); ' +
+      "(expected assert.equal(rootPackage.version, 'x.y.z')); " +
       'update scripts/release-alignment.mjs if the pin moved'
   );
 }
@@ -129,7 +129,9 @@ if (tag) {
 
 // ── Release wiring ──────────────────────────────────────────
 
-const homebrewWorkflow = await readText('.github/workflows/homebrew-update.yml');
+const homebrewWorkflow = await readText(
+  '.github/workflows/homebrew-update.yml'
+);
 if (!/push:\s*\n\s+tags:\s*\n\s+-\s+'v\*'/.test(homebrewWorkflow)) {
   errors.push(
     '.github/workflows/homebrew-update.yml: tag-push trigger ' +
