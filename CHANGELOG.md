@@ -5,6 +5,35 @@ All notable changes to Terrain are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- **AI-surface scans now honor `.gitignore`.** Prompt, schema, model-call-site,
+  and dataset discovery — the no-args report, `analyze`, `fix`, and the AI
+  detectors — no longer walk ignored directories, so vendored or locally
+  generated content can't inflate the map or produce findings in code you
+  don't own. Untracked files that are not ignored are still scanned.
+- **`terrain report summary` reads like a report, not a metrics dump.**
+  Dominant drivers and the recommended focus now use each check's human
+  title (with the rule id alongside, for `terrain explain`), and unmeasured
+  posture rows say what input they need instead of "Unknown".
+- **`terrain --help` now lists every shipped command**, including `scaffold`,
+  `inject`, `suppress`, `describe`, `accept-snapshot`, and `plugins`.
+- **Unrecognized PR slash commands now reply with the verbs that work.**
+  The placeholder `/terrain refresh` and `/terrain escalate` verbs were
+  removed rather than acknowledging and doing nothing.
+- **JSON Schema `$id` URIs now point at their canonical repository URLs**
+  instead of an unregistered domain. Schema content is unchanged.
+
+### Fixed
+
+- **`terrain fix` now rejects rooted fix paths on Windows too.** The
+  path-safety guard that keeps every fix repo-relative relied on
+  `filepath.IsAbs`, which does not treat a leading-slash path like
+  `/etc/passwd` as absolute on Windows, so such a path could slip past the
+  check there. The guard now also rejects Windows volume names and any
+  leading slash or backslash, so rooted paths are refused identically on
+  every OS.
+
 ## [0.4.0] — Trust floor & first-run report
 
 ### Added
